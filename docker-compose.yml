@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: healing-mat-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: healingmat
+      POSTGRES_PASSWORD: healingmat
+      POSTGRES_DB: healingmat
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healingmat -d healingmat"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
