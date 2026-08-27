@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LoginForm } from "@/components/login-form";
+import { RedirectIfSignedIn } from "@/components/redirect-if-signed-in";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -8,6 +9,7 @@ export const metadata: Metadata = {
 export default function AdminLoginPage() {
   return (
     <main className="flex min-h-dvh items-center justify-center px-4 py-8 sm:px-6">
+      <RedirectIfSignedIn />
       <div className="w-full max-w-md rounded-2xl border border-[#e2e5de] bg-white p-6 shadow-sm sm:p-8">
         <p className="text-[11px] font-medium tracking-[0.22em] uppercase text-[#6d8474]">
           The Healing Mat

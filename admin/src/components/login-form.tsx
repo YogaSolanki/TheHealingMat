@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ADMIN_TOKEN_KEY, loginAdmin } from "@/lib/api";
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -10,9 +12,12 @@ const fieldClass =
   "mt-1.5 h-11 w-full rounded-lg border border-[#d9ddd6] bg-white px-3.5 text-base text-[#1f2a24] outline-none transition placeholder:text-[#9aa59a] focus:border-[#243028] focus:ring-2 focus:ring-[#243028]/15 sm:h-12 sm:text-sm";
 
 export function LoginForm() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>(
     {},
   );
@@ -34,9 +39,23 @@ export function LoginForm() {
     return Object.keys(next).length === 0;
   }
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    validate();
+    setFormError(null);
+    if (!validate()) return;
+
+    setSubmitting(true);
+    try {
+      const result = await loginAdmin(email.trim(), password);
+      localStorage.setItem(ADMIN_TOKEN_KEY, result.accessToken);
+      router.push("/dashboard");
+    } catch (error) {
+      setFormError(
+        error instanceof Error ? error.message : "Unable to sign in.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -111,11 +130,16 @@ export function LoginForm() {
         ) : null}
       </div>
 
+      {formError ? (
+        <p className="text-sm text-[#9b3d3d]">{formError}</p>
+      ) : null}
+
       <button
         type="submit"
-        className="mt-2 h-11 w-full rounded-lg bg-[#243028] text-[15px] font-medium tracking-wide text-white transition hover:bg-[#1a241c] sm:h-12"
+        disabled={submitting}
+        className="mt-2 h-11 w-full rounded-lg bg-[#243028] text-[15px] font-medium tracking-wide text-white transition hover:bg-[#1a241c] disabled:opacity-70 sm:h-12"
       >
-        Sign in
+        {submitting ? "Signing in…" : "Sign in"}
       </button>
     </form>
   );

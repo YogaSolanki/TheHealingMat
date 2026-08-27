@@ -13,8 +13,11 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "The Healing Mat Admin",
-  description: "Admin sign in for The Healing Mat.",
+  title: {
+    default: "The Healing Mat Admin",
+    template: "%s · The Healing Mat Admin",
+  },
+  description: "Admin dashboard for The Healing Mat.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
