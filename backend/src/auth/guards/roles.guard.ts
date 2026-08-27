@@ -6,10 +6,13 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Admin } from '../../admins/admin.entity';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { Role } from '../enums/role.enum';
+
+type AuthPrincipal = {
+  role?: string;
+};
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -34,7 +37,9 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<{ user?: Admin }>();
+    const request = context
+      .switchToHttp()
+      .getRequest<{ user?: AuthPrincipal }>();
     const user = request.user;
 
     if (!user) {
@@ -42,7 +47,7 @@ export class RolesGuard implements CanActivate {
     }
 
     if (!requiredRoles.includes(user.role as Role)) {
-      throw new ForbiddenException('Admin access required.');
+      throw new ForbiddenException('Insufficient permissions.');
     }
 
     return true;

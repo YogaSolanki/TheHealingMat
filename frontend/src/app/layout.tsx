@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "The Healing Mat",
-  description: "Restorative wellness, grounded in care.",
+  description: "The Healing Mat",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

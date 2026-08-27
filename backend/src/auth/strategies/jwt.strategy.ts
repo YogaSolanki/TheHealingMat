@@ -5,9 +5,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Repository } from 'typeorm';
 import { Admin } from '../../admins/admin.entity';
+import { User } from '../../users/user.entity';
 
 export type JwtPayload = {
   sub: string;
+  typ?: 'admin' | 'user';
 };
 
 @Injectable()
@@ -16,6 +18,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     config: ConfigService,
     @InjectRepository(Admin)
     private readonly admins: Repository<Admin>,
+    @InjectRepository(User)
+    private readonly users: Repository<User>,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -24,13 +28,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: JwtPayload): Promise<Admin> {
-    const admin = await this.admins.findOne({ where: { id: payload.sub } });
+  async validate(payload: JwtPayload): Promise<Admin | User> {
+    const typ = payload.typ ?? 'admin';
 
+    if (typ === 'user') {
+      const user = await this.users.findOne({ where: { id: payload.sub } });
+      if (!user) {
+        throw new UnauthorizedException('Please sign in.');
+      }
+      return user;
+    }
+
+    const admin = await this.admins.findOne({ where: { id: payload.sub } });
     if (!admin) {
       throw new UnauthorizedException('Please sign in.');
     }
-
     return admin;
   }
 }
