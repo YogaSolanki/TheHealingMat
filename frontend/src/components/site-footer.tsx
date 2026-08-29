@@ -13,7 +13,6 @@ const exploreLinks = [
   { href: "#guides", label: "Health Guides" },
   { href: "#about", label: "About" },
   { href: "#contact", label: "Contact" },
-  { href: "#faq", label: "FAQs" },
 ];
 
 const getStartedLinks = [
@@ -100,7 +99,7 @@ export function SiteFooter() {
                 <Link
                   href={social.href}
                   aria-label={social.label}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#cfd8cf] bg-white text-[#2f7a45] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#2f7a45] hover:bg-[#eef6f0] hover:shadow-md"
+                  className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-[#cfd8cf] bg-white text-[#2f7a45] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#2f7a45] hover:bg-[#eef6f0] hover:shadow-md"
                 >
                   <social.icon className="h-[15px] w-[15px]" />
                 </Link>
@@ -124,7 +123,7 @@ export function SiteFooter() {
             <li>
               <a
                 href="mailto:info@yogaease.yoga"
-                className="inline-flex items-center gap-2 font-medium transition hover:text-[#1f6b3a]"
+                className="inline-flex cursor-pointer items-center gap-2 font-medium transition hover:text-[#1f6b3a]"
               >
                 <HiOutlineMail className="h-4 w-4 shrink-0" />
                 info@yogaease.yoga
@@ -135,7 +134,7 @@ export function SiteFooter() {
                 href="https://wa.me/918000045035"
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-start gap-2 font-medium transition hover:text-[#1f6b3a]"
+                className="inline-flex cursor-pointer items-start gap-2 font-medium transition hover:text-[#1f6b3a]"
               >
                 <FaWhatsapp className="mt-0.5 h-4 w-4 shrink-0" />
                 <span className="leading-snug">
@@ -147,7 +146,7 @@ export function SiteFooter() {
             <li className="inline-flex items-start gap-2 font-medium leading-snug">
               <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0" />
               <span>
-                S1, 6th Floor, Aditya Gold Crest
+                51, 5th Floor, Aditya Gold Crest
                 <br />
                 Vaibhav Khand, Indirapuram
                 <br />

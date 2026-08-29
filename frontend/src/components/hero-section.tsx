@@ -96,7 +96,7 @@ const highlights: { key: string; icon: ReactNode; label: ReactNode }[] = [
       <>
         Affordable
         <br />
-        ( Rs 10 /day)
+        (Rs 10/day)
       </>
     ),
   },
@@ -105,7 +105,7 @@ const highlights: { key: string; icon: ReactNode; label: ReactNode }[] = [
 const trustItems = [
   "No payment details required",
   "Start in under 1 minute",
-  "Hassle free registration",
+  "Hassle-free registration",
 ];
 
 export function HeroSection() {

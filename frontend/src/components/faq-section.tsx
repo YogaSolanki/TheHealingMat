@@ -59,7 +59,7 @@ function FaqItem({
         aria-expanded={open}
         aria-controls={panelId}
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-4 px-1 py-3.5 text-left sm:py-4"
+        className="flex w-full cursor-pointer items-center justify-between gap-4 px-1 py-3.5 text-left sm:py-4"
       >
         <span
           className={`text-[15px] font-bold transition-colors duration-300 sm:text-[16px] lg:text-[17px] ${
