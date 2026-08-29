@@ -146,28 +146,28 @@ const stats: { key: string; value: string; label: ReactNode; icon: ReactNode }[]
 export function FoundersSection() {
   return (
     <section className="w-full bg-white px-4 pt-1.5 pb-0 sm:px-6 lg:px-8 lg:pb-1">
-      <div className="mx-auto w-full max-w-none rounded-[16px] bg-[#FBF9F5] px-6 py-8 sm:px-10 sm:py-10 lg:rounded-[18px] lg:px-12 lg:py-11 xl:px-14">
-        <div className="mx-auto grid w-full max-w-[920px] items-start gap-8 sm:gap-10 lg:grid-cols-[300px_1fr] lg:gap-[64px] xl:grid-cols-[320px_1fr] xl:gap-[80px]">
-          <div className="relative mx-auto w-full max-w-[300px] overflow-hidden rounded-[18px] bg-[#efe8da] lg:mx-0 lg:max-w-none">
-            <div className="relative aspect-[3/4] w-full">
+      <div className="mx-auto w-full max-w-none rounded-[16px] bg-[#FBF9F5] px-5 py-8 sm:px-8 sm:py-9 lg:rounded-[18px] lg:px-12 lg:py-10 xl:px-14">
+        <div className="mx-auto grid w-full max-w-[1140px] items-center gap-7 sm:gap-9 lg:grid-cols-[560px_1fr] lg:gap-14 xl:max-w-[1180px] xl:grid-cols-[580px_1fr] xl:gap-16">
+          <div className="relative mx-auto w-full max-w-[560px] overflow-hidden rounded-[18px] bg-[#efe8da] lg:mx-0 lg:max-w-none">
+            <div className="relative h-[480px] w-full sm:h-[500px] lg:h-[520px]">
               <Image
                 src={founderPhoto}
                 alt="Pradeep Solanki, Founder of The Healing Mat"
                 fill
-                className="object-cover object-[50%_18%]"
-                sizes="(max-width: 1024px) 300px, 320px"
+                className="object-cover object-[50%_20%]"
+                sizes="(max-width: 1024px) 560px, 580px"
                 priority={false}
               />
             </div>
           </div>
 
           <div className="min-w-0">
-            <h2 className="font-serif text-[1.75rem] leading-tight font-bold tracking-tight sm:text-[1.95rem] lg:text-[2.05rem]">
+            <h2 className="font-serif text-[1.75rem] leading-tight font-bold tracking-tight sm:text-[2rem] lg:text-[2.15rem]">
               <span className="text-[#1a3d2a]">Meet the </span>
               <span className="text-[#2f7a45]">Founders</span>
             </h2>
 
-            <h3 className="mt-3 font-serif text-[1.4rem] leading-tight font-bold text-[#1a3d2a] sm:text-[1.55rem] lg:text-[1.65rem]">
+            <h3 className="mt-3 font-serif text-[1.45rem] leading-tight font-bold text-[#1a3d2a] sm:text-[1.6rem] lg:text-[1.7rem]">
               Pradeep Solanki
             </h3>
 
@@ -180,7 +180,7 @@ export function FoundersSection() {
               500&nbsp;&nbsp;|&nbsp;&nbsp;B.Tech&nbsp;&nbsp;|&nbsp;&nbsp;LL.B.
             </p>
 
-            <p className="mt-4 max-w-[430px] text-[13px] leading-[1.55] text-[#5f6f64] sm:mt-5 sm:text-[14px]">
+            <p className="mt-4 text-[13px] leading-[1.6] text-[#5f6f64] sm:mt-5 sm:text-[14px] lg:text-[15px]">
               With 16+ years of experience in yoga and wellness, Pradeep has
               helped individuals and organisations make wellness a practical
               part of everyday life.
@@ -217,7 +217,7 @@ export function FoundersSection() {
           </div>
         </div>
 
-        <ul className="mt-8 grid w-full gap-8 border-t border-[#e2e6df] pt-8 sm:mt-10 sm:grid-cols-2 sm:gap-x-10 sm:gap-y-8 sm:pt-10 lg:mt-10 lg:grid-cols-3 lg:gap-x-0">
+        <ul className="mx-auto mt-8 grid w-full max-w-[1040px] gap-8 border-t border-[#e2e6df] pt-7 sm:mt-9 sm:grid-cols-2 sm:gap-x-10 sm:gap-y-8 sm:pt-8 lg:mt-9 lg:grid-cols-3 lg:gap-x-0">
           {teamMembers.map((member, index) => (
             <li
               key={member.key}

@@ -304,21 +304,21 @@ export function ApproachSection() {
             ))}
           </ul>
 
-          <div className="mt-14 sm:mt-16 lg:mt-[72px]">
+          <div className="mt-12 sm:mt-14 lg:mt-16">
             <h3 className="text-center text-[17px] font-semibold text-[#3d8f55] sm:text-[19px] lg:text-[21px]">
               Support for everyday health goals
             </h3>
 
-            <ul className="mx-auto mt-6 flex max-w-[980px] flex-wrap justify-center gap-x-10 gap-y-4 sm:mt-7 sm:gap-x-5 lg:mt-8 lg:max-w-[1080px] lg:flex-nowrap lg:justify-between lg:gap-x-2">
+            <ul className="mx-auto mt-4 flex max-w-[1280px] flex-wrap items-start justify-center gap-x-8 gap-y-3 sm:mt-5 sm:gap-x-10 lg:mt-5 lg:flex-nowrap lg:gap-x-12 xl:gap-x-14">
               {goals.map((goal) => (
                 <li
                   key={goal.key}
-                  className="flex min-w-[110px] items-start gap-1.5 text-left sm:min-w-0 lg:flex-1 lg:max-w-[120px]"
+                  className="flex items-start gap-1.5 text-left"
                 >
                   <span className="mt-0.5 shrink-0">
                     <GoalCheckIcon />
                   </span>
-                  <span className="text-[11px] leading-snug font-bold text-[#1a3d2a] sm:text-[12px] lg:text-[12.5px]">
+                  <span className="text-[12px] leading-snug font-bold whitespace-nowrap text-[#1a3d2a] sm:text-[12.5px] lg:text-[13px]">
                     {goal.label}
                   </span>
                 </li>
