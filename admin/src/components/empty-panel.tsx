@@ -8,16 +8,16 @@ export function EmptyPanel({
   empty: string;
 }) {
   return (
-    <section className="overflow-hidden rounded-[28px] bg-white shadow-[0_1px_1px_rgba(28,36,30,0.04),0_16px_40px_rgba(28,36,30,0.05)]">
-      <div className="flex flex-col gap-3 border-b border-[#ebe6de] px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+    <section className="overflow-hidden rounded-3xl bg-white shadow-[0_10px_30px_rgba(21,32,25,0.05)]">
+      <div className="flex flex-col gap-3 border-b border-[#e4ebe4] px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
         <input
           type="search"
           placeholder="Search"
-          className="h-11 w-full rounded-full bg-[#f6f3ee] px-4 text-sm outline-none placeholder:text-[#9aa59a] focus:bg-white focus:ring-2 focus:ring-[#c5d4b8] sm:max-w-xs"
+          className="h-11 w-full rounded-full bg-[#f3f5f2] px-4 text-sm outline-none placeholder:text-[#9aa59a] focus:bg-white focus:ring-2 focus:ring-[#c5d4b8] sm:max-w-xs"
         />
         <button
           type="button"
-          className="h-11 rounded-full bg-[#7d9570] px-5 text-sm font-medium text-white hover:bg-[#5f7356]"
+          className="h-11 rounded-full bg-[#3f6b4f] px-5 text-sm font-medium text-white hover:bg-[#345a42]"
         >
           {action}
         </button>
@@ -36,7 +36,7 @@ export function EmptyPanel({
           <tbody>
             <tr>
               <td colSpan={columns.length} className="px-6 py-20 text-center">
-                <p className="font-medium text-[#1c241e]">{empty}</p>
+                <p className="font-medium text-[#152019]">{empty}</p>
                 <p className="mt-1 text-[#6a756c]">
                   Use {action.toLowerCase()} when you are ready to create the
                   first record.

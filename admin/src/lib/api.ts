@@ -69,3 +69,82 @@ export async function getAdminMe(token: string): Promise<PublicAdmin> {
 
   return body as PublicAdmin;
 }
+
+export type DashboardOverview = {
+  stats: {
+    totalUsers: number;
+    indiaUsers: number;
+    outsideUsers: number;
+    trialUsed: number;
+    trials: {
+      scheduled: number;
+      active: number;
+      completedOrExpired: number;
+    };
+  };
+  signupsLast7Days: { date: string; label: string; count: number }[];
+  nextCohort: {
+    id: string;
+    label: string;
+    startsAt: string;
+    endsAt: string;
+    orientationBooked: number;
+    orientationCapacity: number;
+    seatsLeft: number;
+  } | null;
+  recentUsers: AdminUserRow[];
+  recentTrials: {
+    id: string;
+    status: string;
+    registeredAt: string;
+    trialStartsAt: string;
+    trialEndsAt: string;
+    user: {
+      id: string;
+      fullName: string;
+      region: string;
+      mobile: string | null;
+      email: string | null;
+    };
+    cohortLabel: string | null;
+    orientationLabel: string | null;
+  }[];
+};
+
+export type AdminUserRow = {
+  id: string;
+  fullName: string;
+  region: string;
+  mobile: string | null;
+  email: string | null;
+  referralCode: string;
+  hasUsedFreeTrial: boolean;
+  createdAt: string;
+  trial?: {
+    status: string;
+    trialStartsAt: string;
+    trialEndsAt: string;
+    cohortLabel: string | null;
+    orientationLabel: string | null;
+  } | null;
+};
+
+async function authGet<T>(path: string, token: string): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const body = (await response.json().catch(() => ({}))) as ApiErrorBody & T;
+  if (!response.ok) {
+    throw new Error(readErrorMessage(body, "Request failed."));
+  }
+  return body as T;
+}
+
+export function getDashboardOverview(token: string) {
+  return authGet<DashboardOverview>("/admin/dashboard", token);
+}
+
+export function getAdminUsers(token: string) {
+  return authGet<{ users: AdminUserRow[] }>("/admin/users", token);
+}

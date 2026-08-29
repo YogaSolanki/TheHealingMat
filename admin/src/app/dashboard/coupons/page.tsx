@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { EmptyPanel } from "@/components/empty-panel";
 
 export const metadata: Metadata = {
-  title: "Coupon Management",
+  title: "Coupons",
 };
 
 export default function CouponManagementPage() {

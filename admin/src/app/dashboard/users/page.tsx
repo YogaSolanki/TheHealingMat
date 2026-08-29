@@ -1,16 +1,10 @@
 import type { Metadata } from "next";
-import { EmptyPanel } from "@/components/empty-panel";
+import { UsersPanel } from "@/components/users-panel";
 
 export const metadata: Metadata = {
-  title: "User Management",
+  title: "Users",
 };
 
 export default function UserManagementPage() {
-  return (
-    <EmptyPanel
-      action="Add user"
-      columns={["Name", "Email", "Status"]}
-      empty="No users yet"
-    />
-  );
+  return <UsersPanel />;
 }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { EmptyPanel } from "@/components/empty-panel";
 
 export const metadata: Metadata = {
-  title: "Resources Management",
+  title: "Resources",
 };
 
 export default function ResourcesManagementPage() {
