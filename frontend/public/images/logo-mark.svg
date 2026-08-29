@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <circle cx="32" cy="32" r="32" fill="#1B5E34"/>
+  <!-- head -->
+  <circle cx="32" cy="17.5" r="4.8" fill="#E8C84A"/>
+  <!-- torso -->
+  <path d="M32 23.5v15" stroke="#E8C84A" stroke-width="3.6" stroke-linecap="round"/>
+  <!-- raised arms / leaf top -->
+  <path d="M32 27c-8.5-2-14-8.5-15.5-15 8 2.2 13.5 8 15.5 15Z" fill="#B7D46A"/>
+  <path d="M32 27c8.5-2 14-8.5 15.5-15-8 2.2-13.5 8-15.5 15Z" fill="#B7D46A"/>
+  <!-- lower leaves -->
+  <path d="M32 28c-7.5 2.5-13 9-14 15.5 7.2-2.8 12-8.5 14-15.5Z" fill="#9BC44A"/>
+  <path d="M32 28c7.5 2.5 13 9 14 15.5-7.2-2.8-12-8.5-14-15.5Z" fill="#9BC44A"/>
+  <!-- base arc -->
+  <path d="M22.5 45.5c3 3.2 6.6 4.8 9.5 4.8s6.5-1.6 9.5-4.8" stroke="#E8C84A" stroke-width="3.2" stroke-linecap="round"/>
+</svg>

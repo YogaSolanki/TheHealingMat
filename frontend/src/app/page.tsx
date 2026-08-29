@@ -1,9 +1,23 @@
-import { AuthTrialCard } from "@/components/auth-trial-card";
+import { ApproachSection } from "@/components/approach-section";
+import { CtaBannerSection } from "@/components/cta-banner-section";
+import { FaqSection } from "@/components/faq-section";
+import { FoundersSection } from "@/components/founders-section";
+import { HeroSection } from "@/components/hero-section";
+import { SiteHeader } from "@/components/site-header";
+import { TestimonialsSection } from "@/components/testimonials-section";
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#f6f3ee] px-4 py-10">
-      <AuthTrialCard />
-    </main>
+    <>
+      <SiteHeader />
+      <main>
+        <HeroSection />
+        <ApproachSection />
+        <FoundersSection />
+        <TestimonialsSection />
+        <CtaBannerSection />
+        <FaqSection />
+      </main>
+    </>
   );
 }
