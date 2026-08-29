@@ -56,7 +56,7 @@ function FooterLinkColumn({
           <li key={`${title}-${link.label}`}>
             <Link
               href={link.href}
-              className="text-[13px] font-medium text-[#2f7a45] transition hover:text-[#1f6b3a]"
+              className="link-underline text-[13px] font-medium text-[#2f7a45] hover:text-[#1f6b3a]"
             >
               {link.label}
             </Link>
@@ -100,7 +100,7 @@ export function SiteFooter() {
                 <Link
                   href={social.href}
                   aria-label={social.label}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#cfd8cf] bg-white text-[#2f7a45] transition hover:border-[#2f7a45] hover:bg-[#eef6f0]"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#cfd8cf] bg-white text-[#2f7a45] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#2f7a45] hover:bg-[#eef6f0] hover:shadow-md"
                 >
                   <social.icon className="h-[15px] w-[15px]" />
                 </Link>

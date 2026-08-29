@@ -159,7 +159,7 @@ export function CtaBannerSection() {
 
           <Link
             href="/trial"
-            className="mt-7 inline-flex items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-6 py-3 text-[14px] font-bold text-white transition hover:bg-[#185830] sm:mt-8 sm:px-7 sm:py-3.5 sm:text-[15px]"
+            className="btn-primary mt-7 inline-flex items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-6 py-3 text-[14px] font-bold text-white sm:mt-8 sm:px-7 sm:py-3.5 sm:text-[15px]"
           >
             Start Your 14-Day Free Trial
             <span aria-hidden="true">→</span>

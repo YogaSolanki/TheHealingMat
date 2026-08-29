@@ -133,7 +133,7 @@ export function TestimonialsSection() {
             </p>
             <Link
               href="#"
-              className="mt-5 inline-flex items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-5 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#185830] sm:text-[14px]"
+              className="btn-primary mt-5 inline-flex items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-5 py-2.5 text-[13px] font-bold text-white sm:text-[14px]"
             >
               Read More
               <span aria-hidden="true">→</span>

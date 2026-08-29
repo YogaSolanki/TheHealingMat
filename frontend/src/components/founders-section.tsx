@@ -209,7 +209,7 @@ export function FoundersSection() {
 
             <Link
               href="#"
-              className="mt-7 inline-flex items-center gap-1.5 text-[14px] font-bold text-[#2f7a45] transition hover:text-[#1f6b3a] sm:mt-8 sm:text-[15px]"
+              className="link-animate link-underline mt-7 text-[14px] font-bold text-[#2f7a45] sm:mt-8 sm:text-[15px]"
             >
               Know My Story
               <span aria-hidden="true">→</span>
@@ -245,7 +245,7 @@ export function FoundersSection() {
                 </p>
                 <Link
                   href="#"
-                  className="mt-2.5 inline-flex items-center gap-1 text-[13px] font-bold text-[#2f7a45] transition hover:text-[#1f6b3a] sm:text-[14px]"
+                  className="link-animate link-underline mt-2.5 text-[13px] font-bold text-[#2f7a45] sm:text-[14px]"
                 >
                   Know More
                   <span aria-hidden="true">→</span>

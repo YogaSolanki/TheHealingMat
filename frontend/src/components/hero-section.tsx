@@ -151,7 +151,7 @@ export function HeroSection() {
             <div className="relative z-10 mt-7 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:flex-wrap sm:items-center">
               <Link
                 href="/trial"
-                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[16px] px-5 py-3 text-[14px] font-semibold text-white transition hover:brightness-95 sm:px-6 sm:py-3.5 sm:text-[15px] lg:text-[14px] xl:px-7 xl:py-4 xl:text-[16px]"
+                className="btn-primary inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[16px] px-5 py-3 text-[14px] font-semibold text-white sm:px-6 sm:py-3.5 sm:text-[15px] lg:text-[14px] xl:px-7 xl:py-4 xl:text-[16px]"
                 style={{ backgroundColor: "#1f6b3a" }}
               >
                 Start Your 14-Day Free Trial
@@ -159,8 +159,7 @@ export function HeroSection() {
               </Link>
               <button
                 type="button"
-                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[16px] border-[1.5px] border-[#1f6b3a] px-5 py-3 text-[14px] font-semibold text-[#1f6b3a] transition hover:bg-[#eef6f0] sm:px-6 sm:py-3.5 sm:text-[15px] lg:text-[14px] xl:px-7 xl:py-4 xl:text-[16px]"
-                style={{ backgroundColor: "#ffffff" }}
+                className="btn-outline inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[16px] border-[1.5px] border-[#1f6b3a] bg-white px-5 py-3 text-[14px] font-semibold text-[#1f6b3a] sm:px-6 sm:py-3.5 sm:text-[15px] lg:text-[14px] xl:px-7 xl:py-4 xl:text-[16px]"
               >
                 <PlayIcon />
                 Watch Intro Video

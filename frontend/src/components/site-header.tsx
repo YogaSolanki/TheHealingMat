@@ -43,10 +43,10 @@ export function SiteHeader() {
             <Link
               key={link.label}
               href={link.href}
-              className={`relative pb-1 whitespace-nowrap transition-colors lg:text-[13px] xl:text-[15px] ${
+              className={`nav-link pb-1.5 whitespace-nowrap lg:text-[13px] xl:text-[15px] ${
                 link.active
-                  ? "font-semibold text-[#1f6b3a] after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:rounded-full after:bg-[#1f6b3a]"
-                  : "font-medium text-[#2c3a30] hover:text-[#1f6b3a]"
+                  ? "nav-link-active"
+                  : "font-medium text-[#2c3a30]"
               }`}
             >
               {link.label}
@@ -57,7 +57,7 @@ export function SiteHeader() {
         <div className="flex shrink-0 items-center gap-2">
           <Link
             href="/trial"
-            className="hidden items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-3 py-2 text-[12px] font-semibold text-white transition hover:bg-[#185830] lg:inline-flex xl:gap-2 xl:px-4 xl:py-2.5 xl:text-sm"
+            className="btn-primary hidden items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-3 py-2 text-[12px] font-semibold text-white lg:inline-flex xl:gap-2 xl:px-4 xl:py-2.5 xl:text-sm"
           >
             <UserIcon className="h-3.5 w-3.5 xl:h-4 xl:w-4" />
             Member Login
@@ -65,7 +65,7 @@ export function SiteHeader() {
 
           <button
             type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#d7ddd6] text-[#1a3d2a] lg:hidden"
+            className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-[#d7ddd6] text-[#1a3d2a] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#1f6b3a] hover:bg-[#eef6f0] hover:text-[#1f6b3a] lg:hidden"
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
             onClick={() => setOpen((value) => !value)}
@@ -83,9 +83,9 @@ export function SiteHeader() {
                 key={link.label}
                 href={link.href}
                 onClick={() => setOpen(false)}
-                className={`rounded-lg px-3 py-2.5 text-[15px] ${
+                className={`nav-link-mobile rounded-lg px-3 py-2.5 text-[15px] ${
                   link.active
-                    ? "bg-[#eef6f0] font-semibold text-[#1f6b3a]"
+                    ? "bg-[#eef6f0] text-[16px] font-bold text-[#1f6b3a] shadow-sm"
                     : "font-medium text-[#2c3a30]"
                 }`}
               >
@@ -95,7 +95,7 @@ export function SiteHeader() {
             <Link
               href="/trial"
               onClick={() => setOpen(false)}
-              className="mt-1 inline-flex items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-2.5 text-sm font-semibold text-white"
+              className="btn-primary mt-1 inline-flex items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-2.5 text-sm font-semibold text-white"
             >
               <UserIcon className="h-4 w-4" />
               Member Login
