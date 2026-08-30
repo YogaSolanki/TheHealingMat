@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { IconType } from "react-icons";
 import { FaFacebookF, FaLinkedinIn, FaPinterestP, FaWhatsapp, FaYoutube } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
@@ -62,8 +65,15 @@ function FooterLinkColumn({
 }
 
 export function SiteFooter() {
+  const pathname = usePathname();
+  const showTopBorder = pathname === "/corporate/enquiry";
+
   return (
-    <footer className="mt-auto w-full bg-[#FBF9F5]">
+    <footer
+      className={`mt-auto w-full bg-[#FBF9F5] ${
+        showTopBorder ? "border-t border-[#d9e0d4]" : ""
+      }`}
+    >
       <div className="mx-auto grid w-full max-w-[1140px] gap-6 px-4 py-7 sm:px-6 sm:py-8 md:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1.3fr] lg:gap-0 lg:px-8 lg:py-8 xl:px-10">
         <div className="lg:pr-8">
           <Link href="/" className="inline-flex items-start gap-2">

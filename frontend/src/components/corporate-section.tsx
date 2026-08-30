@@ -213,7 +213,7 @@ function HeroBlock() {
           </ul>
 
           <Link
-            href="#corporate-contact"
+            href="/corporate/enquiry"
             className="btn-primary mt-8 inline-flex w-fit items-center gap-2.5 rounded-full bg-[#1f6b3a] px-6 py-3.5 text-[13px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.22)] sm:gap-3 sm:px-7 sm:py-4 sm:text-[14px]"
           >
             <AssetIcon
@@ -433,7 +433,7 @@ function ContactCta() {
             </p>
 
             <Link
-              href="mailto:corporate@thehealingmat.yoga"
+              href="/corporate/enquiry"
               className="btn-primary mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[#1f6b3a] px-5 py-3 text-[13px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.22)] sm:px-6 sm:py-3.5 sm:text-[14px]"
             >
               Discuss Your Corporate Wellness Requirements
