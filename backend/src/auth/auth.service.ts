@@ -37,7 +37,7 @@ export type PublicUser = {
 
 const OTP_TTL_SECONDS = 10 * 60;
 const USER_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30;
-/** bcrypt cost factor — higher = slower brute-force. */
+/** bcrypt cost factor - higher = slower brute-force. */
 const BCRYPT_ROUNDS = 12;
 @Injectable()
 export class AuthService {
@@ -126,7 +126,7 @@ export class AuthService {
       }),
     );
 
-    // V1 stub: no SMS/email provider yet — surface OTP in non-production.
+    // V1 stub: no SMS/email provider yet - surface OTP in non-production.
     const isProd = this.config.get('NODE_ENV') === 'production';
     if (!isProd) {
       console.log(`[OTP] ${channel} → ${destination}: ${code}`);

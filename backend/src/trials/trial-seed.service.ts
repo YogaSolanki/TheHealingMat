@@ -35,9 +35,9 @@ export class TrialSeedService implements OnModuleInit {
     );
 
     const slotTimes = [
-      { label: 'Orientation — Saturday 10:00 IST', dayOffset: 0, hour: 4, minute: 30 },
-      { label: 'Orientation — Sunday 18:00 IST', dayOffset: 1, hour: 12, minute: 30 },
-      { label: 'Orientation — Monday 08:00 IST', dayOffset: 2, hour: 2, minute: 30 },
+      { label: 'Orientation - Saturday 10:00 IST', dayOffset: 0, hour: 4, minute: 30 },
+      { label: 'Orientation - Sunday 18:00 IST', dayOffset: 1, hour: 12, minute: 30 },
+      { label: 'Orientation - Monday 08:00 IST', dayOffset: 2, hour: 2, minute: 30 },
     ];
 
     for (const slot of slotTimes) {

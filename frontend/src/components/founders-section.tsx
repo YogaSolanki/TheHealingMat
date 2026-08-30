@@ -5,6 +5,7 @@ import allAgeIcon from "@/assets/all-age.png";
 import buildingIcon from "@/assets/building.png";
 import founderPhoto from "@/assets/hero2.png";
 import locationIcon from "@/assets/location.png";
+import { AnimatedStatValue } from "@/components/animated-stat-value";
 
 const iconGreen = "#2f7a45";
 
@@ -92,10 +93,15 @@ const teamMembers: {
   },
 ];
 
-const stats: { key: string; value: string; label: ReactNode; icon: ReactNode }[] = [
+const stats: {
+  key: string;
+  target: number;
+  label: ReactNode;
+  icon: ReactNode;
+}[] = [
   {
     key: "sessions",
-    value: "100,000+",
+    target: 100000,
     label: (
       <>
         Wellness
@@ -107,7 +113,7 @@ const stats: { key: string; value: string; label: ReactNode; icon: ReactNode }[]
   },
   {
     key: "orgs",
-    value: "1,000+",
+    target: 1000,
     label: (
       <>
         Organisations
@@ -119,7 +125,7 @@ const stats: { key: string; value: string; label: ReactNode; icon: ReactNode }[]
   },
   {
     key: "cities",
-    value: "100+",
+    target: 100,
     label: (
       <>
         Cities Across
@@ -131,7 +137,7 @@ const stats: { key: string; value: string; label: ReactNode; icon: ReactNode }[]
   },
   {
     key: "years",
-    value: "16+",
+    target: 16,
     label: (
       <>
         Years of
@@ -197,9 +203,10 @@ export function FoundersSection() {
                   } ${index < 3 ? "max-sm:pr-4" : ""} ${index % 2 === 1 ? "max-sm:pl-4" : ""}`}
                 >
                   <span className="text-[#2f7a45]">{stat.icon}</span>
-                  <span className="mt-2 text-[16px] font-bold text-[#1a3d2a] sm:text-[17px]">
-                    {stat.value}
-                  </span>
+                  <AnimatedStatValue
+                    value={stat.target}
+                    className="mt-2 text-[16px] font-bold text-[#1a3d2a] sm:text-[17px]"
+                  />
                   <span className="mt-0.5 text-[11px] leading-snug font-semibold text-[#5f6f64] sm:text-[12px]">
                     {stat.label}
                   </span>

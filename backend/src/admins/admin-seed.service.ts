@@ -21,7 +21,7 @@ export class AdminSeedService implements OnModuleInit {
 
     if (!email || !password) {
       this.logger.warn(
-        'ADMIN_SEED_EMAIL / ADMIN_SEED_PASSWORD not set — skipping admin seed.',
+        'ADMIN_SEED_EMAIL / ADMIN_SEED_PASSWORD not set - skipping admin seed.',
       );
       return;
     }

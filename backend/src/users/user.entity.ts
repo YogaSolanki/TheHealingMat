@@ -28,7 +28,7 @@ export class User {
   @Column()
   fullName: string;
 
-  /** bcrypt hash only — never returned in API responses. */
+  /** bcrypt hash only - never returned in API responses. */
   @Column({ select: false })
   passwordHash: string;
 
