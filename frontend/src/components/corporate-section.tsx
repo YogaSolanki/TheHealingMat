@@ -187,7 +187,7 @@ function HeroBlock() {
               Designed Around Your Organization
             </span>
           </h1>
-          <p className="mt-4 max-w-[520px] text-[14px] leading-relaxed font-bold text-black sm:text-[15px]">
+          <p className="mt-4 max-w-[520px] text-[14px] leading-relaxed font-normal text-[#5f6f64] sm:text-[15px]">
             Give your employees access to simple, expert-led wellness through
             The Healing Mat.
             <br />
