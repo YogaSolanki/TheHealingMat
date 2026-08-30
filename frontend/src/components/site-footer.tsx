@@ -5,10 +5,11 @@ import { FaFacebookF, FaLinkedinIn, FaPinterestP, FaWhatsapp, FaYoutube } from "
 import { FaXTwitter } from "react-icons/fa6";
 import { HiOutlineMail, HiOutlineLocationMarker } from "react-icons/hi";
 import { RiInstagramFill } from "react-icons/ri";
+import omIcon from "@/assets/om.png";
 
 const exploreLinks = [
   { href: "/", label: "Home" },
-  { href: "#membership", label: "Membership" },
+  { href: "/membership", label: "Membership" },
   { href: "#corporate", label: "Corporate Plans" },
   { href: "#guides", label: "Health Guides" },
   { href: "#about", label: "About" },
@@ -17,10 +18,10 @@ const exploreLinks = [
 
 const getStartedLinks = [
   { href: "/trial", label: "Start 14-Day Free Trial" },
-  { href: "#membership", label: "Membership Plans" },
+  { href: "/membership", label: "Membership Plans" },
   { href: "/trial", label: "Member Login" },
   { href: "#refer", label: "Refer & Earn" },
-  { href: "#faq", label: "FAQs" },
+  { href: "/#faq", label: "FAQs" },
 ];
 
 const legalLinks = [
@@ -182,11 +183,11 @@ export function SiteFooter() {
           </ul>
 
           <Image
-            src="/images/logo-mark.png"
+            src={omIcon}
             alt=""
-            width={22}
-            height={22}
-            className="h-[22px] w-[22px] object-contain brightness-0 invert opacity-90"
+            width={28}
+            height={28}
+            className="h-7 w-7 object-contain"
             aria-hidden="true"
           />
         </div>

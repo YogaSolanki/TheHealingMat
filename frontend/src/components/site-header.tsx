@@ -2,22 +2,34 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const navLinks = [
-  { href: "/", label: "Home", active: true },
-  { href: "#membership", label: "Membership" },
+  { href: "/", label: "Home" },
+  { href: "/membership", label: "Membership" },
   { href: "#corporate", label: "Corporate Plans" },
   { href: "#guides", label: "Health Guides" },
   { href: "#about", label: "About" },
   { href: "#contact", label: "Contact" },
 ];
 
+function isActivePath(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  if (href.startsWith("#")) return false;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function SiteHeader() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
   return (
-    <header className="relative z-50 bg-white">
+    <header className="relative z-50 bg-white header-shell">
       <div className="flex h-[68px] w-full items-center justify-between gap-2 px-4 sm:h-[76px] sm:gap-3 sm:px-6 lg:px-6 xl:px-10">
         <Link href="/" className="flex min-w-0 shrink items-center gap-2 sm:gap-2.5">
           <Image
@@ -39,19 +51,20 @@ export function SiteHeader() {
         </Link>
 
         <nav className="hidden items-center gap-3 lg:flex xl:gap-5 2xl:gap-7">
-          {navLinks.map((link) => (
-            <Link
-              key={link.label}
-              href={link.href}
-              className={`nav-link pb-1.5 whitespace-nowrap lg:text-[13px] xl:text-[15px] ${
-                link.active
-                  ? "nav-link-active"
-                  : "font-medium text-[#2c3a30]"
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
+          {navLinks.map((link) => {
+            const active = isActivePath(pathname, link.href);
+            return (
+              <Link
+                key={link.label}
+                href={link.href}
+                className={`nav-link pb-1.5 whitespace-nowrap lg:text-[13px] xl:text-[15px] ${
+                  active ? "nav-link-active" : "font-medium text-[#2c3a30]"
+                }`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -78,20 +91,23 @@ export function SiteHeader() {
       {open ? (
         <div className="border-t border-[#e8ebe4] bg-white lg:hidden">
           <nav className="flex flex-col gap-1 px-4 py-3 sm:px-6">
-            {navLinks.map((link) => (
-              <Link
-                key={link.label}
-                href={link.href}
-                onClick={() => setOpen(false)}
-                className={`nav-link-mobile rounded-lg px-3 py-2.5 text-[15px] ${
-                  link.active
-                    ? "bg-[#eef6f0] text-[16px] font-bold text-[#1f6b3a] shadow-sm"
-                    : "font-medium text-[#2c3a30]"
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              const active = isActivePath(pathname, link.href);
+              return (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  onClick={() => setOpen(false)}
+                  className={`nav-link-mobile rounded-lg px-3 py-2.5 text-[15px] ${
+                    active
+                      ? "bg-[#eef6f0] text-[16px] font-bold text-[#1f6b3a] shadow-sm"
+                      : "font-medium text-[#2c3a30]"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
             <Link
               href="/trial"
               onClick={() => setOpen(false)}

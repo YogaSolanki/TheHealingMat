@@ -5,7 +5,7 @@ import allAgeIcon from "@/assets/all-age.png";
 import calendarIcon from "@/assets/calander-icon.png";
 import bannerBg from "@/assets/home-banner-bg.png";
 import rsIcon from "@/assets/rs.png";
-import tickIcon from "@/assets/tick.png";
+import { TrialTrustRow } from "@/components/trial-trust-row";
 
 const iconGreen = "#2f7a45";
 
@@ -115,12 +115,6 @@ const features: { key: string; icon: ReactNode; label: ReactNode }[] = [
   },
 ];
 
-const trustItems = [
-  "No payment details required",
-  "Start in under 1 minute",
-  "Hassle-free registration",
-];
-
 export function CtaBannerSection() {
   return (
     <section className="w-full bg-white px-4 pt-1.5 pb-0 sm:px-6 lg:px-8 lg:pb-1">
@@ -165,23 +159,7 @@ export function CtaBannerSection() {
             <span aria-hidden="true">→</span>
           </Link>
 
-          <ul className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:mt-6 sm:gap-x-7">
-            {trustItems.map((item) => (
-              <li
-                key={item}
-                className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-black sm:text-[13px]"
-              >
-                <Image
-                  src={tickIcon}
-                  alt=""
-                  aria-hidden="true"
-                  className="h-4 w-4 shrink-0 object-contain sm:h-[18px] sm:w-[18px]"
-                  sizes="18px"
-                />
-                {item}
-              </li>
-            ))}
-          </ul>
+          <TrialTrustRow className="mt-5 sm:mt-6" />
         </div>
       </div>
     </section>
