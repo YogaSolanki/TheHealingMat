@@ -105,7 +105,7 @@ const membershipBenefits: {
   {
     key: "anywhere",
     title: "Join From Anywhere",
-    body: "Practice from home, office or while travelling.",
+    body: "Practise from home, office or while travelling.",
     icon: (
       <Image
         src={anywhereIcon}
@@ -221,10 +221,9 @@ function PlansBlock() {
         <h1 className="mt-2.5 font-serif text-[2.1rem] leading-[1.15] font-bold tracking-tight text-[#1a3d2a] sm:text-[2.55rem] lg:text-[2.85rem]">
           Choose Your Membership
         </h1>
-        <p className="mx-auto mt-3 max-w-[460px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
-          One membership. The same complete experience.
-          <br />
-          Choose the duration that works for you.
+        <p className="mx-auto mt-3 max-w-[520px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
+          One membership. The same complete experience. Choose the duration that
+          works for you.
         </p>
       </div>
 
@@ -376,9 +375,7 @@ function WeekBlock() {
                 Daily Yoga & Wellness Sessions
               </p>
               <p className="mt-1.5 text-[15px] leading-snug text-black sm:text-[16px]">
-                Six sessions every day
-                <br />
-                – choose the timing that suits you.
+                Six sessions every day — choose the timing that suits you.
               </p>
             </div>
           </div>
@@ -458,11 +455,8 @@ function WeekBlock() {
                 Q&amp;A & Guidance
               </p>
               <p className="mt-1.5 text-[15px] leading-snug text-black sm:text-[16px]">
-                A weekly opportunity to ask
-                <br />
-                questions and get guidance
-                <br />
-                from our team.
+                A weekly opportunity to ask questions and get guidance from our
+                team.
               </p>
             </div>
           </div>
@@ -606,7 +600,7 @@ function DailySessionsBlock() {
           Special sessions on specific health and wellness topics are also
           offered from time to time.
           <br className="hidden sm:block" />
-          Topics and schedules may vary and are announced on our member
+          Topics and schedules may vary and are announced on your member
           dashboard.
         </span>
       </p>
