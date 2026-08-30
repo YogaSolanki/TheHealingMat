@@ -78,47 +78,97 @@ export function SiteHeader() {
 
           <button
             type="button"
-            className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-[#d7ddd6] text-[#1a3d2a] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#1f6b3a] hover:bg-[#eef6f0] hover:text-[#1f6b3a] lg:hidden"
+            className="relative z-[100] inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-[#d7ddd6] text-[#1a3d2a] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#1f6b3a] hover:bg-[#eef6f0] hover:text-[#1f6b3a] lg:hidden"
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
-            onClick={() => setOpen((value) => !value)}
+            aria-controls="mobile-nav"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setOpen((value) => !value);
+            }}
           >
-            {open ? <CloseIcon /> : <MenuIcon />}
+            <span className="relative h-5 w-5">
+              <span
+                className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  open
+                    ? "scale-75 rotate-90 opacity-0"
+                    : "scale-100 rotate-0 opacity-100"
+                }`}
+              >
+                <MenuIcon />
+              </span>
+              <span
+                className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  open
+                    ? "scale-100 rotate-0 opacity-100"
+                    : "scale-75 -rotate-90 opacity-0"
+                }`}
+              >
+                <CloseIcon />
+              </span>
+            </span>
           </button>
         </div>
       </div>
 
-      {open ? (
-        <div className="border-t border-[#e8ebe4] bg-white lg:hidden">
-          <nav className="flex flex-col gap-1 px-4 py-3 sm:px-6">
-            {navLinks.map((link) => {
-              const active = isActivePath(pathname, link.href);
-              return (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  className={`nav-link-mobile rounded-lg px-3 py-2.5 text-[15px] ${
-                    active
-                      ? "bg-[#eef6f0] text-[16px] font-bold text-[#1f6b3a] shadow-sm"
-                      : "font-medium text-[#2c3a30]"
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              );
-            })}
-            <Link
-              href="/trial"
-              onClick={() => setOpen(false)}
-              className="btn-primary mt-1 inline-flex items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-2.5 text-sm font-semibold text-white"
-            >
-              <UserIcon className="h-4 w-4" />
-              Member Login
-            </Link>
-          </nav>
+      <div
+        id="mobile-nav"
+        className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:hidden ${
+          open
+            ? "grid-rows-[1fr] opacity-100"
+            : "pointer-events-none grid-rows-[0fr] opacity-0"
+        }`}
+        aria-hidden={!open}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="border-t border-[#e8ebe4] bg-white">
+            <nav className="flex flex-col gap-1 px-4 py-3 sm:px-6">
+              {navLinks.map((link, index) => {
+                const active = isActivePath(pathname, link.href);
+                return (
+                  <Link
+                    key={link.label}
+                    href={link.href}
+                    tabIndex={open ? 0 : -1}
+                    onClick={() => setOpen(false)}
+                    className={`nav-link-mobile rounded-lg px-3 py-2.5 text-[15px] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                      active
+                        ? "bg-[#eef6f0] text-[16px] font-bold text-[#1f6b3a] shadow-sm"
+                        : "font-medium text-[#2c3a30]"
+                    } ${
+                      open
+                        ? "translate-y-0 opacity-100"
+                        : "translate-y-1 opacity-0"
+                    }`}
+                    style={{ transitionDelay: open ? `${60 + index * 35}ms` : "0ms" }}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
+              <Link
+                href="/trial"
+                tabIndex={open ? 0 : -1}
+                onClick={() => setOpen(false)}
+                className={`btn-primary mt-1 inline-flex items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-2.5 text-sm font-semibold text-white transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  open
+                    ? "translate-y-0 opacity-100"
+                    : "translate-y-1 opacity-0"
+                }`}
+                style={{
+                  transitionDelay: open
+                    ? `${60 + navLinks.length * 35}ms`
+                    : "0ms",
+                }}
+              >
+                <UserIcon className="h-4 w-4" />
+                Member Login
+              </Link>
+            </nav>
+          </div>
         </div>
-      ) : null}
+      </div>
     </header>
   );
 }
@@ -144,7 +194,12 @@ function UserIcon({ className }: { className?: string }) {
 
 function MenuIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      className="pointer-events-none h-5 w-5"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M4 7h16M4 12h16M4 17h16"
         stroke="currentColor"
@@ -157,7 +212,12 @@ function MenuIcon() {
 
 function CloseIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      className="pointer-events-none h-5 w-5"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M6 6l12 12M18 6L6 18"
         stroke="currentColor"

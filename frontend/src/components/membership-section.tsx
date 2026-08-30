@@ -308,13 +308,13 @@ function CouponStrip() {
         className="relative flex flex-col items-center gap-3 overflow-visible rounded-[18px] border border-[#e6ebe3] px-5 py-3.5 sm:flex-row sm:justify-between sm:gap-4 sm:px-7 sm:py-4"
         style={{ backgroundColor: cream }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3">
           <Image
             src={tagIcon}
             alt=""
             aria-hidden="true"
-            className="h-10 w-10 shrink-0 object-contain sm:h-11 sm:w-11"
-            sizes="44px"
+            className="mt-0.5 h-8 w-8 shrink-0 object-contain sm:mt-0 sm:h-9 sm:w-9"
+            sizes="36px"
           />
           <div>
             <p className="text-[14px] font-bold text-[#1f6b3a] sm:text-[15px]">
@@ -461,16 +461,18 @@ function WeekBlock() {
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-[18px] border border-[#e8ebe4] bg-white px-4 py-3.5 sm:mt-5 sm:gap-3.5 sm:px-5 sm:py-4">
-            <ChatBubbleIcon className="h-8 w-8 shrink-0 text-[#1f6b3a] sm:h-9 sm:w-9" />
-            {sundaySlots.map((slot) => (
-              <span
-                key={slot}
-                className="rounded-[16px] bg-[#E8F0E4] px-3.5 py-2 text-[13px] font-bold whitespace-nowrap text-[#1a3d2a] sm:px-4 sm:py-2.5 sm:text-[14px]"
-              >
-                {slot}
-              </span>
-            ))}
+          <div className="mt-4 flex items-start gap-3 rounded-[18px] border border-[#e8ebe4] bg-white px-4 py-3.5 sm:mt-5 sm:items-center sm:gap-3.5 sm:px-5 sm:py-4">
+            <ChatBubbleIcon className="mt-0.5 h-8 w-8 shrink-0 text-[#1f6b3a] sm:mt-0 sm:h-9 sm:w-9" />
+            <div className="flex min-w-0 flex-wrap gap-2">
+              {sundaySlots.map((slot) => (
+                <span
+                  key={slot}
+                  className="rounded-[16px] bg-[#E8F0E4] px-3.5 py-2 text-[13px] font-bold whitespace-nowrap text-[#1a3d2a] sm:px-4 sm:py-2.5 sm:text-[14px]"
+                >
+                  {slot}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -616,10 +618,10 @@ function StillNotSureCta() {
         style={{ backgroundColor: cream }}
       >
         <div className="flex flex-col items-center gap-5 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
-          <div className="flex w-full items-center gap-3.5 sm:gap-4 lg:w-auto">
+          <div className="flex w-full items-start gap-3.5 sm:gap-4 lg:w-auto lg:items-center">
             <span
               aria-hidden="true"
-              className="block h-12 w-12 shrink-0 sm:h-14 sm:w-14"
+              className="mt-0.5 block h-10 w-10 shrink-0 sm:mt-0 sm:h-12 sm:w-12 lg:h-14 lg:w-14"
               style={{
                 backgroundColor: "#1f6b3a",
                 WebkitMaskImage: `url(${anytimeIcon.src})`,
@@ -645,10 +647,12 @@ function StillNotSureCta() {
           <div className="flex w-full flex-col items-center gap-3 lg:w-auto">
             <Link
               href="/trial"
-              className="btn-primary inline-flex items-center justify-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-6 py-3 text-[14px] font-bold text-white sm:px-7 sm:py-3.5 sm:text-[15px]"
+              className="btn-primary inline-flex w-auto max-w-full items-center justify-center gap-1.5 self-center rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-center text-[13px] font-bold text-white sm:px-7 sm:py-3.5 sm:text-[15px]"
             >
-              Start Your 14-Day Free Trial
-              <span aria-hidden="true">→</span>
+              <span>Start Your 14-Day Free Trial</span>
+              <span aria-hidden="true" className="shrink-0">
+                →
+              </span>
             </Link>
             <TrialTrustRow
               className="justify-center"
