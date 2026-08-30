@@ -1,0 +1,169 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+
+const navLinks = [
+  { href: "/", label: "Home" },
+  { href: "/membership", label: "Membership" },
+  { href: "/corporate", label: "Corporate Plans" },
+  { href: "#guides", label: "Health Guides" },
+  { href: "#about", label: "About" },
+  { href: "#contact", label: "Contact" },
+];
+
+function isActivePath(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  if (href.startsWith("#")) return false;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function SiteHeader() {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  return (
+    <header className="relative z-50 bg-white header-shell">
+      <div className="flex h-[68px] w-full items-center justify-between gap-2 px-4 sm:h-[76px] sm:gap-3 sm:px-6 lg:px-6 xl:px-10">
+        <Link href="/" className="flex min-w-0 shrink items-center gap-2 sm:gap-2.5">
+          <Image
+            src="/images/logo-mark.png"
+            alt="The Healing Mat"
+            width={44}
+            height={44}
+            className="h-9 w-9 shrink-0 object-contain sm:h-10 sm:w-10 lg:h-11 lg:w-11"
+            priority
+          />
+          <span className="min-w-0 leading-[1.15]">
+            <span className="block truncate text-[15px] font-semibold tracking-tight text-[#1a3d2a] sm:text-[16px] lg:text-[17px] xl:text-[18px]">
+              The Healing Mat
+            </span>
+            <span className="hidden text-[11px] text-[#6b7c6e] sm:block lg:text-[11px] xl:text-[12px]">
+              Health Without Drama
+            </span>
+          </span>
+        </Link>
+
+        <nav className="hidden items-center gap-3 lg:flex xl:gap-5 2xl:gap-7">
+          {navLinks.map((link) => {
+            const active = isActivePath(pathname, link.href);
+            return (
+              <Link
+                key={link.label}
+                href={link.href}
+                className={`nav-link pb-1.5 whitespace-nowrap lg:text-[13px] xl:text-[15px] ${
+                  active ? "nav-link-active" : "font-medium text-[#2c3a30]"
+                }`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <Link
+            href="/trial"
+            className="btn-primary hidden items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-3 py-2 text-[12px] font-semibold text-white lg:inline-flex xl:gap-2 xl:px-4 xl:py-2.5 xl:text-sm"
+          >
+            <UserIcon className="h-3.5 w-3.5 xl:h-4 xl:w-4" />
+            Member Login
+          </Link>
+
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-[#d7ddd6] text-[#1a3d2a] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#1f6b3a] hover:bg-[#eef6f0] hover:text-[#1f6b3a] lg:hidden"
+            aria-label={open ? "Close menu" : "Open menu"}
+            aria-expanded={open}
+            onClick={() => setOpen((value) => !value)}
+          >
+            {open ? <CloseIcon /> : <MenuIcon />}
+          </button>
+        </div>
+      </div>
+
+      {open ? (
+        <div className="border-t border-[#e8ebe4] bg-white lg:hidden">
+          <nav className="flex flex-col gap-1 px-4 py-3 sm:px-6">
+            {navLinks.map((link) => {
+              const active = isActivePath(pathname, link.href);
+              return (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  onClick={() => setOpen(false)}
+                  className={`nav-link-mobile rounded-lg px-3 py-2.5 text-[15px] ${
+                    active
+                      ? "bg-[#eef6f0] text-[16px] font-bold text-[#1f6b3a] shadow-sm"
+                      : "font-medium text-[#2c3a30]"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+            <Link
+              href="/trial"
+              onClick={() => setOpen(false)}
+              className="btn-primary mt-1 inline-flex items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-2.5 text-sm font-semibold text-white"
+            >
+              <UserIcon className="h-4 w-4" />
+              Member Login
+            </Link>
+          </nav>
+        </div>
+      ) : null}
+    </header>
+  );
+}
+
+function UserIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M5.5 19c1.4-3.2 3.8-4.8 6.5-4.8s5.1 1.6 6.5 4.8"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M4 7h16M4 12h16M4 17h16"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+      <path
+        d="M6 6l12 12M18 6L6 18"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}

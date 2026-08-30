@@ -1,42 +1,27 @@
-import { ApiStatus } from "@/components/api-status";
+import type { Metadata } from "next";
+import { LoginForm } from "@/components/login-form";
+import { RedirectIfSignedIn } from "@/components/redirect-if-signed-in";
 
-export default function AdminHome() {
+export const metadata: Metadata = {
+  title: "Sign in",
+};
+
+export default function AdminLoginPage() {
   return (
-    <div className="flex min-h-full bg-[#f3f1ec]">
-      <aside className="flex w-60 flex-col border-r border-[#e2e5de] bg-[#243028] px-5 py-6 text-[#e8eee6]">
-        <p className="text-xs font-medium tracking-[0.22em] uppercase text-[#b7c6b3]">
+    <main className="flex min-h-dvh items-center justify-center px-4 py-8 sm:px-6">
+      <RedirectIfSignedIn />
+      <div className="w-full max-w-md rounded-2xl border border-[#e2e5de] bg-white p-6 shadow-sm sm:p-8">
+        <p className="text-[11px] font-medium tracking-[0.22em] uppercase text-[#6d8474]">
           The Healing Mat
         </p>
-        <p className="mt-1 text-sm text-[#8fa08c]">Admin</p>
-        <nav className="mt-10 text-sm">
-          <span className="block rounded-lg bg-white/10 px-3 py-2">
-            Dashboard
-          </span>
-        </nav>
-      </aside>
-
-      <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-[#e2e5de] bg-white px-8 py-4">
-          <h1 className="text-lg font-medium">Dashboard</h1>
-          <ApiStatus />
-        </header>
-
-        <main className="grid gap-4 p-8 sm:grid-cols-3">
-          {[
-            ["Storefront", "Next.js on :3000"],
-            ["API", "Nest.js on :4000"],
-            ["Database", "PostgreSQL on :5432"],
-          ].map(([title, detail]) => (
-            <section
-              key={title}
-              className="rounded-2xl border border-[#e2e5de] bg-white p-5"
-            >
-              <h2 className="text-sm text-[#6d7a6c]">{title}</h2>
-              <p className="mt-2 text-lg font-medium">{detail}</p>
-            </section>
-          ))}
-        </main>
+        <h1 className="mt-3 font-display text-[2rem] leading-[1.15] tracking-tight text-[#1f2a24] sm:text-[2.125rem]">
+          Welcome back
+        </h1>
+        <p className="mt-2 text-[15px] leading-6 text-[#5c6b5d]">
+          Sign in with your admin email and password.
+        </p>
+        <LoginForm />
       </div>
-    </div>
+    </main>
   );
 }
