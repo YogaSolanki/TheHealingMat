@@ -85,8 +85,9 @@ const planOptions: {
     title: "Company Sponsored",
     body: "The organization purchases memberships for its employees.",
     points: [
-      "Company pays for employee memberships",
+      "Company sponsors the membership",
       "Employees receive full access",
+      "A meaningful employee wellness benefit",
     ],
     icon: (
       <AssetIcon src={buildingIcon} className="h-12 w-12 sm:h-14 sm:w-14" />
@@ -95,10 +96,11 @@ const planOptions: {
   {
     key: "shared",
     title: "Shared Contribution",
-    body: "The organization contributes towards the membership, while employees pay the remaining amount.",
+    body: "The organization contributes towards the membership while employees pay the remaining amount.",
     points: [
       "Flexible cost-sharing model",
-      "Organization and employees share the investment",
+      "Shared investment in employee wellbeing",
+      "Suitable for organizations of all sizes",
     ],
     icon: (
       <AssetIcon src={handsIcon} className="h-12 w-12 sm:h-14 sm:w-14" />
@@ -110,7 +112,8 @@ const planOptions: {
     body: "Employees purchase memberships directly using exclusive corporate pricing.",
     points: [
       "No financial commitment from the organization",
-      "Employees receive special corporate pricing",
+      "Employees enjoy exclusive corporate pricing",
+      "Simple online registration",
     ],
     icon: (
       <AssetIcon src={employeeIcon} className="h-12 w-12 sm:h-14 sm:w-14" />
@@ -129,14 +132,14 @@ const experienceStats: {
   {
     key: "years",
     target: 16,
-    label: "Years of Experience",
+    label: "Years of Corporate Wellness Experience",
     icon: calendarIcon,
     scale: 1,
   },
   {
     key: "sessions",
     target: 10000,
-    label: "Wellness Sessions",
+    label: "Wellness Sessions Conducted",
     icon: yogaMenIcon,
     scale: 1.28,
   },
@@ -176,18 +179,20 @@ function HeroBlock() {
           <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
             Corporate Plans
           </p>
-          <h1 className="mt-3 max-w-[620px] font-serif text-[1.5rem] leading-[1.2] font-bold tracking-tight sm:text-[2.15rem] md:text-[2.4rem] lg:text-[2.65rem]">
-            <span className="block whitespace-nowrap text-[#1a3d2a]">
-              Invest in Everyday Health.
+          <h1 className="mt-3 max-w-[640px] font-serif text-[1.5rem] leading-[1.2] font-bold tracking-tight sm:text-[2.05rem] md:text-[2.25rem] lg:text-[2.45rem]">
+            <span className="block text-[#1a3d2a]">
+              Corporate Wellness,
             </span>
-            <span className="mt-1 block whitespace-nowrap text-black">
-              Not Just One Wellness Event.
+            <span className="mt-1 block text-black">
+              Designed Around Your Organization
             </span>
           </h1>
-          <p className="mt-4 max-w-[480px] text-[14px] leading-relaxed font-bold text-black sm:text-[15px]">
-            Give your employees access to live daily yoga and wellness classes
-            they can attend from home—before work, after work, or whenever it
-            fits their schedule.
+          <p className="mt-4 max-w-[520px] text-[14px] leading-relaxed font-bold text-black sm:text-[15px]">
+            Give your employees access to simple, expert-led wellness through
+            The Healing Mat.
+            <br />
+            Choose a model that works for your organization, and let your
+            employees access their individual memberships with ease.
           </p>
 
           <ul className="mt-7 grid max-w-[520px] grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4 sm:gap-x-3">
@@ -241,11 +246,13 @@ function PlansBlock() {
     <section className="mx-auto w-full max-w-[1440px] px-3 py-10 sm:px-4 sm:py-12 lg:px-5 lg:py-14 xl:px-6">
       <div className="text-center">
         <h2 className="font-serif text-[1.75rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[2rem] lg:text-[2.15rem]">
-          Choose the Corporate Plan That Fits Your Organization
+          Corporate Wellness That Works for Your Organization
         </h2>
-        <p className="mx-auto mt-2.5 max-w-[520px] text-[13px] leading-relaxed font-bold text-black sm:text-[14px]">
-          Flexible ways for organizations to provide The Healing Mat to their
-          employees.
+        <p className="mx-auto mt-2.5 max-w-[720px] text-[13px] leading-relaxed font-bold text-black sm:text-[14px]">
+          Whether you want to fully sponsor memberships, share the cost with
+          employees, or simply make an exclusive wellness benefit available to
+          your team, The Healing Mat offers flexible options to suit your
+          organization.
         </p>
       </div>
 
@@ -327,7 +334,7 @@ function ExperienceBlock() {
   return (
     <section className="w-full bg-[#FBF9F5]">
       <div className="mx-auto w-full max-w-[1440px] px-3 py-8 sm:px-4 sm:py-10 lg:px-5 lg:py-12 xl:px-6">
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
           <div className="shrink-0 lg:max-w-[440px] xl:max-w-[480px]">
             <h2 className="font-serif text-[1.4rem] leading-[1.2] font-bold tracking-tight text-[#1a3d2a] sm:text-[1.75rem] lg:text-[1.85rem]">
               <span className="block sm:whitespace-nowrap">
@@ -337,6 +344,18 @@ function ExperienceBlock() {
                 Corporate Wellness Experience
               </span>
             </h2>
+
+            <div className="mt-4 space-y-3 text-[13px] leading-relaxed text-[#5f6f64] sm:mt-5 sm:text-[14px]">
+              <p>
+                The Healing Mat is founded by the team behind Yoga On Call, a
+                corporate wellness company that has spent over sixteen years
+                helping organizations across India build healthier workplaces.
+              </p>
+              <p>
+                Our experience in corporate wellness helps us understand the
+                needs of organizations and their employees.
+              </p>
+            </div>
           </div>
 
           <ul className="grid flex-1 grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4 sm:gap-x-5 lg:max-w-[720px] lg:gap-x-6">
@@ -360,20 +379,13 @@ function ExperienceBlock() {
                   value={stat.target}
                   className="mt-2 font-serif text-[1.65rem] leading-none font-bold text-[#1a3d2a] sm:text-[1.9rem]"
                 />
-                <p className="mt-1.5 max-w-[110px] text-[11px] leading-snug font-semibold text-[#5f6f64] sm:text-[12px]">
+                <p className="mt-1.5 max-w-[140px] text-[11px] leading-snug font-semibold text-[#5f6f64] sm:text-[12px]">
                   {stat.label}
                 </p>
               </li>
             ))}
           </ul>
         </div>
-
-        <p className="mt-6 max-w-[560px] text-[13px] leading-relaxed text-[#5f6f64] sm:mt-7 sm:text-[14px]">
-          The Healing Mat is founded by the team behind Yoga On Call, with more
-          than 16 years of experience delivering wellness programs for
-          organizations across India. That experience now helps us make
-          expert-led daily wellness more accessible to individuals and families.
-        </p>
       </div>
     </section>
   );
@@ -409,15 +421,15 @@ function ContactCta() {
           </div>
 
           <div className="flex flex-col items-center justify-center px-5 py-7 text-center sm:px-6 sm:py-8 lg:px-8 lg:pr-28 xl:pr-36">
-            <h2 className="font-serif text-[1.2rem] leading-tight font-bold tracking-tight whitespace-nowrap text-[#1a3d2a] sm:text-[1.45rem] lg:text-[1.6rem] xl:text-[1.7rem]">
-              Interested in bringing The Healing Mat to your organization?
+            <h2 className="font-serif text-[1.2rem] leading-tight font-bold tracking-tight text-[#1a3d2a] sm:text-[1.45rem] lg:text-[1.6rem] xl:text-[1.7rem]">
+              Discuss Your Corporate Wellness Requirements
             </h2>
-            <p className="mt-2 text-center text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
-              Tell us about your organization and your requirements.
+            <p className="mt-2 max-w-[560px] text-center text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
+              Tell us about your organization, your employee wellness goals, and
+              what you are looking for.
               <br />
-              We’ll understand your needs and help you find the corporate
-              <br />
-              wellness option that works best for you.
+              Our team will understand your requirements and help you identify
+              the most suitable corporate wellness option for your organization.
             </p>
 
             <Link

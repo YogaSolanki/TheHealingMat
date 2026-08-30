@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { IconType } from "react-icons";
 import { FaFacebookF, FaLinkedinIn, FaPinterestP, FaWhatsapp, FaYoutube } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
-import { HiOutlineMail, HiOutlineLocationMarker } from "react-icons/hi";
+import { HiOutlineMail, HiOutlineLocationMarker, HiOutlinePhone } from "react-icons/hi";
 import { RiInstagramFill } from "react-icons/ri";
 import omIcon from "@/assets/om.png";
 
@@ -14,12 +14,6 @@ const exploreLinks = [
   { href: "#guides", label: "Health Guides" },
   { href: "#about", label: "About" },
   { href: "#contact", label: "Contact" },
-];
-
-const getStartedLinks = [
-  { href: "/trial", label: "Start 14-Day Free Trial" },
-  { href: "/membership", label: "Membership Plans" },
-  { href: "/trial", label: "Member Login" },
   { href: "#refer", label: "Refer & Earn" },
   { href: "/#faq", label: "FAQs" },
 ];
@@ -70,7 +64,7 @@ function FooterLinkColumn({
 export function SiteFooter() {
   return (
     <footer className="mt-auto w-full bg-[#FBF9F5]">
-      <div className="mx-auto grid w-full max-w-[1140px] gap-6 px-4 py-7 sm:px-6 sm:py-8 md:grid-cols-2 lg:grid-cols-[1.2fr_0.9fr_1fr_1.2fr] lg:gap-0 lg:px-8 lg:py-8 xl:px-10">
+      <div className="mx-auto grid w-full max-w-[1140px] gap-6 px-4 py-7 sm:px-6 sm:py-8 md:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1.3fr] lg:gap-0 lg:px-8 lg:py-8 xl:px-10">
         <div className="lg:pr-8">
           <Link href="/" className="inline-flex items-start gap-2">
             <Image
@@ -109,14 +103,11 @@ export function SiteFooter() {
           </ul>
         </div>
 
-        <div className="lg:border-l lg:border-[#dde3d8] lg:px-8">
+        <div className="lg:border-l lg:border-[#dde3d8] lg:px-10">
           <FooterLinkColumn title="Explore" links={exploreLinks} />
         </div>
-        <div className="lg:border-l lg:border-[#dde3d8] lg:px-8">
-          <FooterLinkColumn title="Get Started" links={getStartedLinks} />
-        </div>
 
-        <div className="lg:border-l lg:border-[#dde3d8] lg:pl-8">
+        <div className="lg:border-l lg:border-[#dde3d8] lg:pl-10">
           <h3 className="text-[14px] font-bold text-[#1a3d2a] sm:text-[15px]">
             Contact Us
           </h3>
@@ -132,26 +123,34 @@ export function SiteFooter() {
             </li>
             <li>
               <a
+                href="tel:8000045035"
+                className="inline-flex cursor-pointer items-center gap-2 font-medium transition hover:text-[#1f6b3a]"
+              >
+                <HiOutlinePhone className="h-4 w-4 shrink-0" />
+                80000 45035
+              </a>
+            </li>
+            <li>
+              <a
                 href="https://wa.me/918000045035"
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex cursor-pointer items-start gap-2 font-medium transition hover:text-[#1f6b3a]"
+                className="inline-flex cursor-pointer items-center gap-2 font-medium transition hover:text-[#1f6b3a]"
               >
-                <FaWhatsapp className="mt-0.5 h-4 w-4 shrink-0" />
-                <span className="leading-snug">
-                  <span className="block">WhatsApp Us</span>
-                  <span className="block">80000 45035</span>
-                </span>
+                <FaWhatsapp className="h-4 w-4 shrink-0" />
+                WhatsApp Us
               </a>
             </li>
             <li className="inline-flex items-start gap-2 font-medium leading-snug">
               <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0" />
               <span>
-                51, 5th Floor, Aditya Gold Crest
+                51, 5th Floor
+                <br />
+                Aditya Gold Crest
                 <br />
                 Vaibhav Khand, Indirapuram
                 <br />
-                Ghaziabad – 201010
+                Ghaziabad 201010
               </span>
             </li>
           </ul>
