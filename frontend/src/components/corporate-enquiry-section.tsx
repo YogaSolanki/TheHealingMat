@@ -96,7 +96,7 @@ function HeroBlock() {
     <>
       <section className="w-full overflow-hidden">
         <div className="grid w-full items-center lg:grid-cols-2">
-          <div className="flex flex-col items-center justify-center px-4 py-10 text-center sm:px-6 sm:py-12 lg:items-start lg:py-14 lg:pl-[max(1.5rem,calc((100vw-1440px)/2+1.5rem))] lg:pr-8 lg:text-left xl:pr-10">
+          <div className="flex flex-col items-center justify-center px-4 py-10 text-center sm:px-6 sm:py-12 lg:items-start lg:px-8 lg:py-14 lg:text-left xl:px-10">
             <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
               Corporate Enquiry
             </p>

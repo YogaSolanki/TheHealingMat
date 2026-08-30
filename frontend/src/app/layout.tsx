@@ -27,12 +27,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${dmSans.variable} ${fraunces.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-[#FBF9F5] text-[#243028]">
-        <SiteHeader />
-        <div className="flex-1">
-          <PageTransition>{children}</PageTransition>
+      <body className="flex min-h-full flex-col items-center bg-white text-[#243028]">
+        <div className="site-shell flex min-h-full w-full flex-1 flex-col bg-[#FBF9F5]">
+          <SiteHeader />
+          <div className="flex-1">
+            <PageTransition>{children}</PageTransition>
+          </div>
+          <SiteFooter />
         </div>
-        <SiteFooter />
       </body>
     </html>
   );
