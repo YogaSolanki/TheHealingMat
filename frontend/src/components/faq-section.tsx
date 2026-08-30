@@ -247,13 +247,11 @@ const faqs: {
 ];
 
 function FaqItem({
-  number,
   question,
   answer,
   open,
   onToggle,
 }: {
-  number: string;
   question: string;
   answer: ReactNode;
   open: boolean;
@@ -272,28 +270,17 @@ function FaqItem({
         onClick={onToggle}
         className="flex w-full cursor-pointer items-center justify-between gap-4 px-1 py-3.5 text-left sm:py-4"
       >
-        <span className="flex min-w-0 items-start gap-2.5 sm:gap-3">
-          <span
-            className={`shrink-0 text-[13px] font-bold sm:text-[14px] ${
-              open ? "text-[#1f6b3a]" : "text-[#8a968c]"
-            }`}
-          >
-            {number}.
-          </span>
-          <span
-            className={`text-[15px] font-bold transition-colors duration-300 sm:text-[16px] lg:text-[17px] ${
-              open ? "text-[#1f6b3a]" : "text-[#2f7a45]"
-            }`}
-          >
-            {question}
-          </span>
+        <span
+          className={`text-[15px] font-bold transition-colors duration-300 sm:text-[16px] lg:text-[17px] ${
+            open ? "text-[#1f6b3a]" : "text-[#2f7a45]"
+          }`}
+        >
+          {question}
         </span>
         <span
           aria-hidden="true"
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[18px] font-bold transition-all duration-300 sm:h-9 sm:w-9 sm:text-[20px] ${
-            open
-              ? "rotate-90 border-[#1f6b3a] bg-[#1f6b3a] text-white shadow-sm"
-              : "border-[#d7ddd6] bg-white text-black"
+          className={`shrink-0 text-[22px] font-normal leading-none text-[#2f7a45] transition-transform duration-300 sm:text-[24px] ${
+            open ? "rotate-90 text-[#1f6b3a]" : ""
           }`}
         >
           ›
@@ -309,7 +296,7 @@ function FaqItem({
         }`}
       >
         <div className="min-h-0">
-          <div className="space-y-2.5 px-1 pb-4 pl-8 text-[13px] leading-relaxed text-[#5f6f64] sm:pb-5 sm:pl-9 sm:text-[14px]">
+          <div className="space-y-2.5 px-1 pb-4 text-[13px] leading-relaxed text-[#5f6f64] sm:pb-5 sm:text-[14px]">
             {answer}
           </div>
         </div>
@@ -318,9 +305,65 @@ function FaqItem({
   );
 }
 
+const PREVIEW_COUNT = 6;
+
+function FaqColumns({
+  items,
+  startIndex,
+  openIndex,
+  onToggle,
+}: {
+  items: typeof faqs;
+  startIndex: number;
+  openIndex: number | null;
+  onToggle: (index: number) => void;
+}) {
+  const midpoint = Math.ceil(items.length / 2);
+
+  return (
+    <div className="grid gap-x-10 lg:grid-cols-2 lg:gap-x-16 xl:gap-x-20">
+      <div className="bg-white px-1">
+        {items.slice(0, midpoint).map((item, index) => {
+          const absoluteIndex = startIndex + index;
+          return (
+            <FaqItem
+              key={item.question}
+              question={item.question}
+              answer={item.answer}
+              open={openIndex === absoluteIndex}
+              onToggle={() => onToggle(absoluteIndex)}
+            />
+          );
+        })}
+      </div>
+      <div className="bg-white px-1">
+        {items.slice(midpoint).map((item, index) => {
+          const absoluteIndex = startIndex + midpoint + index;
+          return (
+            <FaqItem
+              key={item.question}
+              question={item.question}
+              answer={item.answer}
+              open={openIndex === absoluteIndex}
+              onToggle={() => onToggle(absoluteIndex)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function FaqSection() {
-  const [openIndex, setOpenIndex] = useState<number | null>(0);
-  const midpoint = Math.ceil(faqs.length / 2);
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [showAll, setShowAll] = useState(false);
+
+  const previewFaqs = faqs.slice(0, PREVIEW_COUNT);
+  const extraFaqs = faqs.slice(PREVIEW_COUNT);
+
+  function toggleFaq(index: number) {
+    setOpenIndex((current) => (current === index ? null : index));
+  }
 
   return (
     <section
@@ -351,40 +394,49 @@ export function FaqSection() {
         </ul>
       </div>
 
-      <div className="mx-auto mt-7 grid max-w-[1200px] gap-x-10 gap-y-0 sm:mt-8 lg:mt-9 lg:grid-cols-2 lg:gap-x-16 xl:gap-x-20">
-        <div className="bg-white px-1">
-          {faqs.slice(0, midpoint).map((item, index) => (
-            <FaqItem
-              key={item.question}
-              number={item.number}
-              question={item.question}
-              answer={item.answer}
-              open={openIndex === index}
-              onToggle={() =>
-                setOpenIndex((current) => (current === index ? null : index))
-              }
-            />
-          ))}
-        </div>
-        <div className="bg-white px-1">
-          {faqs.slice(midpoint).map((item, index) => {
-            const absoluteIndex = index + midpoint;
-            return (
-              <FaqItem
-                key={item.question}
-                number={item.number}
-                question={item.question}
-                answer={item.answer}
-                open={openIndex === absoluteIndex}
-                onToggle={() =>
-                  setOpenIndex((current) =>
-                    current === absoluteIndex ? null : absoluteIndex,
-                  )
-                }
+      <div className="mx-auto mt-7 max-w-[1200px] sm:mt-8 lg:mt-9">
+        <FaqColumns
+          items={previewFaqs}
+          startIndex={0}
+          openIndex={openIndex}
+          onToggle={toggleFaq}
+        />
+
+        <div
+          className={`grid overflow-hidden transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            showAll ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          }`}
+          aria-hidden={!showAll}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div
+              className={`transition-opacity duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                showAll ? "opacity-100 delay-75" : "opacity-0"
+              }`}
+              inert={showAll ? undefined : true}
+            >
+              <FaqColumns
+                items={extraFaqs}
+                startIndex={PREVIEW_COUNT}
+                openIndex={openIndex}
+                onToggle={toggleFaq}
               />
-            );
-          })}
+            </div>
+          </div>
         </div>
+      </div>
+
+      <div className="mt-6 text-center sm:mt-7">
+        <button
+          type="button"
+          onClick={() => {
+            setShowAll((current) => !current);
+            setOpenIndex(null);
+          }}
+          className="link-animate link-underline cursor-pointer text-[15px] font-bold text-[#2f7a45] sm:text-[16px]"
+        >
+          {showAll ? "Show Fewer FAQs" : "Explore Our Complete FAQ"}
+        </button>
       </div>
 
       <div className="mx-auto mt-10 max-w-[640px] rounded-[22px] border border-[#ebe6dc] bg-[#FBF9F5] px-5 py-7 text-center sm:mt-12 sm:px-8 sm:py-8">
@@ -400,10 +452,9 @@ export function FaqSection() {
         </p>
         <Link
           href="#contact"
-          className="btn-primary mt-5 inline-flex items-center gap-2 rounded-full bg-[#1f6b3a] px-6 py-3 text-[13px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.22)] sm:text-[14px]"
+          className="btn-primary mt-5 inline-flex items-center justify-center rounded-full bg-[#1f6b3a] px-6 py-3 text-[13px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.22)] sm:text-[14px]"
         >
           Contact Us
-          <span aria-hidden="true">→</span>
         </Link>
       </div>
     </section>

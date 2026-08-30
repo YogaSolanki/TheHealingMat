@@ -74,8 +74,8 @@ export function SiteFooter() {
         showTopBorder ? "border-t border-[#d9e0d4]" : ""
       }`}
     >
-      <div className="mx-auto grid w-full max-w-[1140px] gap-6 px-4 py-7 sm:px-6 sm:py-8 md:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1.3fr] lg:gap-0 lg:px-8 lg:py-8 xl:px-10">
-        <div className="lg:pr-8">
+      <div className="mx-auto grid w-full max-w-[1140px] gap-8 px-5 py-8 sm:px-6 sm:py-8 lg:grid-cols-[1.3fr_1fr_1.3fr] lg:gap-0 lg:px-8 lg:py-8 xl:px-10">
+        <div className="flex flex-col items-center text-center lg:items-start lg:pr-8 lg:text-left">
           <Link href="/" className="inline-flex items-start gap-2">
             <Image
               src="/images/logo-mark.png"
@@ -84,7 +84,7 @@ export function SiteFooter() {
               height={42}
               className="h-10 w-10 object-contain sm:h-11 sm:w-11"
             />
-            <span className="leading-[1.15]">
+            <span className="leading-[1.15] text-left">
               <span className="block font-serif text-[1.1rem] font-bold tracking-tight text-[#1a3d2a] sm:text-[1.2rem]">
                 The Healing Mat
               </span>
@@ -94,11 +94,11 @@ export function SiteFooter() {
             </span>
           </Link>
 
-          <p className="mt-2.5 max-w-[230px] text-[12px] leading-snug text-[#5f6f64] sm:text-[13px]">
+          <p className="mt-2.5 max-w-[260px] text-[12px] leading-snug text-[#5f6f64] sm:text-[13px]">
             Helping you build healthier habits through simple daily guidance.
           </p>
 
-          <ul className="mt-3.5 flex flex-wrap items-center gap-2">
+          <ul className="mt-3.5 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
             {socialLinks.map((social) => (
               <li key={social.key}>
                 <Link
@@ -113,71 +113,76 @@ export function SiteFooter() {
           </ul>
         </div>
 
-        <div className="lg:border-l lg:border-[#dde3d8] lg:px-10">
-          <FooterLinkColumn title="Explore" links={exploreLinks} />
-        </div>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:gap-x-8 lg:contents">
+          <div className="lg:border-l lg:border-[#dde3d8] lg:px-10">
+            <FooterLinkColumn title="Explore" links={exploreLinks} />
+          </div>
 
-        <div className="lg:border-l lg:border-[#dde3d8] lg:pl-10">
-          <h3 className="text-[14px] font-bold text-[#1a3d2a] sm:text-[15px]">
-            Contact Us
-          </h3>
-          <ul className="mt-2 space-y-2 text-[13px] text-[#2f7a45]">
-            <li>
-              <a
-                href="mailto:info@yogaease.yoga"
-                className="inline-flex cursor-pointer items-center gap-2 font-medium transition hover:text-[#1f6b3a]"
-              >
-                <HiOutlineMail className="h-4 w-4 shrink-0" />
-                info@yogaease.yoga
-              </a>
-            </li>
-            <li>
-              <a
-                href="tel:8000045035"
-                className="inline-flex cursor-pointer items-center gap-2 font-medium transition hover:text-[#1f6b3a]"
-              >
-                <HiOutlinePhone className="h-4 w-4 shrink-0" />
-                80000 45035
-              </a>
-            </li>
-            <li>
-              <a
-                href="https://wa.me/918000045035"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex cursor-pointer items-center gap-2 font-medium transition hover:text-[#1f6b3a]"
-              >
-                <FaWhatsapp className="h-4 w-4 shrink-0" />
-                WhatsApp Us
-              </a>
-            </li>
-            <li className="inline-flex items-start gap-2 font-medium leading-snug">
-              <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>
-                51, 5th Floor
-                <br />
-                Aditya Gold Crest
-                <br />
-                Vaibhav Khand, Indirapuram
-                <br />
-                Ghaziabad 201010
-              </span>
-            </li>
-          </ul>
+          <div className="lg:border-l lg:border-[#dde3d8] lg:pl-10">
+            <h3 className="text-[14px] font-bold text-[#1a3d2a] sm:text-[15px]">
+              Contact Us
+            </h3>
+            <ul className="mt-2 space-y-2 text-[12px] text-[#2f7a45] sm:text-[13px]">
+              <li>
+                <a
+                  href="mailto:info@yogaease.yoga"
+                  className="inline-flex cursor-pointer items-start gap-2 font-medium transition hover:text-[#1f6b3a] sm:items-center"
+                >
+                  <HiOutlineMail className="mt-0.5 h-4 w-4 shrink-0 sm:mt-0" />
+                  <span className="break-words">info@yogaease.yoga</span>
+                </a>
+              </li>
+              <li>
+                <a
+                  href="tel:8000045035"
+                  className="inline-flex cursor-pointer items-center gap-2 font-medium transition hover:text-[#1f6b3a]"
+                >
+                  <HiOutlinePhone className="h-4 w-4 shrink-0" />
+                  80000 45035
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://wa.me/918000045035"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex cursor-pointer items-center gap-2 font-medium transition hover:text-[#1f6b3a]"
+                >
+                  <FaWhatsapp className="h-4 w-4 shrink-0" />
+                  WhatsApp Us
+                </a>
+              </li>
+              <li className="inline-flex items-start gap-2 font-medium leading-snug">
+                <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  51, 5th Floor
+                  <br />
+                  Aditya Gold Crest
+                  <br />
+                  Vaibhav Khand, Indirapuram
+                  <br />
+                  Ghaziabad 201010
+                </span>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
 
       <div className="border-t border-[#d9e0d4] bg-[#1a3d2a]">
-        <div className="mx-auto flex w-full max-w-[1140px] flex-col gap-2 px-4 py-2.5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:px-8 xl:px-10">
+        <div className="mx-auto flex w-full max-w-[1140px] flex-col items-center gap-3 px-5 py-4 text-center sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:px-8 lg:py-3 lg:text-left xl:px-10">
           <p className="text-[12px] text-[#d7e2d8]">
             © {new Date().getFullYear()} The Healing Mat. All Rights Reserved.
           </p>
 
-          <ul className="flex flex-wrap items-center gap-x-1 gap-y-1 text-[12px]">
+          <ul className="flex max-w-[340px] flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-[12px] sm:max-w-none lg:gap-x-0">
             {legalLinks.map((link, index) => (
               <li key={link.label} className="inline-flex items-center">
                 {index > 0 ? (
-                  <span className="mx-1.5 text-[#8aa38f]" aria-hidden="true">
+                  <span
+                    className="mx-1.5 hidden text-[#8aa38f] lg:inline"
+                    aria-hidden="true"
+                  >
                     |
                   </span>
                 ) : null}

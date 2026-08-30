@@ -175,55 +175,57 @@ function HeroBlock() {
   return (
     <section className="w-full overflow-hidden" style={{ backgroundColor: cream }}>
       <div className="grid w-full items-stretch lg:grid-cols-2">
-        <div className="flex flex-col justify-center px-4 py-10 sm:px-6 sm:py-12 lg:py-14 lg:pl-[max(2rem,calc((100vw-1440px)/2+2rem))] lg:pr-8 xl:pr-10">
-          <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
-            Corporate Plans
-          </p>
-          <h1 className="mt-3 max-w-[640px] font-serif text-[1.5rem] leading-[1.2] font-bold tracking-tight sm:text-[2.05rem] md:text-[2.25rem] lg:text-[2.45rem]">
-            <span className="block text-[#1a3d2a]">
-              Corporate Wellness,
-            </span>
-            <span className="mt-1 block text-black">
-              Designed Around Your Organization
-            </span>
-          </h1>
-          <p className="mt-4 max-w-[520px] text-[14px] leading-relaxed font-bold text-black sm:text-[15px]">
-            Give your employees access to simple, expert-led wellness through
-            The Healing Mat.
-            <br />
-            Choose a model that works for your organization, and let your
-            employees access their individual memberships with ease.
-          </p>
+        <div className="flex items-center justify-center px-4 py-10 sm:px-6 sm:py-12 lg:px-8 lg:py-14 xl:px-10">
+          <div className="flex w-full max-w-[560px] flex-col">
+            <p className="text-left text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
+              Corporate Plans
+            </p>
+            <h1 className="mt-3 text-left font-serif text-[1.5rem] leading-[1.2] font-bold tracking-tight sm:text-[2.05rem] md:text-[2.25rem] lg:text-[2.45rem]">
+              <span className="block text-[#1a3d2a]">
+                Corporate Wellness,
+              </span>
+              <span className="mt-1 block text-black">
+                Designed Around Your Organization
+              </span>
+            </h1>
+            <p className="mt-4 text-left text-[14px] leading-relaxed font-normal text-[#5f6f64] sm:text-[15px]">
+              Give your employees access to simple, expert-led wellness through
+              The Healing Mat.
+              <br />
+              Choose a model that works for your organization, and let your
+              employees access their individual memberships with ease.
+            </p>
 
-          <ul className="mt-7 grid max-w-[520px] grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4 sm:gap-x-3">
-            {heroHighlights.map((item) => (
-              <li key={item.key} className="flex flex-col items-start">
-                <span className="inline-flex h-14 w-14 items-center justify-center text-[#1f6b3a] sm:h-16 sm:w-16">
-                  <AssetIcon
-                    src={item.icon}
-                    className="h-11 w-11 sm:h-12 sm:w-12"
-                    color={green}
-                  />
-                </span>
-                <span className="mt-2.5 text-[12px] leading-snug font-bold text-[#1a3d2a] sm:text-[13px]">
-                  {item.label}
-                </span>
-              </li>
-            ))}
-          </ul>
+            <ul className="mt-7 grid w-full grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4 sm:gap-x-3">
+              {heroHighlights.map((item) => (
+                <li key={item.key} className="flex flex-col items-center text-center">
+                  <span className="inline-flex h-14 w-14 items-center justify-center text-[#1f6b3a] sm:h-16 sm:w-16">
+                    <AssetIcon
+                      src={item.icon}
+                      className="h-11 w-11 sm:h-12 sm:w-12"
+                      color={green}
+                    />
+                  </span>
+                  <span className="mt-2.5 text-[12px] leading-snug font-bold text-[#1a3d2a] sm:text-[13px]">
+                    {item.label}
+                  </span>
+                </li>
+              ))}
+            </ul>
 
-          <Link
-            href="/corporate/enquiry"
-            className="btn-primary mt-8 inline-flex w-fit items-center gap-2.5 rounded-full bg-[#1f6b3a] px-6 py-3.5 text-[13px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.22)] sm:gap-3 sm:px-7 sm:py-4 sm:text-[14px]"
-          >
-            <AssetIcon
-              src={requirementIcon}
-              className="h-5 w-5 shrink-0 sm:h-6 sm:w-6"
-              color="#ffffff"
-            />
-            Discuss Your Corporate Wellness Requirements
-            <span aria-hidden="true">→</span>
-          </Link>
+            <Link
+              href="/corporate/enquiry"
+              className="btn-primary mx-auto mt-8 inline-flex w-fit items-center gap-2.5 rounded-full bg-[#1f6b3a] px-6 py-3.5 text-[13px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.22)] sm:gap-3 sm:px-7 sm:py-4 sm:text-[14px]"
+            >
+              <AssetIcon
+                src={requirementIcon}
+                className="h-5 w-5 shrink-0 sm:h-6 sm:w-6"
+                color="#ffffff"
+              />
+              Discuss Your Corporate Wellness Requirements
+              <span aria-hidden="true">→</span>
+            </Link>
+          </div>
         </div>
 
         <div className="relative min-h-[280px] w-full sm:min-h-[360px] lg:min-h-full">
@@ -334,7 +336,7 @@ function ExperienceBlock() {
   return (
     <section className="w-full bg-[#FBF9F5]">
       <div className="mx-auto w-full max-w-[1440px] px-3 py-8 sm:px-4 sm:py-10 lg:px-5 lg:py-12 xl:px-6">
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
           <div className="shrink-0 lg:max-w-[440px] xl:max-w-[480px]">
             <h2 className="font-serif text-[1.4rem] leading-[1.2] font-bold tracking-tight text-[#1a3d2a] sm:text-[1.75rem] lg:text-[1.85rem]">
               <span className="block sm:whitespace-nowrap">

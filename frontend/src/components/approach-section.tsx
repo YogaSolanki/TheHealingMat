@@ -309,7 +309,7 @@ export function ApproachSection() {
               Support for everyday health goals
             </h3>
 
-            <ul className="mx-auto mt-4 flex max-w-[1280px] flex-wrap items-start justify-center gap-x-8 gap-y-3 sm:mt-5 sm:gap-x-10 lg:mt-5 lg:flex-nowrap lg:gap-x-12 xl:gap-x-14">
+            <ul className="mx-auto mt-4 grid w-full max-w-[300px] grid-cols-2 gap-x-5 gap-y-3.5 sm:mt-5 sm:max-w-[640px] sm:grid-cols-4 sm:gap-x-6 sm:gap-y-4 lg:mt-5 lg:flex lg:max-w-[1280px] lg:flex-nowrap lg:items-start lg:justify-center lg:gap-x-12 xl:gap-x-14">
               {goals.map((goal) => (
                 <li
                   key={goal.key}
@@ -318,7 +318,7 @@ export function ApproachSection() {
                   <span className="mt-0.5 shrink-0">
                     <GoalCheckIcon />
                   </span>
-                  <span className="text-[12px] leading-snug font-bold whitespace-nowrap text-[#1a3d2a] sm:text-[12.5px] lg:text-[13px]">
+                  <span className="text-[12px] leading-snug font-bold text-[#1a3d2a] sm:text-[12.5px] lg:whitespace-nowrap lg:text-[13px]">
                     {goal.label}
                   </span>
                 </li>

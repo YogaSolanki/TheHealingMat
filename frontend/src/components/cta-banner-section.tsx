@@ -118,14 +118,19 @@ const features: { key: string; icon: ReactNode; label: ReactNode }[] = [
 export function CtaBannerSection() {
   return (
     <section className="w-full bg-white px-4 pt-1.5 pb-0 sm:px-6 lg:px-8 lg:pb-1">
-      <div className="relative mx-auto w-full max-w-none overflow-hidden rounded-[16px] lg:rounded-[18px]">
+      <div className="relative mx-auto w-full max-w-none overflow-hidden rounded-[16px] bg-[#FBF9F5] lg:rounded-[18px]">
         <Image
           src={bannerBg}
           alt=""
           fill
           priority={false}
-          className="object-cover object-center"
+          className="object-cover object-[50%_18%] sm:object-[50%_30%] lg:object-center"
           sizes="100vw"
+        />
+        {/* Keep cream wash over the wood floor so mobile content stays on the soft panel */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#FBF9F5]/35 via-[#FBF9F5]/55 to-[#FBF9F5]/92 sm:from-[#FBF9F5]/20 sm:via-[#FBF9F5]/35 sm:to-[#FBF9F5]/75 lg:from-transparent lg:via-[#FBF9F5]/15 lg:to-[#FBF9F5]/45"
         />
 
         <div className="relative z-10 flex flex-col items-center px-5 py-10 text-center sm:px-8 sm:py-12 lg:px-12 lg:py-14 xl:py-16">
@@ -137,14 +142,14 @@ export function CtaBannerSection() {
             everyday life.
           </p>
 
-          <ul className="mt-7 flex w-full max-w-[920px] flex-wrap items-start justify-center gap-x-5 gap-y-5 sm:mt-8 sm:gap-x-7 lg:mt-9 lg:gap-x-9">
+          <ul className="mt-7 grid w-full max-w-[920px] grid-cols-2 gap-x-4 gap-y-5 sm:mt-8 sm:gap-x-7 sm:gap-y-6 md:grid-cols-4 lg:mt-9 lg:gap-x-9">
             {features.map((feature) => (
               <li
                 key={feature.key}
-                className="flex min-w-[155px] flex-col items-center sm:min-w-[170px]"
+                className="flex flex-col items-center"
               >
                 <span className="text-[#2f7a45]">{feature.icon}</span>
-                <span className="mt-2.5 text-[13px] leading-snug font-bold whitespace-nowrap text-black sm:text-[14px]">
+                <span className="mt-2.5 text-[12px] leading-snug font-bold text-black sm:text-[14px] sm:whitespace-nowrap">
                   {feature.label}
                 </span>
               </li>

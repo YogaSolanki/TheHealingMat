@@ -2,6 +2,9 @@
 
 :root {
   --background: #ffffff;
+  --site-background: #fbf9f5;
+  /* Cap only above MacBook Pro 16" default CSS width (~1728px) */
+  --site-max-width: 1728px;
   --foreground: #243028;
   --brand-green: #1f6b3a;
   --brand-green-dark: #1a3d2a;
@@ -16,10 +19,30 @@
   --font-serif: var(--font-fraunces);
 }
 
+html {
+  background: var(--background);
+  overscroll-behavior: none;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-dm-sans), Arial, Helvetica, sans-serif;
+  overscroll-behavior: none;
+}
+
+/* Full-bleed through MacBook large; white side gutters only above that */
+.site-shell {
+  width: 100%;
+  max-width: none;
+  min-height: 100%;
+  background: var(--site-background);
+}
+
+@media (min-width: 1729px) {
+  .site-shell {
+    max-width: var(--site-max-width);
+  }
 }
 
 /* Shared interactive motion */
