@@ -175,7 +175,7 @@ function HeroBlock() {
   return (
     <section className="w-full overflow-hidden" style={{ backgroundColor: cream }}>
       <div className="grid w-full items-stretch lg:grid-cols-2">
-        <div className="flex items-center justify-center px-4 py-10 sm:px-6 sm:py-12 lg:px-8 lg:py-14 xl:px-10">
+        <div className="order-2 flex items-center justify-center px-4 py-10 sm:px-6 sm:py-12 lg:order-1 lg:px-8 lg:py-14 xl:px-10">
           <div className="flex w-full max-w-[560px] flex-col">
             <p className="text-left text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
               Corporate Plans
@@ -228,7 +228,7 @@ function HeroBlock() {
           </div>
         </div>
 
-        <div className="relative min-h-[280px] w-full sm:min-h-[360px] lg:min-h-full">
+        <div className="relative order-1 aspect-[5/4] w-full sm:aspect-[16/11] lg:order-2 lg:aspect-auto lg:min-h-full">
           <Image
             src={corporateImage}
             alt="Corporate wellness handshake meeting"
