@@ -86,6 +86,7 @@ export function CorporateEnquirySection() {
       <HeroBlock />
       <FormBlock />
       <PartnerBlock />
+      <ContactBand />
     </div>
   );
 }
@@ -104,7 +105,7 @@ function HeroBlock() {
               <br className="hidden sm:block" /> Health to Your Employees.
             </h1>
             <p className="mt-3 text-[15px] font-semibold text-[#1f6b3a] sm:text-[16px]">
-              Healthier employees. Happier workplaces.
+              Healthier Employees. Happier Workplaces.
             </p>
             <p className="mt-3 max-w-[460px] text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
               Offer your employees simple, affordable and guided wellness they
@@ -147,12 +148,17 @@ function HeroBlock() {
                 </span>
                 <div className="min-w-0">
                   <h2 className="text-[14px] leading-snug font-bold text-[#1a3d2a] sm:text-[15px]">
-                    Backed by 16+ years of corporate wellness experience
+                    Backed by 16+ Years of Corporate Wellness Experience
                   </h2>
-                  <p className="mt-1 max-w-[540px] text-[12px] leading-relaxed text-[#5f6f64] sm:text-[13px]">
+                  <p className="mt-1 max-w-[560px] text-[12px] leading-relaxed text-[#5f6f64] sm:text-[13px]">
                     The team behind The Healing Mat has delivered 10,000+
                     corporate wellness sessions to 10,000+ organisations across
                     100+ cities in India.
+                  </p>
+                  <p className="mt-1.5 max-w-[560px] text-[12px] leading-relaxed text-[#5f6f64] sm:text-[13px]">
+                    That experience has taught us what people and organisations
+                    really need — wellness that is practical, accessible and
+                    easy to make part of everyday life.
                   </p>
                 </div>
               </div>
@@ -196,6 +202,16 @@ function FormBlock() {
   return (
     <section className="w-full">
       <div className="mx-auto w-full max-w-[1440px] px-3 pt-2 pb-10 sm:px-4 sm:pt-3 sm:pb-12 lg:px-5 lg:pt-4 lg:pb-14 xl:px-6">
+        <div className="mx-auto mb-6 max-w-[720px] text-center sm:mb-7">
+          <h2 className="font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-[#1a3d2a] sm:text-[1.85rem] lg:text-[2rem]">
+            Tell Us How We Can Help
+          </h2>
+          <p className="mt-2 text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
+            We’d love to understand your organisation and explore how The
+            Healing Mat can support your employees.
+          </p>
+        </div>
+
         <div className="grid w-full overflow-hidden rounded-[24px] border border-[#ebe6dc] bg-white shadow-[0_18px_50px_rgba(26,61,42,0.12)] lg:grid-cols-[2fr_3fr]">
           <div
             className="relative flex flex-col items-center justify-center overflow-hidden px-4 py-10 text-center sm:px-5 lg:min-h-full lg:px-6 lg:py-12"
@@ -261,6 +277,52 @@ function PartnerBlock() {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+function ContactBand() {
+  return (
+    <section className="w-full">
+      <div className="mx-auto flex w-full max-w-[1440px] flex-col items-center gap-5 px-4 py-10 text-center sm:px-6 sm:py-12 lg:flex-row lg:items-center lg:justify-between lg:px-8 lg:text-left xl:px-10">
+        <div className="max-w-[560px]">
+          <h2 className="font-serif text-[1.45rem] leading-tight font-bold tracking-tight text-[#1a3d2a] sm:text-[1.75rem]">
+            Let’s Make Workplace Wellness Simpler.
+          </h2>
+          <p className="mt-2 text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
+            Good health should be easier for your employees to practise —
+            wherever they are.
+          </p>
+        </div>
+
+        <div className="rounded-[18px] border border-[#ebe6dc] bg-white px-5 py-4 text-left sm:px-6">
+          <p className="text-[13px] font-bold text-[#1a3d2a] sm:text-[14px]">
+            Get in Touch
+          </p>
+          <ul className="mt-2 space-y-1.5 text-[13px] text-[#1f6b3a] sm:text-[14px]">
+            <li>
+              <span className="font-semibold text-[#5f6f64]">
+                Corporate Enquiries:{" "}
+              </span>
+              <a
+                href="tel:+919899588060"
+                className="font-semibold transition hover:text-[#16532c]"
+              >
+                +91 98995 88060
+              </a>
+            </li>
+            <li>
+              <span className="font-semibold text-[#5f6f64]">Email: </span>
+              <a
+                href="mailto:corporate@thehealingmat.yoga"
+                className="font-semibold transition hover:text-[#16532c]"
+              >
+                corporate@thehealingmat.yoga
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
     </section>
   );
 }
