@@ -167,14 +167,14 @@ export function HeroSection() {
               </button>
             </div>
 
-            <ul className="hero-trust-row mt-6 flex w-full min-w-0 flex-nowrap items-center justify-center gap-x-1 sm:mt-9 sm:flex-wrap sm:gap-x-3 sm:gap-y-2 lg:flex-nowrap lg:justify-start lg:gap-x-0">
+            <ul className="hero-trust-row mt-6 flex w-full min-w-0 flex-col items-center gap-y-2 sm:mt-9 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-3 sm:gap-y-2 lg:flex-nowrap lg:justify-start lg:gap-x-0">
               {trustItems.map((item, index) => (
                 <li
                   key={item}
                   className={[
-                    "inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[7.5px] font-bold text-[#4a5a4f] min-[380px]:gap-1 min-[380px]:text-[9px] sm:gap-1.5 sm:text-[12px] lg:text-[11px] xl:text-[12px] 2xl:text-[13px]",
+                    "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[12px] font-bold text-[#4a5a4f] sm:text-[12px] lg:text-[11px] xl:text-[12px] 2xl:text-[13px]",
                     index > 0
-                      ? "border-l border-[#cfd6cf] pl-1 min-[380px]:pl-1.5 sm:pl-3 lg:pl-2 lg:ml-2 xl:pl-2.5 xl:ml-2.5"
+                      ? "sm:border-l sm:border-[#cfd6cf] sm:pl-3 lg:pl-2 lg:ml-2 xl:pl-2.5 xl:ml-2.5"
                       : "",
                   ]
                     .filter(Boolean)

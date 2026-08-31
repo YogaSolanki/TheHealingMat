@@ -12,7 +12,7 @@ const navLinks = [
   { href: "/corporate", label: "Corporate Plans" },
   { href: "#guides", label: "Health Guides" },
   { href: "/about", label: "About" },
-  { href: "#contact", label: "Contact" },
+  { href: "/contact", label: "Contact" },
 ];
 
 function isActivePath(pathname: string, href: string) {
