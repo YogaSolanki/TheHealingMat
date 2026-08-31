@@ -49,32 +49,6 @@ function GoogleMark({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
-/** Soft-circle meditation mark used on the Free Trial popup (matches design). */
-function TrialHeroMark() {
-  return (
-    <span className="mx-auto inline-flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#EAF3EC]">
-      <svg
-        viewBox="0 0 48 48"
-        className="h-9 w-9 text-[#1f6b3a]"
-        fill="currentColor"
-        aria-hidden="true"
-      >
-        {/* Head */}
-        <circle cx="24" cy="11.5" r="5" />
-        {/* Torso + crossed legs (lotus) */}
-        <path d="M24 18.2c-4.8 0-8.4 2.4-9.8 5.8-.4.9.3 1.9 1.3 1.9h17c1 0 1.7-1 1.3-1.9C32.4 20.6 28.8 18.2 24 18.2Z" />
-        <path d="M14.2 27.5c-1.5 2.2-2.4 4.8-2.6 7.6-.1 1 .7 1.8 1.7 1.8h5.2c.7 0 1.3-.5 1.4-1.2.4-2.1 1.4-3.8 2.8-5.1-3.2-.2-6-.1-8.5-3.1Z" />
-        <path d="M33.8 27.5c1.5 2.2 2.4 4.8 2.6 7.6.1 1-.7 1.8-1.7 1.8h-5.2c-.7 0-1.3-.5-1.4-1.2-.4-2.1-1.4-3.8-2.8-5.1 3.2-.2 6-.1 8.5-3.1Z" />
-        {/* Arms resting on knees */}
-        <path d="M16.5 26.2c-2.4 1.8-3.8 4.4-4.2 7.2-.1.7.4 1.3 1.1 1.3h2.2c.5 0 1-.4 1.1-.9.3-1.7 1.1-3.2 2.2-4.4-1-.8-1.8-1.8-2.4-3.2Z" />
-        <path d="M31.5 26.2c2.4 1.8 3.8 4.4 4.2 7.2.1.7-.4 1.3-1.1 1.3h-2.2c-.5 0-1-.4-1.1-.9-.3-1.7-1.1-3.2-2.2-4.4 1-.8 1.8-1.8 2.4-3.2Z" />
-        {/* Base cushion hint */}
-        <ellipse cx="24" cy="38.8" rx="11" ry="2.2" opacity="0.35" />
-      </svg>
-    </span>
-  );
-}
-
 function FieldUserIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
@@ -193,18 +167,34 @@ function formatCountdown(totalSeconds: number) {
 
 function IndiaFlag() {
   return (
-    <span
+    <svg
+      viewBox="0 0 21 15"
+      className="h-4 w-[21px] shrink-0 overflow-hidden rounded-[2px] border border-[#e5e8e3]"
       aria-hidden="true"
-      className="inline-flex h-4 w-5 overflow-hidden rounded-[2px] border border-[#e5e8e3]"
+      xmlns="http://www.w3.org/2000/svg"
     >
-      <span className="flex h-full w-full flex-col">
-        <span className="h-1/3 bg-[#FF9933]" />
-        <span className="flex h-1/3 items-center justify-center bg-white">
-          <span className="h-1.5 w-1.5 rounded-full border border-[#000080]" />
-        </span>
-        <span className="h-1/3 bg-[#138808]" />
-      </span>
-    </span>
+      <rect width="21" height="5" y="0" fill="#FF9933" />
+      <rect width="21" height="5" y="5" fill="#FFFFFF" />
+      <rect width="21" height="5" y="10" fill="#138808" />
+      <circle cx="10.5" cy="7.5" r="2.15" fill="none" stroke="#000080" strokeWidth="0.55" />
+      <circle cx="10.5" cy="7.5" r="0.28" fill="#000080" />
+      {Array.from({ length: 24 }, (_, i) => {
+        const angle = (i * 15 * Math.PI) / 180;
+        const x2 = 10.5 + Math.cos(angle) * 2;
+        const y2 = 7.5 + Math.sin(angle) * 2;
+        return (
+          <line
+            key={i}
+            x1="10.5"
+            y1="7.5"
+            x2={x2}
+            y2={y2}
+            stroke="#000080"
+            strokeWidth="0.28"
+          />
+        );
+      })}
+    </svg>
   );
 }
 
@@ -703,8 +693,8 @@ export function AuthTrialCard({
     "w-full rounded-xl border border-[#d7e0d6] bg-white px-3.5 py-2.5 text-sm text-[#1f6b3a] outline-none transition focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
   const labelClass = "mb-1.5 block text-sm font-medium text-[#3d4a3c]";
   const primaryBtnClass = isTrialUi
-    ? "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-[#1f6b3a] px-4 py-3.5 text-[15px] font-bold text-white shadow-[0_10px_24px_rgba(31,107,58,0.22)] transition hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-60"
-    : "w-full cursor-pointer rounded-xl bg-[#1f6b3a] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-60";
+    ? "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-3.5 text-[15px] font-bold text-white shadow-[0_10px_24px_rgba(31,107,58,0.22)] transition hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-60"
+    : "w-full cursor-pointer rounded-[16px] bg-[#1f6b3a] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-60";
   const textBtnClass =
     "w-full cursor-pointer text-sm font-medium text-[#6d8474] transition hover:text-[#1f6b3a]";
   const showModeTabs =
@@ -712,10 +702,8 @@ export function AuthTrialCard({
 
   return (
     <div
-      className={`relative w-full rounded-[28px] border border-[#e6ebe3] bg-white shadow-[0_24px_60px_rgba(31,107,58,0.16)] ${
-        isTrialUi
-          ? "max-w-[420px] px-5 pt-5 pb-6 sm:px-7 sm:pt-6 sm:pb-7"
-          : "max-w-xl p-6 sm:p-7"
+      className={`relative w-full max-w-xl rounded-[28px] border border-[#e6ebe3] bg-white shadow-[0_24px_60px_rgba(31,107,58,0.16)] ${
+        isTrialUi ? "px-5 pt-5 pb-6 sm:px-7 sm:pt-6 sm:pb-7" : "p-6 sm:p-7"
       }`}
     >
       {isTrialUi && step === "otp" ? (
@@ -742,7 +730,7 @@ export function AuthTrialCard({
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute top-3.5 right-3.5 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-[#6d8474] transition hover:bg-[#eef2ee] hover:text-[#1f6b3a]"
+          className="absolute top-3 right-3 z-20 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-[#6d8474] transition hover:bg-[#eef2ee] hover:text-[#1f6b3a] sm:top-3.5 sm:right-3.5"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
             <path
@@ -756,7 +744,11 @@ export function AuthTrialCard({
       ) : null}
 
       {showModeTabs ? (
-        <div className="relative mt-5 grid grid-cols-2 rounded-xl bg-[#f3f6f2] p-1">
+        <div
+          className={`relative grid grid-cols-2 rounded-xl bg-[#f3f6f2] p-1 ${
+            onClose ? "mt-11 sm:mt-12" : "mt-5"
+          }`}
+        >
           <span
             aria-hidden="true"
             className={`auth-mode-pill absolute inset-y-1 w-[calc(50%-4px)] rounded-lg bg-[#1f6b3a] shadow-sm ${
@@ -795,47 +787,34 @@ export function AuthTrialCard({
       ) : null}
 
       <div key={`${mode}-${step}`} className="auth-mode-content">
-      {isTrialUi ? (
-        <div className={`text-center ${showModeTabs ? "mt-5" : "mt-2"}`}>
-          <TrialHeroMark />
-          <h2 className="mt-4 font-serif text-[1.65rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.85rem]">
-            {step === "otp" ? (
-              region === "india" ? (
-                <>
-                  Verify Your
-                  <br />
-                  Mobile Number
-                </>
-              ) : (
-                <>
-                  Verify Your
-                  <br />
-                  Email Address
-                </>
-              )
+      {isTrialUi && step === "otp" ? (
+        <div className="mt-2 text-center">
+          <h2 className="font-serif text-[1.65rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.85rem]">
+            {region === "india" ? (
+              <>
+                Verify Your
+                <br />
+                Mobile Number
+              </>
             ) : (
               <>
-                14 Days of
+                Verify Your
                 <br />
-                Free Yoga Classes
+                Email Address
               </>
             )}
           </h2>
           <p className="mx-auto mt-2.5 max-w-[300px] text-[13px] leading-relaxed text-[#6d8474] sm:text-[14px]">
-            {step === "otp" ? (
-              <>
-                We&apos;ve sent a {OTP_LENGTH}-digit OTP to
-                <br />
-                <span className="font-semibold text-[#1f6b3a]">
-                  {displayMobileForOtp()}
-                </span>
-              </>
-            ) : (
-              "Start your journey to better health and well-being."
-            )}
+            We&apos;ve sent a {OTP_LENGTH}-digit OTP to
+            <br />
+            <span className="font-semibold text-[#1f6b3a]">
+              {displayMobileForOtp()}
+            </span>
           </p>
         </div>
-      ) : (
+      ) : null}
+
+      {!isTrialUi ? (
         <>
           <h2 className="mt-4 pr-8 font-serif text-[1.55rem] leading-tight font-bold text-[#1f6b3a] sm:text-[1.7rem]">
             {mode === "forgot"
@@ -852,7 +831,7 @@ export function AuthTrialCard({
               : "Sign in to continue your wellness practice."}
           </p>
         </>
-      )}
+      ) : null}
 
       {step === "identity" ? (
         <form
@@ -900,20 +879,6 @@ export function AuthTrialCard({
                     <span className="text-sm font-semibold text-[#1f6b3a]">
                       +91
                     </span>
-                    <svg
-                      viewBox="0 0 20 20"
-                      className="h-3.5 w-3.5 text-[#8a968c]"
-                      fill="none"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M5 7.5L10 12.5L15 7.5"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
                   </div>
                   <input
                     required
@@ -1005,13 +970,6 @@ export function AuthTrialCard({
             )}
           </button>
 
-          {mode === "signup" ? (
-            <p className="flex items-center justify-center gap-1.5 text-[12px] text-[#8a968c]">
-              <FieldShieldIcon />
-              No payment details required
-            </p>
-          ) : null}
-
           {mode === "login" || mode === "signup" ? (
             <div className="space-y-3 pt-1">
               <div className="flex items-center gap-3">
@@ -1024,12 +982,19 @@ export function AuthTrialCard({
               <button
                 type="button"
                 onClick={continueWithGoogle}
-                className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-full border border-[#d7e0d6] bg-white px-3 py-2.5 text-sm font-semibold text-[#1f6b3a] transition hover:border-[#b7cbb8] hover:bg-[#f7faf7]"
+                className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-[16px] border border-[#d7e0d6] bg-white px-3 py-2.5 text-sm font-semibold text-[#1f6b3a] transition hover:border-[#b7cbb8] hover:bg-[#f7faf7]"
               >
                 <GoogleMark />
                 Continue with Google
               </button>
             </div>
+          ) : null}
+
+          {mode === "signup" ? (
+            <p className="flex items-center justify-center gap-1.5 pt-1 text-[12px] text-[#8a968c]">
+              <FieldShieldIcon />
+              No payment details required
+            </p>
           ) : null}
 
           {mode === "forgot" ? (
