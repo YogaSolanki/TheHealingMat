@@ -88,7 +88,7 @@ export function TestimonialsSection() {
     <section className="w-full bg-white px-4 pt-1.5 pb-0 sm:px-6 lg:px-8 lg:pb-1">
       <div className="mx-auto w-full max-w-none rounded-[16px] bg-[#FBF9F5] px-5 py-9 sm:px-8 sm:py-11 lg:rounded-[18px] lg:px-10 lg:py-12 xl:px-12">
         <div className="mx-auto max-w-[720px] text-center">
-          <h2 className="font-serif text-[1.75rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[2rem] lg:text-[2.15rem]">
+          <h2 className="font-serif text-[1.75rem] leading-tight font-bold tracking-tight text-black sm:text-[2rem] lg:text-[2.15rem]">
             What People Say
           </h2>
           <p className="mt-2 text-[13px] text-[#6b7a70] sm:text-[14px] lg:text-[15px]">

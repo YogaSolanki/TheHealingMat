@@ -55,7 +55,7 @@ export function AuthLoginModal({
         className="absolute inset-0 bg-black/25 backdrop-blur-[1px]"
         onClick={onClose}
       />
-      <div className="auth-modal-panel relative z-10 w-full max-w-xl">
+      <div className="auth-modal-panel relative z-10 flex w-full max-w-xl justify-center">
         <AuthTrialCard
           key={`${initialMode}-${open}-${initialError ?? ""}`}
           initialMode={initialMode}

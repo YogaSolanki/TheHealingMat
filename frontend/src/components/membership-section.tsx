@@ -339,7 +339,7 @@ function CouponStrip() {
 function WeekBlock() {
   return (
     <section className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 sm:py-6 lg:px-6 xl:px-8">
-      <h2 className="text-center font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.85rem]">
+      <h2 className="text-center font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-black sm:text-[1.85rem]">
         Your Week at The Healing Mat
       </h2>
 
@@ -479,7 +479,7 @@ function WeekBlock() {
 function BenefitsBlock() {
   return (
     <section className="mx-auto w-full max-w-[1440px] px-4 py-4 sm:px-6 sm:py-5 lg:px-6 xl:px-8">
-      <h2 className="text-center font-serif text-[1.45rem] font-bold tracking-tight text-[#1f6b3a] sm:text-[1.7rem]">
+      <h2 className="text-center font-serif text-[1.45rem] font-bold tracking-tight text-black sm:text-[1.7rem]">
         What You Get With Every Membership
       </h2>
 
@@ -555,7 +555,7 @@ function OrientationBanner() {
 function DailySessionsBlock() {
   return (
     <section className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 sm:py-6 lg:px-6 xl:px-8">
-      <h2 className="text-center font-serif text-[1.45rem] font-bold tracking-tight text-[#1f6b3a] sm:text-[1.7rem]">
+      <h2 className="text-center font-serif text-[1.45rem] font-bold tracking-tight text-black sm:text-[1.7rem]">
         What Happens in Your Daily Sessions?
       </h2>
 

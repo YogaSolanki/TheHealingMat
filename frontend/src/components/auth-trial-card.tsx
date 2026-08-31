@@ -49,6 +49,165 @@ function GoogleMark({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
+/** Soft-circle meditation mark used on the Free Trial popup (matches design). */
+function TrialHeroMark() {
+  return (
+    <span className="mx-auto inline-flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#EAF3EC]">
+      <svg
+        viewBox="0 0 48 48"
+        className="h-9 w-9 text-[#1f6b3a]"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        {/* Head */}
+        <circle cx="24" cy="11.5" r="5" />
+        {/* Torso + crossed legs (lotus) */}
+        <path d="M24 18.2c-4.8 0-8.4 2.4-9.8 5.8-.4.9.3 1.9 1.3 1.9h17c1 0 1.7-1 1.3-1.9C32.4 20.6 28.8 18.2 24 18.2Z" />
+        <path d="M14.2 27.5c-1.5 2.2-2.4 4.8-2.6 7.6-.1 1 .7 1.8 1.7 1.8h5.2c.7 0 1.3-.5 1.4-1.2.4-2.1 1.4-3.8 2.8-5.1-3.2-.2-6-.1-8.5-3.1Z" />
+        <path d="M33.8 27.5c1.5 2.2 2.4 4.8 2.6 7.6.1 1-.7 1.8-1.7 1.8h-5.2c-.7 0-1.3-.5-1.4-1.2-.4-2.1-1.4-3.8-2.8-5.1 3.2-.2 6-.1 8.5-3.1Z" />
+        {/* Arms resting on knees */}
+        <path d="M16.5 26.2c-2.4 1.8-3.8 4.4-4.2 7.2-.1.7.4 1.3 1.1 1.3h2.2c.5 0 1-.4 1.1-.9.3-1.7 1.1-3.2 2.2-4.4-1-.8-1.8-1.8-2.4-3.2Z" />
+        <path d="M31.5 26.2c2.4 1.8 3.8 4.4 4.2 7.2.1.7-.4 1.3-1.1 1.3h-2.2c-.5 0-1-.4-1.1-.9-.3-1.7-1.1-3.2-2.2-4.4 1-.8 1.8-1.8 2.4-3.2Z" />
+        {/* Base cushion hint */}
+        <ellipse cx="24" cy="38.8" rx="11" ry="2.2" opacity="0.35" />
+      </svg>
+    </span>
+  );
+}
+
+function FieldUserIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-3.7 0-7 1.8-7 4v.5h14V18c0-2.2-3.3-4-7-4Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function FieldShieldIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+      <path
+        d="M12 3.5 5.5 6.2v5.3c0 4.1 2.7 7.8 6.5 9 3.8-1.2 6.5-4.9 6.5-9V6.2L12 3.5Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10 12.2 11.4 13.6 14.3 10.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+const OTP_LENGTH = 6;
+
+function OtpDigitInputs({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  disabled?: boolean;
+}) {
+  const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
+  const digits = Array.from({ length: OTP_LENGTH }, (_, i) => value[i] ?? "");
+
+  function setDigit(index: number, raw: string) {
+    const clean = raw.replace(/\D/g, "");
+    if (!clean) {
+      const next = digits.map((d, i) => (i === index ? "" : d)).join("");
+      onChange(next);
+      return;
+    }
+
+    // Support paste of full code into any box
+    if (clean.length > 1) {
+      const clipped = clean.slice(0, OTP_LENGTH);
+      onChange(clipped);
+      const focusAt = Math.min(clipped.length, OTP_LENGTH - 1);
+      inputsRef.current[focusAt]?.focus();
+      return;
+    }
+
+    const nextDigits = [...digits];
+    nextDigits[index] = clean;
+    onChange(nextDigits.join(""));
+    if (index < OTP_LENGTH - 1) inputsRef.current[index + 1]?.focus();
+  }
+
+  function onKeyDown(index: number, event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Backspace" && !digits[index] && index > 0) {
+      inputsRef.current[index - 1]?.focus();
+    }
+    if (event.key === "ArrowLeft" && index > 0) {
+      event.preventDefault();
+      inputsRef.current[index - 1]?.focus();
+    }
+    if (event.key === "ArrowRight" && index < OTP_LENGTH - 1) {
+      event.preventDefault();
+      inputsRef.current[index + 1]?.focus();
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-2.5 sm:gap-3">
+      {digits.map((digit, index) => (
+        <input
+          key={index}
+          ref={(el) => {
+            inputsRef.current[index] = el;
+          }}
+          type="text"
+          inputMode="numeric"
+          autoComplete={index === 0 ? "one-time-code" : "off"}
+          maxLength={OTP_LENGTH}
+          disabled={disabled}
+          value={digit}
+          aria-label={`OTP digit ${index + 1}`}
+          onChange={(e) => setDigit(index, e.target.value)}
+          onKeyDown={(e) => onKeyDown(index, e)}
+          onFocus={(e) => e.target.select()}
+          className="h-12 w-11 rounded-xl border border-[#d7e0d6] bg-white text-center text-lg font-semibold text-[#1f6b3a] outline-none transition focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 sm:h-14 sm:w-12"
+        />
+      ))}
+    </div>
+  );
+}
+
+function formatCountdown(totalSeconds: number) {
+  const safe = Math.max(0, totalSeconds);
+  const mins = Math.floor(safe / 60);
+  const secs = safe % 60;
+  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
+function IndiaFlag() {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-flex h-4 w-5 overflow-hidden rounded-[2px] border border-[#e5e8e3]"
+    >
+      <span className="flex h-full w-full flex-col">
+        <span className="h-1/3 bg-[#FF9933]" />
+        <span className="flex h-1/3 items-center justify-center bg-white">
+          <span className="h-1.5 w-1.5 rounded-full border border-[#000080]" />
+        </span>
+        <span className="h-1/3 bg-[#138808]" />
+      </span>
+    </span>
+  );
+}
+
 function PasswordRules({ password }: { password: string }) {
   const rules = [
     {
@@ -294,6 +453,11 @@ export function AuthTrialCard({
   const [otp, setOtp] = useState("");
   const [challengeId, setChallengeId] = useState("");
   const [devOtp, setDevOtp] = useState<string | null>(null);
+  const [destinationMasked, setDestinationMasked] = useState<string | null>(
+    null,
+  );
+  const [otpExpiresAt, setOtpExpiresAt] = useState<number | null>(null);
+  const [otpSecondsLeft, setOtpSecondsLeft] = useState(0);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<PublicUser | null>(null);
@@ -322,6 +486,23 @@ export function AuthTrialCard({
       });
   }, []);
 
+  useEffect(() => {
+    if (step !== "otp" || !otpExpiresAt) {
+      setOtpSecondsLeft(0);
+      return;
+    }
+
+    function tick() {
+      setOtpSecondsLeft(
+        Math.max(0, Math.ceil((otpExpiresAt! - Date.now()) / 1000)),
+      );
+    }
+
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [step, otpExpiresAt]);
+
   async function afterAuth(accessToken: string, authedUser: PublicUser) {
     window.localStorage.setItem(TOKEN_KEY, accessToken);
     setToken(accessToken);
@@ -349,7 +530,9 @@ export function AuthTrialCard({
         const result = await userLogin({
           region,
           password,
-          ...(region === "india" ? { mobile } : { email }),
+          ...(region === "india"
+            ? { mobile: normalizeIndiaMobile(mobile) }
+            : { email }),
         });
         await afterAuth(result.accessToken, result.user);
         return;
@@ -358,15 +541,47 @@ export function AuthTrialCard({
       const result = await requestOtp({
         region,
         purpose: mode === "forgot" ? "password_reset" : "signup",
-        ...(region === "india" ? { mobile } : { email }),
+        ...(region === "india"
+          ? { mobile: normalizeIndiaMobile(mobile) }
+          : { email }),
       });
       setChallengeId(result.challengeId);
       setDevOtp(result.devOtp ?? null);
-      setPassword("");
-      setConfirmPassword("");
+      setDestinationMasked(result.destinationMasked);
+      setOtpExpiresAt(Date.now() + result.expiresIn * 1000);
+      setOtp("");
+      // Keep signup password for verify step; clear only for password reset.
+      if (mode === "forgot") {
+        setPassword("");
+        setConfirmPassword("");
+      }
       setStep("otp");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onResendOtp() {
+    if (loading) return;
+    setError(null);
+    setLoading(true);
+    try {
+      const result = await requestOtp({
+        region,
+        purpose: mode === "forgot" ? "password_reset" : "signup",
+        ...(region === "india"
+          ? { mobile: normalizeIndiaMobile(mobile) }
+          : { email }),
+      });
+      setChallengeId(result.challengeId);
+      setDevOtp(result.devOtp ?? null);
+      setDestinationMasked(result.destinationMasked);
+      setOtpExpiresAt(Date.now() + result.expiresIn * 1000);
+      setOtp("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not resend OTP");
     } finally {
       setLoading(false);
     }
@@ -430,6 +645,8 @@ export function AuthTrialCard({
     setConfirmPassword("");
     setChallengeId("");
     setDevOtp(null);
+    setDestinationMasked(null);
+    setOtpExpiresAt(null);
     setCohort(null);
     setSlotId("");
     setConfirmation(null);
@@ -445,7 +662,23 @@ export function AuthTrialCard({
     setConfirmPassword("");
     setChallengeId("");
     setDevOtp(null);
+    setDestinationMasked(null);
+    setOtpExpiresAt(null);
     setResetMessage(null);
+  }
+
+  function normalizeIndiaMobile(value: string) {
+    const digits = value.replace(/\D/g, "");
+    if (digits.startsWith("91") && digits.length >= 12) return `+${digits}`;
+    if (digits.length === 10) return `+91${digits}`;
+    if (value.trim().startsWith("+")) return value.trim();
+    return value.trim();
+  }
+
+  function displayMobileForOtp() {
+    if (destinationMasked) return destinationMasked;
+    if (region === "india") return normalizeIndiaMobile(mobile);
+    return email;
   }
 
   function continueWithGoogle() {
@@ -465,16 +698,45 @@ export function AuthTrialCard({
 
   const regionLabelId = useId();
   const orientationLabelId = useId();
+  const isTrialUi = mode === "signup" && (step === "identity" || step === "otp");
   const fieldClass =
     "w-full rounded-xl border border-[#d7e0d6] bg-white px-3.5 py-2.5 text-sm text-[#1f6b3a] outline-none transition focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
   const labelClass = "mb-1.5 block text-sm font-medium text-[#3d4a3c]";
-  const primaryBtnClass =
-    "w-full cursor-pointer rounded-xl bg-[#1f6b3a] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-60";
+  const primaryBtnClass = isTrialUi
+    ? "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-[#1f6b3a] px-4 py-3.5 text-[15px] font-bold text-white shadow-[0_10px_24px_rgba(31,107,58,0.22)] transition hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-60"
+    : "w-full cursor-pointer rounded-xl bg-[#1f6b3a] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-60";
   const textBtnClass =
     "w-full cursor-pointer text-sm font-medium text-[#6d8474] transition hover:text-[#1f6b3a]";
+  const showModeTabs =
+    step === "identity" && (mode === "signup" || mode === "login");
 
   return (
-    <div className="relative w-full max-w-xl rounded-2xl border border-[#d9e2d8] bg-white p-6 shadow-[0_20px_60px_rgba(31,107,58,0.16)] sm:p-7">
+    <div
+      className={`relative w-full rounded-[28px] border border-[#e6ebe3] bg-white shadow-[0_24px_60px_rgba(31,107,58,0.16)] ${
+        isTrialUi
+          ? "max-w-[420px] px-5 pt-5 pb-6 sm:px-7 sm:pt-6 sm:pb-7"
+          : "max-w-xl p-6 sm:p-7"
+      }`}
+    >
+      {isTrialUi && step === "otp" ? (
+        <button
+          type="button"
+          onClick={() => setStep("identity")}
+          aria-label="Back"
+          className="absolute top-3.5 left-3.5 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-[#6d8474] transition hover:bg-[#eef2ee] hover:text-[#1f6b3a]"
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+            <path
+              d="M15 6L9 12l6 6"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      ) : null}
+
       {onClose ? (
         <button
           type="button"
@@ -493,7 +755,7 @@ export function AuthTrialCard({
         </button>
       ) : null}
 
-      {step !== "done" && mode !== "forgot" ? (
+      {showModeTabs ? (
         <div className="relative mt-5 grid grid-cols-2 rounded-xl bg-[#f3f6f2] p-1">
           <span
             aria-hidden="true"
@@ -533,27 +795,70 @@ export function AuthTrialCard({
       ) : null}
 
       <div key={`${mode}-${step}`} className="auth-mode-content">
-      <h2 className="mt-4 pr-8 font-serif text-[1.55rem] leading-tight font-bold text-[#1f6b3a] sm:text-[1.7rem]">
-        {mode === "signup"
-          ? "Start Your 14-Day Free Trial"
-          : mode === "forgot"
-            ? step === "reset_done"
-              ? "Password updated"
-              : "Forgot password"
-            : "Welcome back"}
-      </h2>
-      <p className="mt-2 text-sm leading-6 text-[#5f6f64]">
-        {mode === "signup"
-          ? "Create your account and begin with guided everyday yoga."
-          : mode === "forgot"
-            ? step === "reset_done"
-              ? "You can now log in with your new password."
-              : "Enter your account details and we’ll send a reset code."
-            : "Sign in to continue your wellness practice."}
-      </p>
+      {isTrialUi ? (
+        <div className={`text-center ${showModeTabs ? "mt-5" : "mt-2"}`}>
+          <TrialHeroMark />
+          <h2 className="mt-4 font-serif text-[1.65rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.85rem]">
+            {step === "otp" ? (
+              region === "india" ? (
+                <>
+                  Verify Your
+                  <br />
+                  Mobile Number
+                </>
+              ) : (
+                <>
+                  Verify Your
+                  <br />
+                  Email Address
+                </>
+              )
+            ) : (
+              <>
+                14 Days of
+                <br />
+                Free Yoga Classes
+              </>
+            )}
+          </h2>
+          <p className="mx-auto mt-2.5 max-w-[300px] text-[13px] leading-relaxed text-[#6d8474] sm:text-[14px]">
+            {step === "otp" ? (
+              <>
+                We&apos;ve sent a {OTP_LENGTH}-digit OTP to
+                <br />
+                <span className="font-semibold text-[#1f6b3a]">
+                  {displayMobileForOtp()}
+                </span>
+              </>
+            ) : (
+              "Start your journey to better health and well-being."
+            )}
+          </p>
+        </div>
+      ) : (
+        <>
+          <h2 className="mt-4 pr-8 font-serif text-[1.55rem] leading-tight font-bold text-[#1f6b3a] sm:text-[1.7rem]">
+            {mode === "forgot"
+              ? step === "reset_done"
+                ? "Password updated"
+                : "Forgot password"
+              : "Welcome back"}
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[#5f6f64]">
+            {mode === "forgot"
+              ? step === "reset_done"
+                ? "You can now log in with your new password."
+                : "Enter your account details and we’ll send a reset code."
+              : "Sign in to continue your wellness practice."}
+          </p>
+        </>
+      )}
 
       {step === "identity" ? (
-        <form onSubmit={onRequestOtp} className="mt-5 space-y-4">
+        <form
+          onSubmit={onRequestOtp}
+          className={`mt-5 space-y-4 ${isTrialUi ? "mt-6" : ""}`}
+        >
           <div>
             <label id={regionLabelId} className={labelClass}>
               Region
@@ -568,29 +873,73 @@ export function AuthTrialCard({
 
           {mode === "signup" ? (
             <div>
-              <label className={labelClass}>Full name</label>
-              <input
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className={fieldClass}
-                placeholder="Your name"
-                autoComplete="name"
-              />
+              <label className={labelClass}>Full Name</label>
+              <div className="relative">
+                <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-[#8a968c]">
+                  <FieldUserIcon />
+                </span>
+                <input
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className={`${fieldClass} pl-10`}
+                  placeholder="Enter your full name"
+                  autoComplete="name"
+                />
+              </div>
             </div>
           ) : null}
 
           {region === "india" ? (
             <div>
-              <label className={labelClass}>Mobile number</label>
-              <input
-                required
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
-                className={fieldClass}
-                placeholder="+9198XXXXXXXX"
-                autoComplete="tel"
-              />
+              <label className={labelClass}>Mobile Number</label>
+              {isTrialUi ? (
+                <div className="flex overflow-hidden rounded-xl border border-[#d7e0d6] bg-white focus-within:border-[#1f6b3a] focus-within:ring-2 focus-within:ring-[#1f6b3a]/15">
+                  <div className="flex shrink-0 items-center gap-1.5 border-r border-[#e5ebe4] bg-[#fafcfb] px-3">
+                    <IndiaFlag />
+                    <span className="text-sm font-semibold text-[#1f6b3a]">
+                      +91
+                    </span>
+                    <svg
+                      viewBox="0 0 20 20"
+                      className="h-3.5 w-3.5 text-[#8a968c]"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M5 7.5L10 12.5L15 7.5"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+                  <input
+                    required
+                    value={mobile.replace(/^\+?91/, "").replace(/\D/g, "").slice(0, 10)}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                      setMobile(digits);
+                    }}
+                    className="w-full border-0 bg-transparent px-3.5 py-2.5 text-sm text-[#1f6b3a] outline-none"
+                    placeholder="Enter your mobile number"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    minLength={10}
+                    maxLength={10}
+                  />
+                </div>
+              ) : (
+                <input
+                  required
+                  value={mobile}
+                  onChange={(e) => setMobile(e.target.value)}
+                  className={fieldClass}
+                  placeholder="+9198XXXXXXXX"
+                  autoComplete="tel"
+                />
+              )}
             </div>
           ) : (
             <div>
@@ -638,19 +987,30 @@ export function AuthTrialCard({
                 minLength={mode === "signup" ? 8 : 1}
                 maxLength={72}
               />
-              {mode === "signup" ? <PasswordRules password={password} /> : null}
             </div>
           ) : null}
 
           <button type="submit" disabled={loading} className={primaryBtnClass}>
-            {loading
-              ? "Please wait…"
-              : mode === "login"
-                ? "Login"
-                : mode === "forgot"
-                  ? "Send reset code"
-                  : "Send OTP"}
+            {loading ? (
+              "Please wait…"
+            ) : mode === "login" ? (
+              "Login"
+            ) : mode === "forgot" ? (
+              "Send reset code"
+            ) : (
+              <>
+                Start My Free Trial
+                <span aria-hidden="true">→</span>
+              </>
+            )}
           </button>
+
+          {mode === "signup" ? (
+            <p className="flex items-center justify-center gap-1.5 text-[12px] text-[#8a968c]">
+              <FieldShieldIcon />
+              No payment details required
+            </p>
+          ) : null}
 
           {mode === "login" || mode === "signup" ? (
             <div className="space-y-3 pt-1">
@@ -664,7 +1024,7 @@ export function AuthTrialCard({
               <button
                 type="button"
                 onClick={continueWithGoogle}
-                className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border border-[#d7e0d6] bg-white px-3 py-2.5 text-sm font-semibold text-[#1f6b3a] transition hover:border-[#b7cbb8] hover:bg-[#f7faf7]"
+                className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-full border border-[#d7e0d6] bg-white px-3 py-2.5 text-sm font-semibold text-[#1f6b3a] transition hover:border-[#b7cbb8] hover:bg-[#f7faf7]"
               >
                 <GoogleMark />
                 Continue with Google
@@ -685,25 +1045,51 @@ export function AuthTrialCard({
       ) : null}
 
       {step === "otp" ? (
-        <form onSubmit={onVerifyOtp} className="mt-5 space-y-4">
-          <p className="text-sm text-[#5f6f64]">
-            Enter the OTP sent to your {region === "india" ? "mobile" : "email"}
-            {mode === "forgot" ? ", then choose a new password." : "."}
-          </p>
+        <form
+          onSubmit={onVerifyOtp}
+          className={`mt-5 space-y-4 ${isTrialUi ? "mt-6" : ""}`}
+        >
+          {!isTrialUi ? (
+            <p className="text-sm text-[#5f6f64]">
+              Enter the OTP sent to your {region === "india" ? "mobile" : "email"}
+              {mode === "forgot" ? ", then choose a new password." : "."}
+            </p>
+          ) : null}
+
           {devOtp ? (
-            <p className="rounded-xl bg-[#eef6ea] px-3 py-2.5 text-sm text-[#1f6b3a]">
+            <p className="rounded-xl bg-[#eef6ea] px-3 py-2.5 text-center text-sm text-[#1f6b3a]">
               Dev OTP: <strong>{devOtp}</strong>
             </p>
           ) : null}
-          <input
-            required
-            value={otp}
-            onChange={(e) => setOtp(e.target.value)}
-            className={`${fieldClass} tracking-[0.3em]`}
-            placeholder="6-digit code"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-          />
+
+          {isTrialUi ? (
+            <>
+              <OtpDigitInputs
+                value={otp}
+                onChange={setOtp}
+                disabled={loading}
+              />
+              <p className="flex items-center justify-center gap-1.5 text-[12px] text-[#8a968c]">
+                <span
+                  aria-hidden="true"
+                  className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-[#c5d0c6] text-[9px]"
+                >
+                  ◷
+                </span>
+                OTP will expire in {formatCountdown(otpSecondsLeft)}
+              </p>
+            </>
+          ) : (
+            <input
+              required
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              className={`${fieldClass} tracking-[0.3em]`}
+              placeholder="6-digit code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+            />
+          )}
 
           {mode === "forgot" ? (
             <>
@@ -739,24 +1125,49 @@ export function AuthTrialCard({
             </>
           ) : null}
 
-          <button type="submit" disabled={loading} className={primaryBtnClass}>
-            {loading
-              ? mode === "forgot"
-                ? "Updating…"
-                : "Verifying…"
-              : mode === "forgot"
-                ? "Reset password"
-                : "Verify OTP & create account"}
-          </button>
           <button
-            type="button"
-            onClick={() =>
-              mode === "forgot" ? resetFlow("login") : setStep("identity")
-            }
-            className={textBtnClass}
+            type="submit"
+            disabled={loading || (isTrialUi && otp.length < OTP_LENGTH)}
+            className={primaryBtnClass}
           >
-            {mode === "forgot" ? "Back to Login" : "Back"}
+            {loading ? (
+              mode === "forgot" ? (
+                "Updating…"
+              ) : (
+                "Verifying…"
+              )
+            ) : mode === "forgot" ? (
+              "Reset password"
+            ) : isTrialUi ? (
+              <>
+                Verify & Start My Trial
+                <span aria-hidden="true">→</span>
+              </>
+            ) : (
+              "Verify OTP & create account"
+            )}
           </button>
+
+          {isTrialUi ? (
+            <button
+              type="button"
+              onClick={onResendOtp}
+              disabled={loading}
+              className="w-full cursor-pointer text-sm font-semibold text-[#1f6b3a] transition hover:text-[#185830] disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              Resend OTP
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() =>
+                mode === "forgot" ? resetFlow("login") : setStep("identity")
+              }
+              className={textBtnClass}
+            >
+              {mode === "forgot" ? "Back to Login" : "Back"}
+            </button>
+          )}
         </form>
       ) : null}
 

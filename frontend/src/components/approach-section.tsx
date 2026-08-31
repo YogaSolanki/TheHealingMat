@@ -253,7 +253,7 @@ const goals: { key: string; label: ReactNode }[] = [
 
 export function ApproachSection() {
   return (
-    <section className="relative w-full overflow-x-clip bg-white px-4 pt-6 pb-0 sm:px-6 sm:pt-8 sm:pb-0 lg:px-8 lg:pt-10 lg:pb-1">
+    <section className="relative w-full overflow-x-clip bg-white px-4 pt-3 pb-0 sm:px-6 sm:pt-4 sm:pb-0 lg:px-8 lg:pt-5 lg:pb-1">
       <Image
         src={leafLeft}
         alt=""
@@ -272,9 +272,9 @@ export function ApproachSection() {
       />
 
       <div className="relative z-10 mx-auto w-full max-w-none">
-        <div className="rounded-[16px] bg-[#FBF9F5] px-5 py-14 sm:px-8 sm:py-16 lg:rounded-[18px] lg:px-12 lg:py-[72px] xl:px-16 ">
+        <div className="rounded-[16px] bg-[#FBF9F5] px-5 pt-8 pb-14 sm:px-8 sm:pt-10 sm:pb-16 lg:rounded-[18px] lg:px-12 lg:pt-12 lg:pb-[72px] xl:px-16">
           <div className="mx-auto max-w-[760px] text-center">
-            <h2 className="font-serif text-[1.55rem] font-bold tracking-tight text-[#1f6b3a] sm:text-[1.85rem] md:text-[2rem] lg:text-[2.15rem]">
+            <h2 className="font-serif text-[1.55rem] font-bold tracking-tight text-black sm:text-[1.85rem] md:text-[2rem] lg:text-[2.15rem]">
               A Complete Approach to Everyday Health
             </h2>
             <p className="mt-3 text-[13px] leading-relaxed text-[#7a8a7e] sm:mt-3.5 sm:text-[15px] lg:text-[15px]">
@@ -305,7 +305,7 @@ export function ApproachSection() {
           </ul>
 
           <div className="mt-12 sm:mt-14 lg:mt-16">
-            <h3 className="text-center text-[17px] font-semibold text-[#1f6b3a] sm:text-[19px] lg:text-[21px]">
+            <h3 className="text-center text-[17px] font-semibold text-black sm:text-[19px] lg:text-[21px]">
               Support for everyday health goals
             </h3>
 

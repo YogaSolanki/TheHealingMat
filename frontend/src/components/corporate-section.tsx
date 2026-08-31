@@ -262,14 +262,20 @@ function HeroBlock() {
         </div>
 
         <div className="relative order-1 aspect-[5/4] w-full sm:aspect-[16/11] lg:order-2 lg:aspect-auto lg:min-h-full">
-          <Image
-            src={corporateImage}
-            alt="Corporate wellness handshake meeting"
-            fill
-            priority
-            className="object-cover object-center"
-            sizes="(max-width: 1024px) 100vw, 50vw"
-          />
+          <div className="absolute inset-0">
+            <Image
+              src={corporateImage}
+              alt="Corporate wellness handshake meeting"
+              fill
+              priority
+              className="object-cover object-center"
+              sizes="(max-width: 1024px) 100vw, 50vw"
+            />
+            <div
+              aria-hidden="true"
+              className="absolute inset-y-0 left-0 hidden w-16 bg-gradient-to-r from-white to-transparent lg:block xl:w-20"
+            />
+          </div>
         </div>
       </div>
     </section>

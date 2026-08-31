@@ -371,7 +371,7 @@ export function FaqSection() {
       className="w-full bg-white px-4 py-10 sm:px-6 sm:py-12 lg:px-8 lg:py-14"
     >
       <div className="mx-auto max-w-[760px] text-center">
-        <h2 className="font-serif text-[1.75rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[2rem] lg:text-[2.15rem]">
+        <h2 className="font-serif text-[1.75rem] leading-tight font-bold tracking-tight text-black sm:text-[2rem] lg:text-[2.15rem]">
           Frequently Asked Questions
         </h2>
         <p className="mt-2 text-[15px] font-semibold text-[#1f6b3a] sm:text-[16px]">
@@ -440,7 +440,7 @@ export function FaqSection() {
       </div>
 
       <div className="mx-auto mt-10 max-w-[640px] rounded-[22px] border border-[#ebe6dc] bg-[#FBF9F5] px-5 py-7 text-center sm:mt-12 sm:px-8 sm:py-8">
-        <h3 className="font-serif text-[1.35rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.55rem]">
+        <h3 className="font-serif text-[1.35rem] leading-tight font-bold tracking-tight text-black sm:text-[1.55rem]">
           Still Have a Question?
         </h3>
         <p className="mt-1.5 text-[14px] font-semibold text-[#1f6b3a] sm:text-[15px]">

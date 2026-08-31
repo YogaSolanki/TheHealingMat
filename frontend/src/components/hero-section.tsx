@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import allAgeIcon from "@/assets/all-age.png";
 import calendarIcon from "@/assets/calander-icon.png";
 import heartIcon from "@/assets/dil.png";
-import heroImage from "@/assets/hero.png";
+import heroImage from "@/assets/hero-home.jpg";
 import rsIcon from "@/assets/rs.png";
 import { StartTrialButton } from "@/components/start-trial-button";
 
@@ -189,14 +189,20 @@ export function HeroSection() {
         </div>
 
         <div className="relative z-0 order-1 aspect-[5/4] w-full sm:aspect-[16/11] lg:order-2 lg:aspect-auto lg:min-h-[600px] xl:min-h-[640px]">
-          <Image
-            src={heroImage}
-            alt="Yoga practitioner in a warrior pose at The Healing Mat studio"
-            fill
-            priority
-            sizes="(max-width: 1023px) 100vw, 50vw"
-            className="object-cover object-[50%_38%] sm:object-[50%_42%]"
-          />
+          <div className="absolute inset-0">
+            <Image
+              src={heroImage}
+              alt="Yoga practitioner seated in namaste at The Healing Mat studio"
+              fill
+              priority
+              sizes="(max-width: 1023px) 100vw, 50vw"
+              className="object-cover object-[50%_45%]"
+            />
+            <div
+              aria-hidden="true"
+              className="absolute inset-y-0 left-0 hidden w-16 bg-gradient-to-r from-white to-transparent lg:block xl:w-20"
+            />
+          </div>
         </div>
       </div>
     </section>
