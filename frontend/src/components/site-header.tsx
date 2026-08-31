@@ -10,7 +10,7 @@ const navLinks = [
   { href: "/membership", label: "Membership" },
   { href: "/corporate", label: "Corporate Plans" },
   { href: "#guides", label: "Health Guides" },
-  { href: "#about", label: "About" },
+  { href: "/about", label: "About" },
   { href: "#contact", label: "Contact" },
 ];
 

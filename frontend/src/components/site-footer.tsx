@@ -15,7 +15,7 @@ const exploreLinks = [
   { href: "/membership", label: "Membership" },
   { href: "/corporate", label: "Corporate Plans" },
   { href: "#guides", label: "Health Guides" },
-  { href: "#about", label: "About" },
+  { href: "/about", label: "About" },
   { href: "#contact", label: "Contact" },
   { href: "#refer", label: "Refer & Earn" },
   { href: "/#faq", label: "FAQs" },
@@ -74,8 +74,9 @@ export function SiteFooter() {
         showTopBorder ? "border-t border-[#d9e0d4]" : ""
       }`}
     >
-      <div className="mx-auto grid w-full max-w-[1140px] gap-8 px-5 py-8 sm:px-6 sm:py-8 lg:grid-cols-[1.3fr_1fr_1.3fr] lg:gap-0 lg:px-8 lg:py-8 xl:px-10">
-        <div className="flex flex-col items-center text-center lg:items-start lg:pr-8 lg:text-left">
+      <div className="mx-auto grid w-full max-w-[1140px] grid-cols-2 gap-x-4 gap-y-6 px-5 py-8 sm:gap-x-8 sm:px-6 sm:py-8 lg:grid-cols-[1.3fr_1fr_1.3fr] lg:gap-0 lg:px-8 lg:py-8 xl:px-10">
+        {/* Brand — full width on phone; left column on desktop */}
+        <div className="col-span-2 flex flex-col items-start text-left lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:pr-8">
           <Link href="/" className="inline-flex items-start gap-2">
             <Image
               src="/images/logo-mark.png"
@@ -98,7 +99,7 @@ export function SiteFooter() {
             Helping you build healthier habits through simple daily guidance.
           </p>
 
-          <ul className="mt-3.5 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
+          <ul className="mt-3.5 flex flex-wrap items-center justify-start gap-2">
             {socialLinks.map((social) => (
               <li key={social.key}>
                 <Link
@@ -113,59 +114,59 @@ export function SiteFooter() {
           </ul>
         </div>
 
-        <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:gap-x-8 lg:contents">
-          <div className="lg:border-l lg:border-[#dde3d8] lg:px-10">
-            <FooterLinkColumn title="Explore" links={exploreLinks} />
-          </div>
+        {/* Explore — left of 2-col row on phone; middle on desktop */}
+        <div className="min-w-0 lg:col-start-2 lg:border-l lg:border-[#dde3d8] lg:px-10">
+          <FooterLinkColumn title="Explore" links={exploreLinks} />
+        </div>
 
-          <div className="lg:border-l lg:border-[#dde3d8] lg:pl-10">
-            <h3 className="text-[14px] font-bold text-[#1a3d2a] sm:text-[15px]">
-              Contact Us
-            </h3>
-            <ul className="mt-2 space-y-2 text-[12px] text-[#2f7a45] sm:text-[13px]">
-              <li>
-                <a
-                  href="mailto:info@yogaease.yoga"
-                  className="inline-flex cursor-pointer items-start gap-2 font-medium transition hover:text-[#1f6b3a] sm:items-center"
-                >
-                  <HiOutlineMail className="mt-0.5 h-4 w-4 shrink-0 sm:mt-0" />
-                  <span className="break-words">info@yogaease.yoga</span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href="tel:8000045035"
-                  className="inline-flex cursor-pointer items-center gap-2 font-medium transition hover:text-[#1f6b3a]"
-                >
-                  <HiOutlinePhone className="h-4 w-4 shrink-0" />
-                  80000 45035
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://wa.me/918000045035"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex cursor-pointer items-center gap-2 font-medium transition hover:text-[#1f6b3a]"
-                >
-                  <FaWhatsapp className="h-4 w-4 shrink-0" />
-                  WhatsApp Us
-                </a>
-              </li>
-              <li className="inline-flex items-start gap-2 font-medium leading-snug">
-                <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>
-                  51, 5th Floor
-                  <br />
-                  Aditya Gold Crest
-                  <br />
-                  Vaibhav Khand, Indirapuram
-                  <br />
-                  Ghaziabad 201010
-                </span>
-              </li>
-            </ul>
-          </div>
+        {/* Contact Us — right of 2-col row on phone; right on desktop */}
+        <div className="min-w-0 lg:col-start-3 lg:border-l lg:border-[#dde3d8] lg:pl-10">
+          <h3 className="text-[14px] font-bold text-[#1a3d2a] sm:text-[15px]">
+            Contact Us
+          </h3>
+          <ul className="mt-2 space-y-2 text-[11px] text-[#2f7a45] sm:text-[13px]">
+            <li>
+              <a
+                href="mailto:info@yogaease.yoga"
+                className="inline-flex cursor-pointer items-start gap-1.5 font-medium transition hover:text-[#1f6b3a] sm:items-center sm:gap-2"
+              >
+                <HiOutlineMail className="mt-0.5 h-4 w-4 shrink-0 sm:mt-0" />
+                <span className="break-words">info@yogaease.yoga</span>
+              </a>
+            </li>
+            <li>
+              <a
+                href="tel:8000045035"
+                className="inline-flex cursor-pointer items-center gap-1.5 font-medium transition hover:text-[#1f6b3a] sm:gap-2"
+              >
+                <HiOutlinePhone className="h-4 w-4 shrink-0" />
+                80000 45035
+              </a>
+            </li>
+            <li>
+              <a
+                href="https://wa.me/918000045035"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex cursor-pointer items-center gap-1.5 font-medium transition hover:text-[#1f6b3a] sm:gap-2"
+              >
+                <FaWhatsapp className="h-4 w-4 shrink-0" />
+                WhatsApp Us
+              </a>
+            </li>
+            <li className="inline-flex items-start gap-1.5 font-medium leading-snug sm:gap-2">
+              <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                51, 5th Floor
+                <br />
+                Aditya Gold Crest
+                <br />
+                Vaibhav Khand, Indirapuram
+                <br />
+                Ghaziabad 201010
+              </span>
+            </li>
+          </ul>
         </div>
       </div>
 
