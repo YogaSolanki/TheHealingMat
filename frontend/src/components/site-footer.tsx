@@ -129,10 +129,10 @@ export function SiteFooter() {
             <li>
               <a
                 href="mailto:hello@thehealingmat.yoga"
-                className="inline-flex cursor-pointer items-start gap-1.5 font-medium transition hover:text-[#1f6b3a] sm:items-center sm:gap-2"
+                className="inline-flex min-w-0 max-w-full cursor-pointer items-start gap-1.5 font-medium transition hover:text-[#1f6b3a] sm:items-center sm:gap-2"
               >
                 <HiOutlineMail className="mt-0.5 h-4 w-4 shrink-0 sm:mt-0" />
-                <span className="break-words">hello@thehealingmat.yoga</span>
+                <span className="min-w-0 break-all">hello@thehealingmat.yoga</span>
               </a>
             </li>
             <li>

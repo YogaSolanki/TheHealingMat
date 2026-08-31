@@ -8,10 +8,12 @@ import { StartTrialButton } from "@/components/start-trial-button";
 import { TrialTrustRow } from "@/components/trial-trust-row";
 
 const iconGreen = "#1f6b3a";
+/** Shared slot size — matches Daily yoga classes icon */
+const featureIconSlot = "h-11 w-11 sm:h-12 sm:w-12";
 
 function GreenMaskedIcon({
   src,
-  className = "h-8 w-8",
+  className = featureIconSlot,
 }: {
   src: string;
   className?: string;
@@ -38,20 +40,20 @@ function GreenMaskedIcon({
 function ChatIcon() {
   return (
     <svg
-      viewBox="0 0 40 40"
-      className="h-11 w-11 sm:h-12 sm:w-12"
+      viewBox="8 8 24 24"
+      className="h-full w-full origin-center scale-[1.08]"
       fill="none"
       aria-hidden="true"
     >
       <path
         d="M10 11.5c0-1.4 1.1-2.5 2.5-2.5h15c1.4 0 2.5 1.1 2.5 2.5v11c0 1.4-1.1 2.5-2.5 2.5H18l-5.2 4.2c-.55.44-1.3.05-1.3-.65V25H12.5c-1.4 0-2.5-1.1-2.5-2.5v-11Z"
         stroke={iconGreen}
-        strokeWidth="2"
+        strokeWidth="2.2"
         strokeLinejoin="round"
       />
-      <circle cx="16" cy="17" r="1.3" fill={iconGreen} />
-      <circle cx="20" cy="17" r="1.3" fill={iconGreen} />
-      <circle cx="24" cy="17" r="1.3" fill={iconGreen} />
+      <circle cx="16" cy="17" r="1.35" fill={iconGreen} />
+      <circle cx="20" cy="17" r="1.35" fill={iconGreen} />
+      <circle cx="24" cy="17" r="1.35" fill={iconGreen} />
     </svg>
   );
 }
@@ -59,12 +61,7 @@ function ChatIcon() {
 const features: { key: string; icon: ReactNode; label: ReactNode }[] = [
   {
     key: "daily",
-    icon: (
-      <GreenMaskedIcon
-        src={allAgeIcon.src}
-        className="h-11 w-11 sm:h-12 sm:w-12"
-      />
-    ),
+    icon: <GreenMaskedIcon src={allAgeIcon.src} className="h-full w-full" />,
     label: (
       <>
         Daily
@@ -78,7 +75,7 @@ const features: { key: string; icon: ReactNode; label: ReactNode }[] = [
     icon: (
       <GreenMaskedIcon
         src={calendarIcon.src}
-        className="h-11 w-11 sm:h-12 sm:w-12"
+        className="h-full w-full origin-center scale-[1.12]"
       />
     ),
     label: (
@@ -103,7 +100,10 @@ const features: { key: string; icon: ReactNode; label: ReactNode }[] = [
   {
     key: "price",
     icon: (
-      <GreenMaskedIcon src={rsIcon.src} className="h-11 w-11 sm:h-12 sm:w-12" />
+      <GreenMaskedIcon
+        src={rsIcon.src}
+        className="h-full w-full origin-center scale-[1.22]"
+      />
     ),
     label: (
       <>
@@ -148,7 +148,11 @@ export function CtaBannerSection() {
                 key={feature.key}
                 className="flex flex-col items-center"
               >
-                <span className="text-[#1f6b3a]">{feature.icon}</span>
+                <span
+                  className={`inline-flex ${featureIconSlot} items-center justify-center text-[#1f6b3a]`}
+                >
+                  {feature.icon}
+                </span>
                 <span className="mt-2.5 text-[12px] leading-snug font-bold text-black sm:text-[14px] sm:whitespace-nowrap">
                   {feature.label}
                 </span>

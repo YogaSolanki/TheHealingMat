@@ -14,7 +14,6 @@ import {
 } from "react-icons/hi";
 import guidesHero from "@/assets/guides-hero.png";
 import handbooksImage from "@/assets/handbooks.png";
-import matBanner from "@/assets/home-banner-bg.png";
 import laptopImage from "@/assets/laptop.png";
 import leafRight from "@/assets/leaf-right.png";
 import mobileImage from "@/assets/mobile.png";
@@ -119,15 +118,14 @@ function HeroBlock() {
   return (
     <section className="relative w-full overflow-hidden bg-white">
       <div className="relative grid w-full items-stretch lg:grid-cols-2">
-        <div className="relative z-10 order-2 flex items-center justify-center px-5 py-8 text-center sm:px-8 sm:py-10 lg:order-1 lg:justify-center lg:px-8 lg:py-14 lg:text-left xl:px-12">
-          <div className="mx-auto flex w-full max-w-[520px] flex-col items-center lg:mx-0 lg:items-start">
+        <div className="relative z-10 order-2 flex min-w-0 items-center justify-center px-4 py-8 text-center sm:px-8 sm:py-10 lg:order-1 lg:justify-center lg:px-8 lg:py-14 lg:text-left xl:px-12">
+          <div className="mx-auto flex w-full min-w-0 max-w-[520px] flex-col items-center lg:mx-0 lg:items-start">
             <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
               Health Guides
             </p>
-            <h1 className="mt-3 font-serif text-[2.05rem] leading-[1.12] font-bold tracking-tight text-[#1f6b3a] sm:text-[2.6rem] lg:text-[2.9rem] xl:text-[3.25rem]">
-              Practical Help for
-              <br className="hidden sm:block" />{" "}
-              <span className="whitespace-nowrap">Your Everyday Health</span>
+            <h1 className="mt-3 w-full font-serif text-[1.75rem] leading-[1.15] font-bold tracking-tight break-words text-[#1f6b3a] sm:text-[2.6rem] sm:leading-[1.12] lg:text-[2.9rem] xl:text-[3.25rem]">
+              Practical Help for{" "}
+              <span className="sm:whitespace-nowrap">Your Everyday Health</span>
             </h1>
             <p className="mt-4 max-w-[420px] text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px] lg:text-[16px]">
               Simple resources, useful information and guided practices to help
@@ -177,8 +175,8 @@ function HeroBlock() {
 function ResourcesBand() {
   return (
     <section id="resources" className="w-full">
-      <div className="mx-auto grid w-full max-w-[1140px] items-center gap-8 px-5 py-12 sm:gap-10 sm:px-8 sm:py-14 lg:grid-cols-2 lg:gap-16 lg:px-8 lg:py-16">
-        <div className="order-2 flex flex-col justify-center lg:order-1">
+      <div className="mx-auto grid w-full max-w-[1140px] items-center gap-8 px-5 py-12 sm:gap-10 sm:px-8 sm:py-14 md:grid-cols-2 md:gap-12 lg:gap-16 lg:px-8 lg:py-16">
+        <div className="flex flex-col justify-center">
           <div className="flex items-start gap-3.5 sm:gap-4">
             <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#E8F0E4]">
               <Image
@@ -211,13 +209,12 @@ function ResourcesBand() {
           </div>
         </div>
 
-        <div className="order-1 flex items-center justify-center lg:order-2 lg:justify-end">
+        <div className="hidden items-center justify-center md:flex md:justify-end">
           <Image
             src={handbooksImage}
             alt="Pranayama Handbook and Daily Asana Handbook"
-            className="h-auto w-full max-w-[340px] object-contain sm:max-w-[400px] lg:max-w-[440px]"
-            sizes="(max-width: 1024px) 400px, 440px"
-            priority
+            className="h-auto w-full max-w-[400px] object-contain lg:max-w-[440px]"
+            sizes="440px"
           />
         </div>
       </div>
@@ -232,7 +229,7 @@ function ArticlesBand() {
       className="relative w-full bg-[#FFFCFA] shadow-[0_-18px_40px_-28px_rgba(70,55,35,0.16),0_18px_40px_-28px_rgba(70,55,35,0.12)]"
     >
       <div className="mx-auto w-full max-w-[1140px] px-5 py-12 sm:px-8 sm:py-14 lg:px-8 lg:py-16">
-        <div className="grid items-center gap-8 sm:gap-10 lg:grid-cols-2 lg:gap-16">
+        <div className="grid items-center gap-8 sm:gap-10 md:grid-cols-2 md:gap-12 lg:gap-16">
           <div className="flex flex-col justify-center">
             <div className="flex items-start gap-3.5 sm:gap-4">
               <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#F3EBD9] text-[#8B6B3E]">
@@ -261,12 +258,12 @@ function ArticlesBand() {
             </div>
           </div>
 
-          <div className="flex items-center justify-center lg:justify-end">
+          <div className="hidden items-center justify-center md:flex md:justify-end">
             <Image
               src={laptopImage}
               alt="Health article on laptop — Simple Habits for Better Sleep"
-              className="h-auto w-full max-w-[360px] object-contain sm:max-w-[420px] lg:max-w-[460px]"
-              sizes="(max-width: 1024px) 420px, 460px"
+              className="h-auto w-full max-w-[400px] object-contain lg:max-w-[460px]"
+              sizes="460px"
             />
           </div>
         </div>
@@ -283,7 +280,7 @@ function VideosBand() {
       style={{ backgroundColor: cream }}
     >
       <div className="mx-auto w-full max-w-[1140px] px-5 py-12 sm:px-8 sm:py-14 lg:px-8 lg:py-16">
-        <div className="grid items-center gap-8 sm:gap-10 lg:grid-cols-2 lg:gap-16">
+        <div className="grid items-center gap-8 sm:gap-10 md:grid-cols-2 md:gap-12 lg:gap-16">
           <div className="flex flex-col justify-center">
             <div className="flex items-start gap-3.5 sm:gap-4">
               <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#E8F0E4] text-[#1f6b3a]">
@@ -312,12 +309,12 @@ function VideosBand() {
             </div>
           </div>
 
-          <div className="flex items-center justify-center lg:justify-end">
+          <div className="hidden items-center justify-center md:flex md:justify-end">
             <Image
               src={mobileImage}
               alt="Health video on phone — guided yoga practice"
-              className="h-auto w-full max-w-[340px] object-contain sm:max-w-[400px] lg:max-w-[440px]"
-              sizes="(max-width: 1024px) 400px, 440px"
+              className="h-auto w-full max-w-[380px] object-contain lg:max-w-[440px]"
+              sizes="440px"
             />
           </div>
         </div>
@@ -353,64 +350,49 @@ function ContentTrustStrip() {
 
 function GuidanceCta() {
   return (
-    <section className="w-full bg-white px-5 pt-8 pb-10 sm:px-8 sm:pt-10 sm:pb-12 lg:px-8 lg:pb-14">
+    <section className="w-full bg-white px-3 pt-8 pb-10 sm:px-4 sm:pt-10 sm:pb-12 lg:px-5 lg:pb-14 xl:px-6">
       <div
-        className="relative mx-auto w-full max-w-[1254px] overflow-hidden rounded-[20px] border border-[#e6ebe3]"
+        className="relative mx-auto w-full max-w-[1254px] overflow-hidden rounded-[24px] border border-[#e6ebe3]"
         style={{ backgroundColor: cream }}
       >
         <Image
           src={leafRight}
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 right-0 z-0 h-[85%] w-auto -translate-y-1/2 object-contain object-right opacity-40 sm:right-1 sm:opacity-45"
-          sizes="180px"
+          className="pointer-events-none absolute top-1/2 right-0 z-0 h-[90%] w-auto -translate-y-1/2 object-contain object-right opacity-35 sm:opacity-40"
+          sizes="220px"
         />
 
-        <div className="relative z-10 grid items-center gap-4 sm:grid-cols-[200px_1fr] lg:grid-cols-[240px_1fr]">
-          <div className="relative hidden h-full min-h-[160px] sm:block">
-            <Image
-              src={matBanner}
-              alt="Yoga mat and props"
-              fill
-              className="object-cover object-left"
-              sizes="240px"
-            />
-          </div>
-
-          <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-4 sm:py-6 lg:pr-28 xl:pr-36">
-            <div className="min-w-0">
-              <h2 className="font-serif text-[1.25rem] font-bold tracking-tight text-[#1f6b3a] sm:text-[1.4rem]">
-                Want Guidance Beyond the Guides?
-              </h2>
-              <p className="mt-2 max-w-[560px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
-                Make Health Part of Everyday Life. Health Guides can help you
-                learn and get started. As a member of The Healing Mat, you can go
-                further with live daily yoga classes, guided practices and
-                wellness programmes designed to help you stay consistent.
-              </p>
-              <ul className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] font-semibold text-[#1f6b3a]">
-                {["Simple", "Affordable", "Everyday"].map((label) => (
-                  <li key={label} className="inline-flex items-center gap-1.5">
-                    <span
-                      aria-hidden="true"
-                      className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border border-[#1f6b3a] text-[9px] leading-none"
-                    >
-                      ✓
-                    </span>
-                    {label}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <Link
-              href="/membership"
-              className="btn-primary inline-flex w-full shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full bg-[#1f6b3a] px-6 py-3 text-[13px] font-bold text-white sm:w-auto sm:px-7 sm:text-[14px]"
-            >
-              Explore Membership
-              <span aria-hidden="true">→</span>
-            </Link>
-          </div>
+        <div className="relative z-10 flex flex-col items-center justify-center px-5 py-8 text-center sm:px-8 sm:py-10 lg:px-10 lg:py-12 lg:pr-28 xl:pr-36">
+          <h2 className="font-serif text-[1.2rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.45rem] lg:text-[1.6rem]">
+            Want Guidance Beyond the Guides?
+          </h2>
+          <p className="mt-2 max-w-[560px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
+            Make Health Part of Everyday Life. Health Guides can help you learn
+            and get started. As a member of The Healing Mat, you can go further
+            with live daily yoga classes, guided practices and wellness
+            programmes designed to help you stay consistent.
+          </p>
+          <ul className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[12px] font-semibold text-[#1f6b3a]">
+            {["Simple", "Affordable", "Everyday"].map((label) => (
+              <li key={label} className="inline-flex items-center gap-1.5">
+                <span
+                  aria-hidden="true"
+                  className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border border-[#1f6b3a] text-[9px] leading-none"
+                >
+                  ✓
+                </span>
+                {label}
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="/membership"
+            className="btn-primary mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[#1f6b3a] px-5 py-3 text-[13px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.22)] sm:px-6 sm:py-3.5 sm:text-[14px]"
+          >
+            Explore Membership
+            <span aria-hidden="true">→</span>
+          </Link>
         </div>
       </div>
     </section>

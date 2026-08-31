@@ -227,7 +227,7 @@ function PlansBlock() {
         </p>
       </div>
 
-      <div className="mt-10 grid items-stretch gap-5 sm:mt-12 sm:grid-cols-3 sm:gap-6 lg:mt-14 lg:gap-8">
+      <div className="mx-auto mt-10 grid w-full max-w-[420px] items-stretch gap-5 sm:mt-12 sm:max-w-[480px] lg:mt-14 lg:max-w-none lg:grid-cols-3 lg:gap-8">
         {plans.map((plan) => (
           <PlanCard key={plan.months} plan={plan} />
         ))}
@@ -248,7 +248,7 @@ function PlanCard({ plan }: { plan: Plan }) {
       }`}
     >
       {plan.featured ? (
-        <span className="badge-shine absolute top-0 left-1/2 z-20 -translate-x-1/2 -translate-y-[42%] rounded-[8px] bg-[#1f6b3a] px-5 py-[7px] text-[11px] font-bold tracking-[0.14em] text-white uppercase shadow-[0_6px_18px_rgba(31,107,58,0.3)] sm:px-6 sm:py-2 sm:text-[12px]">
+        <span className="badge-shine absolute top-0 left-1/2 z-20 -translate-x-1/2 -translate-y-[42%] whitespace-nowrap rounded-[8px] bg-[#1f6b3a] px-5 py-[7px] text-[11px] font-bold tracking-[0.14em] text-white uppercase shadow-[0_6px_18px_rgba(31,107,58,0.3)] sm:px-6 sm:py-2 sm:text-[12px]">
           Best Value
         </span>
       ) : null}
@@ -269,11 +269,8 @@ function PlanCard({ plan }: { plan: Plan }) {
       {plan.perk ? (
         <div className="relative z-10 mt-7 flex items-center gap-3.5 rounded-[18px] border border-[#d7e5d9] bg-white px-4 py-4 sm:mt-8 sm:gap-4 sm:px-5 sm:py-[18px]">
           <GiftBoxIcon className="h-10 w-10 shrink-0 sm:h-11 sm:w-11" />
-          <p className="text-[13px] leading-[1.35] font-semibold text-[#1f6b3a] sm:text-[14px]">
-            Get the Weight Loss
-            <br />
-            Without the Drama eBook
-            <br />
+          <p className="min-w-0 text-[13px] leading-[1.35] font-semibold text-[#1f6b3a] sm:text-[14px]">
+            Get the Weight Loss Without the Drama eBook{" "}
             <span className="font-bold">FREE</span>
           </p>
         </div>
@@ -286,7 +283,7 @@ function PlanCard({ plan }: { plan: Plan }) {
 
       <div className="relative z-10 mt-auto pt-7 sm:pt-8">
         <StartTrialButton
-          className={`inline-flex w-full items-center justify-center gap-2 px-5 py-3.5 text-[14px] font-bold sm:text-[15px] ${
+          className={`inline-flex w-full items-center justify-center gap-2 whitespace-nowrap px-5 py-3.5 text-[14px] font-bold sm:text-[15px] ${
             plan.featured
               ? "btn-primary bg-[#1f6b3a] text-white"
               : "btn-outline border-[1.5px] border-[#1f6b3a] text-[#1f6b3a]"
