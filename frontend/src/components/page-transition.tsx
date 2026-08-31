@@ -11,6 +11,9 @@ export function PageTransition({ children }: { children: ReactNode }) {
       "(prefers-reduced-motion: reduce)",
     ).matches;
 
+    // Keep hash deep-links (e.g. /about#savita) — founder scroll handles those.
+    if (window.location.hash) return;
+
     window.scrollTo({
       top: 0,
       behavior: reduceMotion ? "auto" : "smooth",

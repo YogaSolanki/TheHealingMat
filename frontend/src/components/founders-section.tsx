@@ -1,10 +1,13 @@
-import Image from "next/image";
+import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import allAgeIcon from "@/assets/all-age.png";
 import buildingIcon from "@/assets/building.png";
-import founderPhoto from "@/assets/hero2.png";
+import pokhriyalPhoto from "@/assets/Dr K P Pokhriyal.jpg";
 import locationIcon from "@/assets/location.png";
+import poornimaPhoto from "@/assets/poornima.jpg";
+import pradeepPhoto from "@/assets/pradeep.jpg";
+import savitaPhoto from "@/assets/Savita.png";
 import { AnimatedStatValue } from "@/components/animated-stat-value";
 
 const iconGreen = "#2f7a45";
@@ -54,11 +57,17 @@ function ExperienceIcon() {
 const teamMembers: {
   key: string;
   name: string;
+  href: string;
+  photo: StaticImageData;
+  objectPosition: string;
   titles: ReactNode;
 }[] = [
   {
     key: "savita",
     name: "Savita Malhotra",
+    href: "/about#savita",
+    photo: savitaPhoto,
+    objectPosition: "50% 48%",
     titles: (
       <>
         Senior Laughter Yoga Leader
@@ -70,6 +79,9 @@ const teamMembers: {
   {
     key: "poornima",
     name: "Dr. Poornima Ramamurthy",
+    href: "/about#poornima",
+    photo: poornimaPhoto,
+    objectPosition: "50% 72%",
     titles: (
       <>
         Ph.D. in Yoga
@@ -81,6 +93,9 @@ const teamMembers: {
   {
     key: "pokhriyal",
     name: "Dr. K. P. Pokhriyal",
+    href: "/about#pokhriyal",
+    photo: pokhriyalPhoto,
+    objectPosition: "50% 75%",
     titles: (
       <>
         Ph.D. in Yoga
@@ -153,15 +168,15 @@ export function FoundersSection() {
   return (
     <section className="w-full bg-white px-4 pt-1.5 pb-0 sm:px-6 lg:px-8 lg:pb-1">
       <div className="mx-auto w-full max-w-none rounded-[16px] bg-[#FBF9F5] px-5 py-8 sm:px-8 sm:py-9 lg:rounded-[18px] lg:px-12 lg:py-10 xl:px-14">
-        <div className="mx-auto grid w-full max-w-[1140px] items-center gap-7 sm:gap-9 lg:grid-cols-[560px_1fr] lg:gap-14 xl:max-w-[1180px] xl:grid-cols-[580px_1fr] xl:gap-16">
-          <div className="relative mx-auto w-full max-w-[560px] overflow-hidden rounded-[18px] bg-[#efe8da] lg:mx-0 lg:max-w-none">
-            <div className="relative h-[480px] w-full sm:h-[500px] lg:h-[520px]">
+        <div className="mx-auto grid w-full max-w-[1140px] items-center gap-7 sm:gap-9 lg:grid-cols-[420px_1fr] lg:gap-12 xl:max-w-[1180px] xl:grid-cols-[440px_1fr] xl:gap-14">
+          <div className="relative mx-auto w-full max-w-[400px] overflow-hidden rounded-[18px] bg-[#efe8da] sm:max-w-[420px] lg:mx-0 lg:max-w-none">
+            <div className="relative h-[380px] w-full sm:h-[400px] lg:h-[420px]">
               <Image
-                src={founderPhoto}
+                src={pradeepPhoto}
                 alt="Pradeep Solanki, Founder of The Healing Mat"
                 fill
-                className="object-cover object-[50%_20%]"
-                sizes="(max-width: 1024px) 560px, 580px"
+                className="object-cover object-[50%_78%]"
+                sizes="(max-width: 1024px) 420px, 440px"
                 priority={false}
               />
             </div>
@@ -215,7 +230,7 @@ export function FoundersSection() {
             </ul>
 
             <Link
-              href="#"
+              href="/about#pradeep"
               className="link-animate link-underline mt-7 text-[14px] font-bold text-[#2f7a45] sm:mt-8 sm:text-[15px]"
             >
               Know My Story
@@ -236,10 +251,11 @@ export function FoundersSection() {
             >
               <div className="relative h-[88px] w-[88px] shrink-0 overflow-hidden rounded-full bg-[#efe8da] sm:h-[96px] sm:w-[96px]">
                 <Image
-                  src={founderPhoto}
+                  src={member.photo}
                   alt={member.name}
                   fill
-                  className="object-cover object-[50%_18%]"
+                  className="object-cover"
+                  style={{ objectPosition: member.objectPosition }}
                   sizes="96px"
                 />
               </div>
@@ -251,7 +267,7 @@ export function FoundersSection() {
                   {member.titles}
                 </p>
                 <Link
-                  href="#"
+                  href={member.href}
                   className="link-animate link-underline mt-2.5 text-[13px] font-bold text-[#2f7a45] sm:text-[14px]"
                 >
                   Know More

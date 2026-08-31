@@ -452,6 +452,7 @@ function DetailPanel({
 }
 
 function FounderShell({
+  id,
   photo,
   photoSide = "left",
   photoLarge = false,
@@ -460,6 +461,7 @@ function FounderShell({
   children,
   details,
 }: {
+  id?: string;
   photo: ReactNode;
   photoSide?: "left" | "right";
   photoLarge?: boolean;
@@ -490,7 +492,8 @@ function FounderShell({
 
   return (
     <article
-      className={`overflow-hidden rounded-[22px] border border-[#e6ebe3] shadow-[0_6px_22px_rgba(26,61,42,0.04)] ${minH}`}
+      id={id}
+      className={`scroll-mt-24 overflow-hidden rounded-[22px] border border-[#e6ebe3] shadow-[0_6px_22px_rgba(26,61,42,0.04)] sm:scroll-mt-28 ${minH}`}
       style={{ backgroundColor: cream }}
     >
       <div
@@ -525,6 +528,7 @@ function FounderShell({
 function PradeepCard() {
   return (
     <FounderShell
+      id="pradeep"
       photoLarge
       photo={
         <FounderPhoto
@@ -658,6 +662,7 @@ function PradeepCard() {
 function SavitaCard() {
   return (
     <FounderShell
+      id="savita"
       photoLarge
       compact
       photoSide="right"
@@ -792,6 +797,7 @@ function DriveFooter({
 function PoornimaCard() {
   return (
     <FounderShell
+      id="poornima"
       photoLarge
       compact
       photo={
@@ -873,6 +879,7 @@ function PoornimaCard() {
 function PokhriyalCard() {
   return (
     <FounderShell
+      id="pokhriyal"
       photoLarge
       compact
       photoSide="right"
