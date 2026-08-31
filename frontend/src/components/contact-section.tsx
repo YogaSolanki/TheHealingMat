@@ -27,7 +27,7 @@ const MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURICom
 const MAPS_EMBED = `https://www.google.com/maps?q=${encodeURIComponent(MAPS_QUERY)}&output=embed`;
 
 const fieldClass =
-  "w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 py-3 text-sm text-[#1a3d2a] outline-none transition placeholder:text-[#9aa89e] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
+  "w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 py-3 text-sm text-[#1f6b3a] outline-none transition placeholder:text-[#9aa89e] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
 const labelClass = "mb-1.5 block text-sm font-medium text-[#3d4a3c]";
 
 export function ContactSection() {
@@ -98,7 +98,7 @@ function HeroWithCards() {
             <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[13px] lg:text-[14px]">
               Contact Us
             </p>
-            <h1 className="mt-2.5 font-serif text-[2.1rem] leading-[1.12] font-bold tracking-tight text-[#1a3d2a] sm:mt-3 sm:text-[3rem] lg:text-[3.4rem] xl:text-[3.6rem]">
+            <h1 className="mt-2.5 font-serif text-[2.1rem] leading-[1.12] font-bold tracking-tight text-[#1f6b3a] sm:mt-3 sm:text-[3rem] lg:text-[3.4rem] xl:text-[3.6rem]">
               We’re Here
               <br />
               to Help.
@@ -140,7 +140,7 @@ function HeroWithCards() {
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#E8F0E4] text-[#1f6b3a] sm:h-14 sm:w-14">
                 {card.icon}
               </span>
-              <h2 className="mt-3 font-serif text-[1.25rem] font-bold text-[#1a3d2a] sm:mt-4 sm:text-[1.45rem]">
+              <h2 className="mt-3 font-serif text-[1.25rem] font-bold text-[#1f6b3a] sm:mt-4 sm:text-[1.45rem]">
                 {card.title}
               </h2>
               <p className="mt-1.5 text-[13px] leading-relaxed text-[#5f6f64] sm:mt-2 sm:min-h-[48px] sm:text-[14px] lg:min-h-[48px]">
@@ -151,7 +151,7 @@ function HeroWithCards() {
                 {...(card.external
                   ? { target: "_blank", rel: "noreferrer" }
                   : {})}
-                className="mt-2.5 inline-block break-all text-[14px] font-bold text-[#1f6b3a] transition hover:text-[#195a30] sm:mt-3 sm:break-normal sm:text-[16px]"
+                className="mt-2.5 inline-block break-all text-[14px] font-bold text-[#1f6b3a] transition hover:text-[#185830] sm:mt-3 sm:break-normal sm:text-[16px]"
               >
                 {card.value}
               </a>
@@ -197,7 +197,7 @@ function ContactFormBlock() {
       <div className="relative mx-auto grid w-full max-w-[1100px] overflow-hidden rounded-[28px] border border-[#ebe6dc] bg-[#FBF9F5] lg:grid-cols-[0.95fr_1.05fr]">
         <div className="relative flex flex-col px-6 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12 xl:px-12">
           <div className="relative z-10 mx-auto mt-4 max-w-[340px] text-center sm:mt-6 lg:mt-8">
-            <h2 className="font-serif text-[1.65rem] leading-tight font-bold text-[#1a3d2a] sm:text-[1.95rem] lg:text-[2.1rem]">
+            <h2 className="font-serif text-[1.65rem] leading-tight font-bold text-[#1f6b3a] sm:text-[1.95rem] lg:text-[2.1rem]">
               Have a Question?
               <br />
               We’re Here to Help.
@@ -222,7 +222,7 @@ function ContactFormBlock() {
         <div className="border-t border-[#ebe6dc] px-6 py-8 sm:px-8 sm:py-10 lg:border-t-0 lg:border-l lg:px-10 lg:py-12 xl:px-12">
           {submitted ? (
             <div className="flex h-full min-h-[280px] flex-col items-start justify-center">
-              <p className="font-serif text-[1.5rem] font-bold text-[#1a3d2a]">
+              <p className="font-serif text-[1.5rem] font-bold text-[#1f6b3a]">
                 Thank you!
               </p>
               <p className="mt-2 max-w-[360px] text-[14px] leading-relaxed text-[#5f6f64]">
@@ -342,10 +342,10 @@ function CorporateBand() {
             />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="pt-1.5 text-[15px] leading-snug font-bold text-[#1a3d2a] sm:pt-0 sm:text-[16px] lg:text-[17px]">
+            <h2 className="pt-1.5 text-[15px] leading-snug font-bold text-[#1f6b3a] sm:pt-0 sm:text-[16px] lg:text-[17px]">
               Looking for Corporate Plans?
             </h2>
-            <p className="mt-1.5 max-w-[520px] text-[13px] leading-relaxed text-[#3d5c45] sm:text-[14px]">
+            <p className="mt-1.5 max-w-[520px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
               Want to offer The Healing Mat to your employees?
               <br />
               Explore our corporate plans or speak with us about employee
@@ -385,7 +385,7 @@ function VisitUsBlock() {
               Visit Us
             </h2>
           </div>
-          <p className="mt-3 text-[13px] font-extrabold text-[#1a3d2a] sm:mt-5 sm:text-[16px] lg:mt-6 lg:text-[17px]">
+          <p className="mt-3 text-[13px] font-extrabold text-[#1f6b3a] sm:mt-5 sm:text-[16px] lg:mt-6 lg:text-[17px]">
             The Healing Mat
           </p>
           <p className="mt-1.5 text-[11px] leading-snug text-[#5f6f64] sm:mt-2.5 sm:max-w-[320px] sm:text-[14px] sm:leading-relaxed lg:text-[15px]">

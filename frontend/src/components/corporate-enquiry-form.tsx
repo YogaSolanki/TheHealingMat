@@ -12,10 +12,10 @@ const employeeOptions = [
 ];
 
 const fieldClass =
-  "w-full rounded-xl border border-[#e4ebe0] bg-white px-3.5 py-2.5 text-[13px] text-[#1a3d2a] outline-none transition placeholder:text-[#a8b4ab] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/12 sm:py-3 sm:text-[14px]";
+  "w-full rounded-xl border border-[#e4ebe0] bg-white px-3.5 py-2.5 text-[13px] text-[#1f6b3a] outline-none transition placeholder:text-[#a8b4ab] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/12 sm:py-3 sm:text-[14px]";
 
 const labelClass =
-  "mb-1.5 block text-[12px] font-semibold text-[#1a3d2a] sm:text-[13px]";
+  "mb-1.5 block text-[12px] font-semibold text-[#1f6b3a] sm:text-[13px]";
 
 export function CorporateEnquiryForm() {
   const [name, setName] = useState("");
@@ -50,7 +50,7 @@ export function CorporateEnquiryForm() {
   if (submitted) {
     return (
       <div className="flex min-h-[360px] flex-col items-center justify-center px-2 text-center">
-        <p className="font-serif text-[1.35rem] font-bold text-[#1a3d2a] sm:text-[1.5rem]">
+        <p className="font-serif text-[1.35rem] font-bold text-[#1f6b3a] sm:text-[1.5rem]">
           Thank you for your enquiry.
         </p>
         <p className="mt-2 max-w-[360px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
@@ -121,7 +121,7 @@ export function CorporateEnquiryForm() {
           Phone Number <span className="text-[#c45c3a]">*</span>
         </label>
         <div className="flex gap-2">
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#e4ebe0] bg-white px-2.5 py-2.5 text-[13px] font-semibold text-[#1a3d2a] sm:px-3 sm:py-3">
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#e4ebe0] bg-white px-2.5 py-2.5 text-[13px] font-semibold text-[#1f6b3a] sm:px-3 sm:py-3">
             <span aria-hidden="true" className="text-[15px] leading-none">
               🇮🇳
             </span>
@@ -182,7 +182,7 @@ export function CorporateEnquiryForm() {
 
       <button
         type="submit"
-        className="btn-primary mt-1 flex w-full items-center justify-center gap-2 rounded-full bg-[#3d5c3a] px-5 py-3.5 text-[14px] font-bold text-white shadow-[0_8px_20px_rgba(61,92,58,0.22)] hover:bg-[#324c30]"
+        className="btn-primary mt-1 flex w-full items-center justify-center gap-2 rounded-full bg-[#1f6b3a] px-5 py-3.5 text-[14px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.22)] hover:bg-[#185830]"
       >
         Submit Enquiry
         <span aria-hidden="true">→</span>

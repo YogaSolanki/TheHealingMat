@@ -118,7 +118,7 @@ export function HeroSection() {
             <h1 className="w-full font-serif text-[2.1rem] leading-[1.1] font-bold tracking-[-0.02em] sm:text-[2.85rem] lg:text-[3rem] xl:text-[3.6rem]">
               <span className="text-black">Everyday Health.</span>
               <br />
-              <span className="text-[#1a3d2a]">For Every Body.</span>
+              <span className="text-[#1f6b3a]">For Every Body.</span>
             </h1>
 
             <div className="mt-4 w-full max-w-[420px] space-y-1.5 text-[14px] leading-relaxed sm:mt-6 sm:max-w-none sm:text-[16px] lg:text-[15px] xl:text-[18px]">

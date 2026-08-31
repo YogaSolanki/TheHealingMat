@@ -204,7 +204,7 @@ function BrandSelect({
         aria-labelledby={labelId}
         onClick={() => setOpen((current) => !current)}
         onKeyDown={onTriggerKeyDown}
-        className="flex w-full cursor-pointer items-center rounded-xl border border-[#d7e0d6] bg-white py-2.5 pr-11 pl-3.5 text-left text-sm text-[#1a3d2a] outline-none transition hover:border-[#b7cbb8] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
+        className="flex w-full cursor-pointer items-center rounded-xl border border-[#d7e0d6] bg-white py-2.5 pr-11 pl-3.5 text-left text-sm text-[#1f6b3a] outline-none transition hover:border-[#b7cbb8] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
       >
         <span className="min-w-0 truncate">
           <span className="font-medium">{selected?.label}</span>
@@ -220,7 +220,7 @@ function BrandSelect({
           id={listId}
           role="listbox"
           aria-labelledby={labelId}
-          className="auth-select-menu absolute top-[calc(100%+6px)] right-0 left-0 z-30 overflow-hidden rounded-xl border border-[#d9e2d8] bg-[#FBF9F5] py-1.5 shadow-[0_16px_40px_rgba(26,61,42,0.14)]"
+          className="auth-select-menu absolute top-[calc(100%+6px)] right-0 left-0 z-30 overflow-hidden rounded-xl border border-[#d9e2d8] bg-[#FBF9F5] py-1.5 shadow-[0_16px_40px_rgba(31,107,58,0.14)]"
         >
           {options.map((option) => {
             const active = option.value === value;
@@ -234,7 +234,7 @@ function BrandSelect({
                   className={`flex w-full cursor-pointer items-center gap-2.5 px-3.5 py-2.5 text-left text-sm transition ${
                     active
                       ? "bg-[#e8f2ea] text-[#1f6b3a]"
-                      : "text-[#1a3d2a] hover:bg-[#eef3ee]"
+                      : "text-[#1f6b3a] hover:bg-[#eef3ee]"
                   }`}
                 >
                   <span
@@ -256,7 +256,7 @@ function BrandSelect({
                   <span className="min-w-0">
                     <span className="font-medium">{option.label}</span>
                     {option.hint ? (
-                      <span className={active ? "text-[#3d7a52]" : "text-[#6d8474]"}>
+                      <span className={active ? "text-[#1f6b3a]" : "text-[#6d8474]"}>
                         {" "}
                         — {option.hint}
                       </span>
@@ -466,21 +466,21 @@ export function AuthTrialCard({
   const regionLabelId = useId();
   const orientationLabelId = useId();
   const fieldClass =
-    "w-full rounded-xl border border-[#d7e0d6] bg-white px-3.5 py-2.5 text-sm text-[#1a3d2a] outline-none transition focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
+    "w-full rounded-xl border border-[#d7e0d6] bg-white px-3.5 py-2.5 text-sm text-[#1f6b3a] outline-none transition focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
   const labelClass = "mb-1.5 block text-sm font-medium text-[#3d4a3c]";
   const primaryBtnClass =
-    "w-full cursor-pointer rounded-xl bg-[#1f6b3a] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[#195a30] disabled:cursor-not-allowed disabled:opacity-60";
+    "w-full cursor-pointer rounded-xl bg-[#1f6b3a] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-60";
   const textBtnClass =
-    "w-full cursor-pointer text-sm font-medium text-[#6d8474] transition hover:text-[#1a3d2a]";
+    "w-full cursor-pointer text-sm font-medium text-[#6d8474] transition hover:text-[#1f6b3a]";
 
   return (
-    <div className="relative w-full max-w-xl rounded-2xl border border-[#d9e2d8] bg-white p-6 shadow-[0_20px_60px_rgba(26,61,42,0.16)] sm:p-7">
+    <div className="relative w-full max-w-xl rounded-2xl border border-[#d9e2d8] bg-white p-6 shadow-[0_20px_60px_rgba(31,107,58,0.16)] sm:p-7">
       {onClose ? (
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute top-3.5 right-3.5 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-[#6d8474] transition hover:bg-[#eef2ee] hover:text-[#1a3d2a]"
+          className="absolute top-3.5 right-3.5 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-[#6d8474] transition hover:bg-[#eef2ee] hover:text-[#1f6b3a]"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
             <path
@@ -507,7 +507,7 @@ export function AuthTrialCard({
               if (mode !== "signup") resetFlow("signup");
             }}
             className={`relative z-10 cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold transition-colors duration-300 ${
-              mode === "signup" ? "text-white" : "text-[#2f4a3a] hover:text-[#1a3d2a]"
+              mode === "signup" ? "text-white" : "text-[#2f4a3a] hover:text-[#1f6b3a]"
             }`}
           >
             Free Trial
@@ -518,7 +518,7 @@ export function AuthTrialCard({
               if (mode !== "login") resetFlow("login");
             }}
             className={`relative z-10 cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold transition-colors duration-300 ${
-              mode === "login" ? "text-white" : "text-[#2f4a3a] hover:text-[#1a3d2a]"
+              mode === "login" ? "text-white" : "text-[#2f4a3a] hover:text-[#1f6b3a]"
             }`}
           >
             Login
@@ -533,7 +533,7 @@ export function AuthTrialCard({
       ) : null}
 
       <div key={`${mode}-${step}`} className="auth-mode-content">
-      <h2 className="mt-4 pr-8 font-serif text-[1.55rem] leading-tight font-bold text-[#1a3d2a] sm:text-[1.7rem]">
+      <h2 className="mt-4 pr-8 font-serif text-[1.55rem] leading-tight font-bold text-[#1f6b3a] sm:text-[1.7rem]">
         {mode === "signup"
           ? "Start Your 14-Day Free Trial"
           : mode === "forgot"
@@ -617,7 +617,7 @@ export function AuthTrialCard({
                   <button
                     type="button"
                     onClick={openForgotPassword}
-                    className="cursor-pointer text-xs font-semibold text-[#1f6b3a] transition hover:text-[#195a30]"
+                    className="cursor-pointer text-xs font-semibold text-[#1f6b3a] transition hover:text-[#185830]"
                   >
                     Forgot password?
                   </button>
@@ -664,7 +664,7 @@ export function AuthTrialCard({
               <button
                 type="button"
                 onClick={continueWithGoogle}
-                className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border border-[#d7e0d6] bg-white px-3 py-2.5 text-sm font-semibold text-[#1a3d2a] transition hover:border-[#b7cbb8] hover:bg-[#f7faf7]"
+                className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl border border-[#d7e0d6] bg-white px-3 py-2.5 text-sm font-semibold text-[#1f6b3a] transition hover:border-[#b7cbb8] hover:bg-[#f7faf7]"
               >
                 <GoogleMark />
                 Continue with Google
@@ -778,7 +778,7 @@ export function AuthTrialCard({
       {step === "orientation" && cohort ? (
         <form onSubmit={onRegisterTrial} className="mt-5 space-y-4">
           <div className="rounded-xl bg-[#f6f8f5] px-3.5 py-3 text-sm text-[#3d4a3c]">
-            <p className="font-semibold text-[#1a3d2a]">{cohort.cohort.label}</p>
+            <p className="font-semibold text-[#1f6b3a]">{cohort.cohort.label}</p>
             <p className="mt-1">
               Trial: {formatDate(cohort.cohort.startsAt)} →{" "}
               {formatDate(cohort.cohort.endsAt)}
@@ -814,7 +814,7 @@ export function AuthTrialCard({
 
       {step === "done" && confirmation ? (
         <div className="mt-5 space-y-3 text-sm text-[#3d4a3c]">
-          <p className="font-semibold text-[#1a3d2a]">
+          <p className="font-semibold text-[#1f6b3a]">
             {confirmation.account.fullName || user?.fullName}
           </p>
           <p>Referral code: {confirmation.account.referralCode}</p>
@@ -838,7 +838,7 @@ export function AuthTrialCard({
           <button
             type="button"
             onClick={signOut}
-            className="mt-2 w-full cursor-pointer rounded-xl border border-[#d7e0d6] px-3 py-2.5 text-sm font-semibold text-[#1a3d2a] transition hover:bg-[#f6f8f5]"
+            className="mt-2 w-full cursor-pointer rounded-xl border border-[#d7e0d6] px-3 py-2.5 text-sm font-semibold text-[#1f6b3a] transition hover:bg-[#f6f8f5]"
           >
             Sign out
           </button>

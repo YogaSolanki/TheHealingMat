@@ -218,7 +218,7 @@ function PlansBlock() {
         <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
           Membership Plans
         </p>
-        <h1 className="mt-2.5 font-serif text-[2.1rem] leading-[1.15] font-bold tracking-tight text-[#1a3d2a] sm:text-[2.55rem] lg:text-[2.85rem]">
+        <h1 className="mt-2.5 font-serif text-[2.1rem] leading-[1.15] font-bold tracking-tight text-[#1f6b3a] sm:text-[2.55rem] lg:text-[2.85rem]">
           Choose Your Membership
         </h1>
         <p className="mx-auto mt-3 max-w-[520px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
@@ -227,7 +227,7 @@ function PlansBlock() {
         </p>
       </div>
 
-      <div className="mt-10 grid items-stretch gap-5 sm:mt-12 sm:grid-cols-3 sm:gap-6 lg:mt-14 lg:gap-8">
+      <div className="mx-auto mt-10 grid w-full max-w-[420px] items-stretch gap-5 sm:mt-12 sm:max-w-[480px] lg:mt-14 lg:max-w-none lg:grid-cols-3 lg:gap-8">
         {plans.map((plan) => (
           <PlanCard key={plan.months} plan={plan} />
         ))}
@@ -248,15 +248,15 @@ function PlanCard({ plan }: { plan: Plan }) {
       }`}
     >
       {plan.featured ? (
-        <span className="badge-shine absolute top-0 left-1/2 z-20 -translate-x-1/2 -translate-y-[42%] rounded-[8px] bg-[#1f6b3a] px-5 py-[7px] text-[11px] font-bold tracking-[0.14em] text-white uppercase shadow-[0_6px_18px_rgba(31,107,58,0.3)] sm:px-6 sm:py-2 sm:text-[12px]">
+        <span className="badge-shine absolute top-0 left-1/2 z-20 -translate-x-1/2 -translate-y-[42%] whitespace-nowrap rounded-[8px] bg-[#1f6b3a] px-5 py-[7px] text-[11px] font-bold tracking-[0.14em] text-white uppercase shadow-[0_6px_18px_rgba(31,107,58,0.3)] sm:px-6 sm:py-2 sm:text-[12px]">
           Best Value
         </span>
       ) : null}
 
-      <p className="relative z-10 text-center text-[12px] font-bold tracking-[0.16em] text-[#1a3d2a] uppercase sm:text-[13px]">
+      <p className="relative z-10 text-center text-[12px] font-bold tracking-[0.16em] text-[#1f6b3a] uppercase sm:text-[13px]">
         {label}
       </p>
-      <p className="relative z-10 mt-3.5 text-center font-serif text-[2.85rem] leading-none font-bold tracking-tight text-[#1a3d2a] sm:text-[3.15rem] lg:text-[3.35rem]">
+      <p className="relative z-10 mt-3.5 text-center font-serif text-[2.85rem] leading-none font-bold tracking-tight text-[#1f6b3a] sm:text-[3.15rem] lg:text-[3.35rem]">
         <span className="mr-0.5 text-[1.7rem] align-[0.22em] font-bold sm:text-[1.95rem]">
           ₹
         </span>
@@ -269,11 +269,8 @@ function PlanCard({ plan }: { plan: Plan }) {
       {plan.perk ? (
         <div className="relative z-10 mt-7 flex items-center gap-3.5 rounded-[18px] border border-[#d7e5d9] bg-white px-4 py-4 sm:mt-8 sm:gap-4 sm:px-5 sm:py-[18px]">
           <GiftBoxIcon className="h-10 w-10 shrink-0 sm:h-11 sm:w-11" />
-          <p className="text-[13px] leading-[1.35] font-semibold text-[#1a3d2a] sm:text-[14px]">
-            Get the Weight Loss
-            <br />
-            Without the Drama eBook
-            <br />
+          <p className="min-w-0 text-[13px] leading-[1.35] font-semibold text-[#1f6b3a] sm:text-[14px]">
+            Get the Weight Loss Without the Drama eBook{" "}
             <span className="font-bold">FREE</span>
           </p>
         </div>
@@ -286,7 +283,7 @@ function PlanCard({ plan }: { plan: Plan }) {
 
       <div className="relative z-10 mt-auto pt-7 sm:pt-8">
         <StartTrialButton
-          className={`inline-flex w-full items-center justify-center gap-2 px-5 py-3.5 text-[14px] font-bold sm:text-[15px] ${
+          className={`inline-flex w-full items-center justify-center gap-2 whitespace-nowrap px-5 py-3.5 text-[14px] font-bold sm:text-[15px] ${
             plan.featured
               ? "btn-primary bg-[#1f6b3a] text-white"
               : "btn-outline border-[1.5px] border-[#1f6b3a] text-[#1f6b3a]"
@@ -396,7 +393,7 @@ function WeekBlock() {
                   {morningSlots.map((slot) => (
                     <span
                       key={slot}
-                      className="rounded-[16px] bg-[#E8F0E4] px-2.5 py-1.5 text-[12px] font-bold whitespace-nowrap text-[#1a3d2a] sm:px-3 sm:py-2 sm:text-[13px]"
+                      className="rounded-[16px] bg-[#E8F0E4] px-2.5 py-1.5 text-[12px] font-bold whitespace-nowrap text-[#1f6b3a] sm:px-3 sm:py-2 sm:text-[13px]"
                     >
                       {slot}
                     </span>
@@ -419,7 +416,7 @@ function WeekBlock() {
                   {eveningSlots.map((slot) => (
                     <span
                       key={slot}
-                      className="rounded-[16px] bg-[#E8F0E4] px-2.5 py-1.5 text-[12px] font-bold whitespace-nowrap text-[#1a3d2a] sm:px-3 sm:py-2 sm:text-[13px]"
+                      className="rounded-[16px] bg-[#E8F0E4] px-2.5 py-1.5 text-[12px] font-bold whitespace-nowrap text-[#1f6b3a] sm:px-3 sm:py-2 sm:text-[13px]"
                     >
                       {slot}
                     </span>
@@ -466,7 +463,7 @@ function WeekBlock() {
               {sundaySlots.map((slot) => (
                 <span
                   key={slot}
-                  className="rounded-[16px] bg-[#E8F0E4] px-3.5 py-2 text-[13px] font-bold whitespace-nowrap text-[#1a3d2a] sm:px-4 sm:py-2.5 sm:text-[14px]"
+                  className="rounded-[16px] bg-[#E8F0E4] px-3.5 py-2 text-[13px] font-bold whitespace-nowrap text-[#1f6b3a] sm:px-4 sm:py-2.5 sm:text-[14px]"
                 >
                   {slot}
                 </span>
@@ -482,7 +479,7 @@ function WeekBlock() {
 function BenefitsBlock() {
   return (
     <section className="mx-auto w-full max-w-[1440px] px-4 py-4 sm:px-6 sm:py-5 lg:px-6 xl:px-8">
-      <h2 className="text-center font-serif text-[1.45rem] font-bold tracking-tight text-[#1a3d2a] sm:text-[1.7rem]">
+      <h2 className="text-center font-serif text-[1.45rem] font-bold tracking-tight text-[#1f6b3a] sm:text-[1.7rem]">
         What You Get With Every Membership
       </h2>
 
@@ -497,11 +494,11 @@ function BenefitsBlock() {
             }`}
           >
             <span className="inline-flex h-[68px] w-[68px] items-center justify-center rounded-full bg-[#F3F6EE] sm:h-[76px] sm:w-[76px]">
-              <span className="flex items-center justify-center text-[#1a3d2a] [&_img]:h-11 [&_img]:w-11 [&_svg]:h-11 [&_svg]:w-11 sm:[&_img]:h-12 sm:[&_img]:w-12 sm:[&_svg]:h-12 sm:[&_svg]:w-12">
+              <span className="flex items-center justify-center text-[#1f6b3a] [&_img]:h-11 [&_img]:w-11 [&_svg]:h-11 [&_svg]:w-11 sm:[&_img]:h-12 sm:[&_img]:w-12 sm:[&_svg]:h-12 sm:[&_svg]:w-12">
                 {item.icon}
               </span>
             </span>
-            <h3 className="mt-3.5 text-[14px] font-bold text-[#1a3d2a] sm:text-[15px]">
+            <h3 className="mt-3.5 text-[14px] font-bold text-[#1f6b3a] sm:text-[15px]">
               {item.title}
             </h3>
             <p className="mt-1 max-w-[200px] text-[12px] leading-snug text-[#6b7c6e] sm:text-[13px]">
@@ -540,7 +537,7 @@ function OrientationBanner() {
             />
           </div>
           <div className="px-5 py-5 sm:px-2 sm:py-6 lg:pr-28 xl:pr-36">
-            <h3 className="font-serif text-[1.25rem] font-bold tracking-tight text-[#1a3d2a] sm:text-[1.4rem]">
+            <h3 className="font-serif text-[1.25rem] font-bold tracking-tight text-[#1f6b3a] sm:text-[1.4rem]">
               New to The Healing Mat?
             </h3>
             <p className="mt-2 max-w-[560px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
@@ -558,7 +555,7 @@ function OrientationBanner() {
 function DailySessionsBlock() {
   return (
     <section className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 sm:py-6 lg:px-6 xl:px-8">
-      <h2 className="text-center font-serif text-[1.45rem] font-bold tracking-tight text-[#1a3d2a] sm:text-[1.7rem]">
+      <h2 className="text-center font-serif text-[1.45rem] font-bold tracking-tight text-[#1f6b3a] sm:text-[1.7rem]">
         What Happens in Your Daily Sessions?
       </h2>
 
@@ -579,7 +576,7 @@ function DailySessionsBlock() {
                 {pillar.icon}
               </span>
               <div className="min-w-0 pt-0.5">
-                <h3 className="text-[16px] leading-snug font-bold text-[#1a3d2a] sm:text-[17px]">
+                <h3 className="text-[16px] leading-snug font-bold text-[#1f6b3a] sm:text-[17px]">
                   {pillar.title}
                 </h3>
                 <ul className="mt-2.5 list-disc space-y-1.5 pl-4 text-[13px] leading-snug text-[#2f3d34] marker:text-[#2f3d34] sm:text-[14px]">
@@ -652,7 +649,7 @@ function StillNotSureCta() {
             </StartTrialButton>
             <TrialTrustRow
               className="justify-center"
-              itemClassName="text-[#3d5c45]"
+              itemClassName="text-[#5f6f64]"
             />
           </div>
         </div>
@@ -667,7 +664,7 @@ function GiftBoxIcon({ className = "h-10 w-10" }: { className?: string }) {
   return (
     <svg viewBox="0 0 48 48" className={className} fill="none" aria-hidden="true">
       <rect x="9" y="20" width="30" height="18" rx="3.5" fill="#1f6b3a" />
-      <rect x="8" y="15" width="32" height="7" rx="2.5" fill="#2f7a45" />
+      <rect x="8" y="15" width="32" height="7" rx="2.5" fill="#1f6b3a" />
       <rect x="22.25" y="15" width="3.5" height="23" rx="1" fill="#E8F2EA" />
       <path
         d="M24 15.5c-2.8-5.2-7.8-6.2-10.2-3.4-2.2 2.6.4 6.6 5.8 7.6 1.8.3 3.3-.2 4.4-1.4 1.1 1.2 2.6 1.7 4.4 1.4 5.4-1 8-5 5.8-7.6C31.8 9.3 26.8 10.3 24 15.5Z"
