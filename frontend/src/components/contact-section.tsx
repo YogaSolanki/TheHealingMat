@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, type ReactNode, useState } from "react";
 import { FaWhatsapp } from "react-icons/fa";
 import {
   HiOutlineLockClosed,
@@ -42,7 +42,16 @@ export function ContactSection() {
 }
 
 function HeroWithCards() {
-  const cards = [
+  const cards: {
+    key: string;
+    title: string;
+    body: ReactNode;
+    value: string;
+    href: string;
+    cta: string;
+    icon: ReactNode;
+    external: boolean;
+  }[] = [
     {
       key: "call",
       title: "Call Us",
@@ -56,7 +65,13 @@ function HeroWithCards() {
     {
       key: "whatsapp",
       title: "WhatsApp Us",
-      body: "Prefer to chat? Message us on WhatsApp.",
+      body: (
+        <>
+          Prefer to chat?
+          <br />
+          Message us on WhatsApp.
+        </>
+      ),
       value: PHONE_DISPLAY,
       href: WHATSAPP_URL,
       cta: "Chat on WhatsApp",
@@ -331,9 +346,10 @@ function CorporateBand() {
               Looking for Corporate Plans?
             </h2>
             <p className="mt-1.5 max-w-[520px] text-[13px] leading-relaxed text-[#3d5c45] sm:text-[14px]">
-              Want to offer The Healing Mat to your employees? Explore our
-              corporate plans or speak with us about employee wellness
-              programmes.
+              Want to offer The Healing Mat to your employees?
+              <br />
+              Explore our corporate plans or speak with us about employee
+              wellness programmes.
             </p>
           </div>
         </div>
