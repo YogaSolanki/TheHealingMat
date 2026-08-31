@@ -6,8 +6,9 @@
   /* Cap only above MacBook Pro 16" default CSS width (~1728px) */
   --site-max-width: 1728px;
   --foreground: #243028;
-  --brand-green: #1f6b3a;
-  --brand-green-dark: #1a3d2a;
+  --brand-green: #1f6b3a; /* primary — Member Login / CTAs / headings / accents */
+  --brand-green-hover: #185830;
+  --brand-green-dark: #1f6b3a; /* same as primary for a unified green theme */
   --brand-orange: #e07a2f;
   --muted: #4a5a4f;
 }

@@ -10,7 +10,7 @@ const navLinks = [
   { href: "/", label: "Home" },
   { href: "/membership", label: "Membership" },
   { href: "/corporate", label: "Corporate Plans" },
-  { href: "#guides", label: "Health Guides" },
+  { href: "/guides", label: "Health Guides" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
 ];
@@ -48,7 +48,7 @@ export function SiteHeader() {
             priority
           />
           <span className="min-w-0 leading-[1.15]">
-            <span className="block truncate text-[15px] font-semibold tracking-tight text-[#1a3d2a] sm:text-[16px] lg:text-[17px] xl:text-[18px]">
+            <span className="block truncate text-[15px] font-semibold tracking-tight text-[#1f6b3a] sm:text-[16px] lg:text-[17px] xl:text-[18px]">
               The Healing Mat
             </span>
             <span className="hidden text-[11px] text-[#6b7c6e] sm:block lg:text-[11px] xl:text-[12px]">
@@ -86,7 +86,7 @@ export function SiteHeader() {
 
           <button
             type="button"
-            className="relative z-[100] inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-[#d7ddd6] text-[#1a3d2a] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#1f6b3a] hover:bg-[#eef6f0] hover:text-[#1f6b3a] lg:hidden"
+            className="relative z-[100] inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-[#d7ddd6] text-[#1f6b3a] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#1f6b3a] hover:bg-[#eef6f0] hover:text-[#1f6b3a] lg:hidden"
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
             aria-controls="mobile-nav"

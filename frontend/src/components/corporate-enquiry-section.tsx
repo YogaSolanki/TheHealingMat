@@ -100,7 +100,7 @@ function HeroBlock() {
             <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
               Corporate Enquiry
             </p>
-            <h1 className="mt-3 max-w-[540px] font-serif text-[1.7rem] leading-[1.15] font-bold tracking-tight text-[#1a3d2a] sm:text-[2.15rem] lg:text-[2.45rem]">
+            <h1 className="mt-3 max-w-[540px] font-serif text-[1.7rem] leading-[1.15] font-bold tracking-tight text-[#1f6b3a] sm:text-[2.15rem] lg:text-[2.45rem]">
               Let’s Bring Good
               <br className="hidden sm:block" /> Health to Your Employees.
             </h1>
@@ -132,7 +132,7 @@ function HeroBlock() {
 
       <section className="w-full">
         <div className="mx-auto w-full max-w-[1440px] px-3 pt-0 pb-3 sm:px-4 sm:pb-4 lg:px-5 xl:px-6">
-          <div className="rounded-[22px] border border-[#ebe6dc] bg-white px-5 py-5 shadow-[0_10px_30px_rgba(26,61,42,0.06)] sm:px-7 sm:py-6 lg:px-8">
+          <div className="rounded-[22px] border border-[#ebe6dc] bg-white px-5 py-5 shadow-[0_10px_30px_rgba(31,107,58,0.06)] sm:px-7 sm:py-6 lg:px-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
               <div className="flex min-w-0 items-start gap-3.5 sm:items-center sm:gap-4">
                 <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#E8F0E4] sm:h-14 sm:w-14">
@@ -147,7 +147,7 @@ function HeroBlock() {
                   />
                 </span>
                 <div className="min-w-0">
-                  <h2 className="text-[14px] leading-snug font-bold text-[#1a3d2a] sm:text-[15px]">
+                  <h2 className="text-[14px] leading-snug font-bold text-[#1f6b3a] sm:text-[15px]">
                     Backed by 16+ Years of Corporate Wellness Experience
                   </h2>
                   <p className="mt-1 max-w-[560px] text-[12px] leading-relaxed text-[#5f6f64] sm:text-[13px]">
@@ -182,7 +182,7 @@ function HeroBlock() {
                     </span>
                     <AnimatedStatValue
                       value={stat.target}
-                      className="mt-1.5 font-serif text-[1.15rem] leading-none font-bold text-[#1a3d2a] sm:text-[1.35rem]"
+                      className="mt-1.5 font-serif text-[1.15rem] leading-none font-bold text-[#1f6b3a] sm:text-[1.35rem]"
                     />
                     <p className="mt-1 text-[10px] leading-snug font-semibold text-[#5f6f64] sm:text-[11px]">
                       {stat.label}
@@ -203,7 +203,7 @@ function FormBlock() {
     <section className="w-full">
       <div className="mx-auto w-full max-w-[1440px] px-3 pt-2 pb-10 sm:px-4 sm:pt-3 sm:pb-12 lg:px-5 lg:pt-4 lg:pb-14 xl:px-6">
         <div className="mx-auto mb-6 max-w-[720px] text-center sm:mb-7">
-          <h2 className="font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-[#1a3d2a] sm:text-[1.85rem] lg:text-[2rem]">
+          <h2 className="font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.85rem] lg:text-[2rem]">
             Tell Us How We Can Help
           </h2>
           <p className="mt-2 text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
@@ -212,7 +212,7 @@ function FormBlock() {
           </p>
         </div>
 
-        <div className="grid w-full overflow-hidden rounded-[24px] border border-[#ebe6dc] bg-white shadow-[0_18px_50px_rgba(26,61,42,0.12)] lg:grid-cols-[2fr_3fr]">
+        <div className="grid w-full overflow-hidden rounded-[24px] border border-[#ebe6dc] bg-white shadow-[0_18px_50px_rgba(31,107,58,0.12)] lg:grid-cols-[2fr_3fr]">
           <div
             className="relative flex flex-col items-center justify-center overflow-hidden px-4 py-10 text-center sm:px-5 lg:min-h-full lg:px-6 lg:py-12"
             style={{ backgroundColor: "#F7F4EC" }}
@@ -245,7 +245,7 @@ function FormBlock() {
 function PartnerBlock() {
   return (
     <section className="mx-auto w-full max-w-[1440px] px-3 pb-10 sm:px-4 sm:pb-12 lg:px-5 lg:pb-14 xl:px-6">
-      <h2 className="text-center font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-[#1a3d2a] sm:text-[1.85rem] lg:text-[2rem]">
+      <h2 className="text-center font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.85rem] lg:text-[2rem]">
         Why Partner With The Healing Mat?
       </h2>
 
@@ -268,7 +268,7 @@ function PartnerBlock() {
                 }}
               />
             </span>
-            <h3 className="mt-4 text-[15px] font-bold text-[#1a3d2a] sm:text-[16px] lg:text-[17px]">
+            <h3 className="mt-4 text-[15px] font-bold text-[#1f6b3a] sm:text-[16px] lg:text-[17px]">
               {item.title}
             </h3>
             <p className="mt-2 max-w-[200px] text-[13px] leading-snug text-[#5f6f64] sm:text-[14px]">
@@ -286,7 +286,7 @@ function ContactBand() {
     <section className="w-full">
       <div className="mx-auto flex w-full max-w-[1440px] flex-col items-center gap-5 px-4 py-10 text-center sm:px-6 sm:py-12 lg:flex-row lg:items-center lg:justify-between lg:px-8 lg:text-left xl:px-10">
         <div className="max-w-[560px]">
-          <h2 className="font-serif text-[1.45rem] leading-tight font-bold tracking-tight text-[#1a3d2a] sm:text-[1.75rem]">
+          <h2 className="font-serif text-[1.45rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.75rem]">
             Let’s Make Workplace Wellness Simpler.
           </h2>
           <p className="mt-2 text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
@@ -296,7 +296,7 @@ function ContactBand() {
         </div>
 
         <div className="rounded-[18px] border border-[#ebe6dc] bg-white px-5 py-4 text-left sm:px-6">
-          <p className="text-[13px] font-bold text-[#1a3d2a] sm:text-[14px]">
+          <p className="text-[13px] font-bold text-[#1f6b3a] sm:text-[14px]">
             Get in Touch
           </p>
           <ul className="mt-2 space-y-1.5 text-[13px] text-[#1f6b3a] sm:text-[14px]">
@@ -306,7 +306,7 @@ function ContactBand() {
               </span>
               <a
                 href="tel:+919899588060"
-                className="font-semibold transition hover:text-[#16532c]"
+                className="font-semibold transition hover:text-[#185830]"
               >
                 +91 98995 88060
               </a>
@@ -315,7 +315,7 @@ function ContactBand() {
               <span className="font-semibold text-[#5f6f64]">Email: </span>
               <a
                 href="mailto:corporate@thehealingmat.yoga"
-                className="font-semibold transition hover:text-[#16532c]"
+                className="font-semibold transition hover:text-[#185830]"
               >
                 corporate@thehealingmat.yoga
               </a>

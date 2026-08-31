@@ -274,7 +274,7 @@ export function ApproachSection() {
       <div className="relative z-10 mx-auto w-full max-w-none">
         <div className="rounded-[16px] bg-[#FBF9F5] px-5 py-14 sm:px-8 sm:py-16 lg:rounded-[18px] lg:px-12 lg:py-[72px] xl:px-16 ">
           <div className="mx-auto max-w-[760px] text-center">
-            <h2 className="font-serif text-[1.55rem] font-bold tracking-tight text-[#1a3d2a] sm:text-[1.85rem] md:text-[2rem] lg:text-[2.15rem]">
+            <h2 className="font-serif text-[1.55rem] font-bold tracking-tight text-[#1f6b3a] sm:text-[1.85rem] md:text-[2rem] lg:text-[2.15rem]">
               A Complete Approach to Everyday Health
             </h2>
             <p className="mt-3 text-[13px] leading-relaxed text-[#7a8a7e] sm:mt-3.5 sm:text-[15px] lg:text-[15px]">
@@ -291,10 +291,10 @@ export function ApproachSection() {
                   index > 0 ? "lg:border-l lg:border-[#d9e0d6]" : ""
                 }`}
               >
-                <span className="text-[#3d8f55]" aria-hidden="true">
+                <span className="text-[#1f6b3a]" aria-hidden="true">
                   {item.icon}
                 </span>
-                <h3 className="mt-4 text-[13px] leading-snug font-bold text-[#1a3d2a] sm:text-[14px] lg:text-[15px]">
+                <h3 className="mt-4 text-[13px] leading-snug font-bold text-[#1f6b3a] sm:text-[14px] lg:text-[15px]">
                   {item.title}
                 </h3>
                 <p className="mt-2 max-w-[135px] text-[11px] leading-snug text-[#8a968c] sm:text-[12px] lg:max-w-[150px] lg:text-[12.5px]">
@@ -305,7 +305,7 @@ export function ApproachSection() {
           </ul>
 
           <div className="mt-12 sm:mt-14 lg:mt-16">
-            <h3 className="text-center text-[17px] font-semibold text-[#3d8f55] sm:text-[19px] lg:text-[21px]">
+            <h3 className="text-center text-[17px] font-semibold text-[#1f6b3a] sm:text-[19px] lg:text-[21px]">
               Support for everyday health goals
             </h3>
 
@@ -318,7 +318,7 @@ export function ApproachSection() {
                   <span className="mt-0.5 shrink-0">
                     <GoalCheckIcon />
                   </span>
-                  <span className="text-[12px] leading-snug font-bold text-[#1a3d2a] sm:text-[12.5px] lg:whitespace-nowrap lg:text-[13px]">
+                  <span className="text-[12px] leading-snug font-bold text-[#1f6b3a] sm:text-[12.5px] lg:whitespace-nowrap lg:text-[13px]">
                     {goal.label}
                   </span>
                 </li>

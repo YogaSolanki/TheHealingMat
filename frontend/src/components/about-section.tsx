@@ -123,21 +123,21 @@ const philosophyPillars: {
     title: "Integrate Health",
     body: "Make healthy practices part of everyday life.",
     icon: helthIcon,
-    color: "#2f7a45",
+    color: "#1f6b3a",
   },
   {
     key: "consistent",
     title: "Stay Consistent",
     body: "Small, regular steps can create lasting change.",
     icon: trustIcon,
-    color: "#2f7a45",
+    color: "#1f6b3a",
   },
   {
     key: "child",
     title: "Be a Child",
     body: "Move. Laugh. Explore. Enjoy.",
     icon: ic3Icon,
-    color: "#2f7a45",
+    color: "#1f6b3a",
   },
   {
     key: "drama",
@@ -169,7 +169,7 @@ function HeroBlock() {
             <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
               About The Healing Mat
             </p>
-            <h1 className="mt-3 font-serif text-[1.55rem] leading-[1.15] font-bold tracking-tight text-[#1a3d2a] sm:text-[2.2rem] lg:text-[2.55rem]">
+            <h1 className="mt-3 font-serif text-[1.55rem] leading-[1.15] font-bold tracking-tight text-[#1f6b3a] sm:text-[2.2rem] lg:text-[2.55rem]">
               More Than Yoga.
               <br />
               A Simpler Approach to
@@ -178,7 +178,7 @@ function HeroBlock() {
             </h1>
 
             <div className="mt-5">
-              <p className="text-[15px] font-bold text-[#1a3d2a] sm:text-[16px]">
+              <p className="text-[15px] font-bold text-[#1f6b3a] sm:text-[16px]">
                 Health Without Drama
               </p>
               <p className="mt-1.5 text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
@@ -236,12 +236,12 @@ function ExperienceBlock() {
                 height={120}
                 className="h-[96px] w-[96px] rounded-full object-cover shadow-sm sm:h-[112px] sm:w-[112px]"
               />
-              <p className="mt-2.5 text-[12px] font-bold text-[#1a3d2a] sm:text-[13px]">
+              <p className="mt-2.5 text-[12px] font-bold text-[#1f6b3a] sm:text-[13px]">
                 Yoga On Call
               </p>
             </a>
             <div className="min-w-0 flex-1">
-              <h2 className="font-serif text-[1.35rem] leading-tight font-bold tracking-tight text-[#1a3d2a] sm:text-[1.55rem]">
+              <h2 className="font-serif text-[1.35rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.55rem]">
                 Built on Years of Real-World Experience
               </h2>
               <p className="mt-2.5 text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
@@ -271,7 +271,7 @@ function ExperienceBlock() {
                 </span>
                 <AnimatedStatValue
                   value={stat.target}
-                  className="mt-1.5 font-serif text-[1.45rem] leading-none font-bold text-[#1a3d2a] sm:text-[1.65rem]"
+                  className="mt-1.5 font-serif text-[1.45rem] leading-none font-bold text-[#1f6b3a] sm:text-[1.65rem]"
                 />
                 <p className="mt-1.5 text-[11px] leading-snug font-semibold text-[#5f6f64] sm:text-[12px]">
                   {stat.label}
@@ -292,7 +292,7 @@ function PhilosophyBlock() {
         <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
           Our Philosophy
         </p>
-        <h2 className="mt-2 font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-[#1a3d2a] sm:text-[1.85rem] lg:text-[2rem]">
+        <h2 className="mt-2 font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.85rem] lg:text-[2rem]">
           Health Without Drama
         </h2>
         <p className="mx-auto mt-2.5 max-w-[640px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
@@ -323,7 +323,7 @@ function PhilosophyBlock() {
                 color={pillar.color}
               />
             </span>
-            <h3 className="mt-3 text-[14px] font-bold text-[#1a3d2a] sm:text-[15px]">
+            <h3 className="mt-3 text-[14px] font-bold text-[#1f6b3a] sm:text-[15px]">
               {pillar.title}
             </h3>
             <p className="mt-1.5 max-w-[200px] text-[12px] leading-snug text-[#5f6f64] sm:text-[13px]">
@@ -343,7 +343,7 @@ function FoundersBlock() {
         <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
           Meet The Founders
         </p>
-        <h2 className="mt-2 font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-[#1a3d2a] sm:text-[1.85rem]">
+        <h2 className="mt-2 font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.85rem]">
           Different journeys. One purpose.
         </h2>
       </div>
@@ -383,7 +383,7 @@ function FounderPhoto({
       className={`relative mx-auto w-full overflow-hidden ${
         large
           ? "aspect-[4/5] max-w-none md:aspect-auto md:h-full md:min-h-full"
-          : "aspect-[4/5] max-w-[360px] rounded-[18px] shadow-[0_10px_24px_rgba(26,61,42,0.08)] md:mx-0 md:max-w-none"
+          : "aspect-[4/5] max-w-[360px] rounded-[18px] shadow-[0_10px_24px_rgba(31,107,58,0.08)] md:mx-0 md:max-w-none"
       }`}
       style={{ backgroundColor: background }}
     >
@@ -494,7 +494,7 @@ function FounderShell({
   return (
     <article
       id={id}
-      className={`scroll-mt-24 overflow-hidden rounded-[22px] border border-[#e6ebe3] shadow-[0_6px_22px_rgba(26,61,42,0.04)] sm:scroll-mt-28 ${minH}`}
+      className={`scroll-mt-24 overflow-hidden rounded-[22px] border border-[#e6ebe3] shadow-[0_6px_22px_rgba(31,107,58,0.04)] sm:scroll-mt-28 ${minH}`}
       style={{ backgroundColor: cream }}
     >
       <div
@@ -540,7 +540,7 @@ function PradeepCard() {
         />
       }
     >
-      <h3 className="font-serif text-[1.35rem] font-bold text-[#1a3d2a] sm:text-[1.55rem] lg:text-[1.75rem]">
+      <h3 className="font-serif text-[1.35rem] font-bold text-[#1f6b3a] sm:text-[1.55rem] lg:text-[1.75rem]">
         Pradeep Solanki
       </h3>
 
@@ -550,7 +550,7 @@ function PradeepCard() {
           <p className="text-[12px] font-semibold text-[#c47a2c] sm:text-[13px]">
             Founder • Lead Yoga Educator • Author
           </p>
-          <p className="mt-2 text-[12px] font-bold text-[#1a3d2a]">
+          <p className="mt-2 text-[12px] font-bold text-[#1f6b3a]">
             Why I&apos;m Here
           </p>
           <p className="mt-1 text-[13px] leading-snug text-[#5f6f64]">
@@ -638,7 +638,7 @@ function PradeepCard() {
                   />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[12px] leading-snug font-bold text-[#1a3d2a]">
+                  <p className="text-[12px] leading-snug font-bold text-[#1f6b3a]">
                     {book.title}
                   </p>
                   <p className="mt-0.5 text-[11px] leading-snug text-[#5f6f64]">
@@ -646,7 +646,7 @@ function PradeepCard() {
                   </p>
                   <a
                     href="#"
-                    className="link-underline mt-1 inline-flex text-[11px] font-bold text-[#2f7a45]"
+                    className="link-underline mt-1 inline-flex text-[11px] font-bold text-[#1f6b3a]"
                   >
                     Read on Amazon →
                   </a>
@@ -679,7 +679,7 @@ function SavitaCard() {
         />
       }
     >
-      <h3 className="font-serif text-[1.35rem] font-bold text-[#1a3d2a] sm:text-[1.55rem] lg:text-[1.75rem]">
+      <h3 className="font-serif text-[1.35rem] font-bold text-[#1f6b3a] sm:text-[1.55rem] lg:text-[1.75rem]">
         Savita Malhotra
       </h3>
 
@@ -688,7 +688,7 @@ function SavitaCard() {
           <p className="text-[12px] font-semibold text-[#1f6b3a] sm:text-[13px]">
             Co-founder • Head of Laughter &amp; Wellness Programs
           </p>
-          <p className="mt-2 text-[12px] font-bold text-[#1a3d2a]">
+          <p className="mt-2 text-[12px] font-bold text-[#1f6b3a]">
             From IT to Laughter, Wellness &amp; Joy
           </p>
           <p className="mt-1 text-[13px] leading-snug text-[#5f6f64]">
@@ -726,7 +726,7 @@ function SavitaCard() {
             />
           </DetailPanel>
           <DetailPanel title="A Little Savita Magic" plain className="mt-3">
-            <p className="text-[12px] leading-snug font-bold text-[#1a3d2a]">
+            <p className="text-[12px] leading-snug font-bold text-[#1f6b3a]">
               “Laugh the Weight Away!”
             </p>
             <p className="mt-1 text-[12px] leading-snug text-[#5f6f64]">
@@ -775,7 +775,7 @@ function DriveFooter({
           </span>
           <div className="min-w-0">
             <p
-              className={`font-bold text-[#1a3d2a] ${
+              className={`font-bold text-[#1f6b3a] ${
                 inline ? "text-[12px]" : "text-[13px]"
               }`}
             >
@@ -812,7 +812,7 @@ function PoornimaCard() {
         />
       }
     >
-      <h3 className="mt-1.5 font-serif text-[1.35rem] font-bold text-[#1a3d2a] sm:mt-2 sm:text-[1.55rem] lg:text-[1.75rem]">
+      <h3 className="mt-1.5 font-serif text-[1.35rem] font-bold text-[#1f6b3a] sm:mt-2 sm:text-[1.55rem] lg:text-[1.75rem]">
         Dr. Poornima Ramamurthy
       </h3>
 
@@ -821,7 +821,7 @@ function PoornimaCard() {
           <p className="text-[12px] font-semibold text-[#1f6b3a] sm:text-[13px]">
             Co-founder • Yoga Educator • Sound Healer • Movement Educator
           </p>
-          <p className="mt-2 text-[12px] font-bold text-[#1a3d2a]">
+          <p className="mt-2 text-[12px] font-bold text-[#1f6b3a]">
             From Personal Practice to a Lifelong Journey
           </p>
           <p className="mt-1 text-[13px] leading-snug text-[#5f6f64]">
@@ -895,7 +895,7 @@ function PokhriyalCard() {
         />
       }
     >
-      <h3 className="mt-1.5 font-serif text-[1.35rem] font-bold text-[#1a3d2a] sm:mt-2 sm:text-[1.55rem] lg:text-[1.75rem]">
+      <h3 className="mt-1.5 font-serif text-[1.35rem] font-bold text-[#1f6b3a] sm:mt-2 sm:text-[1.55rem] lg:text-[1.75rem]">
         Dr. K. P. Pokhriyal
       </h3>
 
@@ -904,7 +904,7 @@ function PokhriyalCard() {
           <p className="text-[12px] font-semibold text-[#1f6b3a] sm:text-[13px]">
             Co-founder • Senior Corporate Wellness Consultant
           </p>
-          <p className="mt-2 text-[12px] font-bold text-[#1a3d2a]">
+          <p className="mt-2 text-[12px] font-bold text-[#1f6b3a]">
             From Corporate Professional to Yoga Therapist
           </p>
           <p className="mt-1 text-[13px] leading-snug text-[#5f6f64]">
@@ -1003,7 +1003,7 @@ function TeamPurposeCta() {
               <p className="mt-3 text-[11px] font-bold tracking-[0.18em] text-[#1f6b3a] uppercase sm:text-[12px] md:mt-0.5">
                 One Team. One Purpose.
               </p>
-              <h2 className="mt-1.5 max-w-[340px] font-serif text-[1.35rem] leading-tight font-bold tracking-tight text-[#1a3d2a] sm:text-[1.55rem] md:max-w-[360px]">
+              <h2 className="mt-1.5 max-w-[340px] font-serif text-[1.35rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.55rem] md:max-w-[360px]">
                 Make better health easier to practise every day.
               </h2>
               <p className="mt-2 max-w-[300px] text-[13px] leading-snug text-[#5f6f64] sm:text-[14px] md:max-w-[320px]">
@@ -1024,7 +1024,7 @@ function TeamPurposeCta() {
             <p className="text-[11px] font-bold tracking-[0.18em] text-[#1f6b3a] uppercase sm:text-[12px]">
               Ready To Begin?
             </p>
-            <h2 className="mt-1.5 max-w-[340px] font-serif text-[1.2rem] leading-tight font-bold tracking-tight text-[#1a3d2a] sm:text-[1.35rem]">
+            <h2 className="mt-1.5 max-w-[340px] font-serif text-[1.2rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.35rem]">
               Start small. Stay consistent. Feel the difference.
             </h2>
             <StartTrialButton className="btn-primary mt-5 inline-flex w-full max-w-[320px] items-center justify-center gap-1.5 rounded-full bg-[#1f6b3a] px-6 py-3.5 text-[14px] font-bold text-white md:w-auto md:px-7 md:text-[15px]">
@@ -1034,7 +1034,7 @@ function TeamPurposeCta() {
             <TrialTrustRow
               centerLastWhenWrapped
               className="mt-4 max-md:flex-col max-md:items-center max-md:gap-y-1.5 md:justify-center md:gap-x-4 xl:gap-x-5"
-              itemClassName="text-[#3d5c45]"
+              itemClassName="text-[#5f6f64]"
             />
           </div>
         </div>

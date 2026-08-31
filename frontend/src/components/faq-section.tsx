@@ -62,10 +62,10 @@ const faqs: {
       <>
         <p>We offer six daily timings from Monday to Saturday:</p>
         <p>
-          <strong className="font-semibold text-[#1a3d2a]">Morning:</strong>{" "}
+          <strong className="font-semibold text-[#1f6b3a]">Morning:</strong>{" "}
           6:30 AM · 7:30 AM · 8:30 AM
           <br />
-          <strong className="font-semibold text-[#1a3d2a]">Evening:</strong> 5:00
+          <strong className="font-semibold text-[#1f6b3a]">Evening:</strong> 5:00
           PM · 6:00 PM · 7:00 PM
         </p>
         <p>
@@ -272,14 +272,14 @@ function FaqItem({
       >
         <span
           className={`text-[15px] font-bold transition-colors duration-300 sm:text-[16px] lg:text-[17px] ${
-            open ? "text-[#1f6b3a]" : "text-[#2f7a45]"
+            open ? "text-[#1f6b3a]" : "text-[#1f6b3a]"
           }`}
         >
           {question}
         </span>
         <span
           aria-hidden="true"
-          className={`shrink-0 text-[22px] font-normal leading-none text-[#2f7a45] transition-transform duration-300 sm:text-[24px] ${
+          className={`shrink-0 text-[22px] font-normal leading-none text-[#1f6b3a] transition-transform duration-300 sm:text-[24px] ${
             open ? "rotate-90 text-[#1f6b3a]" : ""
           }`}
         >
@@ -371,7 +371,7 @@ export function FaqSection() {
       className="w-full bg-white px-4 py-10 sm:px-6 sm:py-12 lg:px-8 lg:py-14"
     >
       <div className="mx-auto max-w-[760px] text-center">
-        <h2 className="font-serif text-[1.75rem] leading-tight font-bold tracking-tight text-[#1a3d2a] sm:text-[2rem] lg:text-[2.15rem]">
+        <h2 className="font-serif text-[1.75rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[2rem] lg:text-[2.15rem]">
           Frequently Asked Questions
         </h2>
         <p className="mt-2 text-[15px] font-semibold text-[#1f6b3a] sm:text-[16px]">
@@ -433,14 +433,14 @@ export function FaqSection() {
             setShowAll((current) => !current);
             setOpenIndex(null);
           }}
-          className="link-animate link-underline cursor-pointer text-[15px] font-bold text-[#2f7a45] sm:text-[16px]"
+          className="link-animate link-underline cursor-pointer text-[15px] font-bold text-[#1f6b3a] sm:text-[16px]"
         >
           {showAll ? "Show Fewer FAQs" : "Explore Our Complete FAQ"}
         </button>
       </div>
 
       <div className="mx-auto mt-10 max-w-[640px] rounded-[22px] border border-[#ebe6dc] bg-[#FBF9F5] px-5 py-7 text-center sm:mt-12 sm:px-8 sm:py-8">
-        <h3 className="font-serif text-[1.35rem] leading-tight font-bold tracking-tight text-[#1a3d2a] sm:text-[1.55rem]">
+        <h3 className="font-serif text-[1.35rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.55rem]">
           Still Have a Question?
         </h3>
         <p className="mt-1.5 text-[14px] font-semibold text-[#1f6b3a] sm:text-[15px]">

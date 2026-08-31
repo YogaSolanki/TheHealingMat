@@ -10,7 +10,7 @@ import pradeepPhoto from "@/assets/pradeep.jpg";
 import savitaPhoto from "@/assets/Savita.png";
 import { AnimatedStatValue } from "@/components/animated-stat-value";
 
-const iconGreen = "#2f7a45";
+const iconGreen = "#1f6b3a";
 
 function GreenMaskedIcon({
   src,
@@ -184,15 +184,15 @@ export function FoundersSection() {
 
           <div className="min-w-0 text-center lg:text-left">
             <h2 className="font-serif text-[1.75rem] leading-tight font-bold tracking-tight sm:text-[2rem] lg:text-[2.15rem]">
-              <span className="text-[#1a3d2a]">Meet the </span>
-              <span className="text-[#2f7a45]">Founders</span>
+              <span className="text-[#1f6b3a]">Meet the </span>
+              <span className="text-[#1f6b3a]">Founders</span>
             </h2>
 
-            <h3 className="mt-3 font-serif text-[1.45rem] leading-tight font-bold text-[#1a3d2a] sm:text-[1.6rem] lg:text-[1.7rem]">
+            <h3 className="mt-3 font-serif text-[1.45rem] leading-tight font-bold text-[#1f6b3a] sm:text-[1.6rem] lg:text-[1.7rem]">
               Pradeep Solanki
             </h3>
 
-            <p className="mt-2 text-[13px] font-semibold text-[#2f7a45] sm:text-[14px]">
+            <p className="mt-2 text-[13px] font-semibold text-[#1f6b3a] sm:text-[14px]">
               Founder&nbsp;&nbsp;|&nbsp;&nbsp;Lead Yoga Educator&nbsp;&nbsp;|&nbsp;&nbsp;Author
             </p>
 
@@ -217,10 +217,10 @@ export function FoundersSection() {
                       : "sm:pr-5 lg:pr-6"
                   } ${index < 3 ? "max-sm:pr-4" : ""} ${index % 2 === 1 ? "max-sm:pl-4" : ""}`}
                 >
-                  <span className="text-[#2f7a45]">{stat.icon}</span>
+                  <span className="text-[#1f6b3a]">{stat.icon}</span>
                   <AnimatedStatValue
                     value={stat.target}
-                    className="mt-2 text-[16px] font-bold text-[#1a3d2a] sm:text-[17px]"
+                    className="mt-2 text-[16px] font-bold text-[#1f6b3a] sm:text-[17px]"
                   />
                   <span className="mt-0.5 text-[11px] leading-snug font-semibold text-[#5f6f64] sm:text-[12px]">
                     {stat.label}
@@ -231,7 +231,7 @@ export function FoundersSection() {
 
             <Link
               href="/about#pradeep"
-              className="link-animate link-underline mt-7 inline-flex text-[14px] font-bold text-[#2f7a45] sm:mt-8 sm:text-[15px]"
+              className="link-animate link-underline mt-7 inline-flex text-[14px] font-bold text-[#1f6b3a] sm:mt-8 sm:text-[15px]"
             >
               Know My Story
               <span aria-hidden="true">→</span>
@@ -262,7 +262,7 @@ export function FoundersSection() {
                 />
               </div>
               <div className="min-w-0">
-                <h4 className="text-[15px] leading-snug font-bold text-[#1a3d2a] sm:text-[16px] xl:whitespace-nowrap">
+                <h4 className="text-[15px] leading-snug font-bold text-[#1f6b3a] sm:text-[16px] xl:whitespace-nowrap">
                   {member.name}
                 </h4>
                 <p className="mt-1 text-[12px] leading-[1.45] text-[#6b7a70] sm:text-[13px]">
@@ -270,7 +270,7 @@ export function FoundersSection() {
                 </p>
                 <Link
                   href={member.href}
-                  className="link-animate link-underline mt-2.5 text-[13px] font-bold text-[#2f7a45] sm:text-[14px]"
+                  className="link-animate link-underline mt-2.5 text-[13px] font-bold text-[#1f6b3a] sm:text-[14px]"
                 >
                   Know More
                   <span aria-hidden="true">→</span>

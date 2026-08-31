@@ -88,7 +88,7 @@ export function TestimonialsSection() {
     <section className="w-full bg-white px-4 pt-1.5 pb-0 sm:px-6 lg:px-8 lg:pb-1">
       <div className="mx-auto w-full max-w-none rounded-[16px] bg-[#FBF9F5] px-5 py-9 sm:px-8 sm:py-11 lg:rounded-[18px] lg:px-10 lg:py-12 xl:px-12">
         <div className="mx-auto max-w-[720px] text-center">
-          <h2 className="font-serif text-[1.75rem] leading-tight font-bold tracking-tight text-[#1a3d2a] sm:text-[2rem] lg:text-[2.15rem]">
+          <h2 className="font-serif text-[1.75rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[2rem] lg:text-[2.15rem]">
             What People Say
           </h2>
           <p className="mt-2 text-[13px] text-[#6b7a70] sm:text-[14px] lg:text-[15px]">
@@ -116,7 +116,7 @@ export function TestimonialsSection() {
               </p>
 
               <div className="mt-5 flex items-end justify-between gap-3">
-                <p className="text-[13px] font-semibold text-[#1a3d2a] sm:text-[14px]">
+                <p className="text-[13px] font-semibold text-[#1f6b3a] sm:text-[14px]">
                   — {item.author}
                 </p>
                 <GoogleMark className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />
@@ -126,7 +126,7 @@ export function TestimonialsSection() {
 
           <aside className="flex flex-col items-center justify-center px-3 py-5 text-center sm:col-span-2 lg:col-span-1 lg:w-[188px] lg:shrink-0 xl:w-[210px]">
             <GoogleMark className="h-10 w-10 sm:h-11 sm:w-11" />
-            <p className="mt-3 font-serif text-[1.3rem] leading-snug font-bold text-[#1a3d2a] sm:text-[1.45rem]">
+            <p className="mt-3 font-serif text-[1.3rem] leading-snug font-bold text-[#1f6b3a] sm:text-[1.45rem]">
               Read all reviews
               <br />
               on Google

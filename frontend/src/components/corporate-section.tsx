@@ -181,7 +181,7 @@ function HeroBlock() {
               Corporate Plans
             </p>
             <h1 className="mt-3 text-left font-serif text-[1.5rem] leading-[1.2] font-bold tracking-tight sm:text-[2.05rem] md:text-[2.25rem] lg:text-[2.45rem]">
-              <span className="block text-[#1a3d2a]">
+              <span className="block text-[#1f6b3a]">
                 Corporate Wellness,
               </span>
               <span className="mt-1 block text-black">
@@ -206,7 +206,7 @@ function HeroBlock() {
                       color={green}
                     />
                   </span>
-                  <span className="mt-2.5 text-[12px] leading-snug font-bold text-[#1a3d2a] sm:text-[13px]">
+                  <span className="mt-2.5 text-[12px] leading-snug font-bold text-[#1f6b3a] sm:text-[13px]">
                     {item.label}
                   </span>
                 </li>
@@ -338,7 +338,7 @@ function ExperienceBlock() {
       <div className="mx-auto w-full max-w-[1440px] px-3 py-8 sm:px-4 sm:py-10 lg:px-5 lg:py-12 xl:px-6">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
           <div className="shrink-0 lg:max-w-[440px] xl:max-w-[480px]">
-            <h2 className="font-serif text-[1.4rem] leading-[1.2] font-bold tracking-tight text-[#1a3d2a] sm:text-[1.75rem] lg:text-[1.85rem]">
+            <h2 className="font-serif text-[1.4rem] leading-[1.2] font-bold tracking-tight text-[#1f6b3a] sm:text-[1.75rem] lg:text-[1.85rem]">
               <span className="block sm:whitespace-nowrap">
                 Built on 16+ Years of
               </span>
@@ -379,7 +379,7 @@ function ExperienceBlock() {
                 </span>
                 <AnimatedStatValue
                   value={stat.target}
-                  className="mt-2 font-serif text-[1.65rem] leading-none font-bold text-[#1a3d2a] sm:text-[1.9rem]"
+                  className="mt-2 font-serif text-[1.65rem] leading-none font-bold text-[#1f6b3a] sm:text-[1.9rem]"
                 />
                 <p className="mt-1.5 max-w-[140px] text-[11px] leading-snug font-semibold text-[#5f6f64] sm:text-[12px]">
                   {stat.label}
@@ -423,7 +423,7 @@ function ContactCta() {
           </div>
 
           <div className="flex flex-col items-center justify-center px-5 py-7 text-center sm:px-6 sm:py-8 lg:px-8 lg:pr-28 xl:pr-36">
-            <h2 className="font-serif text-[1.2rem] leading-tight font-bold tracking-tight text-[#1a3d2a] sm:text-[1.45rem] lg:text-[1.6rem] xl:text-[1.7rem]">
+            <h2 className="font-serif text-[1.2rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.45rem] lg:text-[1.6rem] xl:text-[1.7rem]">
               Discuss Your Corporate Wellness Requirements
             </h2>
             <p className="mt-2 max-w-[560px] text-center text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
@@ -445,14 +445,14 @@ function ContactCta() {
             <div className="mt-4 flex flex-col items-center justify-center gap-2 text-[13px] font-semibold text-[#1f6b3a] sm:flex-row sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
               <a
                 href="tel:9899588060"
-                className="inline-flex items-center gap-2 transition hover:text-[#16532c]"
+                className="inline-flex items-center gap-2 transition hover:text-[#185830]"
               >
                 <PhoneIcon className="h-4 w-4 shrink-0" />
                 9899588060
               </a>
               <a
                 href="mailto:corporate@thehealingmat.yoga"
-                className="inline-flex items-center gap-2 transition hover:text-[#16532c]"
+                className="inline-flex items-center gap-2 transition hover:text-[#185830]"
               >
                 <MailIcon className="h-4 w-4 shrink-0" />
                 corporate@thehealingmat.yoga

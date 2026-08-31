@@ -7,7 +7,7 @@ import rsIcon from "@/assets/rs.png";
 import { StartTrialButton } from "@/components/start-trial-button";
 import { TrialTrustRow } from "@/components/trial-trust-row";
 
-const iconGreen = "#2f7a45";
+const iconGreen = "#1f6b3a";
 
 function GreenMaskedIcon({
   src,
@@ -134,7 +134,7 @@ export function CtaBannerSection() {
         />
 
         <div className="relative z-10 flex flex-col items-center px-5 py-10 text-center sm:px-8 sm:py-12 lg:px-12 lg:py-14 xl:py-16">
-          <h2 className="max-w-[720px] font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-[#1a3d2a] sm:text-[1.85rem] lg:text-[2.05rem]">
+          <h2 className="max-w-[720px] font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.85rem] lg:text-[2.05rem]">
             Ready to Make Health Part of Everyday Life?
           </h2>
           <p className="mt-2.5 max-w-[560px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px] lg:text-[15px]">
@@ -148,7 +148,7 @@ export function CtaBannerSection() {
                 key={feature.key}
                 className="flex flex-col items-center"
               >
-                <span className="text-[#2f7a45]">{feature.icon}</span>
+                <span className="text-[#1f6b3a]">{feature.icon}</span>
                 <span className="mt-2.5 text-[12px] leading-snug font-bold text-black sm:text-[14px] sm:whitespace-nowrap">
                   {feature.label}
                 </span>
