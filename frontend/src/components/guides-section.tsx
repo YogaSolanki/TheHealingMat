@@ -14,13 +14,34 @@ import {
 } from "react-icons/hi";
 import guidesHero from "@/assets/guides-hero.png";
 import handbooksImage from "@/assets/handbooks.png";
+import matBanner from "@/assets/home-banner-bg.png";
 import laptopImage from "@/assets/laptop.png";
 import leafRight from "@/assets/leaf-right.png";
 import mobileImage from "@/assets/mobile.png";
 import pdfIcon from "@/assets/pdf.png";
-import understandIcon from "@/assets/understand.png";
 
 const cream = "#FBF9F5";
+
+/** Same size as home hero highlight icons */
+const trustIconClass = "h-8 w-8 sm:h-9 sm:w-9";
+
+/** Stroke-only open book (no fill) — same style as the other trust icons */
+function BookOutlineIcon({ className = trustIconClass }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+    </svg>
+  );
+}
 
 const trustItems: { key: string; label: ReactNode; icon: ReactNode }[] = [
   {
@@ -32,14 +53,7 @@ const trustItems: { key: string; label: ReactNode; icon: ReactNode }[] = [
         Understand
       </>
     ),
-    icon: (
-      <Image
-        src={understandIcon}
-        alt=""
-        aria-hidden="true"
-        className="h-6 w-6 object-contain sm:h-7 sm:w-7"
-      />
-    ),
+    icon: <BookOutlineIcon />,
   },
   {
     key: "save",
@@ -50,7 +64,7 @@ const trustItems: { key: string; label: ReactNode; icon: ReactNode }[] = [
         Anytime
       </>
     ),
-    icon: <HiOutlineDownload className="h-6 w-6 sm:h-7 sm:w-7" />,
+    icon: <HiOutlineDownload className={trustIconClass} />,
   },
   {
     key: "learn",
@@ -60,7 +74,7 @@ const trustItems: { key: string; label: ReactNode; icon: ReactNode }[] = [
         <br />& Practise
       </>
     ),
-    icon: <HiOutlinePlay className="h-6 w-6 sm:h-7 sm:w-7" />,
+    icon: <HiOutlinePlay className={trustIconClass} />,
   },
   {
     key: "ages",
@@ -70,7 +84,7 @@ const trustItems: { key: string; label: ReactNode; icon: ReactNode }[] = [
         <br />& Stages
       </>
     ),
-    icon: <HiOutlineUserGroup className="h-6 w-6 sm:h-7 sm:w-7" />,
+    icon: <HiOutlineUserGroup className={trustIconClass} />,
   },
 ];
 
@@ -119,30 +133,34 @@ function HeroBlock() {
     <section className="relative w-full overflow-hidden bg-white">
       <div className="relative grid w-full items-stretch lg:grid-cols-2">
         <div className="relative z-10 order-2 flex min-w-0 items-center justify-center px-4 py-8 text-center sm:px-8 sm:py-10 lg:order-1 lg:justify-center lg:px-8 lg:py-14 lg:text-left xl:px-12">
-          <div className="mx-auto flex w-full min-w-0 max-w-[520px] flex-col items-center lg:mx-0 lg:items-start">
-            <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
+          <div className="mx-auto flex w-full min-w-0 max-w-[560px] flex-col items-center lg:mx-0 lg:items-start">
+            <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[12px]">
               Health Guides
             </p>
             <h1 className="mt-3 w-full font-serif text-[1.75rem] leading-[1.15] font-bold tracking-tight break-words text-[#1f6b3a] sm:text-[2.6rem] sm:leading-[1.12] lg:text-[2.9rem] xl:text-[3.25rem]">
               Practical Help for{" "}
               <span className="sm:whitespace-nowrap">Your Everyday Health</span>
             </h1>
-            <p className="mt-4 max-w-[420px] text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px] lg:text-[16px]">
+            <p className="mt-4 max-w-[420px] text-[14px] leading-relaxed font-semibold text-[#2c3a30] sm:mt-6 sm:text-[16px] lg:text-[15px] xl:text-[18px]">
               Simple resources, useful information and guided practices to help
               you understand your health, build better habits and take care of
               yourself every day.
             </p>
 
-            <ul className="mt-8 grid w-full max-w-[440px] grid-cols-2 gap-x-4 gap-y-5 sm:mt-10 sm:grid-cols-4 sm:gap-x-2 lg:max-w-none">
-              {trustItems.map((item) => (
+            <ul className="mt-6 grid w-full grid-cols-4 gap-x-2 gap-y-4 sm:mt-9 sm:gap-x-0 sm:gap-y-6">
+              {trustItems.map((item, index) => (
                 <li
                   key={item.key}
-                  className="flex flex-col items-center gap-2 text-center lg:items-start lg:text-left"
+                  className={`flex flex-col items-center gap-2 text-center lg:items-start lg:text-left ${
+                    index > 0
+                      ? "sm:border-l sm:border-[#e5e8e3] sm:pl-3 lg:pl-2.5 xl:pl-4"
+                      : ""
+                  }`}
                 >
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#d9e5d8] text-[#1f6b3a] sm:h-14 sm:w-14">
+                  <span className="text-[#E07A2F]" aria-hidden="true">
                     {item.icon}
                   </span>
-                  <span className="text-[11px] leading-snug font-semibold text-[#3d4a40] sm:text-[12px]">
+                  <span className="text-[11px] leading-snug font-bold text-[#3d4a40] sm:text-[13px] lg:text-[12px] xl:text-[14px]">
                     {item.label}
                   </span>
                 </li>
@@ -363,36 +381,49 @@ function GuidanceCta() {
           sizes="220px"
         />
 
-        <div className="relative z-10 flex flex-col items-center justify-center px-5 py-8 text-center sm:px-8 sm:py-10 lg:px-10 lg:py-12 lg:pr-28 xl:pr-36">
-          <h2 className="font-serif text-[1.2rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.45rem] lg:text-[1.6rem]">
-            Want Guidance Beyond the Guides?
-          </h2>
-          <p className="mt-2 max-w-[560px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
-            Make Health Part of Everyday Life. Health Guides can help you learn
-            and get started. As a member of The Healing Mat, you can go further
-            with live daily yoga classes, guided practices and wellness
-            programmes designed to help you stay consistent.
-          </p>
-          <ul className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[12px] font-semibold text-[#1f6b3a]">
-            {["Simple", "Affordable", "Everyday"].map((label) => (
-              <li key={label} className="inline-flex items-center gap-1.5">
-                <span
-                  aria-hidden="true"
-                  className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border border-[#1f6b3a] text-[9px] leading-none"
-                >
-                  ✓
-                </span>
-                {label}
-              </li>
-            ))}
-          </ul>
-          <Link
-            href="/membership"
-            className="btn-primary mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[#1f6b3a] px-5 py-3 text-[13px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.22)] sm:px-6 sm:py-3.5 sm:text-[14px]"
-          >
-            Explore Membership
-            <span aria-hidden="true">→</span>
-          </Link>
+        <div className="relative z-10 grid items-center md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr] xl:grid-cols-[300px_1fr]">
+          {/* Side image — tablet & desktop only */}
+          <div className="relative hidden h-full min-h-[220px] md:block">
+            <Image
+              src={matBanner}
+              alt="Yoga mat and props"
+              fill
+              className="object-cover object-left"
+              sizes="300px"
+            />
+          </div>
+
+          <div className="relative z-10 flex flex-col items-center justify-center px-5 py-8 text-center sm:px-8 sm:py-10 md:items-start md:py-8 md:pr-24 md:text-left lg:px-8 lg:py-10 lg:pr-28 xl:pr-36">
+            <h2 className="font-serif text-[1.2rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.45rem] lg:text-[1.6rem]">
+              Want Guidance Beyond the Guides?
+            </h2>
+            <p className="mt-2 max-w-[560px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
+              Make Health Part of Everyday Life. Health Guides can help you learn
+              and get started. As a member of The Healing Mat, you can go further
+              with live daily yoga classes, guided practices and wellness
+              programmes designed to help you stay consistent.
+            </p>
+            <ul className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[12px] font-semibold text-[#1f6b3a] md:justify-start">
+              {["Simple", "Affordable", "Everyday"].map((label) => (
+                <li key={label} className="inline-flex items-center gap-1.5">
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border border-[#1f6b3a] text-[9px] leading-none"
+                  >
+                    ✓
+                  </span>
+                  {label}
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/membership"
+              className="btn-primary mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[#1f6b3a] px-5 py-3 text-[13px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.22)] sm:px-6 sm:py-3.5 sm:text-[14px]"
+            >
+              Explore Membership
+              <span aria-hidden="true">→</span>
+            </Link>
+          </div>
         </div>
       </div>
     </section>

@@ -95,7 +95,7 @@ function HeroWithCards() {
       <div className="relative grid w-full items-stretch overflow-hidden lg:grid-cols-2">
         <div className="relative z-10 order-2 flex min-h-0 items-center justify-center px-5 pt-5 pb-6 text-center sm:px-8 sm:pt-7 sm:pb-8 lg:order-1 lg:px-8 lg:py-0 xl:px-12">
           <div className="mx-auto flex w-full max-w-[480px] flex-col items-center text-center">
-            <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[13px] lg:text-[14px]">
+            <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[13px] lg:text-[14px]">
               Contact Us
             </p>
             <h1 className="mt-2.5 font-serif text-[2.1rem] leading-[1.12] font-bold tracking-tight text-[#1f6b3a] sm:mt-3 sm:text-[3rem] lg:text-[3.4rem] xl:text-[3.6rem]">
@@ -103,7 +103,7 @@ function HeroWithCards() {
               <br />
               to Help.
             </h1>
-            <p className="mx-auto mt-3 max-w-[320px] text-[14px] leading-relaxed text-[#5f6f64] sm:mt-4 sm:max-w-[380px] sm:text-[16px] lg:text-[17px]">
+            <p className="mx-auto mt-3 max-w-[320px] text-[14px] leading-relaxed font-semibold text-[#2c3a30] sm:mt-4 sm:max-w-[380px] sm:text-[16px] lg:text-[15px] xl:text-[18px]">
               Have a question? Get in touch with us in whichever way is easiest
               for you.
             </p>
@@ -193,8 +193,8 @@ function ContactFormBlock() {
   }
 
   return (
-    <section className="w-full px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-      <div className="relative mx-auto grid w-full max-w-[1100px] overflow-hidden rounded-[28px] border border-[#ebe6dc] bg-[#FBF9F5] lg:grid-cols-[0.95fr_1.05fr]">
+    <section className="w-full px-3 py-8 sm:px-6 sm:py-10 lg:px-6 lg:py-12 xl:px-8">
+      <div className="relative mx-auto grid w-full max-w-[1240px] overflow-hidden rounded-[28px] border border-[#ebe6dc] bg-[#FBF9F5] lg:grid-cols-[0.95fr_1.05fr]">
         <div className="relative flex flex-col px-6 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12 xl:px-12">
           <div className="relative z-10 mx-auto mt-4 max-w-[340px] text-center sm:mt-6 lg:mt-8">
             <h2 className="font-serif text-[1.65rem] leading-tight font-bold text-[#1f6b3a] sm:text-[1.95rem] lg:text-[2.1rem]">

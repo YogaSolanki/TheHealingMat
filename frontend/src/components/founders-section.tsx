@@ -183,16 +183,15 @@ export function FoundersSection() {
           </div>
 
           <div className="min-w-0 text-center lg:text-left">
-            <h2 className="font-serif text-[1.75rem] leading-tight font-bold tracking-tight sm:text-[2rem] lg:text-[2.15rem]">
-              <span className="text-[#1f6b3a]">Meet the </span>
-              <span className="text-[#1f6b3a]">Founders</span>
+            <h2 className="font-serif text-[1.75rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[2rem] lg:text-[2.15rem]">
+              Meet the Founders
             </h2>
 
-            <h3 className="mt-3 font-serif text-[1.45rem] leading-tight font-bold text-[#1f6b3a] sm:text-[1.6rem] lg:text-[1.7rem]">
+            <h3 className="mt-3 font-serif text-[1.45rem] leading-tight font-bold text-black sm:text-[1.6rem] lg:text-[1.7rem]">
               Pradeep Solanki
             </h3>
 
-            <p className="mt-2 text-[13px] font-semibold text-[#1f6b3a] sm:text-[14px]">
+            <p className="mt-2 text-[13px] font-semibold text-[#c47a2c] sm:text-[14px]">
               Founder&nbsp;&nbsp;|&nbsp;&nbsp;Lead Yoga Educator&nbsp;&nbsp;|&nbsp;&nbsp;Author
             </p>
 
@@ -243,11 +242,11 @@ export function FoundersSection() {
           {teamMembers.map((member, index) => (
             <li
               key={member.key}
-              className={`flex items-center gap-4 sm:gap-5 ${
+              className={`flex min-w-0 items-center gap-3.5 sm:gap-4 ${
                 index > 0
-                  ? "lg:border-l lg:border-[#e2e6df] lg:pl-10 xl:pl-12"
-                  : "lg:pr-10 xl:pr-12"
-              } ${index === 1 ? "lg:pr-10 xl:pr-12" : ""} ${
+                  ? "lg:border-l lg:border-[#e2e6df] lg:pl-6 xl:pl-8"
+                  : "lg:pr-6 xl:pr-8"
+              } ${index === 1 ? "lg:pr-6 xl:pr-8" : ""} ${
                 index === 2 ? "founders-team-solo" : ""
               }`}
             >
@@ -261,8 +260,8 @@ export function FoundersSection() {
                   sizes="96px"
                 />
               </div>
-              <div className="min-w-0">
-                <h4 className="text-[15px] leading-snug font-bold text-[#1f6b3a] sm:text-[16px] xl:whitespace-nowrap">
+              <div className="min-w-0 flex-1">
+                <h4 className="text-[15px] leading-snug font-bold break-words text-black hyphens-none sm:text-[16px]">
                   {member.name}
                 </h4>
                 <p className="mt-1 text-[12px] leading-[1.45] text-[#6b7a70] sm:text-[13px]">

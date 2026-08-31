@@ -21,6 +21,8 @@ import { AnimatedStatValue } from "@/components/animated-stat-value";
 
 const cream = "#FBF9F5";
 const green = "#1f6b3a";
+/** Same orange as home hero highlight icons */
+const iconOrange = "#E07A2F";
 
 const heroHighlights: {
   key: string;
@@ -177,36 +179,46 @@ function HeroBlock() {
       <div className="grid w-full items-stretch lg:grid-cols-2">
         <div className="order-2 flex items-center justify-center px-4 py-10 sm:px-6 sm:py-12 lg:order-1 lg:px-8 lg:py-14 xl:px-10">
           <div className="flex w-full max-w-[560px] flex-col">
-            <p className="text-left text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
+            <p className="text-left text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[12px]">
               Corporate Plans
             </p>
             <h1 className="mt-3 text-left font-serif text-[1.5rem] leading-[1.2] font-bold tracking-tight sm:text-[2.05rem] md:text-[2.25rem] lg:text-[2.45rem]">
-              <span className="block text-[#1f6b3a]">
+              <span className="block text-black">
                 Corporate Wellness,
               </span>
-              <span className="mt-1 block text-black">
+              <span className="mt-1 block text-[#1f6b3a]">
                 Designed Around Your Organization
               </span>
             </h1>
-            <p className="mt-4 text-left text-[14px] leading-relaxed font-normal text-[#5f6f64] sm:text-[15px]">
-              Give your employees access to simple, expert-led wellness through
-              The Healing Mat.
-              <br />
-              Choose a model that works for your organization, and let your
-              employees access their individual memberships with ease.
-            </p>
+            <div className="mt-4 w-full space-y-1.5 text-left text-[14px] leading-relaxed sm:mt-6 sm:text-[16px] lg:text-[15px] xl:text-[18px]">
+              <p className="font-semibold text-[#2c3a30]">
+                Give your employees access to simple, expert-led wellness through
+                The Healing Mat.
+              </p>
+              <p className="font-semibold text-[#2c3a30]">
+                Choose a model that works for your organization, and let your
+                employees access their individual memberships with ease.
+              </p>
+            </div>
 
-            <ul className="mt-7 grid w-full grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4 sm:gap-x-3">
-              {heroHighlights.map((item) => (
-                <li key={item.key} className="flex flex-col items-center text-center">
-                  <span className="inline-flex h-14 w-14 items-center justify-center text-[#1f6b3a] sm:h-16 sm:w-16">
+            <ul className="mt-7 grid w-full grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4 sm:gap-x-0 sm:gap-y-6">
+              {heroHighlights.map((item, index) => (
+                <li
+                  key={item.key}
+                  className={`flex flex-col items-start text-left ${
+                    index > 0
+                      ? "sm:border-l sm:border-[#e5e8e3] sm:pl-3 lg:pl-2.5 xl:pl-4"
+                      : ""
+                  }`}
+                >
+                  <span className="inline-flex h-14 w-14 items-center justify-center text-[#E07A2F] sm:h-16 sm:w-16">
                     <AssetIcon
                       src={item.icon}
                       className="h-11 w-11 sm:h-12 sm:w-12"
-                      color={green}
+                      color={iconOrange}
                     />
                   </span>
-                  <span className="mt-2.5 text-[12px] leading-snug font-bold text-[#1f6b3a] sm:text-[13px]">
+                  <span className="mt-2.5 text-[12px] leading-snug font-bold text-black sm:text-[13px]">
                     {item.label}
                   </span>
                 </li>

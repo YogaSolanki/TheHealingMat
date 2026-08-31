@@ -52,7 +52,7 @@ export function AuthLoginModal({
       <button
         type="button"
         aria-label="Close login dialog"
-        className="absolute inset-0 bg-[#1f6b3a]/45 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-black/25 backdrop-blur-[1px]"
         onClick={onClose}
       />
       <div className="auth-modal-panel relative z-10 w-full max-w-xl">

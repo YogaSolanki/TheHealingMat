@@ -166,7 +166,7 @@ function HeroBlock() {
       <div className="grid w-full items-stretch lg:grid-cols-2">
         <div className="order-2 flex items-center justify-center px-5 py-8 text-left sm:px-8 sm:py-12 lg:order-1 lg:px-6 lg:py-14 xl:px-12">
           <div className="w-full max-w-[560px]">
-            <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
+            <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[12px]">
               About The Healing Mat
             </p>
             <h1 className="mt-3 font-serif text-[1.55rem] leading-[1.15] font-bold tracking-tight text-[#1f6b3a] sm:text-[2.2rem] lg:text-[2.55rem]">
@@ -178,18 +178,20 @@ function HeroBlock() {
             </h1>
 
             <div className="mt-5">
-              <p className="text-[15px] font-bold text-[#1f6b3a] sm:text-[16px]">
+              <p className="text-[15px] font-bold text-black sm:text-[16px]">
                 Health Without Drama
               </p>
-              <p className="mt-1.5 text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
-                The Healing Mat was created with a simple belief: better health
-                should fit naturally into everyday life.
-              </p>
-              <p className="mt-2.5 text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
-                We bring together experienced wellness professionals with one
-                simple purpose — to help people build healthier habits through
-                simple, practical and consistent wellness.
-              </p>
+              <div className="mt-1.5 space-y-1.5 text-[14px] leading-relaxed sm:text-[16px] lg:text-[15px] xl:text-[18px]">
+                <p className="font-semibold text-[#2c3a30]">
+                  The Healing Mat was created with a simple belief: better health
+                  should fit naturally into everyday life.
+                </p>
+                <p className="font-semibold text-[#2c3a30]">
+                  We bring together experienced wellness professionals with one
+                  simple purpose — to help people build healthier habits through
+                  simple, practical and consistent wellness.
+                </p>
+              </div>
             </div>
 
             <p className="mt-5 text-[14px] font-semibold text-[#1f6b3a] sm:text-[15px]">
@@ -292,7 +294,7 @@ function PhilosophyBlock() {
         <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
           Our Philosophy
         </p>
-        <h2 className="mt-2 font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.85rem] lg:text-[2rem]">
+        <h2 className="mt-2 font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-black sm:text-[1.85rem] lg:text-[2rem]">
           Health Without Drama
         </h2>
         <p className="mx-auto mt-2.5 max-w-[640px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
@@ -340,7 +342,7 @@ function FoundersBlock() {
   return (
     <section className="w-full bg-white px-4 pb-8 sm:px-6 sm:pb-10 lg:px-8 lg:pb-12">
       <div className="mx-auto max-w-[1100px] text-center">
-        <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
+        <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[12px]">
           Meet The Founders
         </p>
         <h2 className="mt-2 font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.85rem]">
@@ -540,7 +542,7 @@ function PradeepCard() {
         />
       }
     >
-      <h3 className="font-serif text-[1.35rem] font-bold text-[#1f6b3a] sm:text-[1.55rem] lg:text-[1.75rem]">
+      <h3 className="font-serif text-[1.35rem] font-bold text-black sm:text-[1.55rem] lg:text-[1.75rem]">
         Pradeep Solanki
       </h3>
 
@@ -679,7 +681,7 @@ function SavitaCard() {
         />
       }
     >
-      <h3 className="font-serif text-[1.35rem] font-bold text-[#1f6b3a] sm:text-[1.55rem] lg:text-[1.75rem]">
+      <h3 className="font-serif text-[1.35rem] font-bold text-black sm:text-[1.55rem] lg:text-[1.75rem]">
         Savita Malhotra
       </h3>
 
@@ -812,7 +814,7 @@ function PoornimaCard() {
         />
       }
     >
-      <h3 className="mt-1.5 font-serif text-[1.35rem] font-bold text-[#1f6b3a] sm:mt-2 sm:text-[1.55rem] lg:text-[1.75rem]">
+      <h3 className="mt-1.5 font-serif text-[1.35rem] font-bold text-black sm:mt-2 sm:text-[1.55rem] lg:text-[1.75rem]">
         Dr. Poornima Ramamurthy
       </h3>
 
@@ -895,7 +897,7 @@ function PokhriyalCard() {
         />
       }
     >
-      <h3 className="mt-1.5 font-serif text-[1.35rem] font-bold text-[#1f6b3a] sm:mt-2 sm:text-[1.55rem] lg:text-[1.75rem]">
+      <h3 className="mt-1.5 font-serif text-[1.35rem] font-bold text-black sm:mt-2 sm:text-[1.55rem] lg:text-[1.75rem]">
         Dr. K. P. Pokhriyal
       </h3>
 
@@ -1000,7 +1002,7 @@ function TeamPurposeCta() {
               <TeamPeopleIcon />
             </span>
             <div className="min-w-0">
-              <p className="mt-3 text-[11px] font-bold tracking-[0.18em] text-[#1f6b3a] uppercase sm:text-[12px] md:mt-0.5">
+              <p className="mt-3 text-[11px] font-bold tracking-[0.18em] text-black uppercase sm:text-[12px] md:mt-0.5">
                 One Team. One Purpose.
               </p>
               <h2 className="mt-1.5 max-w-[340px] font-serif text-[1.35rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.55rem] md:max-w-[360px]">
@@ -1024,7 +1026,7 @@ function TeamPurposeCta() {
             <p className="text-[11px] font-bold tracking-[0.18em] text-[#1f6b3a] uppercase sm:text-[12px]">
               Ready To Begin?
             </p>
-            <h2 className="mt-1.5 max-w-[340px] font-serif text-[1.2rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.35rem]">
+            <h2 className="mt-1.5 max-w-[340px] font-serif text-[1.2rem] leading-tight font-bold tracking-tight text-black sm:text-[1.35rem]">
               Start small. Stay consistent. Feel the difference.
             </h2>
             <StartTrialButton className="btn-primary mt-5 inline-flex w-full max-w-[320px] items-center justify-center gap-1.5 rounded-full bg-[#1f6b3a] px-6 py-3.5 text-[14px] font-bold text-white md:w-auto md:px-7 md:text-[15px]">
