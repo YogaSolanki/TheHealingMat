@@ -1,4 +1,13 @@
-import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Query,
+  Res,
+} from '@nestjs/common';
+import type { Response } from 'express';
 import { Admin } from '../admins/admin.entity';
 import { User } from '../users/user.entity';
 import { AuthService } from './auth.service';
@@ -8,6 +17,7 @@ import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UserLoginDto } from './dto/user-login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { Role } from './enums/role.enum';
@@ -48,6 +58,47 @@ export class AuthController {
   @HttpCode(200)
   verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto);
+  }
+
+  @Public()
+  @Post('auth/password/reset')
+  @HttpCode(200)
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
+  }
+
+  @Public()
+  @Get('auth/google')
+  googleStart(@Query('intent') intent: string | undefined, @Res() res: Response) {
+    try {
+      return res.redirect(this.authService.getGoogleAuthUrl(intent));
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Google sign-in is unavailable.';
+      return res.redirect(this.authService.googleFrontendErrorRedirect(message));
+    }
+  }
+
+  @Public()
+  @Get('auth/google/callback')
+  async googleCallback(
+    @Query('code') code: string | undefined,
+    @Query('state') state: string | undefined,
+    @Query('error') error: string | undefined,
+    @Res() res: Response,
+  ) {
+    try {
+      const result = await this.authService.handleGoogleCallback({
+        code,
+        state,
+        error,
+      });
+      return res.redirect(result.redirectUrl);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Google sign-in failed.';
+      return res.redirect(this.authService.googleFrontendErrorRedirect(message));
+    }
   }
 
   @Roles(Role.User)

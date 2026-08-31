@@ -12,8 +12,8 @@ export class RequestOtpDto {
   @IsEnum(Region)
   region: Region;
 
-  @IsIn(['login', 'signup'])
-  purpose: 'login' | 'signup';
+  @IsIn(['login', 'signup', 'password_reset'])
+  purpose: 'login' | 'signup' | 'password_reset';
 
   @ValidateIf((dto: RequestOtpDto) => dto.region === Region.India)
   @IsString()

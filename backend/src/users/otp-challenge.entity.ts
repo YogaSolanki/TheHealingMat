@@ -7,7 +7,7 @@ import {
 import { Region } from './enums/region.enum';
 
 export type OtpChannel = 'sms' | 'email';
-export type OtpPurpose = 'login' | 'signup';
+export type OtpPurpose = 'login' | 'signup' | 'password_reset';
 
 @Entity({ name: 'otp_challenges' })
 export class OtpChallenge {

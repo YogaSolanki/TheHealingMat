@@ -286,13 +286,88 @@ body {
 }
 
 .page-transition {
-  animation: page-enter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: page-enter 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Hero trust points: tablet widths wrap with the 3rd point centered under the pair */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .hero-trust-row > li:last-child:nth-child(3) {
+    flex-basis: 100%;
+    justify-content: center;
+    border-left-width: 0;
+    padding-left: 0;
+    margin-left: 0;
+  }
+}
+
+/* Founders team: center the 3rd card when it sits alone on a row */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .founders-team-grid > .founders-team-solo {
+    grid-column: 1 / -1;
+    justify-content: center;
+    max-width: 28rem;
+    margin-inline: auto;
+  }
+}
+
+.auth-modal-panel {
+  animation: auth-modal-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.auth-mode-content {
+  animation: auth-mode-swap 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.auth-mode-pill {
+  left: 0.25rem;
+  transition: left 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.auth-select-menu {
+  animation: auth-select-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes auth-select-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.auth-mode-pill.is-login {
+  left: 50%;
+}
+
+@keyframes auth-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes auth-mode-swap {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes page-enter {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(22px);
   }
   to {
     opacity: 1;
@@ -317,6 +392,10 @@ body {
   .link-animate .link-arrow,
   .link-underline,
   .page-transition,
+  .auth-modal-panel,
+  .auth-mode-content,
+  .auth-mode-pill,
+  .auth-select-menu,
   .badge-shine::after {
     transition: none !important;
     animation: none !important;

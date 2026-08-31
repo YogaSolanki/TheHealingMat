@@ -109,7 +109,7 @@ export async function getHealth(): Promise<HealthResponse> {
 
 export async function requestOtp(input: {
   region: Region;
-  purpose: "login" | "signup";
+  purpose: "login" | "signup" | "password_reset";
   mobile?: string;
   email?: string;
 }): Promise<OtpRequestResponse> {
@@ -119,6 +119,19 @@ export async function requestOtp(input: {
     body: JSON.stringify(input),
   });
   return parseJson<OtpRequestResponse>(response);
+}
+
+export async function resetPassword(input: {
+  challengeId: string;
+  code: string;
+  password: string;
+}): Promise<{ success: boolean; message: string }> {
+  const response = await fetch(`${API_URL}/auth/password/reset`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return parseJson<{ success: boolean; message: string }>(response);
 }
 
 export async function verifyOtp(input: {
