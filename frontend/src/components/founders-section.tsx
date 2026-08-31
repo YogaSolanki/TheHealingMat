@@ -182,7 +182,7 @@ export function FoundersSection() {
             </div>
           </div>
 
-          <div className="min-w-0">
+          <div className="min-w-0 text-center lg:text-left">
             <h2 className="font-serif text-[1.75rem] leading-tight font-bold tracking-tight sm:text-[2rem] lg:text-[2.15rem]">
               <span className="text-[#1a3d2a]">Meet the </span>
               <span className="text-[#2f7a45]">Founders</span>
@@ -211,7 +211,7 @@ export function FoundersSection() {
               {stats.map((stat, index) => (
                 <li
                   key={stat.key}
-                  className={`flex flex-col items-start text-left ${
+                  className={`flex flex-col items-center text-center lg:items-start lg:text-left ${
                     index > 0
                       ? "sm:border-l sm:border-[#d5ddd2] sm:pl-5 lg:pl-6"
                       : "sm:pr-5 lg:pr-6"
@@ -231,7 +231,7 @@ export function FoundersSection() {
 
             <Link
               href="/about#pradeep"
-              className="link-animate link-underline mt-7 text-[14px] font-bold text-[#2f7a45] sm:mt-8 sm:text-[15px]"
+              className="link-animate link-underline mt-7 inline-flex text-[14px] font-bold text-[#2f7a45] sm:mt-8 sm:text-[15px]"
             >
               Know My Story
               <span aria-hidden="true">→</span>
@@ -239,7 +239,7 @@ export function FoundersSection() {
           </div>
         </div>
 
-        <ul className="mx-auto mt-8 grid w-full max-w-[1040px] gap-8 border-t border-[#e2e6df] pt-7 sm:mt-9 sm:grid-cols-2 sm:gap-x-10 sm:gap-y-8 sm:pt-8 lg:mt-9 lg:grid-cols-3 lg:gap-x-0">
+        <ul className="founders-team-grid mx-auto mt-8 grid w-full max-w-[1040px] gap-8 border-t border-[#e2e6df] pt-7 sm:mt-9 sm:grid-cols-2 sm:gap-x-10 sm:gap-y-8 sm:pt-8 lg:mt-9 lg:grid-cols-3 lg:gap-x-0">
           {teamMembers.map((member, index) => (
             <li
               key={member.key}
@@ -247,7 +247,9 @@ export function FoundersSection() {
                 index > 0
                   ? "lg:border-l lg:border-[#e2e6df] lg:pl-10 xl:pl-12"
                   : "lg:pr-10 xl:pr-12"
-              } ${index === 1 ? "lg:pr-10 xl:pr-12" : ""}`}
+              } ${index === 1 ? "lg:pr-10 xl:pr-12" : ""} ${
+                index === 2 ? "founders-team-solo" : ""
+              }`}
             >
               <div className="relative h-[88px] w-[88px] shrink-0 overflow-hidden rounded-full bg-[#efe8da] sm:h-[96px] sm:w-[96px]">
                 <Image

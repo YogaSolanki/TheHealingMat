@@ -1,5 +1,4 @@
 import Image from "next/image";
-import Link from "next/link";
 import type { ReactNode } from "react";
 import anytimeIcon from "@/assets/anytime.png";
 import anywhereIcon from "@/assets/Anywhere.png";
@@ -18,6 +17,7 @@ import referralArt from "@/assets/referal.png";
 import sunIcon from "@/assets/sun.png";
 import tagIcon from "@/assets/tag.png";
 import yogaIcon from "@/assets/yoga.png";
+import { StartTrialButton } from "@/components/start-trial-button";
 import { TrialTrustRow } from "@/components/trial-trust-row";
 
 const cream = "#FBF9F5";
@@ -285,8 +285,7 @@ function PlanCard({ plan }: { plan: Plan }) {
       )}
 
       <div className="relative z-10 mt-auto pt-7 sm:pt-8">
-        <Link
-          href="/trial"
+        <StartTrialButton
           className={`inline-flex w-full items-center justify-center gap-2 px-5 py-3.5 text-[14px] font-bold sm:text-[15px] ${
             plan.featured
               ? "btn-primary bg-[#1f6b3a] text-white"
@@ -295,7 +294,7 @@ function PlanCard({ plan }: { plan: Plan }) {
         >
           Choose {plan.months} Months
           <span aria-hidden="true">→</span>
-        </Link>
+        </StartTrialButton>
       </div>
     </article>
   );
@@ -645,15 +644,12 @@ function StillNotSureCta() {
           </div>
 
           <div className="flex w-full flex-col items-center gap-3 lg:w-auto">
-            <Link
-              href="/trial"
-              className="btn-primary inline-flex w-auto max-w-full items-center justify-center gap-1.5 self-center rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-center text-[13px] font-bold text-white sm:px-7 sm:py-3.5 sm:text-[15px]"
-            >
+            <StartTrialButton className="btn-primary inline-flex w-auto max-w-full items-center justify-center gap-1.5 self-center rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-center text-[13px] font-bold text-white sm:px-7 sm:py-3.5 sm:text-[15px]">
               <span>Start Your 14-Day Free Trial</span>
               <span aria-hidden="true" className="shrink-0">
                 →
               </span>
-            </Link>
+            </StartTrialButton>
             <TrialTrustRow
               className="justify-center"
               itemClassName="text-[#3d5c45]"

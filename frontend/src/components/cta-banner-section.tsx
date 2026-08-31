@@ -1,10 +1,10 @@
 import Image from "next/image";
-import Link from "next/link";
 import type { ReactNode } from "react";
 import allAgeIcon from "@/assets/all-age.png";
 import calendarIcon from "@/assets/calander-icon.png";
 import bannerBg from "@/assets/home-banner-bg.png";
 import rsIcon from "@/assets/rs.png";
+import { StartTrialButton } from "@/components/start-trial-button";
 import { TrialTrustRow } from "@/components/trial-trust-row";
 
 const iconGreen = "#2f7a45";
@@ -156,13 +156,10 @@ export function CtaBannerSection() {
             ))}
           </ul>
 
-          <Link
-            href="/trial"
-            className="btn-primary mt-7 inline-flex items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-6 py-3 text-[14px] font-bold text-white sm:mt-8 sm:px-7 sm:py-3.5 sm:text-[15px]"
-          >
+          <StartTrialButton className="btn-primary mt-7 inline-flex items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-6 py-3 text-[14px] font-bold text-white sm:mt-8 sm:px-7 sm:py-3.5 sm:text-[15px]">
             Start Your 14-Day Free Trial
             <span aria-hidden="true">→</span>
-          </Link>
+          </StartTrialButton>
 
           <TrialTrustRow className="mt-5 sm:mt-6" />
         </div>

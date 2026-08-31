@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -15,6 +16,7 @@ import { OtpChallenge } from '../users/otp-challenge.entity';
 import { User } from '../users/user.entity';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UserLoginDto } from './dto/user-login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 
@@ -96,14 +98,23 @@ export class AuthService {
   }
 
   async requestOtp(dto: RequestOtpDto) {
-    if (dto.purpose !== 'login' && dto.purpose !== 'signup') {
-      throw new BadRequestException('purpose must be login or signup');
+    if (
+      dto.purpose !== 'login' &&
+      dto.purpose !== 'signup' &&
+      dto.purpose !== 'password_reset'
+    ) {
+      throw new BadRequestException(
+        'purpose must be login, signup, or password_reset',
+      );
     }
 
     const { destination, channel } = this.resolveDestination(dto);
     const existing = await this.findUserByDestination(dto.region, destination);
 
-    if (dto.purpose === 'login' && !existing) {
+    if (
+      (dto.purpose === 'login' || dto.purpose === 'password_reset') &&
+      !existing
+    ) {
       throw new BadRequestException(
         'No account found. Please sign up for a Free Trial first.',
       );
@@ -177,6 +188,12 @@ export class AuthService {
     );
     let isNewAccount = false;
 
+    if (challenge.purpose === 'password_reset') {
+      throw new BadRequestException(
+        'Use the password reset endpoint to set a new password.',
+      );
+    }
+
     if (!user) {
       if (challenge.purpose === 'login') {
         throw new BadRequestException('No account found for this identity.');
@@ -201,6 +218,55 @@ export class AuthService {
     }
 
     return this.issueUserToken(user, isNewAccount);
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const challenge = await this.otps.findOne({
+      where: { id: dto.challengeId },
+    });
+
+    if (!challenge) {
+      throw new BadRequestException('Invalid or expired OTP challenge.');
+    }
+    if (challenge.purpose !== 'password_reset') {
+      throw new BadRequestException('Invalid password reset challenge.');
+    }
+    if (challenge.verifiedAt) {
+      throw new BadRequestException('OTP already used.');
+    }
+    if (challenge.expiresAt.getTime() < Date.now()) {
+      throw new BadRequestException('OTP expired. Request a new code.');
+    }
+    if (challenge.attempts >= 5) {
+      throw new BadRequestException('Too many attempts. Request a new code.');
+    }
+
+    const matches = await bcrypt.compare(dto.code.trim(), challenge.codeHash);
+    challenge.attempts += 1;
+
+    if (!matches) {
+      await this.otps.save(challenge);
+      throw new UnauthorizedException('Incorrect OTP.');
+    }
+
+    const user = await this.findUserWithPassword(
+      challenge.region,
+      challenge.destination,
+    );
+    if (!user) {
+      throw new BadRequestException('No account found for this identity.');
+    }
+
+    challenge.verifiedAt = new Date();
+    await this.otps.save(challenge);
+
+    user.passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
+    await this.users.save(user);
+
+    return {
+      success: true,
+      message: 'Password updated. You can log in with your new password.',
+    };
   }
 
   toPublicAdmin(admin: Admin): PublicAdmin {
@@ -377,5 +443,144 @@ export class AuthService {
       'http://localhost:3000',
     );
     return `${base.replace(/\/$/, '')}/access/${token}`;
+  }
+
+  private frontendBaseUrl() {
+    return this.config
+      .get<string>('FRONTEND_URL', 'http://localhost:3000')
+      .replace(/\/$/, '');
+  }
+
+  private googleCallbackUrl() {
+    const apiBase = this.config.get<string>(
+      'API_PUBLIC_URL',
+      'http://localhost:4000/api',
+    );
+    return `${apiBase.replace(/\/$/, '')}/auth/google/callback`;
+  }
+
+  private requireGoogleConfig() {
+    const clientId = this.config.get<string>('GOOGLE_CLIENT_ID')?.trim();
+    const clientSecret = this.config.get<string>('GOOGLE_CLIENT_SECRET')?.trim();
+    if (!clientId || !clientSecret) {
+      throw new ServiceUnavailableException(
+        'Google sign-in is not configured yet.',
+      );
+    }
+    return { clientId, clientSecret };
+  }
+
+  getGoogleAuthUrl(intent: string = 'login') {
+    const { clientId } = this.requireGoogleConfig();
+    const safeIntent = intent === 'signup' ? 'signup' : 'login';
+    const state = Buffer.from(
+      JSON.stringify({
+        intent: safeIntent,
+        nonce: randomBytes(8).toString('hex'),
+      }),
+    ).toString('base64url');
+
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: this.googleCallbackUrl(),
+      response_type: 'code',
+      scope: 'openid email profile',
+      access_type: 'online',
+      prompt: 'select_account',
+      state,
+    });
+
+    return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  }
+
+  async handleGoogleCallback(input: {
+    code?: string;
+    state?: string;
+    error?: string;
+  }) {
+    if (input.error) {
+      throw new BadRequestException('Google sign-in was cancelled.');
+    }
+    if (!input.code) {
+      throw new BadRequestException('Missing Google authorization code.');
+    }
+
+    const { clientId, clientSecret } = this.requireGoogleConfig();
+
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code: input.code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: this.googleCallbackUrl(),
+        grant_type: 'authorization_code',
+      }),
+    });
+
+    const tokenJson = (await tokenRes.json()) as {
+      access_token?: string;
+      error?: string;
+      error_description?: string;
+    };
+
+    if (!tokenRes.ok || !tokenJson.access_token) {
+      throw new BadRequestException(
+        tokenJson.error_description ||
+          tokenJson.error ||
+          'Google token exchange failed.',
+      );
+    }
+
+    const profileRes = await fetch(
+      'https://www.googleapis.com/oauth2/v3/userinfo',
+      {
+        headers: { Authorization: `Bearer ${tokenJson.access_token}` },
+      },
+    );
+    const profile = (await profileRes.json()) as {
+      email?: string;
+      email_verified?: boolean | string;
+      name?: string;
+    };
+
+    if (!profileRes.ok || !profile.email) {
+      throw new BadRequestException('Unable to read Google account email.');
+    }
+
+    const emailVerified =
+      profile.email_verified === true || profile.email_verified === 'true';
+    if (!emailVerified) {
+      throw new BadRequestException('Google email is not verified.');
+    }
+
+    const email = profile.email.trim().toLowerCase();
+    let user = await this.users.findOne({ where: { email } });
+    let isNewAccount = false;
+
+    if (!user) {
+      const fullName = profile.name?.trim() || email.split('@')[0];
+      const randomPassword = `Gg-${randomBytes(24).toString('hex')}aA1`;
+      user = await this.createUser({
+        region: Region.OutsideIndia,
+        destination: email,
+        channel: 'email',
+        fullName,
+        password: randomPassword,
+      });
+      isNewAccount = true;
+    }
+
+    const issued = await this.issueUserToken(user, isNewAccount);
+    return {
+      ...issued,
+      redirectUrl: `${this.frontendBaseUrl()}/auth/callback#access_token=${encodeURIComponent(issued.accessToken)}`,
+    };
+  }
+
+  googleFrontendErrorRedirect(message: string) {
+    const params = new URLSearchParams({ authError: message });
+    return `${this.frontendBaseUrl()}/?${params.toString()}`;
   }
 }

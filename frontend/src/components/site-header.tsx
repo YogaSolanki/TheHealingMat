@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useAuthModal } from "@/components/auth-modal-provider";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -23,10 +24,16 @@ function isActivePath(pathname: string, href: string) {
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { openAuth } = useAuthModal();
 
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  function openLogin() {
+    setOpen(false);
+    openAuth("login");
+  }
 
   return (
     <header className="relative z-50 bg-white header-shell">
@@ -68,13 +75,14 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Link
-            href="/trial"
-            className="btn-primary hidden items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-3 py-2 text-[12px] font-semibold text-white lg:inline-flex xl:gap-2 xl:px-4 xl:py-2.5 xl:text-sm"
+          <button
+            type="button"
+            onClick={openLogin}
+            className="btn-primary hidden cursor-pointer items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-3 py-2 text-[12px] font-semibold text-white lg:inline-flex xl:gap-2 xl:px-4 xl:py-2.5 xl:text-sm"
           >
             <UserIcon className="h-3.5 w-3.5 xl:h-4 xl:w-4" />
             Member Login
-          </Link>
+          </button>
 
           <button
             type="button"
@@ -147,11 +155,11 @@ export function SiteHeader() {
                   </Link>
                 );
               })}
-              <Link
-                href="/trial"
+              <button
+                type="button"
                 tabIndex={open ? 0 : -1}
-                onClick={() => setOpen(false)}
-                className={`btn-primary mt-1 inline-flex items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-2.5 text-sm font-semibold text-white transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                onClick={openLogin}
+                className={`btn-primary mt-1 inline-flex cursor-pointer items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-2.5 text-sm font-semibold text-white transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                   open
                     ? "translate-y-0 opacity-100"
                     : "translate-y-1 opacity-0"
@@ -164,7 +172,7 @@ export function SiteHeader() {
               >
                 <UserIcon className="h-4 w-4" />
                 Member Login
-              </Link>
+              </button>
             </nav>
           </div>
         </div>

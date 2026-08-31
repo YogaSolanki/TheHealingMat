@@ -20,6 +20,7 @@ import locationIcon from "@/assets/location.png";
 import trustIcon from "@/assets/trust.png";
 import yogaMenIcon from "@/assets/yoga-men.png";
 import { AnimatedStatValue } from "@/components/animated-stat-value";
+import { StartTrialButton } from "@/components/start-trial-button";
 import { TrialTrustRow } from "@/components/trial-trust-row";
 
 const cream = "#FBF9F5";
@@ -163,7 +164,7 @@ function HeroBlock() {
   return (
     <section className="w-full overflow-hidden" style={{ backgroundColor: cream }}>
       <div className="grid w-full items-stretch lg:grid-cols-2">
-        <div className="order-2 flex items-center justify-center px-4 py-8 text-left sm:px-6 sm:py-12 lg:order-1 lg:justify-start lg:px-8 lg:py-14 xl:px-12">
+        <div className="order-2 flex items-center justify-center px-5 py-8 text-left sm:px-8 sm:py-12 lg:order-1 lg:px-6 lg:py-14 xl:px-12">
           <div className="w-full max-w-[560px]">
             <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
               About The Healing Mat
@@ -1026,13 +1027,10 @@ function TeamPurposeCta() {
             <h2 className="mt-1.5 max-w-[340px] font-serif text-[1.2rem] leading-tight font-bold tracking-tight text-[#1a3d2a] sm:text-[1.35rem]">
               Start small. Stay consistent. Feel the difference.
             </h2>
-            <Link
-              href="/trial"
-              className="btn-primary mt-5 inline-flex w-full max-w-[320px] items-center justify-center gap-1.5 rounded-full bg-[#1f6b3a] px-6 py-3.5 text-[14px] font-bold text-white md:w-auto md:px-7 md:text-[15px]"
-            >
+            <StartTrialButton className="btn-primary mt-5 inline-flex w-full max-w-[320px] items-center justify-center gap-1.5 rounded-full bg-[#1f6b3a] px-6 py-3.5 text-[14px] font-bold text-white md:w-auto md:px-7 md:text-[15px]">
               Start Your 14-Day Free Trial
               <span aria-hidden="true">→</span>
-            </Link>
+            </StartTrialButton>
             <TrialTrustRow
               centerLastWhenWrapped
               className="mt-4 max-md:flex-col max-md:items-center max-md:gap-y-1.5 md:justify-center md:gap-x-4 xl:gap-x-5"

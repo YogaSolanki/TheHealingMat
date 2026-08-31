@@ -1,11 +1,11 @@
 import Image from "next/image";
-import Link from "next/link";
 import type { ReactNode } from "react";
 import allAgeIcon from "@/assets/all-age.png";
 import calendarIcon from "@/assets/calander-icon.png";
 import heartIcon from "@/assets/dil.png";
 import heroImage from "@/assets/hero.png";
 import rsIcon from "@/assets/rs.png";
+import { StartTrialButton } from "@/components/start-trial-button";
 
 function LevelsIcon() {
   return (
@@ -151,14 +151,13 @@ export function HeroSection() {
             </ul>
 
             <div className="relative z-10 mt-6 flex w-full max-w-[400px] flex-col gap-2.5 sm:mt-9 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:justify-center lg:justify-start">
-              <Link
-                href="/trial"
+              <StartTrialButton
                 className="btn-primary inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-[16px] px-5 py-3.5 text-[14px] font-semibold text-white sm:w-auto sm:px-6 sm:py-3.5 sm:text-[15px] lg:text-[14px] xl:px-7 xl:py-4 xl:text-[16px]"
                 style={{ backgroundColor: "#1f6b3a" }}
               >
                 Start Your 14-Day Free Trial
                 <span aria-hidden="true">→</span>
-              </Link>
+              </StartTrialButton>
               <button
                 type="button"
                 className="btn-outline inline-flex w-full cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[16px] border-[1.5px] border-[#1f6b3a] bg-white px-5 py-3.5 text-[14px] font-semibold text-[#1f6b3a] sm:w-auto sm:px-6 sm:py-3.5 sm:text-[15px] lg:text-[14px] xl:px-7 xl:py-4 xl:text-[16px]"
@@ -168,14 +167,14 @@ export function HeroSection() {
               </button>
             </div>
 
-            <ul className="mt-6 flex w-full flex-col items-center gap-2 sm:mt-9 lg:items-start xl:flex-row xl:flex-wrap xl:items-center xl:justify-start xl:gap-x-0 xl:gap-y-2">
+            <ul className="hero-trust-row mt-6 flex w-full min-w-0 flex-nowrap items-center justify-center gap-x-1 sm:mt-9 sm:flex-wrap sm:gap-x-3 sm:gap-y-2 lg:flex-nowrap lg:justify-start lg:gap-x-0">
               {trustItems.map((item, index) => (
                 <li
                   key={item}
                   className={[
-                    "flex items-center justify-center gap-1.5 text-[12px] font-bold text-[#4a5a4f] sm:text-[13px] lg:justify-start xl:text-[14px]",
+                    "inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[7.5px] font-bold text-[#4a5a4f] min-[380px]:gap-1 min-[380px]:text-[9px] sm:gap-1.5 sm:text-[12px] lg:text-[11px] xl:text-[12px] 2xl:text-[13px]",
                     index > 0
-                      ? "xl:border-l xl:border-[#cfd6cf] xl:pl-4 xl:ml-4"
+                      ? "border-l border-[#cfd6cf] pl-1 min-[380px]:pl-1.5 sm:pl-3 lg:pl-2 lg:ml-2 xl:pl-2.5 xl:ml-2.5"
                       : "",
                   ]
                     .filter(Boolean)
@@ -217,7 +216,7 @@ function CheckIcon() {
   return (
     <svg
       viewBox="0 0 16 16"
-      className="h-3.5 w-3.5 shrink-0 text-[#1f6b3a]"
+      className="h-3 w-3 shrink-0 text-[#1f6b3a] sm:h-3.5 sm:w-3.5"
       fill="none"
       aria-hidden="true"
     >
