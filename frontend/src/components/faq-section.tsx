@@ -451,7 +451,7 @@ export function FaqSection() {
           next step.
         </p>
         <Link
-          href="#contact"
+          href="/contact"
           className="btn-primary mt-5 inline-flex items-center justify-center rounded-full bg-[#1f6b3a] px-6 py-3 text-[13px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.22)] sm:text-[14px]"
         >
           Contact Us

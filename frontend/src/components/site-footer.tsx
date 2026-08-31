@@ -16,7 +16,7 @@ const exploreLinks = [
   { href: "/corporate", label: "Corporate Plans" },
   { href: "#guides", label: "Health Guides" },
   { href: "/about", label: "About" },
-  { href: "#contact", label: "Contact" },
+  { href: "/contact", label: "Contact" },
   { href: "#refer", label: "Refer & Earn" },
   { href: "/#faq", label: "FAQs" },
 ];
@@ -66,7 +66,8 @@ function FooterLinkColumn({
 
 export function SiteFooter() {
   const pathname = usePathname();
-  const showTopBorder = pathname === "/corporate/enquiry";
+  const showTopBorder =
+    pathname === "/corporate/enquiry" || pathname === "/contact";
 
   return (
     <footer
@@ -127,20 +128,20 @@ export function SiteFooter() {
           <ul className="mt-2 space-y-2 text-[11px] text-[#2f7a45] sm:text-[13px]">
             <li>
               <a
-                href="mailto:info@yogaease.yoga"
+                href="mailto:hello@thehealingmat.yoga"
                 className="inline-flex cursor-pointer items-start gap-1.5 font-medium transition hover:text-[#1f6b3a] sm:items-center sm:gap-2"
               >
                 <HiOutlineMail className="mt-0.5 h-4 w-4 shrink-0 sm:mt-0" />
-                <span className="break-words">info@yogaease.yoga</span>
+                <span className="break-words">hello@thehealingmat.yoga</span>
               </a>
             </li>
             <li>
               <a
-                href="tel:8000045035"
+                href="tel:+918000045035"
                 className="inline-flex cursor-pointer items-center gap-1.5 font-medium transition hover:text-[#1f6b3a] sm:gap-2"
               >
                 <HiOutlinePhone className="h-4 w-4 shrink-0" />
-                80000 45035
+                +91 80000 45035
               </a>
             </li>
             <li>
