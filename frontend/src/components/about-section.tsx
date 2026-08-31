@@ -164,12 +164,12 @@ function HeroBlock() {
   return (
     <section className="w-full overflow-hidden" style={{ backgroundColor: cream }}>
       <div className="grid w-full items-stretch lg:grid-cols-2">
-        <div className="order-2 flex items-center justify-center px-5 py-8 text-left sm:px-8 sm:py-12 lg:order-1 lg:px-6 lg:py-14 xl:px-12">
-          <div className="w-full max-w-[560px]">
+        <div className="order-2 flex items-center justify-center px-5 py-8 sm:px-8 sm:py-12 lg:order-1 lg:px-6 lg:py-14 xl:px-12">
+          <div className="flex w-full max-w-[560px] flex-col items-center text-center lg:items-start lg:text-left">
             <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[12px]">
               About The Healing Mat
             </p>
-            <h1 className="mt-3 font-serif text-[1.55rem] leading-[1.15] font-bold tracking-tight text-[#1f6b3a] sm:text-[2.2rem] lg:text-[2.55rem]">
+            <h1 className="mt-3 w-full font-serif text-[1.55rem] leading-[1.15] font-bold tracking-tight text-[#1f6b3a] sm:text-[2.2rem] lg:text-[2.55rem]">
               More Than Yoga.
               <br />
               A Simpler Approach to
@@ -177,7 +177,7 @@ function HeroBlock() {
               Everyday Health.
             </h1>
 
-            <div className="mt-5">
+            <div className="mt-5 w-full max-w-[420px] sm:max-w-none">
               <p className="text-[15px] font-bold text-black sm:text-[16px]">
                 Health Without Drama
               </p>

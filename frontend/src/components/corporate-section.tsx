@@ -1,9 +1,9 @@
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
+import allAgeIcon from "@/assets/all-age.png";
 import buildingIcon from "@/assets/building.png";
 import calendarIcon from "@/assets/calander-icon.png";
-import clockIcon from "@/assets/clock.png";
 import dailySessionIcon from "@/assets/daily-session.png";
 import dilIcon from "@/assets/dil.png";
 import corporateImage from "@/assets/corporate.png";
@@ -21,13 +21,38 @@ import { AnimatedStatValue } from "@/components/animated-stat-value";
 
 const cream = "#FBF9F5";
 const green = "#1f6b3a";
-/** Same orange as home hero highlight icons */
-const iconOrange = "#E07A2F";
+
+/** Same size/style as home hero highlight icons */
+function HeroHighlightIcon({
+  src,
+  orangeFilter = false,
+}: {
+  src: StaticImageData;
+  orangeFilter?: boolean;
+}) {
+  return (
+    <Image
+      src={src}
+      alt=""
+      aria-hidden="true"
+      className="h-8 w-8 object-contain sm:h-9 sm:w-9"
+      style={
+        orangeFilter
+          ? {
+              filter:
+                "brightness(0) saturate(100%) invert(52%) sepia(74%) saturate(1200%) hue-rotate(346deg) brightness(98%) contrast(92%)",
+            }
+          : undefined
+      }
+      sizes="36px"
+    />
+  );
+}
 
 const heroHighlights: {
   key: string;
   label: ReactNode;
-  icon: StaticImageData;
+  icon: ReactNode;
 }[] = [
   {
     key: "affordable",
@@ -38,7 +63,7 @@ const heroHighlights: {
         Corporate Plans
       </>
     ),
-    icon: planIcon,
+    icon: <HeroHighlightIcon src={allAgeIcon} />,
   },
   {
     key: "timings",
@@ -49,7 +74,7 @@ const heroHighlights: {
         Timings
       </>
     ),
-    icon: clockIcon,
+    icon: <HeroHighlightIcon src={calendarIcon} />,
   },
   {
     key: "habits",
@@ -60,7 +85,7 @@ const heroHighlights: {
         Every Day
       </>
     ),
-    icon: dilIcon,
+    icon: <HeroHighlightIcon src={dilIcon} />,
   },
   {
     key: "experience",
@@ -71,7 +96,7 @@ const heroHighlights: {
         Experience
       </>
     ),
-    icon: trustIcon,
+    icon: <HeroHighlightIcon src={trustIcon} orangeFilter />,
   },
 ];
 
@@ -177,12 +202,12 @@ function HeroBlock() {
   return (
     <section className="w-full overflow-hidden" style={{ backgroundColor: cream }}>
       <div className="grid w-full items-stretch lg:grid-cols-2">
-        <div className="order-2 flex items-center justify-center px-4 py-10 sm:px-6 sm:py-12 lg:order-1 lg:px-8 lg:py-14 xl:px-10">
-          <div className="flex w-full max-w-[560px] flex-col">
-            <p className="text-left text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[12px]">
+        <div className="order-2 flex items-center justify-center px-5 py-8 sm:px-8 sm:py-10 lg:order-1 lg:px-8 lg:py-14 xl:px-10">
+          <div className="flex w-full max-w-[560px] flex-col items-center text-center lg:items-start lg:text-left">
+            <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[12px]">
               Corporate Plans
             </p>
-            <h1 className="mt-3 text-left font-serif text-[1.5rem] leading-[1.2] font-bold tracking-tight sm:text-[2.05rem] md:text-[2.25rem] lg:text-[2.45rem]">
+            <h1 className="mt-3 w-full font-serif text-[1.5rem] leading-[1.2] font-bold tracking-tight sm:text-[2.05rem] md:text-[2.25rem] lg:text-[2.45rem]">
               <span className="block text-black">
                 Corporate Wellness,
               </span>
@@ -190,7 +215,7 @@ function HeroBlock() {
                 Designed Around Your Organization
               </span>
             </h1>
-            <div className="mt-4 w-full space-y-1.5 text-left text-[14px] leading-relaxed sm:mt-6 sm:text-[16px] lg:text-[15px] xl:text-[18px]">
+            <div className="mt-4 w-full max-w-[420px] space-y-1.5 text-[14px] leading-relaxed sm:mt-6 sm:max-w-none sm:text-[16px] lg:text-[15px] xl:text-[18px]">
               <p className="font-semibold text-[#2c3a30]">
                 Give your employees access to simple, expert-led wellness through
                 The Healing Mat.
@@ -201,24 +226,20 @@ function HeroBlock() {
               </p>
             </div>
 
-            <ul className="mt-7 grid w-full grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4 sm:gap-x-0 sm:gap-y-6">
+            <ul className="mt-6 grid w-full grid-cols-4 gap-x-2 gap-y-4 sm:mt-9 sm:gap-x-0 sm:gap-y-6">
               {heroHighlights.map((item, index) => (
                 <li
                   key={item.key}
-                  className={`flex flex-col items-start text-left ${
+                  className={`flex flex-col items-center gap-2 text-center lg:items-start lg:text-left ${
                     index > 0
                       ? "sm:border-l sm:border-[#e5e8e3] sm:pl-3 lg:pl-2.5 xl:pl-4"
                       : ""
                   }`}
                 >
-                  <span className="inline-flex h-14 w-14 items-center justify-center text-[#E07A2F] sm:h-16 sm:w-16">
-                    <AssetIcon
-                      src={item.icon}
-                      className="h-11 w-11 sm:h-12 sm:w-12"
-                      color={iconOrange}
-                    />
+                  <span className="text-[#E07A2F]" aria-hidden="true">
+                    {item.icon}
                   </span>
-                  <span className="mt-2.5 text-[12px] leading-snug font-bold text-black sm:text-[13px]">
+                  <span className="text-[11px] leading-snug font-bold text-[#3d4a40] sm:text-[13px] lg:text-[12px] xl:text-[14px]">
                     {item.label}
                   </span>
                 </li>
@@ -227,7 +248,7 @@ function HeroBlock() {
 
             <Link
               href="/corporate/enquiry"
-              className="btn-primary mx-auto mt-8 inline-flex w-fit items-center gap-2.5 rounded-full bg-[#1f6b3a] px-6 py-3.5 text-[13px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.22)] sm:gap-3 sm:px-7 sm:py-4 sm:text-[14px]"
+              className="btn-primary mt-6 inline-flex w-full max-w-[400px] items-center justify-center gap-2.5 rounded-full bg-[#1f6b3a] px-5 py-3.5 text-[13px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.22)] sm:mt-9 sm:w-auto sm:max-w-none sm:gap-3 sm:px-7 sm:py-4 sm:text-[14px]"
             >
               <AssetIcon
                 src={requirementIcon}

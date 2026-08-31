@@ -133,15 +133,17 @@ function HeroBlock() {
     <section className="relative w-full overflow-hidden bg-white">
       <div className="relative grid w-full items-stretch lg:grid-cols-2">
         <div className="relative z-10 order-2 flex min-w-0 items-center justify-center px-4 py-8 text-center sm:px-8 sm:py-10 lg:order-1 lg:justify-center lg:px-8 lg:py-14 lg:text-left xl:px-12">
-          <div className="mx-auto flex w-full min-w-0 max-w-[560px] flex-col items-center lg:mx-0 lg:items-start">
+          <div className="mx-auto flex w-full min-w-0 max-w-[560px] flex-col items-center text-center lg:mx-0 lg:items-start lg:text-left">
             <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[12px]">
               Health Guides
             </p>
-            <h1 className="mt-3 w-full font-serif text-[1.75rem] leading-[1.15] font-bold tracking-tight break-words text-[#1f6b3a] sm:text-[2.6rem] sm:leading-[1.12] lg:text-[2.9rem] xl:text-[3.25rem]">
-              Practical Help for{" "}
-              <span className="sm:whitespace-nowrap">Your Everyday Health</span>
+            <h1 className="mt-3 w-full font-serif text-[1.75rem] leading-[1.15] font-bold tracking-tight break-words sm:text-[2.6rem] sm:leading-[1.12] lg:text-[2.9rem] xl:text-[3.25rem]">
+              <span className="text-black">Practical Help for</span>{" "}
+              <span className="text-[#1f6b3a] sm:whitespace-nowrap">
+                Your Everyday Health
+              </span>
             </h1>
-            <p className="mt-4 max-w-[420px] text-[14px] leading-relaxed font-semibold text-[#2c3a30] sm:mt-6 sm:text-[16px] lg:text-[15px] xl:text-[18px]">
+            <p className="mt-4 w-full max-w-[420px] text-[14px] leading-relaxed font-semibold text-[#2c3a30] sm:mt-6 sm:max-w-none sm:text-[16px] lg:text-[15px] xl:text-[18px]">
               Simple resources, useful information and guided practices to help
               you understand your health, build better habits and take care of
               yourself every day.
