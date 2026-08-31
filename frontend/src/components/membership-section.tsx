@@ -215,7 +215,7 @@ function PlansBlock() {
   return (
     <section className="mx-auto w-full max-w-[1440px] px-4 pt-10 pb-5 sm:px-6 sm:pt-12 lg:px-6 lg:pt-14 xl:px-8">
       <div className="text-center">
-        <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
+        <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[12px]">
           Membership Plans
         </p>
         <h1 className="mt-2.5 font-serif text-[2.1rem] leading-[1.15] font-bold tracking-tight text-[#1f6b3a] sm:text-[2.55rem] lg:text-[2.85rem]">
@@ -253,7 +253,7 @@ function PlanCard({ plan }: { plan: Plan }) {
         </span>
       ) : null}
 
-      <p className="relative z-10 text-center text-[12px] font-bold tracking-[0.16em] text-[#1f6b3a] uppercase sm:text-[13px]">
+      <p className="relative z-10 text-center text-[12px] font-bold tracking-[0.16em] text-black uppercase sm:text-[13px]">
         {label}
       </p>
       <p className="relative z-10 mt-3.5 text-center font-serif text-[2.85rem] leading-none font-bold tracking-tight text-[#1f6b3a] sm:text-[3.15rem] lg:text-[3.35rem]">
@@ -631,7 +631,7 @@ function StillNotSureCta() {
               }}
             />
             <div className="min-w-0">
-              <h2 className="font-serif text-[1.35rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.55rem]">
+              <h2 className="font-serif text-[1.35rem] leading-tight font-bold tracking-tight text-black sm:text-[1.55rem]">
                 Still Not Sure?
               </h2>
               <p className="mt-1 text-[13px] leading-snug text-[#5f6f64] sm:text-[14px]">
