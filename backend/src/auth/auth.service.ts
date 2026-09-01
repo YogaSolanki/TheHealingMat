@@ -216,16 +216,19 @@ export class AuthService {
       if (!fullName || fullName.length < 2) {
         throw new BadRequestException('fullName is required for signup.');
       }
-      if (!dto.password) {
-        throw new BadRequestException('password is required for signup.');
-      }
+
+      // Trial / OTP signup may omit password; generate a strong random one.
+      // Users can set a known password later via forgot-password.
+      const password =
+        dto.password?.trim() ||
+        `Otp-${randomBytes(24).toString('hex')}aA1`;
 
       user = await this.createUser({
         region: challenge.region,
         destination: challenge.destination,
         channel: challenge.channel,
         fullName,
-        password: dto.password,
+        password,
       });
       isNewAccount = true;
     }
