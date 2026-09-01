@@ -219,7 +219,7 @@ function ResourcesBand() {
                 Save them, revisit them, and keep what you need close at hand.
               </p>
               <Link
-                href="#resources"
+                href="/resources"
                 className="btn-primary mt-6 inline-flex items-center gap-1.5 rounded-full bg-[#1f6b3a] px-6 py-2.5 text-[13px] font-bold text-white sm:mt-7 sm:text-[14px]"
               >
                 Explore Resources
