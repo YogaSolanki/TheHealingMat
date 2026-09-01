@@ -439,7 +439,7 @@ export function FaqSection() {
         </button>
       </div>
 
-      <div className="mx-auto mt-10 max-w-[640px] rounded-[22px] border border-[#ebe6dc] bg-[#FBF9F5] px-5 py-7 text-center sm:mt-12 sm:px-8 sm:py-8">
+      <div className="mx-auto mt-10 max-w-[640px] rounded-[22px] bg-white px-5 py-7 text-center shadow-[0_8px_28px_rgba(31,107,58,0.06),0_20px_56px_rgba(31,107,58,0.08)] sm:mt-12 sm:px-8 sm:py-8">
         <h3 className="font-serif text-[1.35rem] leading-tight font-bold tracking-tight text-black sm:text-[1.55rem]">
           Still Have a Question?
         </h3>

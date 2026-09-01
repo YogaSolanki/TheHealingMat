@@ -9,6 +9,7 @@ import { FaXTwitter } from "react-icons/fa6";
 import { HiOutlineMail, HiOutlineLocationMarker, HiOutlinePhone } from "react-icons/hi";
 import { RiInstagramFill } from "react-icons/ri";
 import omIcon from "@/assets/om.png";
+import { SiteLogo } from "@/components/site-logo";
 
 const exploreLinks = [
   { href: "/", label: "Home" },
@@ -78,23 +79,12 @@ export function SiteFooter() {
       <div className="mx-auto grid w-full max-w-[1140px] grid-cols-2 gap-x-4 gap-y-6 px-5 py-8 sm:gap-x-8 sm:px-6 sm:py-8 lg:grid-cols-[1.3fr_1fr_1.3fr] lg:gap-0 lg:px-8 lg:py-8 xl:px-10">
         {/* Brand — full width on phone; left column on desktop */}
         <div className="col-span-2 flex flex-col items-start text-left lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:pr-8">
-          <Link href="/" className="inline-flex items-start gap-2">
-            <Image
-              src="/images/logo-mark.png"
-              alt="The Healing Mat"
-              width={42}
-              height={42}
-              className="h-10 w-10 object-contain sm:h-11 sm:w-11"
-            />
-            <span className="leading-[1.15] text-left">
-              <span className="block font-serif text-[1.1rem] font-bold tracking-tight text-[#1f6b3a] sm:text-[1.2rem]">
-                The Healing Mat
-              </span>
-              <span className="mt-0.5 block text-[11px] text-[#6b7c6e] sm:text-[12px]">
-                Health Without Drama
-              </span>
+          <div className="flex flex-col items-start">
+            <SiteLogo />
+            <span className="mt-1 hidden text-[11px] text-[#6b7c6e] sm:block sm:text-[12px]">
+              Health Without Drama
             </span>
-          </Link>
+          </div>
 
           <p className="mt-2.5 max-w-[260px] text-[12px] leading-snug text-[#5f6f64] sm:text-[13px]">
             Helping you build healthier habits through simple daily guidance.
