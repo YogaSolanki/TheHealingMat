@@ -1,36 +1,61 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { VideoDetailSection } from "@/components/video-detail-section";
-import { getHealthVideo, healthVideos } from "@/lib/health-videos";
+import { fetchVideo, fetchVideos } from "@/lib/content-api";
 
 type VideoPageProps = {
   params: Promise<{ slug: string }>;
 };
 
-export function generateStaticParams() {
-  return healthVideos.map((video) => ({ slug: video.slug }));
+export const dynamic = "force-dynamic";
+
+export async function generateStaticParams() {
+  try {
+    const rows = await fetchVideos();
+    return rows.map((video) => ({ slug: video.slug }));
+  } catch {
+    return [];
+  }
 }
 
 export async function generateMetadata({
   params,
 }: VideoPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const video = getHealthVideo(slug);
-  if (!video) return { title: "Video | The Healing Mat" };
-  return {
-    title: `${video.title} | The Healing Mat`,
-    description: video.description,
-  };
+  try {
+    const video = await fetchVideo(slug);
+    return {
+      title: `${video.title} | The Healing Mat`,
+      description: video.description,
+    };
+  } catch {
+    return { title: "Video | The Healing Mat" };
+  }
 }
 
 export default async function VideoDetailPage({ params }: VideoPageProps) {
   const { slug } = await params;
-  const video = getHealthVideo(slug);
-  if (!video) notFound();
+  let video;
+  try {
+    video = await fetchVideo(slug);
+  } catch {
+    notFound();
+  }
 
   return (
     <main>
-      <VideoDetailSection video={video} />
+      <VideoDetailSection
+        video={{
+          slug: video.slug,
+          title: video.title,
+          subtitle: video.subtitle,
+          description: video.description,
+          category: video.category,
+          duration: video.duration,
+          coverUrl: video.coverUrl,
+          videoUrl: video.videoUrl,
+        }}
+      />
     </main>
   );
 }

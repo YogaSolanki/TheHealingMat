@@ -4,9 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { GuidesBreadcrumb } from "@/components/guides-breadcrumb";
 import { GuidesCatalogFilters } from "@/components/guides-catalog-filters";
-import { healthVideos } from "@/lib/health-videos";
+import type { HealthVideo } from "@/lib/health-videos";
 
-export function VideosSection() {
+export function VideosSection({ items }: { items: HealthVideo[] }) {
   return (
     <div className="w-full bg-white">
       <section className="w-full pt-5 pr-5 pb-12 pl-5 sm:pt-6 sm:pr-7 sm:pb-14 sm:pl-7 lg:pr-8 lg:pb-16 lg:pl-8 xl:pr-12 xl:pl-12">
@@ -14,7 +14,7 @@ export function VideosSection() {
           <h1 className="sr-only">Health Videos</h1>
 
           <GuidesCatalogFilters
-            items={healthVideos}
+            items={items}
             searchPlaceholder="Search videos…"
             header={
               <GuidesBreadcrumb
@@ -38,13 +38,16 @@ export function VideosSection() {
                   >
                     <article className="flex h-full flex-col overflow-hidden rounded-[20px] border border-[#e6ebe3] bg-white shadow-[0_8px_28px_rgba(31,107,58,0.05)]">
                       <div className="relative aspect-[4/3] w-full bg-[#FBF9F5]">
-                        <Image
-                          src={video.cover}
-                          alt={video.title}
-                          fill
-                          className="object-contain p-4 sm:p-5"
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
-                        />
+                        {video.coverUrl ? (
+                          <Image
+                            src={video.coverUrl}
+                            alt={video.title}
+                            fill
+                            unoptimized
+                            className="object-contain p-4 sm:p-5"
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
+                          />
+                        ) : null}
                         <span className="absolute right-3 bottom-3 rounded-full bg-[#1f6b3a] px-2.5 py-1 text-[11px] font-bold text-white">
                           {video.duration}
                         </span>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { VideosSection } from "@/components/videos-section";
+import { fetchVideos } from "@/lib/content-api";
 
 export const metadata: Metadata = {
   title: "Health Videos | The Healing Mat",
@@ -7,10 +8,24 @@ export const metadata: Metadata = {
     "Guided health videos you can follow anytime — movement, breathing, yoga and stress-relief practices.",
 };
 
-export default function VideosPage() {
+export const dynamic = "force-dynamic";
+
+export default async function VideosPage() {
+  const rows = await fetchVideos().catch(() => []);
+  const items = rows.map((row) => ({
+    slug: row.slug,
+    title: row.title,
+    subtitle: row.subtitle,
+    description: row.description,
+    category: row.category,
+    duration: row.duration,
+    coverUrl: row.coverUrl,
+    videoUrl: row.videoUrl,
+  }));
+
   return (
     <main>
-      <VideosSection />
+      <VideosSection items={items} />
     </main>
   );
 }

@@ -1,16 +1,33 @@
-import type { Metadata } from "next";
-import { EmptyPanel } from "@/components/empty-panel";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Resources",
-};
+import { ContentCrudPanel } from "@/components/content-crud-panel";
+import {
+  createAdminResource,
+  deleteAdminResource,
+  listAdminResources,
+  updateAdminResource,
+} from "@/lib/api";
 
-export default function ResourcesManagementPage() {
+export default function ResourcesPage() {
   return (
-    <EmptyPanel
-      action="Add resource"
-      columns={["Name", "Type", "Updated"]}
-      empty="No resources yet"
-    />
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-xl font-semibold text-[#243028]">Resources</h1>
+        <p className="mt-1 text-sm text-[#6a756c]">
+          Manage downloadable health guides shown on the website.
+        </p>
+      </div>
+      <ContentCrudPanel
+        kind="resources"
+        title="Resources"
+        singular="resource"
+        list={listAdminResources}
+        create={createAdminResource}
+        update={updateAdminResource}
+        remove={async (token, id) => {
+          await deleteAdminResource(token, id);
+        }}
+      />
+    </div>
   );
 }

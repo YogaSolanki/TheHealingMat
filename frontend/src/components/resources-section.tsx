@@ -5,9 +5,9 @@ import Link from "next/link";
 import pdfIcon from "@/assets/pdf.png";
 import { GuidesBreadcrumb } from "@/components/guides-breadcrumb";
 import { GuidesCatalogFilters } from "@/components/guides-catalog-filters";
-import { resourceGuides } from "@/lib/resource-guides";
+import type { ResourceGuide } from "@/lib/resource-guides";
 
-export function ResourcesSection() {
+export function ResourcesSection({ items }: { items: ResourceGuide[] }) {
   return (
     <div className="w-full bg-white">
       <section className="w-full pt-5 pr-5 pb-12 pl-5 sm:pt-6 sm:pr-7 sm:pb-14 sm:pl-7 lg:pr-8 lg:pb-16 lg:pl-8 xl:pr-12 xl:pl-12">
@@ -15,7 +15,7 @@ export function ResourcesSection() {
           <h1 className="sr-only">Resources</h1>
 
           <GuidesCatalogFilters
-            items={resourceGuides}
+            items={items}
             searchPlaceholder="Search resources…"
             header={
               <GuidesBreadcrumb
@@ -39,13 +39,16 @@ export function ResourcesSection() {
                   >
                     <article className="flex h-full flex-col overflow-hidden rounded-[20px] border border-[#e6ebe3] bg-white shadow-[0_8px_28px_rgba(31,107,58,0.05)]">
                       <div className="relative aspect-[4/3] w-full bg-[#FBF9F5]">
-                        <Image
-                          src={guide.cover}
-                          alt={guide.title}
-                          fill
-                          className="object-contain p-4 sm:p-5"
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
-                        />
+                        {guide.coverUrl ? (
+                          <Image
+                            src={guide.coverUrl}
+                            alt={guide.title}
+                            fill
+                            unoptimized
+                            className="object-contain p-4 sm:p-5"
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
+                          />
+                        ) : null}
                       </div>
 
                       <div className="flex flex-1 flex-col px-5 pt-4 pb-5 sm:px-6 sm:pb-6">
