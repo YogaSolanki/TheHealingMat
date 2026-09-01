@@ -536,11 +536,11 @@ function OrientationBanner() {
               sizes="220px"
             />
           </div>
-          <div className="px-5 py-5 sm:px-2 sm:py-6 lg:pr-28 xl:pr-36">
+          <div className="flex flex-col items-center justify-center px-5 py-5 text-center sm:px-6 sm:py-6 lg:px-8 lg:pr-28 xl:pr-36">
             <h3 className="font-serif text-[1.25rem] font-bold tracking-tight text-[#1f6b3a] sm:text-[1.4rem]">
               New to The Healing Mat?
             </h3>
-            <p className="mt-2 max-w-[560px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
+            <p className="mx-auto mt-2 max-w-[560px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
               After you join, we’ll help you get started with two short
               orientation sessions covering basic precautions and helping you
               understand how to practise according to your current level.

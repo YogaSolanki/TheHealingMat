@@ -395,17 +395,17 @@ function GuidanceCta() {
             />
           </div>
 
-          <div className="relative z-10 flex flex-col items-center justify-center px-5 py-8 text-center sm:px-8 sm:py-10 md:items-start md:py-8 md:pr-24 md:text-left lg:px-8 lg:py-10 lg:pr-28 xl:pr-36">
+          <div className="relative z-10 flex flex-col items-center justify-center px-5 py-8 text-center sm:px-8 sm:py-10 md:px-8 md:py-8 md:pr-24 lg:px-10 lg:py-10 lg:pr-28 xl:pr-36">
             <h2 className="font-serif text-[1.2rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.45rem] lg:text-[1.6rem]">
               Want Guidance Beyond the Guides?
             </h2>
-            <p className="mt-2 max-w-[560px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
+            <p className="mx-auto mt-2 max-w-[560px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
               Make Health Part of Everyday Life. Health Guides can help you learn
               and get started. As a member of The Healing Mat, you can go further
               with live daily yoga classes, guided practices and wellness
               programmes designed to help you stay consistent.
             </p>
-            <ul className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[12px] font-semibold text-[#1f6b3a] md:justify-start">
+            <ul className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[12px] font-semibold text-[#1f6b3a]">
               {["Simple", "Affordable", "Everyday"].map((label) => (
                 <li key={label} className="inline-flex items-center gap-1.5">
                   <span

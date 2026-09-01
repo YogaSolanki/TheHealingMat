@@ -14,6 +14,7 @@ import contactFormArt from "@/assets/contact-form.png";
 import leafRight from "@/assets/leaf-right.png";
 import mapIcon from "@/assets/map.png";
 import studioImage from "@/assets/Studio.jpg";
+import { submitContact } from "@/lib/api";
 
 const cream = "#FBF9F5";
 
@@ -182,14 +183,29 @@ function ContactFormBlock() {
   const [message, setMessage] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setLoading(true);
-    // UI-ready for now — wire to an API later.
-    await new Promise((resolve) => window.setTimeout(resolve, 450));
-    setLoading(false);
-    setSubmitted(true);
+    setError(null);
+    try {
+      await submitContact({
+        name: name.trim(),
+        phone: phone.trim(),
+        email: email.trim() || undefined,
+        message: message.trim(),
+      });
+      setSubmitted(true);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to send your message. Please try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -295,6 +311,14 @@ function ContactFormBlock() {
                   placeholder="Tell us how we can help you..."
                 />
               </div>
+              {error ? (
+                <p
+                  role="alert"
+                  className="rounded-xl border border-[#f0d0c4] bg-[#fff7f4] px-3.5 py-3 text-[13px] text-[#9a4030]"
+                >
+                  {error}
+                </p>
+              ) : null}
               <button
                 type="submit"
                 disabled={loading}

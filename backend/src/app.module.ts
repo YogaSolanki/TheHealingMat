@@ -9,6 +9,7 @@ import { HealthModule } from './health/health.module';
 import { TrialsModule } from './trials/trials.module';
 import { UsersModule } from './users/users.module';
 import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module';
+import { ContactModule } from './contact/contact.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module';
     AuthModule,
     TrialsModule,
     AdminDashboardModule,
+    ContactModule,
   ],
   controllers: [AppController],
   providers: [AppService],

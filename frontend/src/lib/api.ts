@@ -193,3 +193,23 @@ export async function getMyTrial(
   });
   return parseJson<TrialAccountResponse>(response);
 }
+
+export type ContactSubmitResponse = {
+  success: boolean;
+  message: string;
+  id: string;
+};
+
+export async function submitContact(input: {
+  name: string;
+  phone: string;
+  email?: string;
+  message: string;
+}): Promise<ContactSubmitResponse> {
+  const response = await fetch(`${API_URL}/contact`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return parseJson<ContactSubmitResponse>(response);
+}
