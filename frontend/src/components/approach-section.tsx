@@ -291,7 +291,7 @@ export function ApproachSection() {
         src={leafLeft}
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute bottom-4 left-0 z-20 hidden h-auto w-[100px] select-none opacity-30 sm:block md:bottom-8 md:w-[120px] lg:bottom-10 lg:w-[140px] xl:w-[160px]"
+        className="pointer-events-none absolute bottom-4 left-0 z-0 hidden h-auto w-[100px] select-none opacity-30 sm:block md:bottom-8 md:w-[120px] lg:bottom-10 lg:w-[140px] xl:w-[160px]"
         sizes="(max-width: 1024px) 120px, 160px"
         priority={false}
       />
@@ -299,13 +299,13 @@ export function ApproachSection() {
         src={leafRight}
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute top-2 right-0 z-20 hidden h-auto w-[105px] select-none opacity-30 sm:block md:top-4 md:w-[125px] lg:top-6 lg:w-[145px] xl:w-[165px]"
+        className="pointer-events-none absolute top-2 right-0 z-0 hidden h-auto w-[105px] select-none opacity-30 sm:block md:top-4 md:w-[125px] lg:top-6 lg:w-[145px] xl:w-[165px]"
         sizes="(max-width: 1024px) 125px, 165px"
         priority={false}
       />
 
-      <div className="relative z-10 mx-auto w-full max-w-none">
-        <div className="rounded-[16px] bg-[#FBF9F5] px-5 pt-8 pb-14 sm:px-8 sm:pt-10 sm:pb-16 lg:rounded-[18px] lg:px-12 lg:pt-12 lg:pb-[72px] xl:px-16">
+      <div className="relative z-10 mx-auto w-full max-w-[1613px]">
+        <div className="rounded-[16px] bg-[#FBF9F5] px-5 pt-8 pb-14 sm:px-8 sm:pt-10 sm:pb-16 lg:rounded-[18px] lg:px-10 lg:pt-12 lg:pb-[72px] xl:px-16">
           <div className="mx-auto max-w-[760px] text-center">
             <h2 className="font-serif text-[1.55rem] font-bold tracking-tight text-black sm:text-[1.85rem] md:text-[2rem] lg:text-[2.15rem]">
               A Complete Approach to Everyday Health
@@ -320,7 +320,7 @@ export function ApproachSection() {
             {practices.map((item, index) => (
               <li
                 key={item.key}
-                className={`flex flex-col items-center px-3 text-center sm:px-4 lg:px-6 xl:px-7 ${
+                className={`flex flex-col items-center px-3 text-center sm:px-4 lg:px-4 xl:px-7 ${
                   index > 0 ? "lg:border-l lg:border-[#d9e0d6]" : ""
                 }`}
               >
@@ -342,16 +342,19 @@ export function ApproachSection() {
               Support for everyday health goals
             </h3>
 
-            <ul className="mx-auto mt-4 grid w-full max-w-[300px] grid-cols-2 gap-x-5 gap-y-3.5 sm:mt-5 sm:max-w-[640px] sm:grid-cols-4 sm:gap-x-6 sm:gap-y-4 lg:mt-5 lg:flex lg:max-w-[1280px] lg:flex-nowrap lg:items-start lg:justify-center lg:gap-x-12 xl:gap-x-14">
-              {goals.map((goal) => (
+            {/* 4×2 grid through lg/1024; single row only from xl to avoid overflow */}
+            <ul className="mx-auto mt-4 grid w-full max-w-[300px] grid-cols-2 justify-items-center gap-x-5 gap-y-3.5 sm:mt-5 sm:max-w-[640px] sm:grid-cols-4 sm:gap-x-6 sm:gap-y-4 lg:mt-5 lg:max-w-[920px] lg:gap-x-0 lg:gap-y-5 xl:flex xl:max-w-[1280px] xl:flex-nowrap xl:items-center xl:justify-center xl:gap-x-0">
+              {goals.map((goal, index) => (
                 <li
                   key={goal.key}
-                  className="flex items-start gap-1.5 text-left"
+                  className={`flex items-center justify-center gap-1.5 text-center lg:w-full lg:px-3 xl:w-auto xl:px-4 2xl:px-5 ${
+                    index % 4 !== 0 ? "lg:border-l lg:border-[#d9e0d6]" : ""
+                  } ${index > 0 ? "xl:border-l xl:border-[#d9e0d6]" : ""}`}
                 >
-                  <span className="mt-0.5 shrink-0">
+                  <span className="shrink-0">
                     {goal.icon ?? <GoalCheckIcon />}
                   </span>
-                  <span className="text-[12px] leading-snug font-bold text-[#1f6b3a] sm:text-[12.5px] lg:whitespace-nowrap lg:text-[13px]">
+                  <span className="text-[12px] leading-snug font-bold text-[#1f6b3a] sm:text-[12.5px] lg:text-[13px] xl:whitespace-nowrap">
                     {goal.label}
                   </span>
                 </li>

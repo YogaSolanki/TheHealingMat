@@ -86,7 +86,7 @@ const testimonials: {
 export function TestimonialsSection() {
   return (
     <section className="w-full bg-white px-4 pt-1.5 pb-0 sm:px-6 lg:px-8 lg:pb-1">
-      <div className="mx-auto w-full max-w-none rounded-[16px] bg-[#FBF9F5] px-5 py-9 sm:px-8 sm:py-11 lg:rounded-[18px] lg:px-10 lg:py-12 xl:px-12">
+      <div className="mx-auto w-full max-w-[1613px] rounded-[16px] bg-[#FBF9F5] px-5 py-9 sm:px-8 sm:py-11 lg:rounded-[18px] lg:px-10 lg:py-12 xl:px-12">
         <div className="mx-auto max-w-[720px] text-center">
           <h2 className="font-serif text-[1.75rem] leading-tight font-bold tracking-tight text-black sm:text-[2rem] lg:text-[2.15rem]">
             What People Say
@@ -124,16 +124,16 @@ export function TestimonialsSection() {
             </article>
           ))}
 
-          <aside className="flex flex-col items-center justify-center px-3 py-5 text-center sm:col-span-2 lg:col-span-1 lg:w-[188px] lg:shrink-0 xl:w-[210px]">
-            <GoogleMark className="h-10 w-10 sm:h-11 sm:w-11" />
-            <p className="mt-3 font-serif text-[1.3rem] leading-snug font-bold text-[#1f6b3a] sm:text-[1.45rem]">
+          <aside className="flex flex-col items-center justify-center rounded-[18px] px-3 py-5 text-center sm:min-h-full lg:w-[188px] lg:shrink-0 xl:w-[210px]">
+            <GoogleMark className="h-9 w-9 sm:h-10 sm:w-10 lg:h-11 lg:w-11" />
+            <p className="mt-2.5 font-serif text-[1.2rem] leading-snug font-bold text-[#1f6b3a] sm:mt-3 sm:text-[1.3rem] lg:text-[1.45rem]">
               Read all reviews
               <br />
               on Google
             </p>
             <Link
               href="#"
-              className="btn-primary mt-5 inline-flex items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-5 py-2.5 text-[13px] font-bold text-white sm:text-[14px]"
+              className="btn-primary mt-4 inline-flex items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-5 py-2.5 text-[13px] font-bold text-white sm:mt-5 sm:text-[14px]"
             >
               Read More
               <span aria-hidden="true">→</span>

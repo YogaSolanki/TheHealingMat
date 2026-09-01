@@ -94,9 +94,9 @@ const highlights: { key: string; icon: ReactNode; label: ReactNode }[] = [
     icon: <AffordableIcon />,
     label: (
       <>
-        Affordable
+        ₹10/Day
         <br />
-        (Rs 10/day)
+        Annual Plan
       </>
     ),
   },
@@ -104,7 +104,6 @@ const highlights: { key: string; icon: ReactNode; label: ReactNode }[] = [
 
 const trustItems = [
   "No payment details required",
-  "Start in under 1 minute",
   "Hassle-free registration",
 ];
 
@@ -121,14 +120,9 @@ export function HeroSection() {
               <span className="text-[#1f6b3a]">For Every Body.</span>
             </h1>
 
-            <div className="mt-4 w-full max-w-[420px] space-y-1.5 text-[14px] leading-relaxed sm:mt-6 sm:max-w-none sm:text-[16px] lg:text-[15px] xl:text-[18px]">
-              <p className="font-semibold text-[#2c3a30]">
-                Simple yoga. Consistent guidance. Real results.
-              </p>
-              <p className="font-semibold text-[#2c3a30]">
-                Daily yoga sessions for all age groups and experience levels.
-              </p>
-            </div>
+            <p className="mt-4 w-full max-w-[420px] text-[14px] leading-relaxed font-semibold text-[#2c3a30] sm:mt-6 sm:max-w-none sm:text-[16px] lg:text-[15px] xl:text-[18px]">
+              Simple yoga. Consistent guidance. Real results.
+            </p>
 
             <ul className="mt-6 grid w-full grid-cols-4 gap-x-2 gap-y-4 sm:mt-9 sm:gap-x-0 sm:gap-y-6">
               {highlights.map((item, index) => (
@@ -167,12 +161,12 @@ export function HeroSection() {
               </button>
             </div>
 
-            <ul className="hero-trust-row mt-6 flex w-full min-w-0 flex-col items-center gap-y-2 sm:mt-9 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-3 sm:gap-y-2 lg:flex-nowrap lg:justify-start lg:gap-x-0">
+            <ul className="hero-trust-row mt-6 flex w-full min-w-0 flex-col items-center justify-center gap-y-2 text-center sm:mt-9 sm:flex-row sm:flex-wrap sm:gap-x-3 sm:gap-y-2 lg:flex-nowrap lg:gap-x-0">
               {trustItems.map((item, index) => (
                 <li
                   key={item}
                   className={[
-                    "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[12px] font-bold text-[#4a5a4f] sm:text-[12px] lg:text-[11px] xl:text-[12px] 2xl:text-[13px]",
+                    "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap text-[12px] font-bold text-[#4a5a4f] sm:text-[12px] lg:text-[11px] xl:text-[12px] 2xl:text-[13px]",
                     index > 0
                       ? "sm:border-l sm:border-[#cfd6cf] sm:pl-3 lg:pl-2 lg:ml-2 xl:pl-2.5 xl:ml-2.5"
                       : "",
