@@ -1,5 +1,8 @@
-import Image from "next/image";
+import Image, { type StaticImageData } from "next/image";
 import type { ReactNode } from "react";
+import ageingIcon from "@/assets/Ageing.png";
+import backComfortIcon from "@/assets/back comfort.png";
+import flexibilityIcon from "@/assets/Flexibility.png";
 import yogaIcon from "@/assets/ic1.png";
 import breathIcon from "@/assets/ic2.png";
 import joyIcon from "@/assets/ic3.png";
@@ -8,7 +11,16 @@ import brainIcon from "@/assets/ic5.png";
 import habitsIcon from "@/assets/ic6.png";
 import leafLeft from "@/assets/leaf-left.png";
 import leafRight from "@/assets/leaf-right.png";
+import lifestyleIcon from "@/assets/Lifestyle.png";
+import sleepIcon from "@/assets/sleep.png";
+import stressIcon from "@/assets/Stress.png";
 import tickIcon from "@/assets/tick.png";
+import weightManagementIcon from "@/assets/weight-managmenet.png";
+import wellnessIcon from "@/assets/Wellness.png";
+
+/** Tint mono icons to brand green #1f6b3a */
+const brandGreenFilter =
+  "brightness(0) saturate(100%) invert(29%) sepia(34%) saturate(900%) hue-rotate(95deg) brightness(92%) contrast(92%)";
 
 function YogaIcon() {
   return (
@@ -94,6 +106,19 @@ function GoalCheckIcon() {
   );
 }
 
+function GoalAssetIcon({ src }: { src: StaticImageData }) {
+  return (
+    <Image
+      src={src}
+      alt=""
+      aria-hidden="true"
+      className="h-6 w-6 object-contain sm:h-7 sm:w-7"
+      style={{ filter: brandGreenFilter }}
+      sizes="28px"
+    />
+  );
+}
+
 const practices: {
   key: string;
   title: ReactNode;
@@ -168,7 +193,7 @@ const practices: {
   },
 ];
 
-const goals: { key: string; label: ReactNode }[] = [
+const goals: { key: string; label: ReactNode; icon?: ReactNode }[] = [
   {
     key: "weight",
     label: (
@@ -178,6 +203,7 @@ const goals: { key: string; label: ReactNode }[] = [
         Management
       </>
     ),
+    icon: <GoalAssetIcon src={weightManagementIcon} />,
   },
   {
     key: "back",
@@ -188,6 +214,7 @@ const goals: { key: string; label: ReactNode }[] = [
         Comfort
       </>
     ),
+    icon: <GoalAssetIcon src={backComfortIcon} />,
   },
   {
     key: "stress",
@@ -198,6 +225,7 @@ const goals: { key: string; label: ReactNode }[] = [
         Relief
       </>
     ),
+    icon: <GoalAssetIcon src={stressIcon} />,
   },
   {
     key: "sleep",
@@ -208,6 +236,7 @@ const goals: { key: string; label: ReactNode }[] = [
         Sleep
       </>
     ),
+    icon: <GoalAssetIcon src={sleepIcon} />,
   },
   {
     key: "mobility",
@@ -218,6 +247,7 @@ const goals: { key: string; label: ReactNode }[] = [
         Flexibility
       </>
     ),
+    icon: <GoalAssetIcon src={flexibilityIcon} />,
   },
   {
     key: "ageing",
@@ -228,6 +258,7 @@ const goals: { key: string; label: ReactNode }[] = [
         Ageing
       </>
     ),
+    icon: <GoalAssetIcon src={ageingIcon} />,
   },
   {
     key: "womens",
@@ -238,6 +269,7 @@ const goals: { key: string; label: ReactNode }[] = [
         Wellness
       </>
     ),
+    icon: <GoalAssetIcon src={wellnessIcon} />,
   },
   {
     key: "lifestyle",
@@ -248,6 +280,7 @@ const goals: { key: string; label: ReactNode }[] = [
         Health
       </>
     ),
+    icon: <GoalAssetIcon src={lifestyleIcon} />,
   },
 ];
 
@@ -316,7 +349,7 @@ export function ApproachSection() {
                   className="flex items-start gap-1.5 text-left"
                 >
                   <span className="mt-0.5 shrink-0">
-                    <GoalCheckIcon />
+                    {goal.icon ?? <GoalCheckIcon />}
                   </span>
                   <span className="text-[12px] leading-snug font-bold text-[#1f6b3a] sm:text-[12.5px] lg:whitespace-nowrap lg:text-[13px]">
                     {goal.label}

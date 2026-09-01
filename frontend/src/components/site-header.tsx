@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuthModal } from "@/components/auth-modal-provider";
+import { SiteLogo } from "@/components/site-logo";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -37,25 +37,8 @@ export function SiteHeader() {
 
   return (
     <header className="relative z-50 bg-white header-shell">
-      <div className="flex h-[68px] w-full items-center justify-between gap-2 px-4 sm:h-[76px] sm:gap-3 sm:px-6 lg:px-6 xl:px-10">
-        <Link href="/" className="flex min-w-0 shrink items-center gap-2 sm:gap-2.5">
-          <Image
-            src="/images/logo-mark.png"
-            alt="The Healing Mat"
-            width={44}
-            height={44}
-            className="h-9 w-9 shrink-0 object-contain sm:h-10 sm:w-10 lg:h-11 lg:w-11"
-            priority
-          />
-          <span className="min-w-0 leading-[1.15]">
-            <span className="block truncate text-[15px] font-semibold tracking-tight text-[#1f6b3a] sm:text-[16px] lg:text-[17px] xl:text-[18px]">
-              The Healing Mat
-            </span>
-            <span className="hidden text-[11px] text-[#6b7c6e] sm:block lg:text-[11px] xl:text-[12px]">
-              Health Without Drama
-            </span>
-          </span>
-        </Link>
+      <div className="flex h-[68px] w-full items-center justify-between gap-2 pr-4 pl-5 sm:h-[76px] sm:gap-3 sm:pr-6 sm:pl-7 lg:pr-6 lg:pl-8 xl:pr-10 xl:pl-12">
+        <SiteLogo priority className="min-w-0" />
 
         <nav className="hidden items-center gap-3 lg:flex xl:gap-5 2xl:gap-7">
           {navLinks.map((link) => {
