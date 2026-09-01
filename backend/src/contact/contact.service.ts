@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { sendResendEmail } from '../mail/resend';
 import { ContactMessage } from './contact-message.entity';
 import { SubmitContactDto } from './dto/submit-contact.dto';
 
@@ -101,35 +102,15 @@ export class ContactService {
       </div>
     `;
 
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from,
-        to: [to],
-        subject,
-        text,
-        html,
-        ...(replyTo ? { reply_to: replyTo } : {}),
-      }),
+    const payload = await sendResendEmail({
+      apiKey,
+      from,
+      to,
+      subject,
+      text,
+      html,
+      replyTo,
     });
-
-    const payload = (await response.json().catch(() => ({}))) as {
-      id?: string;
-      message?: string;
-      name?: string;
-    };
-
-    if (!response.ok) {
-      throw new Error(
-        payload.message ||
-          payload.name ||
-          `Resend API failed with status ${response.status}`,
-      );
-    }
 
     this.logger.log(`Contact email sent via Resend (${payload.id ?? 'ok'}) to ${to}`);
   }
