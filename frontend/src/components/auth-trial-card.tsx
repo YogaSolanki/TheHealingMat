@@ -8,6 +8,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import { useRouter } from "next/navigation";
 import {
   API_URL,
   getMyTrial,
@@ -22,6 +23,11 @@ import {
   type Region,
   type TrialAccountResponse,
 } from "@/lib/api";
+import {
+  clearStoredToken,
+  setStoredToken,
+  TOKEN_KEY,
+} from "@/lib/auth-storage";
 
 type Mode = "login" | "signup" | "forgot";
 type Step = "identity" | "otp" | "orientation" | "done" | "reset_done";
@@ -245,8 +251,6 @@ function PasswordRules({ password }: { password: string }) {
   );
 }
 
-const TOKEN_KEY = "thm_access_token";
-
 const REGION_OPTIONS: { value: Region; label: string; hint: string }[] = [
   {
     value: "india",
@@ -432,6 +436,7 @@ export function AuthTrialCard({
   initialError = null,
   onClose,
 }: AuthTrialCardProps) {
+  const router = useRouter();
   const [mode, setMode] = useState<Mode>(initialMode);
   const [step, setStep] = useState<Step>("identity");
   const [region, setRegion] = useState<Region>("india");
@@ -467,14 +472,14 @@ export function AuthTrialCard({
     getMyTrial(saved)
       .then((data) => {
         if (data.hasTrial && data.trial) {
-          setConfirmation(data);
-          setStep("done");
+          onClose?.();
+          router.replace("/dashboard");
         }
       })
       .catch(() => {
-        window.localStorage.removeItem(TOKEN_KEY);
+        clearStoredToken();
       });
-  }, []);
+  }, [onClose, router]);
 
   useEffect(() => {
     if (step !== "otp" || !otpExpiresAt) {
@@ -493,22 +498,27 @@ export function AuthTrialCard({
     return () => window.clearInterval(id);
   }, [step, otpExpiresAt]);
 
+  function goToDashboard() {
+    onClose?.();
+    router.push("/dashboard");
+  }
+
   async function afterAuth(accessToken: string, authedUser: PublicUser) {
-    window.localStorage.setItem(TOKEN_KEY, accessToken);
+    setStoredToken(accessToken);
     setToken(accessToken);
     setUser(authedUser);
 
-    if (mode === "login" || authedUser.hasUsedFreeTrial) {
-      const trial = await getMyTrial(accessToken);
-      setConfirmation(trial);
-      setStep("done");
+    // New free-trial signup still picks an orientation slot first.
+    // Login / returning members go straight to the member dashboard.
+    if (mode === "signup" && !authedUser.hasUsedFreeTrial) {
+      const next = await getNextCohort();
+      setCohort(next);
+      setSlotId(next.orientationSlots[0]?.id ?? "");
+      setStep("orientation");
       return;
     }
 
-    const next = await getNextCohort();
-    setCohort(next);
-    setSlotId(next.orientationSlots[0]?.id ?? "");
-    setStep("orientation");
+    goToDashboard();
   }
 
   async function onRequestOtp(event: FormEvent) {
@@ -616,9 +626,8 @@ export function AuthTrialCard({
     setError(null);
     setLoading(true);
     try {
-      const result = await registerTrial(token, slotId);
-      setConfirmation(result);
-      setStep("done");
+      await registerTrial(token, slotId);
+      goToDashboard();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Trial registration failed");
     } finally {
@@ -680,7 +689,7 @@ export function AuthTrialCard({
   }
 
   function signOut() {
-    window.localStorage.removeItem(TOKEN_KEY);
+    clearStoredToken();
     setToken(null);
     setUser(null);
     resetFlow("login");

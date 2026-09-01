@@ -194,6 +194,14 @@ export async function getMyTrial(
   return parseJson<TrialAccountResponse>(response);
 }
 
+export async function getAuthMe(accessToken: string): Promise<PublicUser> {
+  const response = await fetch(`${API_URL}/auth/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  return parseJson<PublicUser>(response);
+}
+
 export type ContactSubmitResponse = {
   success: boolean;
   message: string;
