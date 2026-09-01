@@ -144,7 +144,7 @@ const philosophyPillars: {
     title: "Health Without Drama",
     body: "Simple practices. Practical guidance. No unnecessary complexity.",
     icon: dilIcon,
-    color: "#c9a227",
+    color: "#1f6b3a",
   },
 ];
 
