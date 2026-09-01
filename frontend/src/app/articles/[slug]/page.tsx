@@ -1,36 +1,61 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArticleDetailSection } from "@/components/article-detail-section";
-import { getHealthArticle, healthArticles } from "@/lib/health-articles";
+import { fetchArticle, fetchArticles } from "@/lib/content-api";
 
 type ArticlePageProps = {
   params: Promise<{ slug: string }>;
 };
 
-export function generateStaticParams() {
-  return healthArticles.map((article) => ({ slug: article.slug }));
+export const dynamic = "force-dynamic";
+
+export async function generateStaticParams() {
+  try {
+    const rows = await fetchArticles();
+    return rows.map((article) => ({ slug: article.slug }));
+  } catch {
+    return [];
+  }
 }
 
 export async function generateMetadata({
   params,
 }: ArticlePageProps): Promise<Metadata> {
   const { slug } = await params;
-  const article = getHealthArticle(slug);
-  if (!article) return { title: "Article | The Healing Mat" };
-  return {
-    title: `${article.title} | The Healing Mat`,
-    description: article.description,
-  };
+  try {
+    const article = await fetchArticle(slug);
+    return {
+      title: `${article.title} | The Healing Mat`,
+      description: article.description,
+    };
+  } catch {
+    return { title: "Article | The Healing Mat" };
+  }
 }
 
 export default async function ArticleDetailPage({ params }: ArticlePageProps) {
   const { slug } = await params;
-  const article = getHealthArticle(slug);
-  if (!article) notFound();
+  let article;
+  try {
+    article = await fetchArticle(slug);
+  } catch {
+    notFound();
+  }
 
   return (
     <main>
-      <ArticleDetailSection article={article} />
+      <ArticleDetailSection
+        article={{
+          slug: article.slug,
+          title: article.title,
+          subtitle: article.subtitle,
+          description: article.description,
+          category: article.category,
+          readTime: article.readTime,
+          coverUrl: article.coverUrl,
+          body: article.body,
+        }}
+      />
     </main>
   );
 }

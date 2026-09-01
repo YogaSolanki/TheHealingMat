@@ -4,11 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { GuidesBreadcrumb } from "@/components/guides-breadcrumb";
 import { GuidesCatalogFilters } from "@/components/guides-catalog-filters";
-import { healthArticles } from "@/lib/health-articles";
+import type { HealthArticle } from "@/lib/health-articles";
 
 const accent = "#8B6B3E";
 
-export function ArticlesSection() {
+export function ArticlesSection({ items }: { items: HealthArticle[] }) {
   return (
     <div className="w-full bg-white">
       <section className="w-full pt-5 pr-5 pb-12 pl-5 sm:pt-6 sm:pr-7 sm:pb-14 sm:pl-7 lg:pr-8 lg:pb-16 lg:pl-8 xl:pr-12 xl:pl-12">
@@ -16,7 +16,7 @@ export function ArticlesSection() {
           <h1 className="sr-only">Health Articles</h1>
 
           <GuidesCatalogFilters
-            items={healthArticles}
+            items={items}
             searchPlaceholder="Search articles…"
             accent={accent}
             header={
@@ -41,13 +41,16 @@ export function ArticlesSection() {
                   >
                     <article className="flex h-full flex-col overflow-hidden rounded-[20px] border border-[#ebe6dc] bg-white shadow-[0_8px_28px_rgba(139,107,62,0.06)]">
                       <div className="relative aspect-[4/3] w-full bg-[#FFFCFA]">
-                        <Image
-                          src={article.cover}
-                          alt={article.title}
-                          fill
-                          className="object-contain p-4 sm:p-5"
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
-                        />
+                        {article.coverUrl ? (
+                          <Image
+                            src={article.coverUrl}
+                            alt={article.title}
+                            fill
+                            unoptimized
+                            className="object-contain p-4 sm:p-5"
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
+                          />
+                        ) : null}
                       </div>
 
                       <div className="flex flex-1 flex-col px-5 pt-4 pb-5 sm:px-6 sm:pb-6">

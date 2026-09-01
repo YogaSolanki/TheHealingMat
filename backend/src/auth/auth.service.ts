@@ -471,8 +471,12 @@ export class AuthService {
     } catch (error) {
       const detail =
         error instanceof Error ? error.message : 'Unknown email error';
+      const needsDomain =
+        /domain is not verified|verify your domain/i.test(detail);
       throw new ServiceUnavailableException(
-        `Unable to send OTP email right now. ${detail}`,
+        needsDomain
+          ? 'Email OTP requires a verified sending domain on Resend. Add and verify your domain at https://resend.com/domains (e.g. thehealingmat.yoga), then set RESEND_FROM_EMAIL to an address on that domain. Until then, Resend cannot deliver OTP emails to Gmail inboxes.'
+          : `Unable to send OTP email right now. ${detail}`,
       );
     }
   }

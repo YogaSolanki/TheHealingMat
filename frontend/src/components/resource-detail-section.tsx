@@ -19,14 +19,17 @@ export function ResourceDetailSection({ guide }: { guide: ResourceGuide }) {
 
         <div className="mt-2 grid items-start gap-6 lg:mt-4 lg:grid-cols-[280px_1fr] lg:gap-10">
           <div className="relative mx-auto aspect-[3/4] w-full max-w-[260px] overflow-hidden rounded-[18px] border border-[#e6ebe3] bg-[#FBF9F5] lg:mx-0 lg:max-w-none">
-            <Image
-              src={guide.cover}
-              alt={guide.title}
-              fill
-              className="object-contain p-5"
-              sizes="280px"
-              priority
-            />
+            {guide.coverUrl ? (
+              <Image
+                src={guide.coverUrl}
+                alt={guide.title}
+                fill
+                unoptimized
+                className="object-contain p-5"
+                sizes="280px"
+                priority
+              />
+            ) : null}
           </div>
 
           <div className="min-w-0 text-center lg:text-left">
@@ -62,9 +65,6 @@ export function ResourceDetailSection({ guide }: { guide: ResourceGuide }) {
                 />
                 {guide.pdfHref ? "Open PDF" : "Preview PDF"}
               </a>
-              <span className="text-[12px] font-semibold text-[#8a968c]">
-                Static preview for now
-              </span>
             </div>
           </div>
         </div>
@@ -92,23 +92,30 @@ export function ResourceDetailSection({ guide }: { guide: ResourceGuide }) {
             </span>
           </div>
 
-          <div className="flex min-h-[360px] flex-col items-center justify-center px-5 py-12 text-center sm:min-h-[420px] sm:py-16">
-            <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-[0_8px_24px_rgba(31,107,58,0.08)]">
-              <Image
-                src={pdfIcon}
-                alt=""
-                aria-hidden="true"
-                className="h-8 w-8 object-contain"
-              />
-            </span>
-            <h2 className="mt-5 font-serif text-[1.35rem] font-bold text-[#1f6b3a] sm:text-[1.5rem]">
-              PDF preview coming soon
-            </h2>
-            <p className="mt-2 max-w-[420px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
-              This is a static placeholder page. When the real PDF files are
-              ready, we can embed or open them here for reading and download.
-            </p>
-          </div>
+          {guide.pdfHref ? (
+            <iframe
+              title={`${guide.title} PDF`}
+              src={guide.pdfHref}
+              className="h-[70vh] w-full bg-white"
+            />
+          ) : (
+            <div className="flex min-h-[360px] flex-col items-center justify-center px-5 py-12 text-center sm:min-h-[420px] sm:py-16">
+              <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-[0_8px_24px_rgba(31,107,58,0.08)]">
+                <Image
+                  src={pdfIcon}
+                  alt=""
+                  aria-hidden="true"
+                  className="h-8 w-8 object-contain"
+                />
+              </span>
+              <h2 className="mt-5 font-serif text-[1.35rem] font-bold text-[#1f6b3a] sm:text-[1.5rem]">
+                PDF preview coming soon
+              </h2>
+              <p className="mt-2 max-w-[420px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
+                Add a PDF URL from the admin dashboard to open and preview it here.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

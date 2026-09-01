@@ -26,17 +26,24 @@ export class AdminSeedService implements OnModuleInit {
       return;
     }
 
+    const passwordHash = await bcrypt.hash(password, 12);
     const existing = await this.admins.findOne({ where: { email } });
+
     if (existing) {
+      existing.passwordHash = passwordHash;
+      existing.role = 'admin';
+      await this.admins.save(existing);
+      this.logger.log(`Updated seeded admin account for ${email}`);
       return;
     }
 
-    const admin = this.admins.create({
-      email,
-      passwordHash: await bcrypt.hash(password, 12),
-      role: 'admin',
-    });
-    await this.admins.save(admin);
+    await this.admins.save(
+      this.admins.create({
+        email,
+        passwordHash,
+        role: 'admin',
+      }),
+    );
     this.logger.log(`Seeded admin account for ${email}`);
   }
 }

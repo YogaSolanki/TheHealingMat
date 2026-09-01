@@ -10,6 +10,7 @@ import { TrialsModule } from './trials/trials.module';
 import { UsersModule } from './users/users.module';
 import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module';
 import { ContactModule } from './contact/contact.module';
+import { ContentModule } from './content/content.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { ContactModule } from './contact/contact.module';
     TrialsModule,
     AdminDashboardModule,
     ContactModule,
+    ContentModule,
   ],
   controllers: [AppController],
   providers: [AppService],
