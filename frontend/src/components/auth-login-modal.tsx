@@ -80,7 +80,7 @@ export function AuthLoginModal({
         }}
       />
       <div
-        className={`auth-modal-panel relative z-10 flex w-full max-w-[440px] justify-center ${
+        className={`auth-modal-panel relative z-10 flex w-full max-w-[600px] justify-center ${
           exiting ? "is-exiting" : ""
         }`}
       >

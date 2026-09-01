@@ -92,6 +92,18 @@ function FieldShieldIcon() {
 
 const OTP_LENGTH = 6;
 
+function ButtonLoader({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center justify-center gap-2">
+      <span
+        aria-hidden="true"
+        className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white"
+      />
+      <span>{label}</span>
+    </span>
+  );
+}
+
 function TrialBrandMark() {
   return (
     <div className="mx-auto flex h-[68px] w-[68px] items-center justify-center rounded-full bg-[#E8F0E4]">
@@ -102,6 +114,66 @@ function TrialBrandMark() {
         className="h-10 w-10 object-contain"
         priority
       />
+    </div>
+  );
+}
+
+function SignupStepIndicator({
+  current,
+  region,
+}: {
+  current: 1 | 2;
+  region: Region;
+}) {
+  const stepOneHint =
+    region === "india"
+      ? "Just your name and mobile number."
+      : "Just your name and email address.";
+
+  return (
+    <div className="mt-6 overflow-hidden border-t border-[#eef2ee] pt-5">
+      <div className="flex items-start gap-2 sm:gap-3">
+        <div
+          className="min-w-0 flex-1"
+          aria-current={current === 1 ? "step" : undefined}
+        >
+          <div className="flex h-7 items-center gap-2">
+            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#E8F0E4] text-[12px] font-bold text-[#1f6b3a]">
+              1
+            </span>
+            <p className="text-[13px] leading-none font-semibold text-[#3d4a3c]">
+              Enter Your Details
+            </p>
+          </div>
+          <p className="mt-0.5 pl-9 text-[12px] leading-snug text-[#8a968c]">
+            {stepOneHint}
+          </p>
+        </div>
+
+        <div
+          aria-hidden="true"
+          className="flex h-7 shrink-0 items-center justify-center px-1 text-[15px] leading-none text-[#c5d0c6]"
+        >
+          →
+        </div>
+
+        <div
+          className="min-w-0 flex-1"
+          aria-current={current === 2 ? "step" : undefined}
+        >
+          <div className="flex h-7 items-center gap-2">
+            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#E8F0E4] text-[12px] font-bold text-[#1f6b3a]">
+              2
+            </span>
+            <p className="text-[13px] leading-none font-semibold text-[#3d4a3c]">
+              Verify OTP
+            </p>
+          </div>
+          <p className="mt-0.5 pl-9 text-[12px] leading-snug text-[#8a968c]">
+            Enter the {OTP_LENGTH}-digit OTP and start your trial.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -178,13 +250,6 @@ function OtpDigitInputs({
       ))}
     </div>
   );
-}
-
-function formatCountdown(totalSeconds: number) {
-  const safe = Math.max(0, totalSeconds);
-  const mins = Math.floor(safe / 60);
-  const secs = safe % 60;
-  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
 function IndiaFlag() {
@@ -595,12 +660,9 @@ export function AuthTrialCard({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [challengeId, setChallengeId] = useState("");
-  const [devOtp, setDevOtp] = useState<string | null>(null);
   const [destinationMasked, setDestinationMasked] = useState<string | null>(
     null,
   );
-  const [otpExpiresAt, setOtpExpiresAt] = useState<number | null>(null);
-  const [otpSecondsLeft, setOtpSecondsLeft] = useState(0);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<PublicUser | null>(null);
@@ -628,23 +690,6 @@ export function AuthTrialCard({
         clearStoredToken();
       });
   }, [onClose, router]);
-
-  useEffect(() => {
-    if (step !== "otp" || !otpExpiresAt) {
-      setOtpSecondsLeft(0);
-      return;
-    }
-
-    function tick() {
-      setOtpSecondsLeft(
-        Math.max(0, Math.ceil((otpExpiresAt! - Date.now()) / 1000)),
-      );
-    }
-
-    tick();
-    const id = window.setInterval(tick, 1000);
-    return () => window.clearInterval(id);
-  }, [step, otpExpiresAt]);
 
   function goToDashboard() {
     onClose?.();
@@ -694,9 +739,7 @@ export function AuthTrialCard({
           : { email }),
       });
       setChallengeId(result.challengeId);
-      setDevOtp(result.devOtp ?? null);
       setDestinationMasked(result.destinationMasked);
-      setOtpExpiresAt(Date.now() + result.expiresIn * 1000);
       setOtp("");
       // Keep signup password for verify step; clear only for password reset.
       if (mode === "forgot") {
@@ -724,9 +767,7 @@ export function AuthTrialCard({
           : { email }),
       });
       setChallengeId(result.challengeId);
-      setDevOtp(result.devOtp ?? null);
       setDestinationMasked(result.destinationMasked);
-      setOtpExpiresAt(Date.now() + result.expiresIn * 1000);
       setOtp("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not resend OTP");
@@ -795,9 +836,7 @@ export function AuthTrialCard({
     setPassword("");
     setConfirmPassword("");
     setChallengeId("");
-    setDevOtp(null);
     setDestinationMasked(null);
-    setOtpExpiresAt(null);
     setCohort(null);
     setSlotId("");
     setConfirmation(null);
@@ -812,9 +851,7 @@ export function AuthTrialCard({
     setPassword("");
     setConfirmPassword("");
     setChallengeId("");
-    setDevOtp(null);
     setDestinationMasked(null);
-    setOtpExpiresAt(null);
     setResetMessage(null);
   }
 
@@ -861,7 +898,7 @@ export function AuthTrialCard({
   const headerOffsetClass = "mt-1";
 
   return (
-    <div className="relative w-full max-w-[440px] rounded-[28px] border border-[#e6ebe3] bg-white px-5 pt-4 pb-5 shadow-[0_24px_60px_rgba(31,107,58,0.16)] sm:px-6 sm:pt-5 sm:pb-6">
+    <div className="relative w-full max-w-[600px] rounded-[28px] border border-[#e6ebe3] bg-white px-5 pt-4 pb-5 shadow-[0_24px_60px_rgba(31,107,58,0.16)] sm:px-8 sm:pt-5 sm:pb-6">
       {step === "otp" ? (
         <button
           type="button"
@@ -1080,7 +1117,7 @@ export function AuthTrialCard({
 
           <button type="submit" disabled={loading} className={primaryBtnClass}>
             {loading ? (
-              "Please wait…"
+              <ButtonLoader label="Please wait…" />
             ) : mode === "login" ? (
               "Login"
             ) : mode === "forgot" ? (
@@ -1134,22 +1171,7 @@ export function AuthTrialCard({
 
       {step === "otp" ? (
         <form onSubmit={onVerifyOtp} className="mt-5 space-y-4">
-          {devOtp ? (
-            <p className="rounded-[16px] bg-[#eef6ea] px-3 py-2.5 text-center text-sm text-[#1f6b3a]">
-              Dev OTP: <strong>{devOtp}</strong>
-            </p>
-          ) : null}
-
           <OtpDigitInputs value={otp} onChange={setOtp} disabled={loading} />
-          <p className="flex items-center justify-center gap-1.5 text-[12px] text-[#8a968c]">
-            <span
-              aria-hidden="true"
-              className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-[#c5d0c6] text-[9px]"
-            >
-              ◷
-            </span>
-            OTP will expire in {formatCountdown(otpSecondsLeft)}
-          </p>
 
           {mode === "forgot" ? (
             <>
@@ -1191,11 +1213,9 @@ export function AuthTrialCard({
             className={primaryBtnClass}
           >
             {loading ? (
-              mode === "forgot" ? (
-                "Updating…"
-              ) : (
-                "Verifying…"
-              )
+              <ButtonLoader
+                label={mode === "forgot" ? "Updating…" : "Verifying…"}
+              />
             ) : mode === "forgot" ? (
               "Reset password"
             ) : (
@@ -1215,6 +1235,13 @@ export function AuthTrialCard({
             Resend OTP
           </button>
         </form>
+      ) : null}
+
+      {mode === "signup" && (step === "identity" || step === "otp") ? (
+        <SignupStepIndicator
+          current={step === "otp" ? 2 : 1}
+          region={region}
+        />
       ) : null}
 
       {step === "reset_done" ? (
@@ -1264,7 +1291,11 @@ export function AuthTrialCard({
             disabled={loading || !slotId}
             className={primaryBtnClass}
           >
-            {loading ? "Registering…" : "Confirm Free Trial"}
+            {loading ? (
+              <ButtonLoader label="Registering…" />
+            ) : (
+              "Confirm Free Trial"
+            )}
           </button>
         </form>
       ) : null}
