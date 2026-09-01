@@ -1,6 +1,6 @@
 import Image from "next/image";
-import Link from "next/link";
 import pdfIcon from "@/assets/pdf.png";
+import { GuidesBreadcrumb } from "@/components/guides-breadcrumb";
 import type { ResourceGuide } from "@/lib/resource-guides";
 
 const cream = "#FBF9F5";
@@ -9,39 +9,15 @@ export function ResourceDetailSection({ guide }: { guide: ResourceGuide }) {
   return (
     <div className="w-full bg-white px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
       <div className="mx-auto w-full max-w-[960px]">
-        <nav
-          aria-label="Breadcrumb"
-          className="flex cursor-pointer flex-wrap items-center gap-1.5 text-[13px] sm:text-[14px]"
-        >
-          <Link
-            href="/guides#resources"
-            className="inline-flex cursor-pointer items-center gap-1 font-semibold text-[#1f6b3a] transition hover:text-[#185830]"
-          >
-            <span aria-hidden="true" className="text-[18px] font-bold leading-none sm:text-[19px]">
-              &lt;
-            </span>
-            Health Guides
-          </Link>
-          <span
-            aria-hidden="true"
-            className="mx-0.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[#1f6b3a] sm:h-1.5 sm:w-1.5"
-          />
-          <Link
-            href="/resources"
-            className="cursor-pointer font-semibold text-[#1f6b3a] transition hover:text-[#185830]"
-          >
-            Resources
-          </Link>
-          <span
-            aria-hidden="true"
-            className="mx-0.5 inline-block h-1 w-1 shrink-0 rounded-full bg-[#1f6b3a] sm:h-1.5 sm:w-1.5"
-          />
-          <span className="cursor-pointer font-semibold text-[#5f6f64]">
-            {guide.title}
-          </span>
-        </nav>
+        <GuidesBreadcrumb
+          guidesHash="resources"
+          items={[
+            { label: "Resources", href: "/resources" },
+            { label: guide.title },
+          ]}
+        />
 
-        <div className="mt-5 grid items-start gap-6 lg:mt-7 lg:grid-cols-[280px_1fr] lg:gap-10">
+        <div className="mt-2 grid items-start gap-6 lg:mt-4 lg:grid-cols-[280px_1fr] lg:gap-10">
           <div className="relative mx-auto aspect-[3/4] w-full max-w-[260px] overflow-hidden rounded-[18px] border border-[#e6ebe3] bg-[#FBF9F5] lg:mx-0 lg:max-w-none">
             <Image
               src={guide.cover}
