@@ -219,7 +219,7 @@ function ResourcesBand() {
                 Save them, revisit them, and keep what you need close at hand.
               </p>
               <Link
-                href="#resources"
+                href="/resources"
                 className="btn-primary mt-6 inline-flex items-center gap-1.5 rounded-full bg-[#1f6b3a] px-6 py-2.5 text-[13px] font-bold text-white sm:mt-7 sm:text-[14px]"
               >
                 Explore Resources
@@ -268,7 +268,7 @@ function ArticlesBand() {
                   time. Clear, useful and easy to apply in everyday life.
                 </p>
                 <Link
-                  href="#articles"
+                  href="/articles"
                   className="btn-primary mt-6 inline-flex items-center gap-1.5 rounded-full bg-[#8B6B3E] px-6 py-2.5 text-[13px] font-bold text-white sm:mt-7 sm:text-[14px] hover:!shadow-[0_12px_28px_rgba(139,107,62,0.3)]"
                 >
                   Explore Health Articles
@@ -319,7 +319,7 @@ function VideosBand() {
                   to do and follow along.
                 </p>
                 <Link
-                  href="#videos"
+                  href="/videos"
                   className="btn-primary mt-6 inline-flex items-center gap-1.5 rounded-full bg-[#1f6b3a] px-6 py-2.5 text-[13px] font-bold text-white sm:mt-7 sm:text-[14px]"
                 >
                   Explore Health Videos

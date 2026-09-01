@@ -18,6 +18,18 @@ const navLinks = [
 function isActivePath(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   if (href.startsWith("#")) return false;
+  // Resources / Articles / Videos live under Health Guides in the IA
+  if (
+    href === "/guides" &&
+    (pathname === "/resources" ||
+      pathname.startsWith("/resources/") ||
+      pathname === "/articles" ||
+      pathname.startsWith("/articles/") ||
+      pathname === "/videos" ||
+      pathname.startsWith("/videos/"))
+  ) {
+    return true;
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
