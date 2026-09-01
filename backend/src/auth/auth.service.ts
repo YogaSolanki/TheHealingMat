@@ -14,6 +14,7 @@ import { Admin } from '../admins/admin.entity';
 import { Region } from '../users/enums/region.enum';
 import { OtpChallenge } from '../users/otp-challenge.entity';
 import { User } from '../users/user.entity';
+import { sendResendEmail } from '../mail/resend';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -137,10 +138,21 @@ export class AuthService {
       }),
     );
 
-    // V1 stub: no SMS/email provider yet - surface OTP in non-production.
     const isProd = this.config.get('NODE_ENV') === 'production';
-    if (!isProd) {
+
+    if (channel === 'email') {
+      await this.sendOtpEmail({
+        destination,
+        code,
+        purpose: dto.purpose,
+      });
+    } else if (!isProd) {
+      // SMS provider not wired yet — log locally for development only.
       console.log(`[OTP] ${channel} → ${destination}: ${code}`);
+    } else {
+      throw new ServiceUnavailableException(
+        'SMS OTP is not available yet. Please use Outside India (email OTP) or password login.',
+      );
     }
 
     return {
@@ -149,6 +161,7 @@ export class AuthService {
       channel,
       destinationMasked: this.maskDestination(destination, channel),
       accountExists: Boolean(existing),
+      // Never expose OTP in production responses.
       ...(isProd ? {} : { devOtp: code }),
     };
   }
@@ -404,6 +417,64 @@ export class AuthService {
 
   private generateOtpCode(): string {
     return String(randomInt(100000, 999999));
+  }
+
+  private async sendOtpEmail(input: {
+    destination: string;
+    code: string;
+    purpose: string;
+  }) {
+    const apiKey = this.config.get<string>('RESEND_API_KEY')?.trim();
+    if (!apiKey) {
+      throw new ServiceUnavailableException(
+        'Email OTP is not configured yet (missing RESEND_API_KEY).',
+      );
+    }
+
+    const from =
+      this.config.get<string>('RESEND_FROM_EMAIL')?.trim() ||
+      'The Healing Mat <onboarding@resend.dev>';
+
+    const purposeLabel =
+      input.purpose === 'signup'
+        ? 'sign up'
+        : input.purpose === 'password_reset'
+          ? 'password reset'
+          : 'sign in';
+
+    const subject = `Your The Healing Mat verification code`;
+    const text = [
+      `Your The Healing Mat ${purposeLabel} code is: ${input.code}`,
+      '',
+      'This code expires in 10 minutes.',
+      'If you did not request this, you can ignore this email.',
+    ].join('\n');
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #243028;">
+        <h2 style="color: #1f6b3a; margin: 0 0 12px;">Verification code</h2>
+        <p style="margin: 0 0 12px;">Use this code to ${purposeLabel} to The Healing Mat:</p>
+        <p style="font-size: 28px; letter-spacing: 6px; font-weight: 700; color: #1f6b3a; margin: 0 0 16px;">${input.code}</p>
+        <p style="margin: 0; color: #5f6f64; font-size: 13px;">This code expires in 10 minutes. If you did not request this, you can ignore this email.</p>
+      </div>
+    `;
+
+    try {
+      await sendResendEmail({
+        apiKey,
+        from,
+        to: input.destination,
+        subject,
+        text,
+        html,
+      });
+    } catch (error) {
+      const detail =
+        error instanceof Error ? error.message : 'Unknown email error';
+      throw new ServiceUnavailableException(
+        `Unable to send OTP email right now. ${detail}`,
+      );
+    }
   }
 
   private generateReferralCode(): string {
