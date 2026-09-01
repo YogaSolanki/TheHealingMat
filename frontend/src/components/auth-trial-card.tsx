@@ -815,22 +815,22 @@ export function AuthTrialCard({
       ) : null}
 
       {!isTrialUi ? (
-        <>
-          <h2 className="mt-4 pr-8 font-serif text-[1.55rem] leading-tight font-bold text-[#1f6b3a] sm:text-[1.7rem]">
+        <div className="mt-4 text-center">
+          <h2 className="mx-auto max-w-[320px] font-serif text-[1.55rem] leading-tight font-bold text-[#1f6b3a] sm:text-[1.7rem]">
             {mode === "forgot"
               ? step === "reset_done"
                 ? "Password updated"
                 : "Forgot password"
               : "Welcome back"}
           </h2>
-          <p className="mt-2 text-sm leading-6 text-[#5f6f64]">
+          <p className="mx-auto mt-2 max-w-[320px] text-sm leading-6 text-[#5f6f64]">
             {mode === "forgot"
               ? step === "reset_done"
                 ? "You can now log in with your new password."
                 : "Enter your account details and we’ll send a reset code."
               : "Sign in to continue your wellness practice."}
           </p>
-        </>
+        </div>
       ) : null}
 
       {step === "identity" ? (

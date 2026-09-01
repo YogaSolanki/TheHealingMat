@@ -9,13 +9,18 @@ type GuidesBreadcrumbProps = {
   /** Hash on /guides for the section this flow belongs to */
   guidesHash: "resources" | "articles" | "videos";
   items: GuidesCrumb[];
+  className?: string;
 };
 
-export function GuidesBreadcrumb({ guidesHash, items }: GuidesBreadcrumbProps) {
+export function GuidesBreadcrumb({
+  guidesHash,
+  items,
+  className = "",
+}: GuidesBreadcrumbProps) {
   return (
     <nav
       aria-label="Breadcrumb"
-      className="mb-5 flex cursor-pointer flex-wrap items-center gap-1.5 text-[13px] sm:mb-6 sm:text-[14px]"
+      className={`flex cursor-pointer flex-wrap items-center gap-1.5 text-[13px] sm:text-[14px] ${className}`.trim()}
     >
       <Link
         href={`/guides#${guidesHash}`}

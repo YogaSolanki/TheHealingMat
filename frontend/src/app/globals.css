@@ -376,6 +376,40 @@ body {
   }
 }
 
+.catalog-results {
+  will-change: opacity, transform;
+}
+
+.catalog-results-out {
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.catalog-results-in {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.catalog-card-in {
+  animation: catalog-card-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes catalog-card-in {
+  from {
+    transform: translateY(16px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .btn-primary,
   .btn-primary::after,
@@ -393,6 +427,10 @@ body {
   .link-animate .link-arrow,
   .link-underline,
   .page-transition,
+  .catalog-results,
+  .catalog-results-in,
+  .catalog-results-out,
+  .catalog-card-in,
   .auth-modal-panel,
   .auth-mode-content,
   .auth-mode-pill,
