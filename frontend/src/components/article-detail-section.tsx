@@ -19,44 +19,42 @@ export function ArticleDetailSection({ article }: { article: HealthArticle }) {
         </div>
 
         <div className="mx-auto w-full max-w-[1140px]">
-          <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-center lg:gap-10">
-            <div
-              className="relative aspect-[3/4] w-full max-w-[280px] shrink-0 overflow-hidden rounded-[18px] border border-[#ebe6dc] bg-[#FFFCFA] bg-cover bg-center sm:max-w-[300px] lg:w-[320px] lg:max-w-none"
-              style={
-                article.coverUrl
-                  ? { backgroundImage: `url(${article.coverUrl})` }
-                  : undefined
-              }
-              role={article.coverUrl ? "img" : undefined}
-              aria-label={article.coverUrl ? article.title : undefined}
-            />
+          <div
+            className="relative aspect-[16/9] w-full overflow-hidden rounded-[22px] border border-[#ebe6dc] bg-[#FFFCFA] bg-cover bg-center sm:aspect-[2/1]"
+            style={
+              article.coverUrl
+                ? { backgroundImage: `url(${article.coverUrl})` }
+                : undefined
+            }
+            role={article.coverUrl ? "img" : undefined}
+            aria-label={article.coverUrl ? article.title : undefined}
+          />
 
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center text-center lg:text-left">
-              <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-start">
-                <span
-                  className="rounded-full px-2.5 py-1 text-[11px] font-bold text-white"
-                  style={{ backgroundColor: accent }}
-                >
-                  {article.category}
-                </span>
-                <span className="text-[12px] font-semibold text-[#8a968c]">
-                  {article.readTime}
-                </span>
-              </div>
-
-              <h1 className="mt-3 font-serif text-[1.7rem] leading-tight font-bold tracking-tight text-black sm:text-[2rem]">
-                {article.title}
-              </h1>
-              <p
-                className="mt-1.5 text-[14px] font-semibold sm:text-[15px]"
-                style={{ color: accent }}
+          <div className="mt-6 sm:mt-8">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className="rounded-full px-2.5 py-1 text-[11px] font-bold text-white"
+                style={{ backgroundColor: accent }}
               >
-                {article.subtitle}
-              </p>
-              <p className="mx-auto mt-3 max-w-[560px] text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px] lg:mx-0">
-                {article.description}
-              </p>
+                {article.category}
+              </span>
+              <span className="text-[12px] font-semibold text-[#8a968c]">
+                {article.readTime}
+              </span>
             </div>
+
+            <h1 className="mt-3 font-serif text-[1.75rem] leading-tight font-bold tracking-tight text-black sm:text-[2.15rem]">
+              {article.title}
+            </h1>
+            <p
+              className="mt-2 text-[15px] font-semibold sm:text-[16px]"
+              style={{ color: accent }}
+            >
+              {article.subtitle}
+            </p>
+            <p className="mt-3 max-w-[720px] text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
+              {article.description}
+            </p>
           </div>
 
           {article.body ? (

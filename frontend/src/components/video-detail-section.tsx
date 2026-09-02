@@ -32,7 +32,7 @@ export function VideoDetailSection({ video }: { video: HealthVideo }) {
         <div className="mx-auto w-full max-w-[1140px]">
           <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-center lg:gap-10">
             <div
-              className="relative aspect-[3/4] w-full max-w-[300px] shrink-0 overflow-hidden rounded-[18px] border border-[#e6ebe3] bg-[#FBF9F5] bg-cover bg-center sm:max-w-[340px] lg:w-[360px] lg:max-w-none"
+              className="relative aspect-[16/10] w-full max-w-[420px] shrink-0 overflow-hidden rounded-[18px] border border-[#e6ebe3] bg-[#FBF9F5] bg-cover bg-center sm:max-w-[480px] lg:w-[520px] lg:max-w-none"
               style={
                 video.coverUrl
                   ? { backgroundImage: `url(${video.coverUrl})` }

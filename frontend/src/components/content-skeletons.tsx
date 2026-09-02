@@ -93,44 +93,50 @@ export function ContentDetailSkeleton({
         </div>
 
         <div className="mx-auto w-full max-w-[1140px]">
-          <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-center lg:gap-10">
-            <Pulse
-              className={`aspect-[3/4] w-full shrink-0 rounded-[18px] ${
-                kind === "videos"
-                  ? "max-w-[300px] sm:max-w-[340px] lg:w-[360px] lg:max-w-none"
-                  : "max-w-[280px] sm:max-w-[300px] lg:w-[320px] lg:max-w-none"
-              }`}
-            />
-
-            <div className="min-w-0 flex-1 space-y-3 text-left">
-              <div className="flex gap-2">
-                <Pulse className="h-5 w-20 rounded-full" />
-                <Pulse className="h-5 w-16 rounded-full" />
+          {kind === "articles" ? (
+            <>
+              <Pulse className="aspect-[16/9] w-full rounded-[22px] sm:aspect-[2/1]" />
+              <div className="mt-6 space-y-3 sm:mt-8">
+                <div className="flex gap-2">
+                  <Pulse className="h-5 w-20 rounded-full" />
+                  <Pulse className="h-5 w-16 rounded-full" />
+                </div>
+                <Pulse className="h-9 w-[70%] max-w-[420px]" />
+                <Pulse className="h-5 w-[45%] max-w-[280px]" />
+                <Pulse className="h-4 w-full max-w-[640px]" />
+                <Pulse className="h-4 w-[90%] max-w-[560px]" />
               </div>
-              <Pulse className="h-9 w-[70%] max-w-[360px]" />
-              <Pulse className="h-5 w-[45%] max-w-[240px]" />
-              <Pulse className="h-4 w-full max-w-[520px]" />
-              <Pulse className="h-4 w-[92%] max-w-[480px]" />
-              <Pulse className="h-4 w-[80%] max-w-[420px]" />
-              {kind === "articles" ? (
-                <Pulse className="mt-3 h-11 w-36 rounded-full" />
-              ) : null}
-            </div>
-          </div>
-
-          {kind === "videos" ? (
-            <div className="relative mt-8 overflow-hidden rounded-[22px] border border-[#e5e7eb] sm:mt-10">
-              <Pulse className="aspect-video w-full rounded-none" />
-              <div
-                className="pointer-events-none absolute inset-0 flex items-center justify-center"
-                aria-hidden="true"
-              >
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/70 text-[22px] font-bold text-[#9ca3af] shadow-sm sm:h-16 sm:w-16 sm:text-[26px]">
-                  ▶
+              <Pulse className="mt-8 h-48 w-full rounded-[22px] sm:mt-10 sm:h-56" />
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-center lg:gap-10">
+                <Pulse className="aspect-[16/10] w-full max-w-[420px] shrink-0 rounded-[18px] sm:max-w-[480px] lg:w-[520px] lg:max-w-none" />
+                <div className="min-w-0 flex-1 space-y-3 text-left">
+                  <div className="flex gap-2">
+                    <Pulse className="h-5 w-20 rounded-full" />
+                    <Pulse className="h-5 w-16 rounded-full" />
+                  </div>
+                  <Pulse className="h-9 w-[70%] max-w-[360px]" />
+                  <Pulse className="h-5 w-[45%] max-w-[240px]" />
+                  <Pulse className="h-4 w-full max-w-[520px]" />
+                  <Pulse className="h-4 w-[92%] max-w-[480px]" />
+                  <Pulse className="h-4 w-[80%] max-w-[420px]" />
                 </div>
               </div>
-            </div>
-          ) : null}
+              <div className="relative mt-8 overflow-hidden rounded-[22px] border border-[#e5e7eb] sm:mt-10">
+                <Pulse className="aspect-video w-full rounded-none" />
+                <div
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                  aria-hidden="true"
+                >
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/70 text-[22px] font-bold text-[#9ca3af] shadow-sm sm:h-16 sm:w-16 sm:text-[26px]">
+                    ▶
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
         <span className="sr-only">Loading content…</span>
       </section>
