@@ -8,7 +8,7 @@ const copy: Record<
     listTitle: string;
     listFailed: string;
     listEmpty: string;
-    detailFailed: string;
+    detailFailed?: string;
     href: string;
     label: string;
     accent: string;
@@ -20,8 +20,6 @@ const copy: Record<
     listTitle: "No resources available",
     listFailed: "We couldn’t load resources right now. Please try again shortly.",
     listEmpty: "There are no published resources yet. Check back soon.",
-    detailFailed:
-      "This resource couldn’t be loaded. It may be unavailable or temporarily offline.",
     href: "/resources",
     label: "Back to Resources",
     accent: "#1f6b3a",
@@ -72,7 +70,7 @@ export function ContentEmptyState({
         : cfg.listTitle;
   const description =
     variant === "detail"
-      ? cfg.detailFailed
+      ? (cfg.detailFailed ?? cfg.listFailed)
       : failed
         ? cfg.listFailed
         : cfg.listEmpty;

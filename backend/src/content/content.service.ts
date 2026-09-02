@@ -37,14 +37,6 @@ export class ContentService {
     });
   }
 
-  async getResourceBySlug(slug: string, publishedOnly = false) {
-    const item = await this.resources.findOne({ where: { slug } });
-    if (!item || (publishedOnly && !item.published)) {
-      throw new NotFoundException('Resource not found.');
-    }
-    return item;
-  }
-
   async createResource(dto: CreateResourceDto) {
     await this.ensureUniqueSlug(this.resources, dto.slug);
     return this.resources.save(

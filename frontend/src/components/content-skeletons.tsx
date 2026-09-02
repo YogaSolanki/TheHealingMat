@@ -76,9 +76,9 @@ export function ContentCatalogSkeleton({
 }
 
 export function ContentDetailSkeleton({
-  kind = "resources",
+  kind = "articles",
 }: {
-  kind?: ContentKind;
+  kind?: Exclude<ContentKind, "resources">;
   /** @deprecated ignored — loader blocks stay gray */
   accent?: "green" | "brown";
 }) {

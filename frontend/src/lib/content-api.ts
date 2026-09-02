@@ -56,10 +56,6 @@ export function fetchResources() {
   return fetchJson<ApiResourceGuide[]>("/resources");
 }
 
-export function fetchResource(slug: string) {
-  return fetchJson<ApiResourceGuide>(`/resources/${slug}`);
-}
-
 export function fetchArticles() {
   return fetchJson<ApiHealthArticle[]>("/articles");
 }

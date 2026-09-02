@@ -23,7 +23,6 @@ function isActivePath(pathname: string, href: string) {
   if (
     href === "/guides" &&
     (pathname === "/resources" ||
-      pathname.startsWith("/resources/") ||
       pathname === "/articles" ||
       pathname.startsWith("/articles/") ||
       pathname === "/videos" ||
