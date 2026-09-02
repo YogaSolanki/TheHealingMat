@@ -69,19 +69,31 @@ export function ResourcesSection({ items }: { items: ResourceGuide[] }) {
                           {guide.description}
                         </p>
 
-                        <Link
-                          href={`/resources/${guide.slug}`}
-                          className="btn-primary mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[#1f6b3a] px-5 py-2.5 text-[13px] font-bold text-white sm:text-[14px]"
-                        >
-                          <Image
-                            src={pdfIcon}
-                            alt=""
-                            aria-hidden="true"
-                            className="h-4 w-4 object-contain brightness-0 invert"
-                          />
-                          View PDF
-                          <span aria-hidden="true">→</span>
-                        </Link>
+                        {guide.pdfHref ? (
+                          <a
+                            href={guide.pdfHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-primary mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[#1f6b3a] px-5 py-2.5 text-[13px] font-bold text-white sm:text-[14px]"
+                          >
+                            <Image
+                              src={pdfIcon}
+                              alt=""
+                              aria-hidden="true"
+                              className="h-4 w-4 object-contain brightness-0 invert"
+                            />
+                            Open PDF
+                            <span aria-hidden="true">→</span>
+                          </a>
+                        ) : (
+                          <Link
+                            href={`/resources/${guide.slug}`}
+                            className="btn-primary mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[#1f6b3a] px-5 py-2.5 text-[13px] font-bold text-white sm:text-[14px]"
+                          >
+                            View details
+                            <span aria-hidden="true">→</span>
+                          </Link>
+                        )}
                       </div>
                     </article>
                   </li>

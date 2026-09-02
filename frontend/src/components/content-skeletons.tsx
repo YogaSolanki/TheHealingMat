@@ -1,96 +1,115 @@
+import { GuidesBreadcrumb } from "@/components/guides-breadcrumb";
+
+const GRAY = "bg-gray-200";
+
+type ContentKind = "resources" | "articles" | "videos";
+
+const tabLabel: Record<ContentKind, string> = {
+  resources: "Resources",
+  articles: "Health Articles",
+  videos: "Health Videos",
+};
+
+const tabHref: Record<ContentKind, string> = {
+  resources: "/resources",
+  articles: "/articles",
+  videos: "/videos",
+};
+
 function Pulse({ className }: { className?: string }) {
   return (
     <div
-      className={`animate-pulse rounded-lg bg-[#e8eee6] ${className ?? ""}`}
+      className={`animate-pulse rounded-lg ${GRAY} ${className ?? ""}`}
       aria-hidden="true"
     />
   );
 }
 
 export function ContentCatalogSkeleton({
-  accent = "green",
+  kind = "resources",
 }: {
+  kind?: ContentKind;
+  /** @deprecated ignored — loader blocks stay gray */
   accent?: "green" | "brown";
 }) {
-  const soft = accent === "brown" ? "bg-[#f3ebe1]" : "bg-[#e8eee6]";
-
   return (
     <div className="w-full bg-white" aria-busy="true" aria-live="polite">
       <section className="w-full pt-5 pr-5 pb-12 pl-5 sm:pt-6 sm:pr-7 sm:pb-14 sm:pl-7 lg:pr-8 lg:pb-16 lg:pl-8 xl:pr-12 xl:pl-12">
-        <div className="mx-auto w-full max-w-[1140px]">
-          <Pulse className={`mb-5 h-4 w-40 ${soft}`} />
-          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <Pulse className={`h-11 w-full max-w-md rounded-full ${soft}`} />
-            <div className="flex gap-2">
-              <Pulse className={`h-9 w-20 rounded-full ${soft}`} />
-              <Pulse className={`h-9 w-24 rounded-full ${soft}`} />
-              <Pulse className={`h-9 w-20 rounded-full ${soft}`} />
-            </div>
+        <div className="mb-5 flex flex-col items-stretch gap-3 sm:mb-6 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+          <div className="min-w-0 shrink-0 lg:max-w-[45%]">
+            <GuidesBreadcrumb
+              guidesHash={kind}
+              items={[{ label: tabLabel[kind], href: tabHref[kind] }]}
+            />
           </div>
-
-          <ul className="grid w-full gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 lg:gap-7">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <li
-                key={index}
-                className="overflow-hidden rounded-[20px] border border-[#e6ebe3] bg-white shadow-[0_8px_28px_rgba(31,107,58,0.04)]"
-              >
-                <Pulse className={`aspect-[4/3] w-full rounded-none ${soft}`} />
-                <div className="space-y-3 px-5 pt-4 pb-5 sm:px-6 sm:pb-6">
-                  <div className="flex gap-2">
-                    <Pulse className={`h-5 w-16 rounded-full ${soft}`} />
-                    <Pulse className={`h-5 w-12 rounded-full ${soft}`} />
-                  </div>
-                  <Pulse className={`h-6 w-[80%] ${soft}`} />
-                  <Pulse className={`h-4 w-[65%] ${soft}`} />
-                  <Pulse className={`h-4 w-full ${soft}`} />
-                  <Pulse className={`h-4 w-[85%] ${soft}`} />
-                  <Pulse className={`mt-2 h-10 w-36 rounded-full ${soft}`} />
-                </div>
-              </li>
-            ))}
-          </ul>
-          <span className="sr-only">Loading content…</span>
+          <div className="flex w-full items-center justify-end gap-3 lg:w-auto">
+            <Pulse className="hidden h-10 w-full max-w-[370px] rounded-full sm:block" />
+            <Pulse className="h-10 w-full max-w-[180px] rounded-full" />
+          </div>
         </div>
+
+        <ul className="mx-auto grid w-full max-w-[1140px] gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 lg:gap-7">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <li
+              key={index}
+              className="overflow-hidden rounded-[20px] border border-[#e5e7eb] bg-white shadow-[0_8px_28px_rgba(0,0,0,0.04)]"
+            >
+              <Pulse className="aspect-[4/3] w-full rounded-none" />
+              <div className="space-y-3 px-5 pt-4 pb-5 sm:px-6 sm:pb-6">
+                <div className="flex gap-2">
+                  <Pulse className="h-5 w-16 rounded-full" />
+                  <Pulse className="h-5 w-12 rounded-full" />
+                </div>
+                <Pulse className="h-6 w-[80%]" />
+                <Pulse className="h-4 w-[65%]" />
+                <Pulse className="h-4 w-full" />
+                <Pulse className="h-4 w-[85%]" />
+                <Pulse className="mt-2 h-10 w-36 rounded-full" />
+              </div>
+            </li>
+          ))}
+        </ul>
+        <span className="sr-only">Loading content…</span>
       </section>
     </div>
   );
 }
 
 export function ContentDetailSkeleton({
-  accent = "green",
+  kind = "resources",
 }: {
+  kind?: ContentKind;
+  /** @deprecated ignored — loader blocks stay gray */
   accent?: "green" | "brown";
 }) {
-  const soft = accent === "brown" ? "bg-[#f3ebe1]" : "bg-[#e8eee6]";
-
   return (
-    <div
-      className="w-full bg-white px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12"
-      aria-busy="true"
-      aria-live="polite"
-    >
-      <div className="mx-auto w-full max-w-[960px]">
-        <Pulse className={`mb-5 h-4 w-48 ${soft}`} />
-        <div className="mt-2 grid items-start gap-6 lg:mt-4 lg:grid-cols-[280px_1fr] lg:gap-10">
-          <Pulse
-            className={`mx-auto aspect-[3/4] w-full max-w-[260px] rounded-[18px] lg:mx-0 lg:max-w-none ${soft}`}
+    <div className="w-full bg-white" aria-busy="true" aria-live="polite">
+      <section className="w-full pt-5 pr-5 pb-12 pl-5 sm:pt-6 sm:pr-7 sm:pb-14 sm:pl-7 lg:pr-8 lg:pb-16 lg:pl-8 xl:pr-12 xl:pl-12">
+        <div className="mb-5 sm:mb-6">
+          <GuidesBreadcrumb
+            guidesHash={kind}
+            items={[{ label: tabLabel[kind], href: tabHref[kind] }]}
           />
-          <div className="min-w-0 space-y-3">
+        </div>
+
+        <div className="mx-auto flex w-full max-w-[1140px] flex-col items-stretch gap-6 lg:flex-row lg:items-center lg:gap-10">
+          <Pulse className="aspect-[3/4] w-full max-w-[240px] shrink-0 rounded-[18px] sm:max-w-[260px] lg:w-[280px] lg:max-w-none" />
+
+          <div className="min-w-0 flex-1 space-y-3 text-left">
             <div className="flex gap-2">
-              <Pulse className={`h-5 w-20 rounded-full ${soft}`} />
-              <Pulse className={`h-5 w-16 rounded-full ${soft}`} />
+              <Pulse className="h-5 w-20 rounded-full" />
+              <Pulse className="h-5 w-16 rounded-full" />
             </div>
-            <Pulse className={`h-9 w-[80%] ${soft}`} />
-            <Pulse className={`h-5 w-[50%] ${soft}`} />
-            <Pulse className={`h-4 w-full ${soft}`} />
-            <Pulse className={`h-4 w-[90%] ${soft}`} />
-            <Pulse className={`h-4 w-[75%] ${soft}`} />
-            <Pulse className={`mt-4 h-11 w-40 rounded-full ${soft}`} />
+            <Pulse className="h-9 w-[70%] max-w-[360px]" />
+            <Pulse className="h-5 w-[45%] max-w-[240px]" />
+            <Pulse className="h-4 w-full max-w-[520px]" />
+            <Pulse className="h-4 w-[92%] max-w-[480px]" />
+            <Pulse className="h-4 w-[80%] max-w-[420px]" />
+            <Pulse className="mt-3 h-11 w-36 rounded-full" />
           </div>
         </div>
-        <Pulse className={`mt-8 h-[320px] w-full rounded-[22px] sm:mt-10 ${soft}`} />
         <span className="sr-only">Loading content…</span>
-      </div>
+      </section>
     </div>
   );
 }

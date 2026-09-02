@@ -3,7 +3,7 @@ import { ContentDetailSkeleton } from "@/components/content-skeletons";
 export default function ArticleDetailLoading() {
   return (
     <main>
-      <ContentDetailSkeleton accent="brown" />
+      <ContentDetailSkeleton kind="articles" />
     </main>
   );
 }

@@ -3,23 +3,23 @@ import pdfIcon from "@/assets/pdf.png";
 import { GuidesBreadcrumb } from "@/components/guides-breadcrumb";
 import type { ResourceGuide } from "@/lib/resource-guides";
 
-const cream = "#FBF9F5";
-
 export function ResourceDetailSection({ guide }: { guide: ResourceGuide }) {
   return (
-    <div className="w-full bg-white px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-      <div className="mx-auto w-full max-w-[960px]">
-        <GuidesBreadcrumb
-          guidesHash="resources"
-          items={[
-            { label: "Resources", href: "/resources" },
-            { label: guide.title },
-          ]}
-        />
+    <div className="w-full bg-white">
+      <section className="w-full pt-5 pr-5 pb-12 pl-5 sm:pt-6 sm:pr-7 sm:pb-14 sm:pl-7 lg:pr-8 lg:pb-16 lg:pl-8 xl:pr-12 xl:pl-12">
+        <div className="mb-5 sm:mb-6">
+          <GuidesBreadcrumb
+            guidesHash="resources"
+            items={[
+              { label: "Resources", href: "/resources" },
+              { label: guide.title },
+            ]}
+          />
+        </div>
 
-        <div className="mt-2 grid items-start gap-6 lg:mt-4 lg:grid-cols-[280px_1fr] lg:gap-10">
+        <div className="mx-auto flex w-full max-w-[1140px] flex-col items-stretch gap-6 lg:flex-row lg:items-center lg:gap-10">
           <div
-            className="relative mx-auto aspect-[3/4] w-full max-w-[260px] overflow-hidden rounded-[18px] border border-[#e6ebe3] bg-[#FBF9F5] bg-cover bg-center lg:mx-0 lg:max-w-none"
+            className="relative aspect-[3/4] w-full max-w-[240px] shrink-0 overflow-hidden rounded-[18px] border border-[#e6ebe3] bg-[#FBF9F5] bg-cover bg-center sm:max-w-[260px] lg:w-[280px] lg:max-w-none"
             style={
               guide.coverUrl
                 ? { backgroundImage: `url(${guide.coverUrl})` }
@@ -29,8 +29,8 @@ export function ResourceDetailSection({ guide }: { guide: ResourceGuide }) {
             aria-label={guide.coverUrl ? guide.title : undefined}
           />
 
-          <div className="min-w-0 text-center lg:text-left">
-            <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-start">
+          <div className="min-w-0 flex-1 text-left">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-[#E8F0E4] px-2.5 py-1 text-[11px] font-bold text-[#1f6b3a]">
                 {guide.category}
               </span>
@@ -45,76 +45,31 @@ export function ResourceDetailSection({ guide }: { guide: ResourceGuide }) {
             <p className="mt-1.5 text-[14px] font-semibold text-[#1f6b3a] sm:text-[15px]">
               {guide.subtitle}
             </p>
-            <p className="mt-3 text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
+            <p className="mt-3 max-w-[520px] text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
               {guide.description}
             </p>
 
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-              <a
-                href={guide.pdfHref ?? "#pdf-preview"}
-                className="btn-primary inline-flex items-center gap-2 rounded-full bg-[#1f6b3a] px-5 py-2.5 text-[13px] font-bold text-white sm:text-[14px]"
-              >
-                <Image
-                  src={pdfIcon}
-                  alt=""
-                  aria-hidden="true"
-                  className="h-4 w-4 object-contain brightness-0 invert"
-                />
-                {guide.pdfHref ? "Open PDF" : "Preview PDF"}
-              </a>
-            </div>
+            {guide.pdfHref ? (
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <a
+                  href={guide.pdfHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-primary inline-flex items-center gap-2 rounded-full bg-[#1f6b3a] px-5 py-2.5 text-[13px] font-bold text-white sm:text-[14px]"
+                >
+                  <Image
+                    src={pdfIcon}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-4 w-4 object-contain brightness-0 invert"
+                  />
+                  Open PDF
+                </a>
+              </div>
+            ) : null}
           </div>
         </div>
-
-        {/* Static PDF viewer shell — swap for real embed/file later */}
-        <div
-          id="pdf-preview"
-          className="mt-8 overflow-hidden rounded-[22px] border border-[#e6ebe3] shadow-[0_8px_28px_rgba(31,107,58,0.06)] sm:mt-10"
-          style={{ backgroundColor: cream }}
-        >
-          <div className="flex items-center justify-between gap-3 border-b border-[#e6ebe3] bg-white px-4 py-3 sm:px-5">
-            <div className="flex min-w-0 items-center gap-2">
-              <Image
-                src={pdfIcon}
-                alt=""
-                aria-hidden="true"
-                className="h-5 w-5 shrink-0 object-contain"
-              />
-              <p className="truncate text-[13px] font-bold text-[#2c3a30] sm:text-[14px]">
-                {guide.title}.pdf
-              </p>
-            </div>
-            <span className="shrink-0 rounded-full bg-[#E8F0E4] px-2.5 py-1 text-[11px] font-bold text-[#1f6b3a]">
-              Preview
-            </span>
-          </div>
-
-          {guide.pdfHref ? (
-            <iframe
-              title={`${guide.title} PDF`}
-              src={guide.pdfHref}
-              className="h-[70vh] w-full bg-white"
-            />
-          ) : (
-            <div className="flex min-h-[360px] flex-col items-center justify-center px-5 py-12 text-center sm:min-h-[420px] sm:py-16">
-              <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-[0_8px_24px_rgba(31,107,58,0.08)]">
-                <Image
-                  src={pdfIcon}
-                  alt=""
-                  aria-hidden="true"
-                  className="h-8 w-8 object-contain"
-                />
-              </span>
-              <h2 className="mt-5 font-serif text-[1.35rem] font-bold text-[#1f6b3a] sm:text-[1.5rem]">
-                PDF preview coming soon
-              </h2>
-              <p className="mt-2 max-w-[420px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
-                Add a PDF URL from the admin dashboard to open and preview it here.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

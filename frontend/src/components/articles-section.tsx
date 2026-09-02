@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { GuidesBreadcrumb } from "@/components/guides-breadcrumb";
 import { GuidesCatalogFilters } from "@/components/guides-catalog-filters";
@@ -40,18 +39,18 @@ export function ArticlesSection({ items }: { items: HealthArticle[] }) {
                     }}
                   >
                     <article className="flex h-full flex-col overflow-hidden rounded-[20px] border border-[#ebe6dc] bg-white shadow-[0_8px_28px_rgba(139,107,62,0.06)]">
-                      <div className="relative aspect-[4/3] w-full bg-[#FFFCFA]">
-                        {article.coverUrl ? (
-                          <Image
-                            src={article.coverUrl}
-                            alt={article.title}
-                            fill
-                            unoptimized
-                            className="object-contain p-4 sm:p-5"
-                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
-                          />
-                        ) : null}
-                      </div>
+                      <div
+                        className="relative aspect-[4/3] w-full overflow-hidden bg-[#FFFCFA] bg-cover bg-center"
+                        style={
+                          article.coverUrl
+                            ? { backgroundImage: `url(${article.coverUrl})` }
+                            : undefined
+                        }
+                        role={article.coverUrl ? "img" : undefined}
+                        aria-label={
+                          article.coverUrl ? article.title : undefined
+                        }
+                      />
 
                       <div className="flex flex-1 flex-col px-5 pt-4 pb-5 sm:px-6 sm:pb-6">
                         <div className="flex flex-wrap items-center gap-2">
