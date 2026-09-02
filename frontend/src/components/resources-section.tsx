@@ -38,18 +38,16 @@ export function ResourcesSection({ items }: { items: ResourceGuide[] }) {
                     }}
                   >
                     <article className="flex h-full flex-col overflow-hidden rounded-[20px] border border-[#e6ebe3] bg-white shadow-[0_8px_28px_rgba(31,107,58,0.05)]">
-                      <div className="relative aspect-[4/3] w-full bg-[#FBF9F5]">
-                        {guide.coverUrl ? (
-                          <Image
-                            src={guide.coverUrl}
-                            alt={guide.title}
-                            fill
-                            unoptimized
-                            className="object-contain p-4 sm:p-5"
-                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
-                          />
-                        ) : null}
-                      </div>
+                      <div
+                        className="relative aspect-[4/3] w-full overflow-hidden bg-[#FBF9F5] bg-cover bg-center"
+                        style={
+                          guide.coverUrl
+                            ? { backgroundImage: `url(${guide.coverUrl})` }
+                            : undefined
+                        }
+                        role={guide.coverUrl ? "img" : undefined}
+                        aria-label={guide.coverUrl ? guide.title : undefined}
+                      />
 
                       <div className="flex flex-1 flex-col px-5 pt-4 pb-5 sm:px-6 sm:pb-6">
                         <div className="flex flex-wrap items-center gap-2">

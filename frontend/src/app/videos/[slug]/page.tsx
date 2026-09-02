@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { ContentEmptyState } from "@/components/content-empty-state";
 import { VideoDetailSection } from "@/components/video-detail-section";
 import { fetchVideo, fetchVideos } from "@/lib/content-api";
 
@@ -35,27 +35,30 @@ export async function generateMetadata({
 
 export default async function VideoDetailPage({ params }: VideoPageProps) {
   const { slug } = await params;
-  let video;
-  try {
-    video = await fetchVideo(slug);
-  } catch {
-    notFound();
-  }
 
-  return (
-    <main>
-      <VideoDetailSection
-        video={{
-          slug: video.slug,
-          title: video.title,
-          subtitle: video.subtitle,
-          description: video.description,
-          category: video.category,
-          duration: video.duration,
-          coverUrl: video.coverUrl,
-          videoUrl: video.videoUrl,
-        }}
-      />
-    </main>
-  );
+  try {
+    const video = await fetchVideo(slug);
+    return (
+      <main>
+        <VideoDetailSection
+          video={{
+            slug: video.slug,
+            title: video.title,
+            subtitle: video.subtitle,
+            description: video.description,
+            category: video.category,
+            duration: video.duration,
+            coverUrl: video.coverUrl,
+            videoUrl: video.videoUrl,
+          }}
+        />
+      </main>
+    );
+  } catch {
+    return (
+      <main>
+        <ContentEmptyState kind="videos" failed variant="detail" />
+      </main>
+    );
+  }
 }

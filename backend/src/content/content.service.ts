@@ -57,7 +57,7 @@ export class ContentService {
         pages: dto.pages?.trim() || '',
         coverUrl: dto.coverUrl?.trim() || '',
         pdfUrl: dto.pdfUrl?.trim() || null,
-        sortOrder: dto.sortOrder ?? 0,
+        sortOrder: dto.sortOrder ?? (await this.nextSortOrder(this.resources)),
         published: dto.published ?? true,
       }),
     );
@@ -116,7 +116,7 @@ export class ContentService {
         readTime: dto.readTime?.trim() || '',
         coverUrl: dto.coverUrl?.trim() || '',
         body: dto.body?.trim() || null,
-        sortOrder: dto.sortOrder ?? 0,
+        sortOrder: dto.sortOrder ?? (await this.nextSortOrder(this.articles)),
         published: dto.published ?? true,
       }),
     );
@@ -175,7 +175,7 @@ export class ContentService {
         duration: dto.duration?.trim() || '',
         coverUrl: dto.coverUrl?.trim() || '',
         videoUrl: dto.videoUrl?.trim() || null,
-        sortOrder: dto.sortOrder ?? 0,
+        sortOrder: dto.sortOrder ?? (await this.nextSortOrder(this.videos)),
         published: dto.published ?? true,
       }),
     );
@@ -206,6 +206,15 @@ export class ContentService {
   }
 
   // ── helpers ───────────────────────────────────────────────
+
+  private async nextSortOrder(repo: Repository<{ sortOrder: number }>) {
+    const result = await repo
+      .createQueryBuilder('item')
+      .select('MAX(item.sortOrder)', 'max')
+      .getRawOne<{ max: string | number | null }>();
+    const max = result?.max == null ? -1 : Number(result.max);
+    return Number.isFinite(max) ? max + 1 : 0;
+  }
 
   private normalizeSlug(slug: string) {
     return slug

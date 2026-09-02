@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { GuidesBreadcrumb } from "@/components/guides-breadcrumb";
 import type { HealthVideo } from "@/lib/health-videos";
 
@@ -55,19 +54,16 @@ export function VideoDetailSection({ video }: { video: HealthVideo }) {
         />
 
         <div className="mt-2 grid items-start gap-6 lg:mt-4 lg:grid-cols-[280px_1fr] lg:gap-10">
-          <div className="relative mx-auto aspect-[4/3] w-full max-w-[280px] overflow-hidden rounded-[18px] border border-[#e6ebe3] bg-[#FBF9F5] lg:mx-0 lg:max-w-none">
-            {video.coverUrl ? (
-              <Image
-                src={video.coverUrl}
-                alt={video.title}
-                fill
-                unoptimized
-                className="object-contain p-5"
-                sizes="280px"
-                priority
-              />
-            ) : null}
-          </div>
+          <div
+            className="relative mx-auto aspect-[4/3] w-full max-w-[280px] overflow-hidden rounded-[18px] border border-[#e6ebe3] bg-[#FBF9F5] bg-cover bg-center lg:mx-0 lg:max-w-none"
+            style={
+              video.coverUrl
+                ? { backgroundImage: `url(${video.coverUrl})` }
+                : undefined
+            }
+            role={video.coverUrl ? "img" : undefined}
+            aria-label={video.coverUrl ? video.title : undefined}
+          />
 
           <div className="min-w-0 text-center lg:text-left">
             <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-start">

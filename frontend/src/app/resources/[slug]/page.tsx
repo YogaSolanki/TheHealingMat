@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { ContentEmptyState } from "@/components/content-empty-state";
 import { ResourceDetailSection } from "@/components/resource-detail-section";
 import { fetchResource, fetchResources } from "@/lib/content-api";
 
@@ -35,27 +35,30 @@ export async function generateMetadata({
 
 export default async function ResourceDetailPage({ params }: ResourcePageProps) {
   const { slug } = await params;
-  let guide;
-  try {
-    guide = await fetchResource(slug);
-  } catch {
-    notFound();
-  }
 
-  return (
-    <main>
-      <ResourceDetailSection
-        guide={{
-          slug: guide.slug,
-          title: guide.title,
-          subtitle: guide.subtitle,
-          description: guide.description,
-          category: guide.category,
-          pages: guide.pages,
-          coverUrl: guide.coverUrl,
-          pdfHref: guide.pdfUrl ?? undefined,
-        }}
-      />
-    </main>
-  );
+  try {
+    const guide = await fetchResource(slug);
+    return (
+      <main>
+        <ResourceDetailSection
+          guide={{
+            slug: guide.slug,
+            title: guide.title,
+            subtitle: guide.subtitle,
+            description: guide.description,
+            category: guide.category,
+            pages: guide.pages,
+            coverUrl: guide.coverUrl,
+            pdfHref: guide.pdfUrl ?? undefined,
+          }}
+        />
+      </main>
+    );
+  } catch {
+    return (
+      <main>
+        <ContentEmptyState kind="resources" failed variant="detail" />
+      </main>
+    );
+  }
 }

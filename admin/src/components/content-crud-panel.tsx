@@ -39,7 +39,6 @@ type FormState = {
   category: string;
   coverUrl: string;
   published: boolean;
-  sortOrder: string;
   pages: string;
   pdfUrl: string;
   readTime: string;
@@ -56,7 +55,6 @@ const emptyForm = (): FormState => ({
   category: "",
   coverUrl: "",
   published: true,
-  sortOrder: "0",
   pages: "",
   pdfUrl: "",
   readTime: "",
@@ -162,7 +160,6 @@ export function ContentCrudPanel({
       category: item.category,
       coverUrl: item.coverUrl || "",
       published: item.published,
-      sortOrder: String(item.sortOrder ?? 0),
       pages: item.pages || "",
       pdfUrl: item.pdfUrl || "",
       readTime: item.readTime || "",
@@ -182,7 +179,6 @@ export function ContentCrudPanel({
       category: form.category.trim(),
       coverUrl: form.coverUrl.trim(),
       published: form.published,
-      sortOrder: Number(form.sortOrder) || 0,
     };
 
     if (kind === "resources") {
@@ -422,16 +418,6 @@ export function ContentCrudPanel({
                     setForm((prev) => ({ ...prev, coverUrl: e.target.value }))
                   }
                   placeholder="https://..."
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Sort order">
-                <input
-                  type="number"
-                  value={form.sortOrder}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, sortOrder: e.target.value }))
-                  }
                   className={inputClass}
                 />
               </Field>

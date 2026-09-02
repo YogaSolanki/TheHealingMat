@@ -15,6 +15,7 @@ import { Region } from '../users/enums/region.enum';
 import { OtpChallenge } from '../users/otp-challenge.entity';
 import { User } from '../users/user.entity';
 import { sendResendEmail } from '../mail/resend';
+import { sendMsg91Otp } from '../sms/msg91';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -139,6 +140,7 @@ export class AuthService {
     );
 
     const isProd = this.config.get('NODE_ENV') === 'production';
+    let delivered = false;
 
     if (channel === 'email') {
       await this.sendOtpEmail({
@@ -146,13 +148,13 @@ export class AuthService {
         code,
         purpose: dto.purpose,
       });
-    } else if (!isProd) {
-      // SMS provider not wired yet — log locally for development only.
-      console.log(`[OTP] ${channel} → ${destination}: ${code}`);
+      delivered = true;
     } else {
-      throw new ServiceUnavailableException(
-        'SMS OTP is not available yet. Please use Outside India (email OTP) or password login.',
-      );
+      delivered = await this.sendOtpSms({
+        destination,
+        code,
+        purpose: dto.purpose,
+      });
     }
 
     return {
@@ -161,8 +163,8 @@ export class AuthService {
       channel,
       destinationMasked: this.maskDestination(destination, channel),
       accountExists: Boolean(existing),
-      // Never expose OTP in production responses.
-      ...(isProd ? {} : { devOtp: code }),
+      // Never expose OTP once a real provider delivered it (or in production).
+      ...(isProd || delivered ? {} : { devOtp: code }),
     };
   }
 
@@ -420,6 +422,60 @@ export class AuthService {
 
   private generateOtpCode(): string {
     return String(randomInt(100000, 999999));
+  }
+
+  /**
+   * India SMS OTP via MSG91 (signup / login / password_reset).
+   * Returns true when MSG91 accepted the send; false only in non-prod
+   * when MSG91 is not configured (dev fallback logs the code).
+   */
+  private async sendOtpSms(input: {
+    destination: string;
+    code: string;
+    purpose: string;
+  }): Promise<boolean> {
+    const authKey = this.config.get<string>('MSG91_AUTH_KEY')?.trim();
+    const templateId = this.config.get<string>('MSG91_OTP_TEMPLATE_ID')?.trim();
+    const isProd = this.config.get('NODE_ENV') === 'production';
+
+    if (!authKey || !templateId) {
+      if (isProd) {
+        throw new ServiceUnavailableException(
+          'SMS OTP is not configured yet (missing MSG91_AUTH_KEY or MSG91_OTP_TEMPLATE_ID).',
+        );
+      }
+      // Local/dev without MSG91 — keep signup testable.
+      console.log(
+        `[OTP][dev-fallback] sms → ${input.destination}: ${input.code} (purpose=${input.purpose})`,
+      );
+      return false;
+    }
+
+    const modeRaw = this.config.get<string>('MSG91_API_MODE')?.trim().toLowerCase();
+    const mode = modeRaw === 'flow' ? 'flow' : 'otp';
+    const senderId = this.config.get<string>('MSG91_SENDER_ID')?.trim();
+    const otpVariable =
+      this.config.get<string>('MSG91_OTP_VAR')?.trim() || 'otp';
+
+    try {
+      await sendMsg91Otp({
+        authKey,
+        templateId,
+        mobile: input.destination,
+        otp: input.code,
+        otpExpiryMinutes: Math.ceil(OTP_TTL_SECONDS / 60),
+        mode,
+        senderId,
+        otpVariable,
+      });
+      return true;
+    } catch (error) {
+      const detail =
+        error instanceof Error ? error.message : 'Unknown MSG91 error';
+      throw new ServiceUnavailableException(
+        `Unable to send SMS OTP right now. ${detail}`,
+      );
+    }
   }
 
   private async sendOtpEmail(input: {

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { GuidesBreadcrumb } from "@/components/guides-breadcrumb";
 import { GuidesCatalogFilters } from "@/components/guides-catalog-filters";
@@ -37,17 +36,16 @@ export function VideosSection({ items }: { items: HealthVideo[] }) {
                     }}
                   >
                     <article className="flex h-full flex-col overflow-hidden rounded-[20px] border border-[#e6ebe3] bg-white shadow-[0_8px_28px_rgba(31,107,58,0.05)]">
-                      <div className="relative aspect-[4/3] w-full bg-[#FBF9F5]">
-                        {video.coverUrl ? (
-                          <Image
-                            src={video.coverUrl}
-                            alt={video.title}
-                            fill
-                            unoptimized
-                            className="object-contain p-4 sm:p-5"
-                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 380px"
-                          />
-                        ) : null}
+                      <div
+                        className="relative aspect-[4/3] w-full overflow-hidden bg-[#FBF9F5] bg-cover bg-center"
+                        style={
+                          video.coverUrl
+                            ? { backgroundImage: `url(${video.coverUrl})` }
+                            : undefined
+                        }
+                        role={video.coverUrl ? "img" : undefined}
+                        aria-label={video.coverUrl ? video.title : undefined}
+                      >
                         <span className="absolute right-3 bottom-3 rounded-full bg-[#1f6b3a] px-2.5 py-1 text-[11px] font-bold text-white">
                           {video.duration}
                         </span>

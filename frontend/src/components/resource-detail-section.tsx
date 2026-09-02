@@ -18,19 +18,16 @@ export function ResourceDetailSection({ guide }: { guide: ResourceGuide }) {
         />
 
         <div className="mt-2 grid items-start gap-6 lg:mt-4 lg:grid-cols-[280px_1fr] lg:gap-10">
-          <div className="relative mx-auto aspect-[3/4] w-full max-w-[260px] overflow-hidden rounded-[18px] border border-[#e6ebe3] bg-[#FBF9F5] lg:mx-0 lg:max-w-none">
-            {guide.coverUrl ? (
-              <Image
-                src={guide.coverUrl}
-                alt={guide.title}
-                fill
-                unoptimized
-                className="object-contain p-5"
-                sizes="280px"
-                priority
-              />
-            ) : null}
-          </div>
+          <div
+            className="relative mx-auto aspect-[3/4] w-full max-w-[260px] overflow-hidden rounded-[18px] border border-[#e6ebe3] bg-[#FBF9F5] bg-cover bg-center lg:mx-0 lg:max-w-none"
+            style={
+              guide.coverUrl
+                ? { backgroundImage: `url(${guide.coverUrl})` }
+                : undefined
+            }
+            role={guide.coverUrl ? "img" : undefined}
+            aria-label={guide.coverUrl ? guide.title : undefined}
+          />
 
           <div className="min-w-0 text-center lg:text-left">
             <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-start">

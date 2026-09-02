@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { ArticleDetailSection } from "@/components/article-detail-section";
+import { ContentEmptyState } from "@/components/content-empty-state";
 import { fetchArticle, fetchArticles } from "@/lib/content-api";
 
 type ArticlePageProps = {
@@ -35,27 +35,30 @@ export async function generateMetadata({
 
 export default async function ArticleDetailPage({ params }: ArticlePageProps) {
   const { slug } = await params;
-  let article;
-  try {
-    article = await fetchArticle(slug);
-  } catch {
-    notFound();
-  }
 
-  return (
-    <main>
-      <ArticleDetailSection
-        article={{
-          slug: article.slug,
-          title: article.title,
-          subtitle: article.subtitle,
-          description: article.description,
-          category: article.category,
-          readTime: article.readTime,
-          coverUrl: article.coverUrl,
-          body: article.body,
-        }}
-      />
-    </main>
-  );
+  try {
+    const article = await fetchArticle(slug);
+    return (
+      <main>
+        <ArticleDetailSection
+          article={{
+            slug: article.slug,
+            title: article.title,
+            subtitle: article.subtitle,
+            description: article.description,
+            category: article.category,
+            readTime: article.readTime,
+            coverUrl: article.coverUrl,
+            body: article.body,
+          }}
+        />
+      </main>
+    );
+  } catch {
+    return (
+      <main>
+        <ContentEmptyState kind="articles" failed variant="detail" />
+      </main>
+    );
+  }
 }

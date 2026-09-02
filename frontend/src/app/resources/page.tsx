@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ContentEmptyState } from "@/components/content-empty-state";
 import { ResourcesSection } from "@/components/resources-section";
 import { fetchResources } from "@/lib/content-api";
 
@@ -11,7 +12,23 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function ResourcesPage() {
-  const rows = await fetchResources().catch(() => []);
+  let failed = false;
+  let rows: Awaited<ReturnType<typeof fetchResources>> = [];
+
+  try {
+    rows = await fetchResources();
+  } catch {
+    failed = true;
+  }
+
+  if (failed || rows.length === 0) {
+    return (
+      <main>
+        <ContentEmptyState kind="resources" failed={failed} />
+      </main>
+    );
+  }
+
   const items = rows.map((row) => ({
     slug: row.slug,
     title: row.title,
