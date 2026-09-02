@@ -311,17 +311,24 @@ body {
   }
 }
 
+.auth-modal-backdrop {
+  animation: auth-backdrop-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .auth-modal-panel {
   animation: auth-modal-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.auth-mode-content {
-  animation: auth-mode-swap 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+.auth-modal-root.is-exiting .auth-modal-backdrop {
+  animation: auth-backdrop-out 0.22s cubic-bezier(0.4, 0, 1, 1) both;
 }
 
-.auth-mode-pill {
-  left: 0.25rem;
-  transition: left 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+.auth-modal-panel.is-exiting {
+  animation: auth-modal-out 0.22s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.auth-mode-content {
+  animation: auth-mode-swap 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .auth-select-menu {
@@ -339,8 +346,22 @@ body {
   }
 }
 
-.auth-mode-pill.is-login {
-  left: 50%;
+@keyframes auth-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes auth-backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 @keyframes auth-modal-in {
@@ -351,6 +372,17 @@ body {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes auth-modal-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
   }
 }
 
@@ -431,9 +463,9 @@ body {
   .catalog-results-in,
   .catalog-results-out,
   .catalog-card-in,
+  .auth-modal-backdrop,
   .auth-modal-panel,
   .auth-mode-content,
-  .auth-mode-pill,
   .auth-select-menu,
   .badge-shine::after {
     transition: none !important;

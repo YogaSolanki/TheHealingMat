@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ArticlesSection } from "@/components/articles-section";
+import { ContentEmptyState } from "@/components/content-empty-state";
 import { fetchArticles } from "@/lib/content-api";
 
 export const metadata: Metadata = {
@@ -11,7 +12,23 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function ArticlesPage() {
-  const rows = await fetchArticles().catch(() => []);
+  let failed = false;
+  let rows: Awaited<ReturnType<typeof fetchArticles>> = [];
+
+  try {
+    rows = await fetchArticles();
+  } catch {
+    failed = true;
+  }
+
+  if (failed || rows.length === 0) {
+    return (
+      <main>
+        <ContentEmptyState kind="articles" failed={failed} />
+      </main>
+    );
+  }
+
   const items = rows.map((row) => ({
     slug: row.slug,
     title: row.title,

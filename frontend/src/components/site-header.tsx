@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuthModal } from "@/components/auth-modal-provider";
 import { SiteLogo } from "@/components/site-logo";
+import { getStoredToken } from "@/lib/auth-storage";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -22,7 +23,6 @@ function isActivePath(pathname: string, href: string) {
   if (
     href === "/guides" &&
     (pathname === "/resources" ||
-      pathname.startsWith("/resources/") ||
       pathname === "/articles" ||
       pathname.startsWith("/articles/") ||
       pathname === "/videos" ||
@@ -36,10 +36,12 @@ function isActivePath(pathname: string, href: string) {
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
   const { openAuth } = useAuthModal();
 
   useEffect(() => {
     setOpen(false);
+    setSignedIn(Boolean(getStoredToken()));
   }, [pathname]);
 
   function openLogin() {
@@ -70,14 +72,24 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={openLogin}
-            className="btn-primary hidden cursor-pointer items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-3 py-2 text-[12px] font-semibold text-white lg:inline-flex xl:gap-2 xl:px-4 xl:py-2.5 xl:text-sm"
-          >
-            <UserIcon className="h-3.5 w-3.5 xl:h-4 xl:w-4" />
-            Member Login
-          </button>
+          {signedIn ? (
+            <Link
+              href="/dashboard"
+              className="btn-primary hidden cursor-pointer items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-3 py-2 text-[12px] font-semibold text-white lg:inline-flex xl:gap-2 xl:px-4 xl:py-2.5 xl:text-sm"
+            >
+              <UserIcon className="h-3.5 w-3.5 xl:h-4 xl:w-4" />
+              Dashboard
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={openLogin}
+              className="btn-primary hidden cursor-pointer items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-3 py-2 text-[12px] font-semibold text-white lg:inline-flex xl:gap-2 xl:px-4 xl:py-2.5 xl:text-sm"
+            >
+              <UserIcon className="h-3.5 w-3.5 xl:h-4 xl:w-4" />
+              Member Login
+            </button>
+          )}
 
           <button
             type="button"
@@ -150,24 +162,45 @@ export function SiteHeader() {
                   </Link>
                 );
               })}
-              <button
-                type="button"
-                tabIndex={open ? 0 : -1}
-                onClick={openLogin}
-                className={`btn-primary mt-1 inline-flex cursor-pointer items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-2.5 text-sm font-semibold text-white transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                  open
-                    ? "translate-y-0 opacity-100"
-                    : "translate-y-1 opacity-0"
-                }`}
-                style={{
-                  transitionDelay: open
-                    ? `${60 + navLinks.length * 35}ms`
-                    : "0ms",
-                }}
-              >
-                <UserIcon className="h-4 w-4" />
-                Member Login
-              </button>
+              {signedIn ? (
+                <Link
+                  href="/dashboard"
+                  tabIndex={open ? 0 : -1}
+                  onClick={() => setOpen(false)}
+                  className={`btn-primary mt-1 inline-flex cursor-pointer items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-2.5 text-sm font-semibold text-white transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                    open
+                      ? "translate-y-0 opacity-100"
+                      : "translate-y-1 opacity-0"
+                  }`}
+                  style={{
+                    transitionDelay: open
+                      ? `${60 + navLinks.length * 35}ms`
+                      : "0ms",
+                  }}
+                >
+                  <UserIcon className="h-4 w-4" />
+                  Dashboard
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  tabIndex={open ? 0 : -1}
+                  onClick={openLogin}
+                  className={`btn-primary mt-1 inline-flex cursor-pointer items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-2.5 text-sm font-semibold text-white transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                    open
+                      ? "translate-y-0 opacity-100"
+                      : "translate-y-1 opacity-0"
+                  }`}
+                  style={{
+                    transitionDelay: open
+                      ? `${60 + navLinks.length * 35}ms`
+                      : "0ms",
+                  }}
+                >
+                  <UserIcon className="h-4 w-4" />
+                  Member Login
+                </button>
+              )}
             </nav>
           </div>
         </div>

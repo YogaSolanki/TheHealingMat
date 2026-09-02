@@ -40,11 +40,25 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const authError = params.get("authError");
-    if (!authError) return;
-    setError(authError);
-    setMode("login");
-    setOpen(true);
-    params.delete("authError");
+    const authMode = params.get("auth");
+    let changed = false;
+
+    if (authError) {
+      setError(authError);
+      setMode("login");
+      setOpen(true);
+      params.delete("authError");
+      changed = true;
+    }
+
+    if (authMode === "login" || authMode === "signup") {
+      setMode(authMode);
+      setOpen(true);
+      params.delete("auth");
+      changed = true;
+    }
+
+    if (!changed) return;
     const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
     window.history.replaceState({}, "", next);
   }, []);

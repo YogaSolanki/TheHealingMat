@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { RichTextEditor } from "@/components/rich-text-editor";
 import { ADMIN_TOKEN_KEY } from "@/lib/api";
 
 export type ContentKind = "resources" | "articles" | "videos";
@@ -39,7 +40,6 @@ type FormState = {
   category: string;
   coverUrl: string;
   published: boolean;
-  sortOrder: string;
   pages: string;
   pdfUrl: string;
   readTime: string;
@@ -56,7 +56,6 @@ const emptyForm = (): FormState => ({
   category: "",
   coverUrl: "",
   published: true,
-  sortOrder: "0",
   pages: "",
   pdfUrl: "",
   readTime: "",
@@ -71,6 +70,15 @@ function slugify(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+function normalizeArticleBody(html: string) {
+  const text = html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text ? html.trim() : null;
 }
 
 function formatDate(value: string) {
@@ -162,7 +170,6 @@ export function ContentCrudPanel({
       category: item.category,
       coverUrl: item.coverUrl || "",
       published: item.published,
-      sortOrder: String(item.sortOrder ?? 0),
       pages: item.pages || "",
       pdfUrl: item.pdfUrl || "",
       readTime: item.readTime || "",
@@ -182,7 +189,6 @@ export function ContentCrudPanel({
       category: form.category.trim(),
       coverUrl: form.coverUrl.trim(),
       published: form.published,
-      sortOrder: Number(form.sortOrder) || 0,
     };
 
     if (kind === "resources") {
@@ -191,7 +197,7 @@ export function ContentCrudPanel({
     }
     if (kind === "articles") {
       payload.readTime = form.readTime.trim();
-      payload.body = form.body.trim() || null;
+      payload.body = normalizeArticleBody(form.body);
     }
     if (kind === "videos") {
       payload.duration = form.duration.trim();
@@ -425,16 +431,6 @@ export function ContentCrudPanel({
                   className={inputClass}
                 />
               </Field>
-              <Field label="Sort order">
-                <input
-                  type="number"
-                  value={form.sortOrder}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, sortOrder: e.target.value }))
-                  }
-                  className={inputClass}
-                />
-              </Field>
 
               {kind === "resources" ? (
                 <>
@@ -498,7 +494,7 @@ export function ContentCrudPanel({
                           videoUrl: e.target.value,
                         }))
                       }
-                      placeholder="https://..."
+                      placeholder="https://youtu.be/... or YouTube watch URL"
                       className={inputClass}
                     />
                   </Field>
@@ -525,17 +521,15 @@ export function ContentCrudPanel({
             </div>
 
             {kind === "articles" ? (
-              <div className="mt-3">
-                <Field label="Body (optional)">
-                  <textarea
-                    rows={5}
-                    value={form.body}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, body: e.target.value }))
-                    }
-                    className={inputClass}
-                  />
-                </Field>
+              <div className="mt-3 text-sm">
+                <span className="mb-1.5 block font-medium text-[#3d4a3c]">
+                  Body (optional)
+                </span>
+                <RichTextEditor
+                  value={form.body}
+                  onChange={(body) => setForm((prev) => ({ ...prev, body }))}
+                  placeholder="Write the article with bold, underline, and bullet points…"
+                />
               </div>
             ) : null}
 

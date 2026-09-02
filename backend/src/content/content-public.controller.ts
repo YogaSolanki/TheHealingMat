@@ -12,11 +12,6 @@ export class ContentPublicController {
     return this.content.listResources(true);
   }
 
-  @Get('resources/:slug')
-  getResource(@Param('slug') slug: string) {
-    return this.content.getResourceBySlug(slug, true);
-  }
-
   @Get('articles')
   listArticles() {
     return this.content.listArticles(true);

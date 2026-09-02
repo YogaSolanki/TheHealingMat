@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-
-const TOKEN_KEY = "thm_access_token";
+import { setStoredToken } from "@/lib/auth-storage";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -20,9 +19,9 @@ export default function AuthCallbackPage() {
       return;
     }
 
-    window.localStorage.setItem(TOKEN_KEY, token);
+    setStoredToken(token);
     setMessage("Signed in successfully. Redirecting…");
-    window.setTimeout(() => router.replace("/"), 700);
+    window.setTimeout(() => router.replace("/dashboard"), 700);
   }, [router]);
 
   return (

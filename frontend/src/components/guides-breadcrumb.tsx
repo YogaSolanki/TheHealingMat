@@ -26,12 +26,6 @@ export function GuidesBreadcrumb({
         href={`/guides#${guidesHash}`}
         className="inline-flex cursor-pointer items-center gap-1 font-semibold text-[#1f6b3a] transition hover:text-[#185830]"
       >
-        <span
-          aria-hidden="true"
-          className="text-[18px] font-bold leading-none sm:text-[19px]"
-        >
-          &lt;
-        </span>
         Health Guides
       </Link>
 
