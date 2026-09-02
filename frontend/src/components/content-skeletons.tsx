@@ -94,7 +94,13 @@ export function ContentDetailSkeleton({
 
         <div className="mx-auto w-full max-w-[1140px]">
           <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-center lg:gap-10">
-            <Pulse className="aspect-[3/4] w-full max-w-[280px] shrink-0 rounded-[18px] sm:max-w-[300px] lg:w-[320px] lg:max-w-none" />
+            <Pulse
+              className={`aspect-[3/4] w-full shrink-0 rounded-[18px] ${
+                kind === "videos"
+                  ? "max-w-[300px] sm:max-w-[340px] lg:w-[360px] lg:max-w-none"
+                  : "max-w-[280px] sm:max-w-[300px] lg:w-[320px] lg:max-w-none"
+              }`}
+            />
 
             <div className="min-w-0 flex-1 space-y-3 text-left">
               <div className="flex gap-2">
