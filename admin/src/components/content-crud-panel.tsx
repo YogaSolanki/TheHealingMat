@@ -8,8 +8,16 @@ import {
   useMemo,
   useState,
 } from "react";
+import { PanelLoader } from "@/components/panel-loader";
+import { ReloadButton } from "@/components/reload-button";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { ADMIN_TOKEN_KEY } from "@/lib/api";
+import {
+  DASHBOARD_CACHE_KEYS,
+  getCached,
+  hasCached,
+  setCached,
+} from "@/lib/dashboard-cache";
 
 export type ContentKind = "resources" | "articles" | "videos";
 
@@ -112,32 +120,57 @@ export function ContentCrudPanel({
   update,
   remove,
 }: ContentCrudPanelProps) {
-  const [items, setItems] = useState<ContentItem[]>([]);
+  const cacheKey =
+    kind === "resources"
+      ? DASHBOARD_CACHE_KEYS.resources
+      : kind === "articles"
+        ? DASHBOARD_CACHE_KEYS.articles
+        : DASHBOARD_CACHE_KEYS.videos;
+
+  const [items, setItems] = useState<ContentItem[]>(
+    () => getCached<ContentItem[]>(cacheKey) ?? [],
+  );
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !hasCached(cacheKey));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<ContentItem | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
 
-  const load = useCallback(async () => {
-    const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
-    if (!token) {
-      setError("Please sign in again.");
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      setItems(await list(token));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load items");
-    } finally {
-      setLoading(false);
-    }
-  }, [list]);
+  const load = useCallback(
+    async (options?: { force?: boolean }) => {
+      const force = options?.force === true;
+      if (!force) {
+        const cached = getCached<ContentItem[]>(cacheKey);
+        if (cached) {
+          setItems(cached);
+          setLoading(false);
+          setError(null);
+          return;
+        }
+      }
+
+      const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
+      if (!token) {
+        setError("Please sign in again.");
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await list(token);
+        setCached(cacheKey, data);
+        setItems(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load items");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [cacheKey, list],
+  );
 
   useEffect(() => {
     void load();
@@ -224,7 +257,7 @@ export function ContentCrudPanel({
       }
       setFormOpen(false);
       setEditing(null);
-      await load();
+      await load({ force: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -244,14 +277,14 @@ export function ContentCrudPanel({
     setError(null);
     try {
       await remove(token, item.id);
-      await load();
+      await load({ force: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed");
     }
   }
 
   if (loading) {
-    return <p className="text-sm text-[#6a756c]">Loading {title.toLowerCase()}…</p>;
+    return <PanelLoader label={`Loading ${title.toLowerCase()}…`} />;
   }
 
   return (
@@ -263,8 +296,8 @@ export function ContentCrudPanel({
       ) : null}
 
       <div className="overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_rgba(21,32,25,0.04)]">
-        <div className="flex flex-col gap-3 border-b border-[#e4ebe4] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-[#6a756c]">
+        <div className="flex flex-col gap-3 border-b border-[#e6ebe3] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-[#5f6f64]">
             {items.length} {title.toLowerCase()}
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -273,21 +306,28 @@ export function ContentCrudPanel({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search title, slug, category…"
-              className="h-10 w-full rounded-full bg-[#f3f5f2] px-4 text-sm outline-none placeholder:text-[#9aa59a] focus:bg-white focus:ring-2 focus:ring-[#c5d4b8] sm:w-64"
+              className="h-10 w-full rounded-full bg-[#fbf9f5] px-4 text-sm outline-none placeholder:text-[#9aa59a] focus:bg-white focus:ring-2 focus:ring-[#1f6b3a]/20 sm:w-64"
             />
-            <button
-              type="button"
-              onClick={openCreate}
-              className="h-10 rounded-full bg-[#1f6b3a] px-4 text-sm font-semibold text-white hover:bg-[#185830]"
-            >
-              Add {singular}
-            </button>
+            <div className="flex items-center gap-2">
+              <ReloadButton
+                onClick={() => void load({ force: true })}
+                loading={loading}
+                label={`Reload ${title.toLowerCase()}`}
+              />
+              <button
+                type="button"
+                onClick={openCreate}
+                className="h-10 rounded-full bg-[#1f6b3a] px-4 text-sm font-semibold text-white hover:bg-[#185830]"
+              >
+                Add {singular}
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] table-fixed text-left text-sm">
-            <thead className="text-[#6a756c]">
+            <thead className="text-[#5f6f64]">
               <tr>
                 <th className="w-[28%] px-5 py-3 font-medium">Title</th>
                 <th className="w-[16%] px-5 py-3 font-medium">Category</th>
@@ -301,7 +341,7 @@ export function ContentCrudPanel({
                 <tr>
                   <td
                     colSpan={5}
-                    className="px-5 py-16 text-center text-[#8a918c]"
+                    className="px-5 py-16 text-center text-[#8a978c]"
                   >
                     {items.length === 0
                       ? `No ${title.toLowerCase()} yet.`
@@ -310,24 +350,24 @@ export function ContentCrudPanel({
                 </tr>
               ) : (
                 filtered.map((item) => (
-                  <tr key={item.id} className="border-t border-[#eef2ee]">
+                  <tr key={item.id} className="border-t border-[#f4f7f4]">
                     <td className="px-5 py-3">
                       <p className="font-semibold text-[#243028]">{item.title}</p>
-                      <p className="mt-0.5 text-xs text-[#8a918c]">{item.slug}</p>
+                      <p className="mt-0.5 text-xs text-[#8a978c]">{item.slug}</p>
                     </td>
-                    <td className="px-5 py-3 text-[#4d5c52]">{item.category}</td>
+                    <td className="px-5 py-3 text-[#5f6f64]">{item.category}</td>
                     <td className="px-5 py-3">
                       <span
                         className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                           item.published
-                            ? "bg-[#e5efe8] text-[#2f5a3d]"
+                            ? "bg-[#e8f2ea] text-[#1f6b3a]"
                             : "bg-[#f1ece6] text-[#6b5b4a]"
                         }`}
                       >
                         {item.published ? "Published" : "Draft"}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-[#6a756c]">
+                    <td className="px-5 py-3 text-[#5f6f64]">
                       {formatDate(item.updatedAt)}
                     </td>
                     <td className="px-5 py-3">
@@ -335,7 +375,7 @@ export function ContentCrudPanel({
                         <button
                           type="button"
                           onClick={() => openEdit(item)}
-                          className="rounded-full border border-[#d5e0d5] px-3 py-1.5 text-xs font-semibold text-[#1f6b3a] hover:bg-[#f4f7f4]"
+                          className="rounded-full border border-[#d9e2d8] px-3 py-1.5 text-xs font-semibold text-[#1f6b3a] hover:bg-[#f4f7f4]"
                         >
                           Edit
                         </button>
@@ -369,7 +409,7 @@ export function ContentCrudPanel({
               <button
                 type="button"
                 onClick={() => setFormOpen(false)}
-                className="text-sm font-semibold text-[#6a756c]"
+                className="text-sm font-semibold text-[#5f6f64]"
               >
                 Close
               </button>
@@ -548,7 +588,7 @@ export function ContentCrudPanel({
               <button
                 type="button"
                 onClick={() => setFormOpen(false)}
-                className="rounded-full border border-[#d5e0d5] px-4 py-2 text-sm font-semibold text-[#3d4a3c]"
+                className="rounded-full border border-[#d9e2d8] px-4 py-2 text-sm font-semibold text-[#3d4a3c]"
               >
                 Cancel
               </button>

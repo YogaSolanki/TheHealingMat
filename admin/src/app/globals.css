@@ -1,14 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f3f5f2;
-  --foreground: #152019;
-  --sidebar: #152019;
-  --sidebar-muted: #8a9a8e;
-  --accent: #3f6b4f;
-  --accent-soft: #e5efe8;
+  --background: #fbf9f5;
+  --foreground: #243028;
+  --sidebar: #f4f8f2;
+  --sidebar-muted: #5f6f64;
+  --accent: #1f6b3a;
+  --accent-soft: #e8f2ea;
+  --brand-green: #1f6b3a;
+  --brand-green-hover: #185830;
   --card: #ffffff;
-  --line: #e4ebe4;
+  --line: #e6ebe3;
 }
 
 @theme inline {
@@ -23,4 +25,41 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+@keyframes admin-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.admin-page-enter {
+  animation: admin-page-enter 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes admin-title-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.admin-title-enter {
+  animation: admin-title-enter 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-page-enter,
+  .admin-title-enter {
+    animation: none;
+  }
 }

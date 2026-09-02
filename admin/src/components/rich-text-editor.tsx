@@ -93,7 +93,7 @@ export function RichTextEditor({
   ];
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#d5e0d5] bg-white">
+    <div className="overflow-hidden rounded-2xl border border-[#d9e2d8] bg-white">
       <div className="flex flex-wrap items-center gap-1 border-b border-[#e6ebe3] bg-[#FBF9F5] px-2 py-1.5">
         {tools.map((tool) => (
           <button

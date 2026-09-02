@@ -1,13 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { PulseIcon, StarIcon, UsersIcon } from "@/components/icons";
+import { PanelLoader } from "@/components/panel-loader";
+import { ReloadButton } from "@/components/reload-button";
 import {
   ADMIN_TOKEN_KEY,
   getDashboardOverview,
   type DashboardOverview,
 } from "@/lib/api";
+import {
+  DASHBOARD_CACHE_KEYS,
+  getCached,
+  hasCached,
+  setCached,
+} from "@/lib/dashboard-cache";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -17,93 +25,106 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
 function regionLabel(region: string) {
   return region.replaceAll("_", " ");
 }
 
-function statusTone(status: string) {
-  switch (status) {
-    case "active":
-      return "bg-[#e5efe8] text-[#2f5a3d]";
-    case "scheduled":
-      return "bg-[#e8eef8] text-[#3a5270]";
-    default:
-      return "bg-[#f1ece6] text-[#6b5b4a]";
-  }
-}
-
 const cardClass =
-  "rounded-2xl border border-[#e7ece7] bg-white p-5 shadow-[0_4px_16px_rgba(21,32,25,0.03)]";
+  "rounded-2xl border border-[#e6ebe3] bg-white p-5 shadow-[0_4px_16px_rgba(21,32,25,0.03)]";
 
 export function DashboardHome() {
-  const [data, setData] = useState<DashboardOverview | null>(null);
+  const cacheKey = DASHBOARD_CACHE_KEYS.overview;
+  const [data, setData] = useState<DashboardOverview | null>(
+    () => getCached<DashboardOverview>(cacheKey) ?? null,
+  );
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !hasCached(cacheKey));
+
+  const load = useCallback(
+    async (options?: { force?: boolean }) => {
+      const force = options?.force === true;
+      if (!force) {
+        const cached = getCached<DashboardOverview>(cacheKey);
+        if (cached) {
+          setData(cached);
+          setLoading(false);
+          setError(null);
+          return;
+        }
+      }
+
+      const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
+      if (!token) {
+        setError("Please sign in again.");
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      try {
+        const overview = await getDashboardOverview(token);
+        setCached(cacheKey, overview);
+        setData(overview);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [cacheKey],
+  );
 
   useEffect(() => {
-    const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
-    if (!token) {
-      setError("Please sign in again.");
-      setLoading(false);
-      return;
-    }
-
-    getDashboardOverview(token)
-      .then(setData)
-      .catch((err) =>
-        setError(err instanceof Error ? err.message : "Failed to load"),
-      )
-      .finally(() => setLoading(false));
-  }, []);
+    void load();
+  }, [load]);
 
   if (loading) {
-    return <p className="text-sm text-[#6a756c]">Loading dashboard…</p>;
+    return <PanelLoader label="Loading dashboard…" variant="dashboard" />;
   }
 
   if (error || !data) {
     return (
-      <p className="rounded-2xl bg-white px-5 py-4 text-sm text-[#8a2f2f] shadow-sm">
-        {error ?? "Unable to load dashboard."}
-      </p>
+      <div className="space-y-3">
+        <div className="flex justify-end">
+          <ReloadButton
+            onClick={() => void load({ force: true })}
+            label="Hard reload dashboard"
+          />
+        </div>
+        <p className="rounded-2xl bg-white px-5 py-4 text-sm text-[#8a2f2f] shadow-sm">
+          {error ?? "Unable to load dashboard."}
+        </p>
+      </div>
     );
   }
 
-  const seatPct =
-    data.nextCohort && data.nextCohort.orientationCapacity > 0
-      ? Math.round(
-          (data.nextCohort.orientationBooked /
-            data.nextCohort.orientationCapacity) *
-            100,
-        )
-      : 0;
-
   return (
     <div className="mx-auto max-w-6xl space-y-4">
+      <div className="flex items-center justify-end">
+        <ReloadButton
+          onClick={() => void load({ force: true })}
+          loading={loading}
+          label="Hard reload dashboard"
+        />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-3">
         <section className={`${cardClass} min-h-[140px]`}>
           <div className="flex items-center justify-between">
-            <p className="text-sm text-[#6a756c]">Total users</p>
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e5efe8] text-[#3f6b4f]">
+            <p className="text-sm text-[#5f6f64]">Total users</p>
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e8f2ea] text-[#1f6b3a]">
               <UsersIcon className="h-4 w-4" />
             </span>
           </div>
-          <p className="mt-4 text-[2rem] font-semibold leading-none tracking-tight text-[#152019]">
+          <p className="mt-4 text-[2rem] font-semibold leading-none tracking-tight text-[#243028]">
             {data.stats.totalUsers}
           </p>
           <div className="mt-4 flex flex-wrap gap-1.5">
-            <span className="rounded-md bg-[#e5efe8] px-2 py-0.5 text-[11px] font-medium text-[#2f5a3d]">
+            <span className="rounded-md bg-[#e8f2ea] px-2 py-0.5 text-[11px] font-medium text-[#1f6b3a]">
               {data.stats.indiaUsers} India
             </span>
-            <span className="rounded-md bg-[#eef2ee] px-2 py-0.5 text-[11px] font-medium text-[#4d5c52]">
+            <span className="rounded-md bg-[#f4f7f4] px-2 py-0.5 text-[11px] font-medium text-[#5f6f64]">
               {data.stats.outsideUsers} Outside
             </span>
           </div>
@@ -111,27 +132,27 @@ export function DashboardHome() {
 
         <section className={`${cardClass} min-h-[140px]`}>
           <div className="flex items-center justify-between">
-            <p className="text-sm text-[#6a756c]">Trials used</p>
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e5efe8] text-[#3f6b4f]">
+            <p className="text-sm text-[#5f6f64]">Trials used</p>
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e8f2ea] text-[#1f6b3a]">
               <PulseIcon className="h-4 w-4" />
             </span>
           </div>
-          <p className="mt-4 text-[2rem] font-semibold leading-none tracking-tight text-[#152019]">
+          <p className="mt-4 text-[2rem] font-semibold leading-none tracking-tight text-[#243028]">
             {data.stats.trialUsed}
           </p>
-          <p className="mt-4 text-[11px] text-[#8a918c]">
+          <p className="mt-4 text-[11px] text-[#8a978c]">
             One free trial per account
           </p>
         </section>
 
         <section className={`${cardClass} min-h-[140px]`}>
           <div className="flex items-center justify-between">
-            <p className="text-sm text-[#6a756c]">Active trials</p>
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e5efe8] text-[#3f6b4f]">
+            <p className="text-sm text-[#5f6f64]">Active trials</p>
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e8f2ea] text-[#1f6b3a]">
               <StarIcon className="h-4 w-4" />
             </span>
           </div>
-          <p className="mt-4 text-[2rem] font-semibold leading-none tracking-tight text-[#152019]">
+          <p className="mt-4 text-[2rem] font-semibold leading-none tracking-tight text-[#243028]">
             {data.stats.trials.active}
           </p>
           <div className="mt-4 flex flex-wrap gap-1.5">
@@ -145,167 +166,64 @@ export function DashboardHome() {
         </section>
       </div>
 
-      <section className={cardClass}>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
-          <div className="min-w-0">
-            <p className="text-sm text-[#6a756c]">Next cohort</p>
-            {data.nextCohort ? (
-              <>
-                <p className="mt-1.5 text-lg font-semibold tracking-tight text-[#152019]">
-                  {data.nextCohort.label}
-                </p>
-                <p className="mt-1 text-sm text-[#6a756c]">
-                  {formatDate(data.nextCohort.startsAt)} →{" "}
-                  {formatDate(data.nextCohort.endsAt)}
-                </p>
-              </>
-            ) : (
-              <p className="mt-1.5 text-sm text-[#6a756c]">
-                No open cohort right now.
-              </p>
-            )}
-          </div>
-
-          {data.nextCohort ? (
-            <div className="w-full max-w-md shrink-0">
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="text-sm font-medium text-[#4d5c52]">
-                  Orientation seats
-                </p>
-                <p className="text-sm text-[#152019]">
-                  <span className="font-semibold">
-                    {data.nextCohort.orientationBooked}/
-                    {data.nextCohort.orientationCapacity}
-                  </span>
-                  <span className="ml-1 text-[#8a918c]">({seatPct}%)</span>
-                </p>
-              </div>
-              <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-[#e8eee8]">
-                <div
-                  className="h-full rounded-full bg-[#3f6b4f]"
-                  style={{
-                    width: `${Math.max(seatPct > 0 ? 4 : 0, seatPct)}%`,
-                  }}
-                />
-              </div>
-              <p className="mt-2 text-xs text-[#8a918c]">
-                {data.nextCohort.seatsLeft} seats remaining
-              </p>
-            </div>
-          ) : null}
-        </div>
-      </section>
-
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <section className="overflow-hidden rounded-2xl border border-[#e7ece7] bg-white shadow-[0_4px_16px_rgba(21,32,25,0.03)]">
-          <div className="flex items-center justify-between px-5 py-4">
-            <div>
-              <h3 className="text-sm font-semibold text-[#152019]">
-                Recent users
-              </h3>
-              <p className="mt-0.5 text-xs text-[#8a918c]">
-                Latest permanent accounts
-              </p>
-            </div>
-            <Link
-              href="/dashboard/users"
-              className="text-sm font-medium text-[#3f6b4f] hover:underline"
-            >
-              View all
-            </Link>
-          </div>
-          <div className="border-t border-[#eef2ee]">
-            {data.recentUsers.length === 0 ? (
-              <p className="px-5 py-10 text-center text-sm text-[#8a918c]">
-                No users yet.
-              </p>
-            ) : (
-              <ul className="divide-y divide-[#eef2ee]">
-                {data.recentUsers.map((user) => {
-                  const contact = user.mobile ?? user.email ?? "—";
-                  return (
-                    <li
-                      key={user.id}
-                      className="flex items-center gap-3 px-5 py-3.5"
-                    >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e5efe8] text-xs font-semibold text-[#3f6b4f]">
-                        {user.fullName.charAt(0).toUpperCase()}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="truncate text-sm font-medium text-[#152019]">
-                            {user.fullName}
-                          </p>
-                          <p className="shrink-0 text-xs text-[#8a918c]">
-                            {formatDate(user.createdAt)}
-                          </p>
-                        </div>
-                        <p className="mt-0.5 truncate text-xs text-[#6a756c]">
-                          <span className="capitalize">
-                            {regionLabel(user.region)}
-                          </span>
-                          <span className="text-[#c5ccc5]"> · </span>
-                          <span title={contact}>{contact}</span>
-                        </p>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        </section>
-
-        <section className="overflow-hidden rounded-2xl border border-[#e7ece7] bg-white shadow-[0_4px_16px_rgba(21,32,25,0.03)]">
-          <div className="px-5 py-4">
-            <h3 className="text-sm font-semibold text-[#152019]">
-              Recent trials
+      <section className="overflow-hidden rounded-2xl border border-[#e6ebe3] bg-white shadow-[0_4px_16px_rgba(21,32,25,0.03)]">
+        <div className="flex items-center justify-between px-5 py-4">
+          <div>
+            <h3 className="text-sm font-semibold text-[#243028]">
+              Recent users
             </h3>
-            <p className="mt-0.5 text-xs text-[#8a918c]">
-              Latest cohort registrations
+            <p className="mt-0.5 text-xs text-[#8a978c]">
+              Latest permanent accounts
             </p>
           </div>
-          <div className="border-t border-[#eef2ee]">
-            {data.recentTrials.length === 0 ? (
-              <p className="px-5 py-10 text-center text-sm text-[#8a918c]">
-                No trial registrations yet.
-              </p>
-            ) : (
-              <ul className="divide-y divide-[#eef2ee]">
-                {data.recentTrials.map((trial) => (
+          <Link
+            href="/dashboard/users"
+            className="text-sm font-medium text-[#1f6b3a] hover:underline"
+          >
+            View all
+          </Link>
+        </div>
+        <div className="border-t border-[#f4f7f4]">
+          {data.recentUsers.length === 0 ? (
+            <p className="px-5 py-10 text-center text-sm text-[#8a978c]">
+              No users yet.
+            </p>
+          ) : (
+            <ul className="divide-y divide-[#f4f7f4]">
+              {data.recentUsers.map((user) => {
+                const contact = user.mobile ?? user.email ?? "—";
+                return (
                   <li
-                    key={trial.id}
-                    className="flex items-start justify-between gap-3 px-5 py-3.5"
+                    key={user.id}
+                    className="flex items-center gap-3 px-5 py-3.5"
                   >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-[#152019]">
-                        {trial.user.fullName}
-                      </p>
-                      <p className="mt-0.5 truncate text-xs text-[#6a756c]">
-                        {trial.cohortLabel ?? "Cohort"}
-                        <span className="text-[#c5ccc5]"> · </span>
-                        {formatDateTime(trial.registeredAt)}
-                      </p>
-                      {trial.orientationLabel ? (
-                        <p className="mt-1 truncate text-xs text-[#8a918c]">
-                          {trial.orientationLabel}
-                        </p>
-                      ) : null}
-                    </div>
-                    <span
-                      className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium capitalize ${statusTone(
-                        trial.status,
-                      )}`}
-                    >
-                      {trial.status}
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e8f2ea] text-xs font-semibold text-[#1f6b3a]">
+                      {user.fullName.charAt(0).toUpperCase()}
                     </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-medium text-[#243028]">
+                          {user.fullName}
+                        </p>
+                        <p className="shrink-0 text-xs text-[#8a978c]">
+                          {formatDate(user.createdAt)}
+                        </p>
+                      </div>
+                      <p className="mt-0.5 truncate text-xs text-[#5f6f64]">
+                        <span className="capitalize">
+                          {regionLabel(user.region)}
+                        </span>
+                        <span className="text-[#c5ccc5]"> · </span>
+                        <span title={contact}>{contact}</span>
+                      </p>
+                    </div>
                   </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </section>
-      </div>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
