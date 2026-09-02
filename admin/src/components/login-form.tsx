@@ -9,7 +9,7 @@ function isValidEmail(value: string) {
 }
 
 const fieldClass =
-  "mt-1.5 h-11 w-full rounded-lg border border-[#d9ddd6] bg-white px-3.5 text-base text-[#1f2a24] outline-none transition placeholder:text-[#9aa59a] focus:border-[#243028] focus:ring-2 focus:ring-[#243028]/15 sm:h-12 sm:text-sm";
+  "mt-1.5 h-11 w-full rounded-lg border border-[#d9e2d8] bg-white px-3.5 text-base text-[#243028] outline-none transition placeholder:text-[#9aa89e] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 sm:h-12 sm:text-sm";
 
 export function LoginForm() {
   const router = useRouter();
@@ -118,7 +118,7 @@ export function LoginForm() {
             type="button"
             onClick={() => setShowPassword((visible) => !visible)}
             aria-label={showPassword ? "Hide password" : "Show password"}
-            className="absolute top-1.5 right-0 flex h-11 w-11 items-center justify-center text-[#6d7a6c] hover:text-[#243028] sm:h-12"
+            className="absolute top-1.5 right-0 flex h-11 w-11 items-center justify-center text-[#5f6f64] hover:text-[#1f6b3a] sm:h-12"
           >
             {showPassword ? <EyeOffIcon /> : <EyeIcon />}
           </button>
@@ -137,7 +137,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={submitting}
-        className="mt-2 h-11 w-full rounded-lg bg-[#243028] text-[15px] font-medium tracking-wide text-white transition hover:bg-[#1a241c] disabled:opacity-70 sm:h-12"
+        className="mt-2 h-11 w-full rounded-lg bg-[#1f6b3a] text-[15px] font-medium tracking-wide text-white transition hover:bg-[#185830] disabled:opacity-70 sm:h-12"
       >
         {submitting ? "Signing in…" : "Sign in"}
       </button>

@@ -30,9 +30,9 @@ function regionLabel(region: string) {
 function statusTone(status: string) {
   switch (status) {
     case "active":
-      return "bg-[#e5efe8] text-[#2f5a3d]";
+      return "bg-[#e8f2ea] text-[#1f6b3a]";
     case "scheduled":
-      return "bg-[#eef2ee] text-[#4d5c52]";
+      return "bg-[#f4f7f4] text-[#5f6f64]";
     default:
       return "bg-[#f1ece6] text-[#6b5b4a]";
   }
@@ -126,8 +126,8 @@ export function UsersPanel() {
 
   return (
     <section className="overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_rgba(21,32,25,0.04)]">
-      <div className="flex flex-col gap-3 border-b border-[#e4ebe4] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-[#6a756c]">
+      <div className="flex flex-col gap-3 border-b border-[#e6ebe3] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-[#5f6f64]">
           {users.length} permanent THM accounts
         </p>
         <div className="flex items-center gap-2">
@@ -136,7 +136,7 @@ export function UsersPanel() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search name, email, mobile…"
-            className="h-10 w-full rounded-full bg-[#f3f5f2] px-4 text-sm outline-none placeholder:text-[#9aa59a] focus:bg-white focus:ring-2 focus:ring-[#c5d4b8] sm:max-w-xs"
+            className="h-10 w-full rounded-full bg-[#fbf9f5] px-4 text-sm outline-none placeholder:text-[#9aa59a] focus:bg-white focus:ring-2 focus:ring-[#1f6b3a]/20 sm:max-w-xs"
           />
           <ReloadButton
             onClick={() => void load({ force: true })}
@@ -148,7 +148,7 @@ export function UsersPanel() {
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] table-fixed text-left text-sm">
-          <thead className="text-[#6a756c]">
+          <thead className="text-[#5f6f64]">
             <tr>
               <th className="w-[28%] px-5 py-3 font-medium">Name</th>
               <th className="w-[16%] px-5 py-3 font-medium">Region</th>
@@ -162,7 +162,7 @@ export function UsersPanel() {
               <tr>
                 <td
                   colSpan={5}
-                  className="px-5 py-16 text-center text-[#8a918c]"
+                  className="px-5 py-16 text-center text-[#8a978c]"
                 >
                   {users.length === 0
                     ? "No users yet."
@@ -173,27 +173,27 @@ export function UsersPanel() {
               filtered.map((user) => {
                 const contact = user.mobile ?? user.email ?? "—";
                 return (
-                  <tr key={user.id} className="border-t border-[#eef2ee]">
+                  <tr key={user.id} className="border-t border-[#f4f7f4]">
                     <td className="px-5 py-3">
                       <div className="flex min-w-0 items-center gap-3">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e5efe8] text-xs font-semibold text-[#3f6b4f]">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e8f2ea] text-xs font-semibold text-[#1f6b3a]">
                           {user.fullName.charAt(0).toUpperCase()}
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate font-medium text-[#152019]">
+                          <p className="truncate font-medium text-[#243028]">
                             {user.fullName}
                           </p>
-                          <p className="truncate text-xs text-[#8a918c]">
+                          <p className="truncate text-xs text-[#8a978c]">
                             {user.referralCode}
                           </p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-3 capitalize text-[#6a756c]">
+                    <td className="px-5 py-3 capitalize text-[#5f6f64]">
                       {regionLabel(user.region)}
                     </td>
                     <td className="px-5 py-3">
-                      <p className="truncate text-[#6a756c]" title={contact}>
+                      <p className="truncate text-[#5f6f64]" title={contact}>
                         {contact}
                       </p>
                     </td>
@@ -207,12 +207,12 @@ export function UsersPanel() {
                           {user.trial.status}
                         </span>
                       ) : (
-                        <span className="text-[#8a918c]">
+                        <span className="text-[#8a978c]">
                           {user.hasUsedFreeTrial ? "Used" : "None"}
                         </span>
                       )}
                     </td>
-                    <td className="px-5 py-3 whitespace-nowrap text-[#6a756c]">
+                    <td className="px-5 py-3 whitespace-nowrap text-[#5f6f64]">
                       {formatDate(user.createdAt)}
                     </td>
                   </tr>

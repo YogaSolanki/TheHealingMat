@@ -13,7 +13,7 @@ export default function ArticlesPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold text-[#243028]">Health Articles</h1>
-        <p className="mt-1 text-sm text-[#6a756c]">
+        <p className="mt-1 text-sm text-[#5f6f64]">
           Manage articles shown on the Health Articles page.
         </p>
       </div>

@@ -20,7 +20,7 @@ export function ReloadButton({
       disabled={loading}
       aria-label={label}
       title={label}
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f3f5f2] text-[#3f6b4f] transition hover:bg-[#e5efe8] disabled:cursor-not-allowed disabled:opacity-60"
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fbf9f5] text-[#1f6b3a] transition hover:bg-[#e8f2ea] disabled:cursor-not-allowed disabled:opacity-60"
     >
       <RefreshIcon className={`h-[18px] w-[18px] ${loading ? "animate-spin" : ""}`} />
     </button>

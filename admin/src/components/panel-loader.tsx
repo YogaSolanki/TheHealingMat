@@ -1,7 +1,7 @@
 function Pulse({ className = "" }: { className?: string }) {
   return (
     <div
-      className={`animate-pulse rounded-lg bg-[#e7ece7] ${className}`}
+      className={`animate-pulse rounded-lg bg-[#e6ebe3] ${className}`}
       aria-hidden="true"
     />
   );
@@ -25,7 +25,7 @@ export function PanelLoader({
           {Array.from({ length: 3 }).map((_, index) => (
             <div
               key={index}
-              className="min-h-[140px] rounded-2xl border border-[#e7ece7] bg-white p-5 shadow-[0_4px_16px_rgba(21,32,25,0.03)]"
+              className="min-h-[140px] rounded-2xl border border-[#e6ebe3] bg-white p-5 shadow-[0_4px_16px_rgba(21,32,25,0.03)]"
             >
               <div className="flex items-center justify-between">
                 <Pulse className="h-4 w-24" />
@@ -37,28 +37,18 @@ export function PanelLoader({
           ))}
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-[#e7ece7] bg-white p-5 shadow-[0_4px_16px_rgba(21,32,25,0.03)]">
-            <Pulse className="h-5 w-40" />
-            <div className="mt-5 space-y-3">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="flex items-center gap-3">
-                  <Pulse className="h-9 w-9 rounded-full" />
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <Pulse className="h-3.5 w-[70%]" />
-                    <Pulse className="h-3 w-[45%]" />
-                  </div>
+        <div className="rounded-2xl border border-[#e6ebe3] bg-white p-5 shadow-[0_4px_16px_rgba(21,32,25,0.03)]">
+          <Pulse className="h-5 w-40" />
+          <div className="mt-5 space-y-3">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="flex items-center gap-3">
+                <Pulse className="h-9 w-9 rounded-full" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Pulse className="h-3.5 w-[70%]" />
+                  <Pulse className="h-3 w-[45%]" />
                 </div>
-              ))}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-[#e7ece7] bg-white p-5 shadow-[0_4px_16px_rgba(21,32,25,0.03)]">
-            <Pulse className="h-5 w-36" />
-            <div className="mt-5 space-y-3">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <Pulse key={index} className="h-10 w-full rounded-xl" />
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
         <span className="sr-only">{label}</span>
@@ -72,13 +62,13 @@ export function PanelLoader({
       aria-busy="true"
       aria-live="polite"
     >
-      <div className="flex flex-col gap-3 border-b border-[#e4ebe4] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-b border-[#e6ebe3] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <Pulse className="h-4 w-28" />
         <Pulse className="h-10 w-full rounded-full sm:max-w-xs" />
       </div>
 
       <div className="space-y-0 px-5 py-2">
-        <div className="grid grid-cols-4 gap-4 border-b border-[#eef2ee] py-3">
+        <div className="grid grid-cols-4 gap-4 border-b border-[#f4f7f4] py-3">
           <Pulse className="h-3 w-16" />
           <Pulse className="h-3 w-20" />
           <Pulse className="h-3 w-14" />
@@ -87,7 +77,7 @@ export function PanelLoader({
         {Array.from({ length: 6 }).map((_, index) => (
           <div
             key={index}
-            className="grid grid-cols-4 items-center gap-4 border-b border-[#eef2ee] py-4 last:border-b-0"
+            className="grid grid-cols-4 items-center gap-4 border-b border-[#f4f7f4] py-4 last:border-b-0"
           >
             <div className="space-y-2">
               <Pulse className="h-3.5 w-[80%]" />
