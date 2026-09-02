@@ -113,3 +113,15 @@ export function StarIcon({ className = iconClass }: IconProps) {
   );
 }
 
+export function RefreshIcon({ className = iconClass }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+      <path
+        d="M4.5 12a7.5 7.5 0 0 1 12.7-5.4M19.5 12a7.5 7.5 0 0 1-12.7 5.4"
+        strokeLinecap="round"
+      />
+      <path d="M16.5 3.5V7h3.5M7.5 20.5V17H4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+

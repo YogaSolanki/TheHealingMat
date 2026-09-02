@@ -1,13 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { PulseIcon, StarIcon, UsersIcon } from "@/components/icons";
+import { PanelLoader } from "@/components/panel-loader";
+import { ReloadButton } from "@/components/reload-button";
 import {
   ADMIN_TOKEN_KEY,
   getDashboardOverview,
   type DashboardOverview,
 } from "@/lib/api";
+import {
+  DASHBOARD_CACHE_KEYS,
+  getCached,
+  hasCached,
+  setCached,
+} from "@/lib/dashboard-cache";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -45,35 +53,69 @@ const cardClass =
   "rounded-2xl border border-[#e7ece7] bg-white p-5 shadow-[0_4px_16px_rgba(21,32,25,0.03)]";
 
 export function DashboardHome() {
-  const [data, setData] = useState<DashboardOverview | null>(null);
+  const cacheKey = DASHBOARD_CACHE_KEYS.overview;
+  const [data, setData] = useState<DashboardOverview | null>(
+    () => getCached<DashboardOverview>(cacheKey) ?? null,
+  );
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !hasCached(cacheKey));
+
+  const load = useCallback(
+    async (options?: { force?: boolean }) => {
+      const force = options?.force === true;
+      if (!force) {
+        const cached = getCached<DashboardOverview>(cacheKey);
+        if (cached) {
+          setData(cached);
+          setLoading(false);
+          setError(null);
+          return;
+        }
+      }
+
+      const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
+      if (!token) {
+        setError("Please sign in again.");
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      try {
+        const overview = await getDashboardOverview(token);
+        setCached(cacheKey, overview);
+        setData(overview);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [cacheKey],
+  );
 
   useEffect(() => {
-    const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
-    if (!token) {
-      setError("Please sign in again.");
-      setLoading(false);
-      return;
-    }
-
-    getDashboardOverview(token)
-      .then(setData)
-      .catch((err) =>
-        setError(err instanceof Error ? err.message : "Failed to load"),
-      )
-      .finally(() => setLoading(false));
-  }, []);
+    void load();
+  }, [load]);
 
   if (loading) {
-    return <p className="text-sm text-[#6a756c]">Loading dashboard…</p>;
+    return <PanelLoader label="Loading dashboard…" variant="dashboard" />;
   }
 
   if (error || !data) {
     return (
-      <p className="rounded-2xl bg-white px-5 py-4 text-sm text-[#8a2f2f] shadow-sm">
-        {error ?? "Unable to load dashboard."}
-      </p>
+      <div className="space-y-3">
+        <div className="flex justify-end">
+          <ReloadButton
+            onClick={() => void load({ force: true })}
+            label="Hard reload dashboard"
+          />
+        </div>
+        <p className="rounded-2xl bg-white px-5 py-4 text-sm text-[#8a2f2f] shadow-sm">
+          {error ?? "Unable to load dashboard."}
+        </p>
+      </div>
     );
   }
 
@@ -88,6 +130,14 @@ export function DashboardHome() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
+      <div className="flex items-center justify-end">
+        <ReloadButton
+          onClick={() => void load({ force: true })}
+          loading={loading}
+          label="Hard reload dashboard"
+        />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-3">
         <section className={`${cardClass} min-h-[140px]`}>
           <div className="flex items-center justify-between">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAdminSession } from "@/hooks/use-admin-session";
@@ -8,6 +9,7 @@ import { ADMIN_NAV, isNavActive } from "@/lib/nav";
 import { displayNameFromEmail } from "@/lib/admin-name";
 import { AdminSessionProvider } from "@/components/admin-session";
 import { LogoutIcon, MenuIcon, NavGlyph } from "@/components/icons";
+import fullLogo from "@/assets/full-logo.png";
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -16,8 +18,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   if (checking || !admin) {
     return (
-      <main className="flex min-h-dvh items-center justify-center bg-[#f3f5f2]">
-        <p className="text-sm text-[#6a756c]">Loading…</p>
+      <main className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-[#f3f5f2]">
+        <div
+          className="h-9 w-9 animate-spin rounded-full border-2 border-[#d5e0d5] border-t-[#3f6b4f]"
+          aria-hidden="true"
+        />
+        <p className="text-sm text-[#6a756c]">Loading dashboard…</p>
       </main>
     );
   }
@@ -30,7 +36,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-dvh bg-[#f3f5f2]">
-      <aside className="sticky top-0 hidden h-dvh w-[240px] min-w-[240px] shrink-0 flex-col bg-[#152019] px-3 py-6 text-white md:flex">
+      <aside className="sticky top-0 hidden h-dvh w-[300px] min-w-[300px] shrink-0 flex-col bg-[#152019] px-5 py-7 text-white md:flex">
         <SidebarBody pathname={pathname} onSignOut={signOut} />
       </aside>
 
@@ -42,7 +48,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             aria-label="Close menu"
             onClick={() => setMenuOpen(false)}
           />
-          <aside className="relative z-50 flex h-full w-[240px] flex-col bg-[#152019] px-3 py-6 text-white">
+          <aside className="relative z-50 flex h-full w-[300px] flex-col bg-[#152019] px-5 py-7 text-white">
             <SidebarBody
               pathname={pathname}
               onSignOut={signOut}
@@ -111,19 +117,24 @@ function SidebarBody({
 }) {
   return (
     <>
-      <Link href="/dashboard" className="mb-8 px-2" onClick={onNavigate}>
-        <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#3f6b4f] text-sm font-bold">
-            TH
-          </span>
-          <div>
-            <p className="text-sm font-semibold tracking-wide">Healing Mat</p>
-            <p className="text-[11px] text-[#8a9a8e]">Admin</p>
-          </div>
-        </div>
+      <Link
+        href="/dashboard"
+        className="mb-10 block px-1"
+        onClick={onNavigate}
+        aria-label="The Healing Mat admin dashboard"
+      >
+        <Image
+          src={fullLogo}
+          alt="The Healing Mat"
+          width={400}
+          height={100}
+          priority
+          className="h-14 w-auto max-w-full object-contain object-left brightness-0 invert"
+          sizes="280px"
+        />
       </Link>
 
-      <nav className="flex flex-1 flex-col gap-1">
+      <nav className="flex flex-1 flex-col gap-1.5">
         {ADMIN_NAV.map((item) => {
           const active = isNavActive(pathname, item.href);
           return (
@@ -132,7 +143,7 @@ function SidebarBody({
               href={item.href}
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
+              className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-[15px] transition ${
                 active
                   ? "bg-[#3f6b4f] font-medium text-white"
                   : "text-[#b7c4bb] hover:bg-white/5 hover:text-white"
@@ -149,7 +160,7 @@ function SidebarBody({
         <button
           type="button"
           onClick={onSignOut}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[#b7c4bb] hover:bg-white/5 hover:text-white"
+          className="flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-[15px] text-[#b7c4bb] hover:bg-white/5 hover:text-white"
         >
           <LogoutIcon />
           Log out

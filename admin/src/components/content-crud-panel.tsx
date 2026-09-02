@@ -8,8 +8,16 @@ import {
   useMemo,
   useState,
 } from "react";
+import { PanelLoader } from "@/components/panel-loader";
+import { ReloadButton } from "@/components/reload-button";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { ADMIN_TOKEN_KEY } from "@/lib/api";
+import {
+  DASHBOARD_CACHE_KEYS,
+  getCached,
+  hasCached,
+  setCached,
+} from "@/lib/dashboard-cache";
 
 export type ContentKind = "resources" | "articles" | "videos";
 
@@ -112,32 +120,57 @@ export function ContentCrudPanel({
   update,
   remove,
 }: ContentCrudPanelProps) {
-  const [items, setItems] = useState<ContentItem[]>([]);
+  const cacheKey =
+    kind === "resources"
+      ? DASHBOARD_CACHE_KEYS.resources
+      : kind === "articles"
+        ? DASHBOARD_CACHE_KEYS.articles
+        : DASHBOARD_CACHE_KEYS.videos;
+
+  const [items, setItems] = useState<ContentItem[]>(
+    () => getCached<ContentItem[]>(cacheKey) ?? [],
+  );
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !hasCached(cacheKey));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<ContentItem | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
 
-  const load = useCallback(async () => {
-    const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
-    if (!token) {
-      setError("Please sign in again.");
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      setItems(await list(token));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load items");
-    } finally {
-      setLoading(false);
-    }
-  }, [list]);
+  const load = useCallback(
+    async (options?: { force?: boolean }) => {
+      const force = options?.force === true;
+      if (!force) {
+        const cached = getCached<ContentItem[]>(cacheKey);
+        if (cached) {
+          setItems(cached);
+          setLoading(false);
+          setError(null);
+          return;
+        }
+      }
+
+      const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
+      if (!token) {
+        setError("Please sign in again.");
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await list(token);
+        setCached(cacheKey, data);
+        setItems(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load items");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [cacheKey, list],
+  );
 
   useEffect(() => {
     void load();
@@ -224,7 +257,7 @@ export function ContentCrudPanel({
       }
       setFormOpen(false);
       setEditing(null);
-      await load();
+      await load({ force: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -244,14 +277,14 @@ export function ContentCrudPanel({
     setError(null);
     try {
       await remove(token, item.id);
-      await load();
+      await load({ force: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed");
     }
   }
 
   if (loading) {
-    return <p className="text-sm text-[#6a756c]">Loading {title.toLowerCase()}…</p>;
+    return <PanelLoader label={`Loading ${title.toLowerCase()}…`} />;
   }
 
   return (
@@ -275,13 +308,20 @@ export function ContentCrudPanel({
               placeholder="Search title, slug, category…"
               className="h-10 w-full rounded-full bg-[#f3f5f2] px-4 text-sm outline-none placeholder:text-[#9aa59a] focus:bg-white focus:ring-2 focus:ring-[#c5d4b8] sm:w-64"
             />
-            <button
-              type="button"
-              onClick={openCreate}
-              className="h-10 rounded-full bg-[#1f6b3a] px-4 text-sm font-semibold text-white hover:bg-[#185830]"
-            >
-              Add {singular}
-            </button>
+            <div className="flex items-center gap-2">
+              <ReloadButton
+                onClick={() => void load({ force: true })}
+                loading={loading}
+                label={`Reload ${title.toLowerCase()}`}
+              />
+              <button
+                type="button"
+                onClick={openCreate}
+                className="h-10 rounded-full bg-[#1f6b3a] px-4 text-sm font-semibold text-white hover:bg-[#185830]"
+              >
+                Add {singular}
+              </button>
+            </div>
           </div>
         </div>
 

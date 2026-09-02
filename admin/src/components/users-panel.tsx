@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { PanelLoader } from "@/components/panel-loader";
+import { ReloadButton } from "@/components/reload-button";
 import {
   ADMIN_TOKEN_KEY,
   getAdminUsers,
   type AdminUserRow,
 } from "@/lib/api";
+import {
+  DASHBOARD_CACHE_KEYS,
+  getCached,
+  hasCached,
+  setCached,
+} from "@/lib/dashboard-cache";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -31,26 +39,52 @@ function statusTone(status: string) {
 }
 
 export function UsersPanel() {
-  const [users, setUsers] = useState<AdminUserRow[]>([]);
+  const cacheKey = DASHBOARD_CACHE_KEYS.users;
+  const [users, setUsers] = useState<AdminUserRow[]>(
+    () => getCached<AdminUserRow[]>(cacheKey) ?? [],
+  );
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !hasCached(cacheKey));
+
+  const load = useCallback(
+    async (options?: { force?: boolean }) => {
+      const force = options?.force === true;
+      if (!force) {
+        const cached = getCached<AdminUserRow[]>(cacheKey);
+        if (cached) {
+          setUsers(cached);
+          setLoading(false);
+          setError(null);
+          return;
+        }
+      }
+
+      const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
+      if (!token) {
+        setError("Please sign in again.");
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await getAdminUsers(token);
+        setCached(cacheKey, data.users);
+        setUsers(data.users);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load users");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [cacheKey],
+  );
 
   useEffect(() => {
-    const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
-    if (!token) {
-      setError("Please sign in again.");
-      setLoading(false);
-      return;
-    }
-
-    getAdminUsers(token)
-      .then((data) => setUsers(data.users))
-      .catch((err) =>
-        setError(err instanceof Error ? err.message : "Failed to load users"),
-      )
-      .finally(() => setLoading(false));
-  }, []);
+    void load();
+  }, [load]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -71,14 +105,22 @@ export function UsersPanel() {
   }, [users, query]);
 
   if (loading) {
-    return <p className="text-sm text-[#6a756c]">Loading users…</p>;
+    return <PanelLoader label="Loading users…" />;
   }
 
   if (error) {
     return (
-      <p className="rounded-2xl bg-white px-5 py-4 text-sm text-[#8a2f2f] shadow-sm">
-        {error}
-      </p>
+      <div className="space-y-3">
+        <div className="flex justify-end">
+          <ReloadButton
+            onClick={() => void load({ force: true })}
+            label="Reload users"
+          />
+        </div>
+        <p className="rounded-2xl bg-white px-5 py-4 text-sm text-[#8a2f2f] shadow-sm">
+          {error}
+        </p>
+      </div>
     );
   }
 
@@ -88,13 +130,20 @@ export function UsersPanel() {
         <p className="text-sm text-[#6a756c]">
           {users.length} permanent THM accounts
         </p>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search name, email, mobile…"
-          className="h-10 w-full rounded-full bg-[#f3f5f2] px-4 text-sm outline-none placeholder:text-[#9aa59a] focus:bg-white focus:ring-2 focus:ring-[#c5d4b8] sm:max-w-xs"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search name, email, mobile…"
+            className="h-10 w-full rounded-full bg-[#f3f5f2] px-4 text-sm outline-none placeholder:text-[#9aa59a] focus:bg-white focus:ring-2 focus:ring-[#c5d4b8] sm:max-w-xs"
+          />
+          <ReloadButton
+            onClick={() => void load({ force: true })}
+            loading={loading}
+            label="Reload users"
+          />
+        </div>
       </div>
 
       <div className="overflow-x-auto">
