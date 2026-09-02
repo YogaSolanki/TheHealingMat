@@ -484,7 +484,7 @@ export function ContentCrudPanel({
                           videoUrl: e.target.value,
                         }))
                       }
-                      placeholder="https://..."
+                      placeholder="https://youtu.be/... or YouTube watch URL"
                       className={inputClass}
                     />
                   </Field>

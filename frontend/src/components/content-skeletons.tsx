@@ -92,21 +92,39 @@ export function ContentDetailSkeleton({
           />
         </div>
 
-        <div className="mx-auto flex w-full max-w-[1140px] flex-col items-stretch gap-6 lg:flex-row lg:items-center lg:gap-10">
-          <Pulse className="aspect-[3/4] w-full max-w-[240px] shrink-0 rounded-[18px] sm:max-w-[260px] lg:w-[280px] lg:max-w-none" />
+        <div className="mx-auto w-full max-w-[1140px]">
+          <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-center lg:gap-10">
+            <Pulse className="aspect-[3/4] w-full max-w-[280px] shrink-0 rounded-[18px] sm:max-w-[300px] lg:w-[320px] lg:max-w-none" />
 
-          <div className="min-w-0 flex-1 space-y-3 text-left">
-            <div className="flex gap-2">
-              <Pulse className="h-5 w-20 rounded-full" />
-              <Pulse className="h-5 w-16 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-3 text-left">
+              <div className="flex gap-2">
+                <Pulse className="h-5 w-20 rounded-full" />
+                <Pulse className="h-5 w-16 rounded-full" />
+              </div>
+              <Pulse className="h-9 w-[70%] max-w-[360px]" />
+              <Pulse className="h-5 w-[45%] max-w-[240px]" />
+              <Pulse className="h-4 w-full max-w-[520px]" />
+              <Pulse className="h-4 w-[92%] max-w-[480px]" />
+              <Pulse className="h-4 w-[80%] max-w-[420px]" />
+              {kind === "articles" ? (
+                <Pulse className="mt-3 h-11 w-36 rounded-full" />
+              ) : null}
             </div>
-            <Pulse className="h-9 w-[70%] max-w-[360px]" />
-            <Pulse className="h-5 w-[45%] max-w-[240px]" />
-            <Pulse className="h-4 w-full max-w-[520px]" />
-            <Pulse className="h-4 w-[92%] max-w-[480px]" />
-            <Pulse className="h-4 w-[80%] max-w-[420px]" />
-            <Pulse className="mt-3 h-11 w-36 rounded-full" />
           </div>
+
+          {kind === "videos" ? (
+            <div className="relative mt-8 overflow-hidden rounded-[22px] border border-[#e5e7eb] sm:mt-10">
+              <Pulse className="aspect-video w-full rounded-none" />
+              <div
+                className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                aria-hidden="true"
+              >
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/70 text-[22px] font-bold text-[#9ca3af] shadow-sm sm:h-16 sm:w-16 sm:text-[26px]">
+                  ▶
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
         <span className="sr-only">Loading content…</span>
       </section>
