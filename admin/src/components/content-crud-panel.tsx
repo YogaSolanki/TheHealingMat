@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { RichTextEditor } from "@/components/rich-text-editor";
 import { ADMIN_TOKEN_KEY } from "@/lib/api";
 
 export type ContentKind = "resources" | "articles" | "videos";
@@ -69,6 +70,15 @@ function slugify(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+function normalizeArticleBody(html: string) {
+  const text = html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text ? html.trim() : null;
 }
 
 function formatDate(value: string) {
@@ -187,7 +197,7 @@ export function ContentCrudPanel({
     }
     if (kind === "articles") {
       payload.readTime = form.readTime.trim();
-      payload.body = form.body.trim() || null;
+      payload.body = normalizeArticleBody(form.body);
     }
     if (kind === "videos") {
       payload.duration = form.duration.trim();
@@ -511,17 +521,15 @@ export function ContentCrudPanel({
             </div>
 
             {kind === "articles" ? (
-              <div className="mt-3">
-                <Field label="Body (optional)">
-                  <textarea
-                    rows={5}
-                    value={form.body}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, body: e.target.value }))
-                    }
-                    className={inputClass}
-                  />
-                </Field>
+              <div className="mt-3 text-sm">
+                <span className="mb-1.5 block font-medium text-[#3d4a3c]">
+                  Body (optional)
+                </span>
+                <RichTextEditor
+                  value={form.body}
+                  onChange={(body) => setForm((prev) => ({ ...prev, body }))}
+                  placeholder="Write the article with bold, underline, and bullet points…"
+                />
               </div>
             ) : null}
 
