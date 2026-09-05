@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { IconType } from "react-icons";
-import { FaFacebookF, FaLinkedinIn, FaPinterestP, FaWhatsapp, FaYoutube } from "react-icons/fa";
+import { FaFacebookF, FaPinterestP, FaWhatsapp, FaYoutube } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import { HiOutlineMail, HiOutlineLocationMarker, HiOutlinePhone } from "react-icons/hi";
 import { RiInstagramFill } from "react-icons/ri";
@@ -31,12 +31,36 @@ const legalLinks = [
 ];
 
 const socialLinks: { key: string; href: string; label: string; icon: IconType }[] = [
-  { key: "instagram", href: "#", label: "Instagram", icon: RiInstagramFill },
-  { key: "facebook", href: "#", label: "Facebook", icon: FaFacebookF },
-  { key: "youtube", href: "#", label: "YouTube", icon: FaYoutube },
-  { key: "linkedin", href: "#", label: "LinkedIn", icon: FaLinkedinIn },
-  { key: "x", href: "#", label: "X", icon: FaXTwitter },
-  { key: "pinterest", href: "#", label: "Pinterest", icon: FaPinterestP },
+  {
+    key: "instagram",
+    href: "https://www.instagram.com/thehealingmat.official/",
+    label: "Instagram",
+    icon: RiInstagramFill,
+  },
+  {
+    key: "facebook",
+    href: "https://www.facebook.com/TheHealingMat.Official",
+    label: "Facebook",
+    icon: FaFacebookF,
+  },
+  {
+    key: "youtube",
+    href: "https://www.youtube.com/@the_healing_mat",
+    label: "YouTube",
+    icon: FaYoutube,
+  },
+  {
+    key: "x",
+    href: "https://x.com/the_healing_mat",
+    label: "X",
+    icon: FaXTwitter,
+  },
+  {
+    key: "pinterest",
+    href: "https://pin.it/5ieOmFhl4",
+    label: "Pinterest",
+    icon: FaPinterestP,
+  },
 ];
 
 function FooterLinkColumn({
@@ -93,13 +117,15 @@ export function SiteFooter() {
           <ul className="mt-3.5 flex flex-wrap items-center justify-start gap-2">
             {socialLinks.map((social) => (
               <li key={social.key}>
-                <Link
+                <a
                   href={social.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   aria-label={social.label}
                   className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-[#cfd8cf] bg-white text-[#1f6b3a] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#1f6b3a] hover:bg-[#eef6f0] hover:shadow-md"
                 >
                   <social.icon className="h-[15px] w-[15px]" />
-                </Link>
+                </a>
               </li>
             ))}
           </ul>
