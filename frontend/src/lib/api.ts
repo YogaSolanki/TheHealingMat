@@ -1,5 +1,4 @@
-export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
 
 export type HealthResponse = {
   status: "ok" | "degraded";
@@ -13,6 +12,8 @@ export type Region = "india" | "outside_india";
 export type PublicUser = {
   id: string;
   fullName: string;
+  dateOfBirth: string | null;
+  gender: UserGender | null;
   region: Region;
   mobile: string | null;
   email: string | null;
@@ -21,6 +22,8 @@ export type PublicUser = {
   hasUsedFreeTrial: boolean;
   role: string;
 };
+
+export type UserGender = "male" | "female" | "other" | "prefer_not_to_say";
 
 export type OtpRequestResponse = {
   challengeId: string;
@@ -150,6 +153,25 @@ export async function changePassword(
     body: JSON.stringify(input),
   });
   return parseJson<{ success: boolean; message: string }>(response);
+}
+
+export async function updateProfile(
+  accessToken: string,
+  input: {
+    fullName: string;
+    dateOfBirth?: string | null;
+    gender?: UserGender | null;
+  },
+): Promise<{ success: boolean; message: string; user: PublicUser }> {
+  const response = await fetch(`${API_URL}/auth/profile`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(input),
+  });
+  return parseJson<{ success: boolean; message: string; user: PublicUser }>(response);
 }
 
 export async function verifyOtp(input: {

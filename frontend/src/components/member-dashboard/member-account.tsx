@@ -2,7 +2,22 @@
 
 import { useState, type ReactNode } from "react";
 import { ChangePasswordModal } from "@/components/member-dashboard/change-password-modal";
+import { memberPrimaryBtnClass } from "@/components/member-dashboard/member-button-styles";
+import { MemberSelect } from "@/components/member-dashboard/member-select";
+import { MemberDatePicker } from "@/components/member-dashboard/member-date-picker";
 import { useMemberDashboard } from "@/components/member-dashboard/member-dashboard-provider";
+import { updateProfile, type UserGender } from "@/lib/api";
+import { getStoredToken } from "@/lib/auth-storage";
+
+const genderOptions: { value: UserGender; label: string }[] = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "other", label: "Other" },
+  { value: "prefer_not_to_say", label: "Prefer not to say" },
+];
+
+const inlineFieldClass =
+  "w-full max-w-[300px] rounded-[12px] border border-[#d7e0d6] bg-white px-3 py-2 text-[14px] font-semibold text-[#243028] outline-none transition focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
 
 function formatMobile(mobile: string | null) {
   if (!mobile) return "—";
@@ -16,9 +31,86 @@ function formatMobile(mobile: string | null) {
   return mobile;
 }
 
+function formatGender(gender: UserGender | null) {
+  if (!gender) return "—";
+  return genderOptions.find((option) => option.value === gender)?.label ?? "—";
+}
+
+function formatDob(dateOfBirth: string | null) {
+  if (!dateOfBirth) return "—";
+  const date = new Date(`${dateOfBirth}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function isValidDob(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date <= today;
+}
+
 export function MemberAccountPage() {
-  const { user, signOut } = useMemberDashboard();
+  const { user, signOut, updateUser } = useMemberDashboard();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [fullName, setFullName] = useState(user.fullName);
+  const [dateOfBirth, setDateOfBirth] = useState(user.dateOfBirth ?? "");
+  const [gender, setGender] = useState<UserGender | "">(user.gender ?? "");
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+
+  function startEditing() {
+    setFullName(user.fullName);
+    setDateOfBirth(user.dateOfBirth ?? "");
+    setGender(user.gender ?? "");
+    setProfileError(null);
+    setIsEditing(true);
+  }
+
+  async function saveProfile() {
+    setProfileError(null);
+
+    const trimmedName = fullName.trim();
+    if (trimmedName.length < 2) {
+      setProfileError("Please enter your full name.");
+      return;
+    }
+
+    const trimmedDob = dateOfBirth.trim();
+    const parsedDob = trimmedDob === "" ? null : trimmedDob;
+    if (parsedDob !== null && !isValidDob(parsedDob)) {
+      setProfileError("Please enter a valid date of birth.");
+      return;
+    }
+
+    const token = getStoredToken();
+    if (!token) {
+      setProfileError("Your session has expired. Please log in again.");
+      return;
+    }
+
+    setProfileSaving(true);
+    try {
+      const result = await updateProfile(token, {
+        fullName: trimmedName,
+        dateOfBirth: parsedDob,
+        gender: gender || null,
+      });
+      updateUser(result.user);
+      setIsEditing(false);
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : "Could not update profile.");
+    } finally {
+      setProfileSaving(false);
+    }
+  }
 
   return (
     <div className="w-full bg-[#FBF9F5]">
@@ -36,100 +128,161 @@ export function MemberAccountPage() {
 
         <div className="space-y-5 sm:space-y-6">
           <section className="overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white shadow-[0_10px_32px_rgba(31,107,58,0.05)]">
-          <div className="flex flex-col gap-4 border-b border-[#eef2ee] px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6 sm:py-6">
-            <CardHeading
-              icon={<UserCircleIcon className="h-6 w-6 text-[#1f6b3a]" />}
-              title="Personal Information"
-              subtitle="Your personal details used for your account."
-            />
-            <button
-              type="button"
-              className="inline-flex shrink-0 cursor-pointer items-center gap-2 self-start rounded-[12px] border border-[#d7e0d6] bg-white px-4 py-2 text-[13px] font-semibold text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] sm:text-[14px]"
-            >
-              <PencilIcon className="h-4 w-4" />
-              Edit
-            </button>
-          </div>
+            <div className="flex flex-col gap-4 border-b border-[#eef2ee] px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6 sm:py-6">
+              <CardHeading
+                icon={<UserCircleIcon className="h-6 w-6 text-[#1f6b3a]" />}
+                title="Personal Information"
+                subtitle="Your personal details used for your account."
+              />
+              {isEditing ? (
+                <button
+                  type="button"
+                  onClick={saveProfile}
+                  disabled={profileSaving}
+                  className={`${memberPrimaryBtnClass} inline-flex shrink-0 cursor-pointer items-center justify-center self-start rounded-[12px] px-4 py-2 text-[13px] sm:text-[14px]`}
+                >
+                  {profileSaving ? "Saving..." : "Save"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={startEditing}
+                  className="inline-flex shrink-0 cursor-pointer items-center gap-2 self-start rounded-[12px] border border-[#d7e0d6] bg-white px-4 py-2 text-[13px] font-semibold text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] sm:text-[14px]"
+                >
+                  <PencilIcon className="h-4 w-4" />
+                  Edit
+                </button>
+              )}
+            </div>
 
-          <div className="divide-y divide-[#eef2ee]">
-            <InfoRow
-              icon={<PersonIcon className="h-5 w-5 text-[#1f6b3a]" />}
-              label="Full Name"
-              value={user.fullName || "—"}
-            />
-            <InfoRow
-              icon={<PhoneIcon className="h-5 w-5 text-[#1f6b3a]" />}
-              label="Mobile Number"
-              value={formatMobile(user.mobile)}
-              verified={Boolean(user.mobile)}
-            />
-            <InfoRow
-              icon={<MailIcon className="h-5 w-5 text-[#1f6b3a]" />}
-              label="Email Address"
-              value={user.email || "—"}
-              verified={Boolean(user.email)}
-            />
-          </div>
+            {profileError ? (
+              <div className="border-b border-[#eef2ee] px-5 py-3 sm:px-6">
+                <p className="rounded-[12px] bg-[#fdecec] px-3 py-2 text-[13px] text-[#8a2f2f]">
+                  {profileError}
+                </p>
+              </div>
+            ) : null}
 
-          <div className="flex items-start gap-2.5 border-t border-[#eef2ee] bg-[#fafbf9] px-5 py-4 sm:px-6">
-            <InfoCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-[#8a9a8d]" />
-            <p className="text-[12px] leading-relaxed text-[#6b7c6e] sm:text-[13px]">
-              To change your mobile number, OTP verification is required. Email changes, if
-              allowed, will also require verification.
-            </p>
-          </div>
+            <div className="divide-y divide-[#eef2ee]">
+              <EditableInfoRow
+                icon={<PersonIcon className="h-5 w-5 text-[#1f6b3a]" />}
+                label="Full Name"
+                isEditing={isEditing}
+                value={user.fullName || "—"}
+                editContent={
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(event) => setFullName(event.target.value)}
+                    className={inlineFieldClass}
+                    placeholder="Enter your full name"
+                    autoComplete="name"
+                    maxLength={120}
+                  />
+                }
+              />
+              <EditableInfoRow
+                icon={<DobIcon className="h-5 w-5 text-[#1f6b3a]" />}
+                label="DOB"
+                isEditing={isEditing}
+                value={formatDob(user.dateOfBirth)}
+                editContent={
+                  <MemberDatePicker
+                    value={dateOfBirth}
+                    onChange={setDateOfBirth}
+                  />
+                }
+              />
+              <EditableInfoRow
+                icon={<GenderIcon className="h-5 w-5 text-[#1f6b3a]" />}
+                label="Gender"
+                isEditing={isEditing}
+                value={formatGender(user.gender)}
+                editContent={
+                  <MemberSelect
+                    value={gender}
+                    onChange={(next) => setGender(next as UserGender | "")}
+                    placeholder="Select gender"
+                    options={[
+                      { value: "", label: "Select gender" },
+                      ...genderOptions,
+                    ]}
+                  />
+                }
+              />
+              <InfoRow
+                icon={<PhoneIcon className="h-5 w-5 text-[#1f6b3a]" />}
+                label="Mobile Number"
+                value={formatMobile(user.mobile)}
+                verified={Boolean(user.mobile)}
+              />
+              <InfoRow
+                icon={<MailIcon className="h-5 w-5 text-[#1f6b3a]" />}
+                label="Email Address"
+                value={user.email || "—"}
+                verified={Boolean(user.email)}
+              />
+            </div>
+
+            <div className="flex items-start gap-2.5 border-t border-[#eef2ee] bg-[#fafbf9] px-5 py-4 sm:px-6">
+              <InfoCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-[#8a9a8d]" />
+              <p className="text-[12px] leading-relaxed text-[#6b7c6e] sm:text-[13px]">
+                To change your mobile number, OTP verification is required. Email changes, if
+                allowed, will also require verification.
+              </p>
+            </div>
           </section>
 
           <section className="overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white shadow-[0_10px_32px_rgba(31,107,58,0.05)]">
-          <div className="border-b border-[#eef2ee] px-5 py-5 sm:px-6 sm:py-6">
-            <CardHeading
-              icon={<ShieldIcon className="h-6 w-6 text-[#1f6b3a]" />}
-              title="Account & Security"
-              subtitle="Manage your password and keep your account secure."
-            />
-          </div>
+            <div className="border-b border-[#eef2ee] px-5 py-5 sm:px-6 sm:py-6">
+              <CardHeading
+                icon={<ShieldIcon className="h-6 w-6 text-[#1f6b3a]" />}
+                title="Account & Security"
+                subtitle="Manage your password and keep your account secure."
+              />
+            </div>
 
-          <button
-            type="button"
-            onClick={() => setChangePasswordOpen(true)}
-            className="flex w-full cursor-pointer items-center gap-4 px-5 py-5 text-left transition hover:bg-[#fafbf9] sm:px-6 sm:py-5"
-          >
-            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-12 sm:w-12">
-              <LockIcon className="h-5 w-5 text-[#1f6b3a]" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-bold text-[#243028] sm:text-[16px]">
-                Change Password
+            <button
+              type="button"
+              onClick={() => setChangePasswordOpen(true)}
+              className="flex w-full cursor-pointer items-center gap-4 px-5 py-5 text-left transition hover:bg-[#fafbf9] sm:px-6 sm:py-5"
+            >
+              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-12 sm:w-12">
+                <LockIcon className="h-5 w-5 text-[#1f6b3a]" />
               </span>
-              <span className="mt-1 block text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
-                Update your account password regularly for better security.
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-bold text-[#243028] sm:text-[16px]">
+                  Change Password
+                </span>
+                <span className="mt-1 block text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
+                  Update your account password regularly for better security.
+                </span>
               </span>
-            </span>
-            <ChevronRightIcon className="h-5 w-5 shrink-0 text-[#8a9a8d]" />
-          </button>
+              <ChevronRightIcon className="h-5 w-5 shrink-0 text-[#8a9a8d]" />
+            </button>
           </section>
 
           <section className="overflow-hidden rounded-[22px] border border-[#f0e2d8] bg-[#FAF4EF]">
-          <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
-            <div className="flex items-start gap-4 sm:items-center">
-              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#fdeee4] sm:h-12 sm:w-12">
-                <LogOutIcon className="h-5 w-5 text-[#c45c4a]" />
-              </span>
-              <div>
-                <p className="text-[15px] font-bold text-[#243028] sm:text-[16px]">Log Out</p>
-                <p className="mt-1 text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
-                  Securely log out from your account on this device.
-                </p>
+            <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
+              <div className="flex items-start gap-4 sm:items-center">
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#fdeee4] sm:h-12 sm:w-12">
+                  <LogOutIcon className="h-5 w-5 text-[#c45c4a]" />
+                </span>
+                <div>
+                  <p className="text-[15px] font-bold text-[#243028] sm:text-[16px]">Log Out</p>
+                  <p className="mt-1 text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
+                    Securely log out from your account on this device.
+                  </p>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={signOut}
+                className="inline-flex shrink-0 cursor-pointer items-center justify-center self-start rounded-[14px] border border-[#d9a89a] bg-white px-5 py-2.5 text-[13px] font-semibold text-[#c45c4a] transition hover:bg-[#fff8f6] sm:self-center sm:text-[14px]"
+              >
+                Log Out
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={signOut}
-              className="inline-flex shrink-0 cursor-pointer items-center justify-center self-start rounded-[14px] border border-[#d9a89a] bg-white px-5 py-2.5 text-[13px] font-semibold text-[#c45c4a] transition hover:bg-[#fff8f6] sm:self-center sm:text-[14px]"
-            >
-              Log Out
-            </button>
-          </div>
           </section>
         </div>
       </div>
@@ -162,6 +315,40 @@ function CardHeading({
         <p className="mt-1 text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
           {subtitle}
         </p>
+      </div>
+    </div>
+  );
+}
+
+function EditableInfoRow({
+  icon,
+  label,
+  value,
+  isEditing = false,
+  editContent,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  isEditing?: boolean;
+  editContent?: ReactNode;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-2 px-5 py-4 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)] sm:items-center sm:gap-x-6 sm:py-[18px] lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">
+      <div className="flex items-center gap-3">
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#eef6f0]">
+          {icon}
+        </span>
+        <span className="text-[13px] font-medium text-[#6b7c6e] sm:text-[14px]">{label}</span>
+      </div>
+      <div className="pl-12 sm:pl-0">
+        {isEditing && editContent ? (
+          editContent
+        ) : (
+          <span className="break-all text-[14px] font-bold text-[#243028] sm:text-[15px]">
+            {value}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -215,6 +402,25 @@ function PersonIcon({ className }: { className?: string }) {
     <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
       <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.6" />
       <path d="M5.5 19c1.4-3.2 3.8-4.8 6.5-4.8s5.1 1.6 6.5 4.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function DobIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M8 3.5v3M16 3.5v3M4 10h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function GenderIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <circle cx="10" cy="10" r="4" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M13.5 6.5 18 2M18 2v4.5M18 2h-4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M7 18c1.5-2.5 3.8-4 5-4s3.5 1.5 5 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }

@@ -12,6 +12,10 @@ export function clearMemberAuthCache() {
   cachedUser = null;
 }
 
+export function updateMemberAuthCache(user: PublicUser) {
+  cachedUser = user;
+}
+
 type MemberAuthGateProps = {
   children: (props: { user: PublicUser; signOut: () => void }) => ReactNode;
   loadingLabel?: string;

@@ -12,6 +12,7 @@ import { createHash, randomBytes, randomInt } from 'crypto';
 import { Repository } from 'typeorm';
 import { Admin } from '../admins/admin.entity';
 import { Region } from '../users/enums/region.enum';
+import { Gender } from '../users/enums/gender.enum';
 import { OtpChallenge } from '../users/otp-challenge.entity';
 import { User } from '../users/user.entity';
 import { sendResendEmail } from '../mail/resend';
@@ -19,6 +20,7 @@ import { sendMsg91Otp } from '../sms/msg91';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import {
   PASSWORD_MESSAGE,
   isValidPassword,
@@ -35,6 +37,8 @@ export type PublicAdmin = {
 export type PublicUser = {
   id: string;
   fullName: string;
+  dateOfBirth: string | null;
+  gender: Gender | null;
   region: Region;
   mobile: string | null;
   email: string | null;
@@ -337,6 +341,25 @@ export class AuthService {
     };
   }
 
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new BadRequestException('Account not found.');
+    }
+
+    user.fullName = dto.fullName.trim();
+    user.dateOfBirth = dto.dateOfBirth ?? null;
+    user.gender = dto.gender ?? null;
+
+    const saved = await this.users.save(user);
+
+    return {
+      success: true,
+      message: 'Profile updated successfully.',
+      user: this.toPublicUser(saved),
+    };
+  }
+
   toPublicAdmin(admin: Admin): PublicAdmin {
     return {
       email: admin.email,
@@ -348,6 +371,8 @@ export class AuthService {
     return {
       id: user.id,
       fullName: user.fullName,
+      dateOfBirth: user.dateOfBirth ?? null,
+      gender: user.gender ?? null,
       region: user.region,
       mobile: user.mobile,
       email: user.email,
