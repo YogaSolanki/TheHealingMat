@@ -92,7 +92,10 @@ function FooterLinkColumn({
 export function SiteFooter() {
   const pathname = usePathname();
   const showTopBorder =
-    pathname === "/corporate/enquiry" || pathname === "/contact";
+    pathname === "/corporate/enquiry" ||
+    pathname === "/contact" ||
+    pathname === "/dashboard" ||
+    pathname.startsWith("/dashboard/");
 
   return (
     <footer

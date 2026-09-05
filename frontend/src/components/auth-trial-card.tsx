@@ -30,6 +30,7 @@ import {
   TOKEN_KEY,
 } from "@/lib/auth-storage";
 import trialIcon from "@/assets/trail.png";
+import { ButtonLoader } from "@/components/site-loader";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
 
 type Mode = "login" | "signup" | "forgot";
@@ -92,18 +93,6 @@ function FieldShieldIcon() {
 }
 
 const OTP_LENGTH = 6;
-
-function ButtonLoader({ label }: { label: string }) {
-  return (
-    <span className="inline-flex items-center justify-center gap-2">
-      <span
-        aria-hidden="true"
-        className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white"
-      />
-      <span>{label}</span>
-    </span>
-  );
-}
 
 function TrialBrandMark() {
   return (
@@ -1138,7 +1127,7 @@ export function AuthTrialCard({
             className={primaryBtnClass}
           >
             {loading ? (
-              <ButtonLoader label="Please wait…" />
+              <ButtonLoader />
             ) : mode === "login" ? (
               "Login"
             ) : mode === "forgot" ? (
@@ -1234,9 +1223,7 @@ export function AuthTrialCard({
             className={primaryBtnClass}
           >
             {loading ? (
-              <ButtonLoader
-                label={mode === "forgot" ? "Updating…" : "Verifying…"}
-              />
+              <ButtonLoader />
             ) : mode === "forgot" ? (
               "Reset password"
             ) : (
@@ -1313,7 +1300,7 @@ export function AuthTrialCard({
             className={primaryBtnClass}
           >
             {loading ? (
-              <ButtonLoader label="Registering…" />
+              <ButtonLoader />
             ) : (
               "Confirm Free Trial"
             )}
