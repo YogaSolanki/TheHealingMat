@@ -12,7 +12,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       {!isMemberDashboard ? <SiteHeader /> : null}
-      <div className="flex-1">{children}</div>
+      <div className={isMemberDashboard ? "w-full" : "flex-1"}>{children}</div>
       <SiteFooter />
     </>
   );

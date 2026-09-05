@@ -8,6 +8,10 @@ import leafRight from "@/assets/leaf-right.png";
 import moonIcon from "@/assets/moon.png";
 import sunIcon from "@/assets/sun.png";
 import yogaMenIcon from "@/assets/yoga-men.png";
+import {
+  memberOutlineBtnSmClass,
+  memberPrimaryBtnSmClass,
+} from "@/components/member-dashboard/member-button-styles";
 import type { PublicUser } from "@/lib/api";
 import { MemberDashboardHeader } from "./member-dashboard-header";
 
@@ -37,10 +41,10 @@ export function MemberDashboard({ user, onSignOut }: MemberDashboardProps) {
   const todayLabel = formatDashboardDate(new Date());
 
   return (
-    <div className="min-h-screen w-full bg-[#FBF9F5]">
+    <div className="w-full bg-[#FBF9F5]">
       <MemberDashboardHeader />
 
-      <div className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-12 sm:px-6 sm:pt-8 sm:pb-14 lg:px-6 lg:pb-16 xl:px-8">
+      <div className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-8 sm:px-6 sm:pt-8 sm:pb-10 lg:px-6 lg:pb-10 xl:px-8">
         {/* Greeting row */}
         <section className="mb-6 sm:mb-8">
           <h1 className="font-serif text-[1.75rem] leading-tight font-bold text-[#1f6b3a] sm:text-[2rem] lg:text-[2.15rem]">
@@ -196,7 +200,7 @@ export function MemberDashboard({ user, onSignOut }: MemberDashboardProps) {
                 </p>
               </>
             }
-            href="#membership"
+            href="/dashboard/membership"
             linkLabel="View Membership Details"
             decor={<LeafDecor />}
           />
@@ -304,11 +308,7 @@ function SpecialTopicRow({
 
       <button
         type="button"
-        className={`shrink-0 cursor-pointer rounded-[12px] px-4 py-1.5 text-[12px] font-bold whitespace-nowrap transition sm:px-5 sm:text-[13px] ${
-          actionVariant === "primary"
-            ? "bg-[#1f6b3a] text-white hover:bg-[#185830]"
-            : "border border-[#1f6b3a] bg-white text-[#1f6b3a] hover:bg-[#eef6f0]"
-        }`}
+        className={`${actionVariant === "primary" ? memberPrimaryBtnSmClass : memberOutlineBtnSmClass} shrink-0 px-4 py-1.5 text-[12px] whitespace-nowrap sm:px-5 sm:text-[13px]`}
       >
         {actionLabel}
       </button>
@@ -377,7 +377,7 @@ function SessionRow({
         <button
           type="button"
           disabled={!canJoin}
-          className="cursor-pointer rounded-[12px] bg-[#1f6b3a] px-4 py-1.5 text-[12px] font-bold whitespace-nowrap text-white transition hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-[#1f6b3a] sm:px-5 sm:text-[13px]"
+          className={`${memberPrimaryBtnSmClass} px-4 py-1.5 text-[12px] whitespace-nowrap sm:px-5 sm:text-[13px]`}
         >
           Join
         </button>

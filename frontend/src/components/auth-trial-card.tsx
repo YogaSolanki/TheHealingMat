@@ -890,7 +890,7 @@ export function AuthTrialCard({
     "w-full rounded-[16px] border border-[#d7e0d6] bg-white px-4 py-3 text-sm text-[#1f6b3a] outline-none transition focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
   const labelClass = "mb-1.5 block text-sm font-medium text-[#3d4a3c]";
   const primaryBtnClass =
-    "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-3.5 text-[15px] font-bold text-white shadow-[0_10px_24px_rgba(31,107,58,0.22)] transition hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-60";
+    "btn-primary inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-3.5 text-[15px] font-bold text-white shadow-[0_10px_24px_rgba(31,107,58,0.22)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-[0_10px_24px_rgba(31,107,58,0.22)] disabled:hover:filter-none";
   const textBtnClass =
     "w-full cursor-pointer text-sm font-medium text-[#6d8474] transition hover:text-[#1f6b3a]";
   const headerOffsetClass = "mt-1";

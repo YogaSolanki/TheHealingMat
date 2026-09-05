@@ -91,17 +91,18 @@ function FooterLinkColumn({
 
 export function SiteFooter() {
   const pathname = usePathname();
+  const isMemberDashboard =
+    pathname === "/dashboard" || pathname.startsWith("/dashboard/");
   const showTopBorder =
     pathname === "/corporate/enquiry" ||
     pathname === "/contact" ||
-    pathname === "/dashboard" ||
-    pathname.startsWith("/dashboard/");
+    isMemberDashboard;
 
   return (
     <footer
-      className={`mt-auto w-full bg-[#FBF9F5] ${
+      className={`w-full bg-[#FBF9F5] ${
         showTopBorder ? "border-t border-[#d9e0d4]" : ""
-      }`}
+      } ${isMemberDashboard ? "" : "mt-auto"}`}
     >
       <div className="mx-auto grid w-full max-w-[1140px] grid-cols-2 gap-x-4 gap-y-6 px-5 py-8 sm:gap-x-8 sm:px-6 sm:py-8 lg:grid-cols-[1.3fr_1fr_1.3fr] lg:gap-0 lg:px-8 lg:py-8 xl:px-10">
         {/* Brand — full width on phone; left column on desktop */}
