@@ -9,7 +9,6 @@ import {
   memberOutlineBtnClass,
   memberPrimaryBtnClass,
 } from "@/components/member-dashboard/member-button-styles";
-import { MemberDashboardHeader } from "./member-dashboard-header";
 import { FaWhatsapp } from "react-icons/fa";
 
 const REFERRAL_CODE = "THM94725";
@@ -128,8 +127,6 @@ export function MemberReferPage() {
 
   return (
     <div className="w-full bg-[#FBF9F5]">
-      <MemberDashboardHeader />
-
       <div className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-8 sm:px-6 sm:pt-8 sm:pb-10 lg:px-6 lg:pb-10 xl:px-8">
         {/* Hero */}
         <section className="mb-6 sm:mb-8">

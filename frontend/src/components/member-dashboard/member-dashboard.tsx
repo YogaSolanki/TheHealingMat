@@ -13,7 +13,6 @@ import {
   memberPrimaryBtnSmClass,
 } from "@/components/member-dashboard/member-button-styles";
 import type { PublicUser } from "@/lib/api";
-import { MemberDashboardHeader } from "./member-dashboard-header";
 
 const morningSlots = ["6:30 AM", "7:30 AM", "8:30 AM"];
 const eveningSlots = ["5:00 PM", "6:00 PM", "7:00 PM"];
@@ -42,8 +41,6 @@ export function MemberDashboard({ user, onSignOut }: MemberDashboardProps) {
 
   return (
     <div className="w-full bg-[#FBF9F5]">
-      <MemberDashboardHeader />
-
       <div className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-8 sm:px-6 sm:pt-8 sm:pb-10 lg:px-6 lg:pb-10 xl:px-8">
         {/* Greeting row */}
         <section className="mb-6 sm:mb-8">

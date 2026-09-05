@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthModal } from "@/components/auth-modal-provider";
+import { getStoredToken } from "@/lib/auth-storage";
 
 /** Legacy /trial route — opens the shared Free Trial popup on the home page. */
 export default function TrialPage() {
@@ -10,6 +11,10 @@ export default function TrialPage() {
   const { openAuth } = useAuthModal();
 
   useEffect(() => {
+    if (getStoredToken()) {
+      router.replace("/dashboard");
+      return;
+    }
     openAuth("signup");
     router.replace("/");
   }, [openAuth, router]);

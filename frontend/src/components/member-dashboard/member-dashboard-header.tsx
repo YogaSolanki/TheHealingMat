@@ -8,7 +8,7 @@ const navItems = [
   { href: "/dashboard", label: "Home" },
   { href: "/dashboard/membership", label: "My Membership" },
   { href: "/dashboard/refer", label: "Refer & Win" },
-  { href: "/guides", label: "Resources" },
+  { href: "/guides", label: "Health Guides" },
   { href: "#account", label: "My Account" },
 ] as const;
 
@@ -17,7 +17,8 @@ function isActive(pathname: string, href: string) {
   if (href.startsWith("#")) return false;
   if (
     href === "/guides" &&
-    (pathname === "/resources" ||
+    (pathname === "/guides" ||
+      pathname === "/resources" ||
       pathname === "/articles" ||
       pathname.startsWith("/articles/") ||
       pathname === "/videos" ||

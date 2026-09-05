@@ -6,6 +6,8 @@ import { SiteLoader } from "@/components/site-loader";
 import { getAuthMe, type PublicUser } from "@/lib/api";
 import { clearStoredToken, getStoredToken } from "@/lib/auth-storage";
 
+let cachedUser: PublicUser | null = null;
+
 type MemberAuthGateProps = {
   children: (props: { user: PublicUser; signOut: () => void }) => ReactNode;
   loadingLabel?: string;
@@ -16,28 +18,32 @@ export function MemberAuthGate({
   loadingLabel = "Loading",
 }: MemberAuthGateProps) {
   const router = useRouter();
-  const [user, setUser] = useState<PublicUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<PublicUser | null>(cachedUser);
+  const [loading, setLoading] = useState(!cachedUser);
 
   useEffect(() => {
     const token = getStoredToken();
     if (!token) {
+      cachedUser = null;
       router.replace("/?auth=login");
       return;
     }
 
     getAuthMe(token)
       .then((me) => {
+        cachedUser = me;
         setUser(me);
         setLoading(false);
       })
       .catch(() => {
+        cachedUser = null;
         clearStoredToken();
         router.replace("/?auth=login");
       });
   }, [router]);
 
   function signOut() {
+    cachedUser = null;
     clearStoredToken();
     router.replace("/");
   }

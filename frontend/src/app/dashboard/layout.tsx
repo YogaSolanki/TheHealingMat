@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DashboardAuthLayout } from "@/components/member-dashboard/dashboard-auth-layout";
 
 export const metadata: Metadata = {
   title: "Dashboard | The Healing Mat",
@@ -8,5 +9,5 @@ export const metadata: Metadata = {
 export default function DashboardLayout({
   children,
 }: LayoutProps<"/dashboard">) {
-  return children;
+  return <DashboardAuthLayout>{children}</DashboardAuthLayout>;
 }
