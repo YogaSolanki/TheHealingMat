@@ -204,7 +204,6 @@ export function MembershipSection() {
       <CouponStrip />
       <WeekBlock />
       <BenefitsBlock />
-      <OrientationBanner />
       <DailySessionsBlock />
       <StillNotSureCta />
     </div>
@@ -213,21 +212,21 @@ export function MembershipSection() {
 
 function PlansBlock() {
   return (
-    <section className="mx-auto w-full max-w-[1440px] px-4 pt-10 pb-5 sm:px-6 sm:pt-12 lg:px-6 lg:pt-14 xl:px-8">
+    <section className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-3 sm:px-6 sm:pt-7 lg:px-6 lg:pt-8 xl:px-8">
       <div className="text-center">
         <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[12px]">
           Membership Plans
         </p>
-        <h1 className="mt-2.5 font-serif text-[2.1rem] leading-[1.15] font-bold tracking-tight text-[#1f6b3a] sm:text-[2.55rem] lg:text-[2.85rem]">
+        <h1 className="mt-2 font-serif text-[1.85rem] leading-[1.12] font-bold tracking-tight text-[#1f6b3a] sm:text-[2.15rem] lg:text-[2.35rem]">
           Choose Your Membership
         </h1>
-        <p className="mx-auto mt-3 max-w-[520px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
+        <p className="mx-auto mt-2 max-w-[480px] text-[13px] leading-snug text-[#5f6f64] sm:text-[14px]">
           One membership. The same complete experience. Choose the duration that
           works for you.
         </p>
       </div>
 
-      <div className="mx-auto mt-10 grid w-full max-w-[420px] items-stretch gap-5 sm:mt-12 sm:max-w-[480px] lg:mt-14 lg:max-w-none lg:grid-cols-3 lg:gap-8">
+      <div className="mx-auto mt-5 grid w-full max-w-[960px] items-stretch gap-3 sm:mt-6 sm:grid-cols-3 sm:gap-4 lg:mt-7 lg:gap-5">
         {plans.map((plan) => (
           <PlanCard key={plan.months} plan={plan} />
         ))}
@@ -241,49 +240,50 @@ function PlanCard({ plan }: { plan: Plan }) {
 
   return (
     <article
-      className={`relative flex h-full flex-col rounded-[28px] border ${
+      className={`relative flex h-full flex-col rounded-[22px] border ${
         plan.featured
-          ? "border-[#c5d9c8] bg-[#F4F8F2] px-7 pt-10 pb-7 shadow-[0_14px_36px_rgba(31,107,58,0.1)] sm:px-8 sm:pt-11 sm:pb-8"
-          : "border-[#e5ebe3] bg-white px-7 pt-9 pb-7 sm:px-8 sm:pt-10 sm:pb-8"
+          ? "border-[#c5d9c8] bg-[#F4F8F2] px-4 pt-8 pb-4 shadow-[0_10px_28px_rgba(31,107,58,0.08)] sm:px-5 sm:pt-9 sm:pb-5"
+          : "border-[#e5ebe3] bg-white px-4 pt-7 pb-4 sm:px-5 sm:pt-8 sm:pb-5"
       }`}
     >
       {plan.featured ? (
-        <span className="badge-shine absolute top-0 left-1/2 z-20 -translate-x-1/2 -translate-y-[42%] whitespace-nowrap rounded-[8px] bg-[#1f6b3a] px-5 py-[7px] text-[11px] font-bold tracking-[0.14em] text-white uppercase shadow-[0_6px_18px_rgba(31,107,58,0.3)] sm:px-6 sm:py-2 sm:text-[12px]">
+        <span className="badge-shine absolute top-0 left-1/2 z-20 -translate-x-1/2 -translate-y-[42%] whitespace-nowrap rounded-[8px] bg-[#1f6b3a] px-4 py-1.5 text-[10px] font-bold tracking-[0.14em] text-white uppercase shadow-[0_6px_18px_rgba(31,107,58,0.3)] sm:px-5 sm:py-[6px] sm:text-[11px]">
           Best Value
         </span>
       ) : null}
 
-      <p className="relative z-10 text-center text-[12px] font-bold tracking-[0.16em] text-black uppercase sm:text-[13px]">
+      <p className="relative z-10 text-center text-[11px] font-bold tracking-[0.16em] text-black uppercase sm:text-[12px]">
         {label}
       </p>
-      <p className="relative z-10 mt-3.5 text-center font-serif text-[2.85rem] leading-none font-bold tracking-tight text-[#1f6b3a] sm:text-[3.15rem] lg:text-[3.35rem]">
-        <span className="mr-0.5 text-[1.7rem] align-[0.22em] font-bold sm:text-[1.95rem]">
-          ₹
-        </span>
-        {plan.price}
+      <p className="relative z-10 mt-2 text-center font-serif text-[2.1rem] leading-none font-bold tracking-tight text-[#1f6b3a] sm:text-[2.25rem] lg:text-[2.4rem]">
+        ₹{plan.price}
       </p>
-      <p className="relative z-10 mt-2.5 text-center text-[13px] font-medium text-[#8a978c] sm:text-[14px]">
+      <p className="relative z-10 mt-1.5 text-center text-[12px] font-medium text-[#8a978c] sm:text-[13px]">
         ≈ ₹{plan.perDay}/day
       </p>
 
       {plan.perk ? (
-        <div className="relative z-10 mt-7 flex items-center gap-3.5 rounded-[18px] border border-[#d7e5d9] bg-white px-4 py-4 sm:mt-8 sm:gap-4 sm:px-5 sm:py-[18px]">
-          <GiftBoxIcon className="h-10 w-10 shrink-0 sm:h-11 sm:w-11" />
-          <p className="min-w-0 text-[13px] leading-[1.35] font-semibold text-[#1f6b3a] sm:text-[14px]">
-            Get the Weight Loss Without the Drama eBook{" "}
-            <span className="font-bold">FREE</span>
+        <div className="relative z-10 mt-4 rounded-[14px] border border-[#d7e5d9] bg-white px-3 py-2.5 text-center sm:mt-5 sm:px-3.5 sm:py-3">
+          <p className="text-[12px] font-semibold leading-snug text-[#1f6b3a] sm:text-[13px]">
+            <span aria-hidden="true">🎁</span> Get the
+          </p>
+          <p className="mt-1 font-serif text-[13px] leading-tight font-bold italic text-[#1f6b3a] sm:text-[14px]">
+            Weight Loss Without the Drama
+          </p>
+          <p className="mt-1 text-[12px] font-semibold leading-snug text-[#1f6b3a] sm:text-[13px]">
+            eBook <span className="font-bold">FREE</span>
           </p>
         </div>
       ) : (
         <div
-          className="relative z-10 mx-auto mt-8 w-[42%] border-t border-[#e2e8e0] sm:mt-10"
+          className="relative z-10 mx-auto mt-5 w-[42%] border-t border-[#e2e8e0] sm:mt-6"
           aria-hidden="true"
         />
       )}
 
-      <div className="relative z-10 mt-auto pt-7 sm:pt-8">
+      <div className="relative z-10 mt-auto pt-4 sm:pt-5">
         <StartTrialButton
-          className={`inline-flex w-full items-center justify-center gap-2 whitespace-nowrap px-5 py-3.5 text-[14px] font-bold sm:text-[15px] ${
+          className={`inline-flex w-full items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-[13px] font-bold sm:text-[14px] ${
             plan.featured
               ? "btn-primary bg-[#1f6b3a] text-white"
               : "btn-outline border-[1.5px] border-[#1f6b3a] text-[#1f6b3a]"
@@ -301,7 +301,7 @@ function CouponStrip() {
   return (
     <section className="mx-auto w-full max-w-[1440px] px-4 py-3 sm:px-6 lg:px-6 xl:px-8">
       <div
-        className="relative flex flex-col items-center gap-3 overflow-visible rounded-[18px] border border-[#e6ebe3] px-5 py-3.5 sm:flex-row sm:justify-between sm:gap-4 sm:px-7 sm:py-4"
+        className="relative mx-auto flex w-full max-w-[960px] flex-col items-center gap-3 overflow-visible rounded-[18px] border border-[#e6ebe3] px-5 py-3.5 sm:flex-row sm:justify-between sm:gap-4 sm:px-7 sm:py-4"
         style={{ backgroundColor: cream }}
       >
         <div className="flex items-start gap-3">
@@ -457,17 +457,22 @@ function WeekBlock() {
             </div>
           </div>
 
-          <div className="mt-4 flex items-start gap-3 rounded-[18px] border border-[#e8ebe4] bg-white px-4 py-3.5 sm:mt-5 sm:items-center sm:gap-3.5 sm:px-5 sm:py-4">
-            <ChatBubbleIcon className="mt-0.5 h-8 w-8 shrink-0 text-[#1f6b3a] sm:mt-0 sm:h-9 sm:w-9" />
-            <div className="flex min-w-0 flex-wrap gap-2">
-              {sundaySlots.map((slot) => (
-                <span
-                  key={slot}
-                  className="rounded-[16px] bg-[#E8F0E4] px-3.5 py-2 text-[13px] font-bold whitespace-nowrap text-[#1f6b3a] sm:px-4 sm:py-2.5 sm:text-[14px]"
-                >
-                  {slot}
-                </span>
-              ))}
+          <div className="mt-4 rounded-[18px] border border-[#e8ebe4] bg-white px-3 py-3.5 sm:mt-5 sm:px-4 sm:py-4 lg:px-5">
+            <div className="min-w-0">
+              <div className="mb-2.5 flex items-center gap-2.5 text-[15px] font-bold text-black sm:gap-3 sm:text-[16px]">
+                <ChatBubbleIcon className="h-9 w-9 shrink-0 text-[#1f6b3a] sm:h-10 sm:w-10" />
+                Sunday Sessions
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {sundaySlots.map((slot) => (
+                  <span
+                    key={slot}
+                    className="rounded-[16px] bg-[#E8F0E4] px-2.5 py-1.5 text-[12px] font-bold whitespace-nowrap text-[#1f6b3a] sm:px-3 sm:py-2 sm:text-[13px]"
+                  >
+                    {slot}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -507,47 +512,6 @@ function BenefitsBlock() {
           </li>
         ))}
       </ul>
-    </section>
-  );
-}
-
-function OrientationBanner() {
-  return (
-    <section className="mx-auto w-full max-w-[1440px] px-4 py-3 sm:px-6 lg:px-6 xl:px-8">
-      <div
-        className="relative overflow-hidden rounded-[20px] border border-[#e6ebe3]"
-        style={{ backgroundColor: cream }}
-      >
-        <Image
-          src={leafRight}
-          alt=""
-          aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 right-0 z-0 h-[85%] w-auto -translate-y-1/2 object-contain object-right opacity-40 sm:right-1 sm:opacity-45"
-          sizes="180px"
-        />
-
-        <div className="relative z-10 grid items-center gap-4 sm:grid-cols-[180px_1fr] lg:grid-cols-[220px_1fr]">
-          <div className="relative hidden h-full min-h-[140px] sm:block">
-            <Image
-              src={matBanner}
-              alt="Yoga mat and props"
-              fill
-              className="object-cover object-left"
-              sizes="220px"
-            />
-          </div>
-          <div className="flex flex-col items-center justify-center px-5 py-5 text-center sm:px-6 sm:py-6 lg:px-8 lg:pr-28 xl:pr-36">
-            <h3 className="font-serif text-[1.25rem] font-bold tracking-tight text-[#1f6b3a] sm:text-[1.4rem]">
-              New to The Healing Mat?
-            </h3>
-            <p className="mx-auto mt-2 max-w-[560px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
-              After you join, we’ll help you get started with two short
-              orientation sessions covering basic precautions and helping you
-              understand how to practise according to your current level.
-            </p>
-          </div>
-        </div>
-      </div>
     </section>
   );
 }
@@ -610,45 +574,43 @@ function StillNotSureCta() {
   return (
     <section className="mx-auto w-full max-w-[1440px] px-4 pt-2 pb-10 sm:px-6 sm:pb-12 lg:px-6 lg:pb-14 xl:px-8">
       <div
-        className="rounded-[22px] border border-[#e6ebe3] px-5 py-5 sm:px-7 sm:py-6 lg:px-8 lg:py-6"
+        className="relative overflow-hidden rounded-[16px] border border-[#e6ebe3] lg:rounded-[18px]"
         style={{ backgroundColor: cream }}
       >
-        <div className="flex flex-col items-center gap-5 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
-          <div className="flex w-full items-start gap-3.5 sm:gap-4 lg:w-auto lg:items-center">
-            <span
-              aria-hidden="true"
-              className="mt-0.5 block h-10 w-10 shrink-0 sm:mt-0 sm:h-12 sm:w-12 lg:h-14 lg:w-14"
-              style={{
-                backgroundColor: "#1f6b3a",
-                WebkitMaskImage: `url(${anytimeIcon.src})`,
-                WebkitMaskSize: "contain",
-                WebkitMaskRepeat: "no-repeat",
-                WebkitMaskPosition: "center",
-                maskImage: `url(${anytimeIcon.src})`,
-                maskSize: "contain",
-                maskRepeat: "no-repeat",
-                maskPosition: "center",
-              }}
+        <Image
+          src={leafRight}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1/2 right-0 z-0 h-[85%] w-auto -translate-y-1/2 object-contain object-right opacity-35 sm:opacity-40"
+          sizes="220px"
+        />
+
+        <div className="relative z-10 grid items-stretch md:grid-cols-[160px_1fr] lg:grid-cols-[190px_1fr] xl:grid-cols-[210px_1fr]">
+          <div className="relative hidden min-h-full md:block">
+            <Image
+              src={matBanner}
+              alt="Yoga mat and props"
+              fill
+              className="object-cover object-left"
+              sizes="210px"
             />
-            <div className="min-w-0">
-              <h2 className="font-serif text-[1.35rem] leading-tight font-bold tracking-tight text-black sm:text-[1.55rem]">
-                Still Not Sure?
-              </h2>
-              <p className="mt-1 text-[13px] leading-snug text-[#5f6f64] sm:text-[14px]">
-                Try The Healing Mat for 14 days before you decide.
-              </p>
-            </div>
           </div>
 
-          <div className="flex w-full flex-col items-center gap-3 lg:w-auto">
-            <StartTrialButton className="btn-primary inline-flex w-auto max-w-full items-center justify-center gap-1.5 self-center rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-center text-[13px] font-bold text-white sm:px-7 sm:py-3.5 sm:text-[15px]">
-              <span>Start Your 14-Day Free Trial</span>
-              <span aria-hidden="true" className="shrink-0">
-                →
-              </span>
+          <div className="relative z-10 flex flex-col items-center justify-center px-5 py-5 text-center sm:px-7 sm:py-6 md:px-6 md:py-5 md:pr-14 lg:px-7 lg:py-6 lg:pr-20 xl:pr-24">
+            <h2 className="max-w-[560px] font-serif text-[1.25rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.4rem] lg:text-[1.55rem]">
+              Still Not Sure?
+            </h2>
+            <p className="mt-1 max-w-[480px] text-[12px] leading-snug text-[#5f6f64] sm:text-[13px]">
+              Try The Healing Mat for 14 days before you decide.
+            </p>
+
+            <StartTrialButton className="btn-primary mt-3.5 inline-flex items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-5 py-2 text-[13px] font-bold text-white sm:mt-4 sm:px-6 sm:py-2.5 sm:text-[14px]">
+              Start Your 14-Day Free Trial
+              <span aria-hidden="true">→</span>
             </StartTrialButton>
+
             <TrialTrustRow
-              className="justify-center"
+              className="mt-2.5 sm:mt-3"
               itemClassName="text-[#5f6f64]"
             />
           </div>
@@ -659,26 +621,6 @@ function StillNotSureCta() {
 }
 
 /* ——— Icons ——— */
-
-function GiftBoxIcon({ className = "h-10 w-10" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 48 48" className={className} fill="none" aria-hidden="true">
-      <rect x="9" y="20" width="30" height="18" rx="3.5" fill="#1f6b3a" />
-      <rect x="8" y="15" width="32" height="7" rx="2.5" fill="#1f6b3a" />
-      <rect x="22.25" y="15" width="3.5" height="23" rx="1" fill="#E8F2EA" />
-      <path
-        d="M24 15.5c-2.8-5.2-7.8-6.2-10.2-3.4-2.2 2.6.4 6.6 5.8 7.6 1.8.3 3.3-.2 4.4-1.4 1.1 1.2 2.6 1.7 4.4 1.4 5.4-1 8-5 5.8-7.6C31.8 9.3 26.8 10.3 24 15.5Z"
-        fill="#1f6b3a"
-      />
-      <path
-        d="M17.5 11.2c2.1 1.4 4.4 3 6.5 3.8 2.1-.8 4.4-2.4 6.5-3.8"
-        stroke="#E8F2EA"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
 
 function ChatBubbleIcon({ className = "h-6 w-6" }: { className?: string }) {
   return (
