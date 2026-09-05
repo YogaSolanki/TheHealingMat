@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Param,
   Post,
   Query,
   Res,
@@ -84,6 +85,12 @@ export class AuthController {
   @HttpCode(200)
   updateProfile(@CurrentUser() user: User, @Body() dto: UpdateProfileDto) {
     return this.authService.updateProfile(user.id, dto);
+  }
+
+  @Public()
+  @Get('auth/access/:slug')
+  resolveAccessLink(@Param('slug') slug: string) {
+    return this.authService.resolveAccessLink(slug);
   }
 
   @Public()

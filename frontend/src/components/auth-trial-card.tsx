@@ -32,6 +32,7 @@ import {
 import trialIcon from "@/assets/trail.png";
 import { ButtonLoader } from "@/components/site-loader";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
+import { getCapturedReferralCode } from "@/lib/referral-storage";
 
 type Mode = "login" | "signup" | "forgot";
 type Step = "identity" | "otp" | "orientation" | "done" | "reset_done";
@@ -792,6 +793,7 @@ export function AuthTrialCard({
         return;
       }
 
+      const capturedReferral = getCapturedReferralCode();
       const result = await verifyOtp({
         challengeId,
         code: otp,
@@ -799,6 +801,7 @@ export function AuthTrialCard({
           ? {
               fullName,
               ...(password.trim() ? { password } : {}),
+              ...(capturedReferral ? { referralCode: capturedReferral } : {}),
             }
           : {}),
       });

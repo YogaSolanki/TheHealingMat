@@ -8,11 +8,17 @@ import {
   memberOutlineBtnClass,
   memberPrimaryBtnClass,
 } from "@/components/member-dashboard/member-button-styles";
+import { useMemberDashboard } from "@/components/member-dashboard/member-dashboard-provider";
 import { FaWhatsapp } from "react-icons/fa";
 
-const REFERRAL_CODE = "THM94725";
-const REFERRAL_LINK = "https://thehealingmat.com/register?ref=THM94725";
-const READY_MADE_MESSAGE = `Join me on The Healing Mat! Your friend gets 14 days of FREE yoga classes + 20% OFF membership. Use my referral code ${REFERRAL_CODE} or sign up here: ${REFERRAL_LINK}`;
+function referralShareLink(accessLink: string, referralCode: string) {
+  try {
+    const origin = new URL(accessLink).origin;
+    return `${origin}/?ref=${encodeURIComponent(referralCode)}`;
+  } catch {
+    return `https://thehealingmat.yoga/?ref=${encodeURIComponent(referralCode)}`;
+  }
+}
 
 const howItWorksSteps = [
   {
@@ -99,6 +105,10 @@ const statusBadgeClass: Record<(typeof referrals)[number]["statusTone"], string>
 };
 
 export function MemberReferPage() {
+  const { user } = useMemberDashboard();
+  const referralCode = user.referralCode;
+  const referralLink = referralShareLink(user.accessLink, referralCode);
+  const readyMadeMessage = `Join me on The Healing Mat! Your friend gets 14 days of FREE yoga classes + 20% OFF membership. Use my referral code ${referralCode} or sign up here: ${referralLink}`;
   const [copiedField, setCopiedField] = useState<"code" | "link" | "message" | null>(null);
   const [messageOpen, setMessageOpen] = useState(false);
   const [redeemedCount, setRedeemedCount] = useState<number | null>(null);
@@ -120,7 +130,7 @@ export function MemberReferPage() {
   }
 
   function shareOnWhatsApp() {
-    const message = encodeURIComponent(READY_MADE_MESSAGE);
+    const message = encodeURIComponent(readyMadeMessage);
     window.open(`https://wa.me/?text=${message}`, "_blank", "noopener,noreferrer");
   }
 
@@ -205,11 +215,11 @@ export function MemberReferPage() {
               {messageOpen ? (
                 <div className="rounded-[14px] border border-[#d5e8d9] bg-white px-4 py-3.5">
                   <p className="text-[13px] leading-relaxed text-[#243028] sm:text-[14px]">
-                    {READY_MADE_MESSAGE}
+                    {readyMadeMessage}
                   </p>
                   <button
                     type="button"
-                    onClick={() => copyText(READY_MADE_MESSAGE, "message")}
+                    onClick={() => copyText(readyMadeMessage, "message")}
                     className="mt-3 inline-flex cursor-pointer items-center gap-1.5 text-[13px] font-bold text-[#1f6b3a] hover:text-[#185830]"
                   >
                     {copiedField === "message" ? "Copied!" : "Copy Message"}
@@ -230,11 +240,11 @@ export function MemberReferPage() {
               </p>
               <div className="mt-1.5 flex flex-col gap-2 sm:flex-row">
                 <div className="flex min-h-[46px] flex-1 items-center rounded-[12px] border border-[#e6ebe3] bg-[#FBF9F5] px-3.5 text-[14px] font-bold text-[#243028] sm:text-[15px]">
-                  {REFERRAL_CODE}
+                  {referralCode}
                 </div>
                 <button
                   type="button"
-                  onClick={() => copyText(REFERRAL_CODE, "code")}
+                  onClick={() => copyText(referralCode, "code")}
                   className={`${memberOutlineBtnClass} shrink-0 px-4 py-2.5 text-[13px] sm:px-5`}
                 >
                   {copiedField === "code" ? "Copied!" : "Copy Code"}
@@ -248,11 +258,11 @@ export function MemberReferPage() {
               </p>
               <div className="mt-1.5 flex flex-col gap-2 sm:flex-row">
                 <div className="flex min-h-[46px] flex-1 items-center overflow-hidden rounded-[12px] border border-[#e6ebe3] bg-[#FBF9F5] px-3.5 text-[12px] font-medium text-[#5f6f64] sm:text-[13px]">
-                  <span className="truncate">{REFERRAL_LINK}</span>
+                  <span className="truncate">{referralLink}</span>
                 </div>
                 <button
                   type="button"
-                  onClick={() => copyText(REFERRAL_LINK, "link")}
+                  onClick={() => copyText(referralLink, "link")}
                   className={`${memberOutlineBtnClass} shrink-0 px-4 py-2.5 text-[13px] sm:px-5`}
                 >
                   {copiedField === "link" ? "Copied!" : "Copy Link"}

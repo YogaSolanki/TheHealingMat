@@ -19,6 +19,7 @@ export function LoggedInRedirect() {
   useEffect(() => {
     if (!getStoredToken()) return;
     if (pathname === "/auth/callback") return;
+    if (pathname.startsWith("/u/")) return;
     if (isDashboardPath(pathname)) return;
 
     const authParam = searchParams.get("auth");

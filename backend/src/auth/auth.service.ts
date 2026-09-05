@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -8,13 +9,18 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { createHash, randomBytes, randomInt } from 'crypto';
+import { randomBytes, randomInt } from 'crypto';
 import { Repository } from 'typeorm';
 import { Admin } from '../admins/admin.entity';
 import { Region } from '../users/enums/region.enum';
 import { Gender } from '../users/enums/gender.enum';
 import { OtpChallenge } from '../users/otp-challenge.entity';
 import { User } from '../users/user.entity';
+import {
+  buildAccessLinkSlug,
+  buildReferralCode,
+  isUniqueViolation,
+} from '../users/account-identity';
 import { sendResendEmail } from '../mail/resend';
 import { sendMsg91Otp } from '../sms/msg91';
 import { AdminLoginDto } from './dto/admin-login.dto';
@@ -240,6 +246,7 @@ export class AuthService {
         channel: challenge.channel,
         fullName,
         password,
+        referralCode: dto.referralCode,
       });
       isNewAccount = true;
     }
@@ -464,22 +471,74 @@ export class AuthService {
     channel: 'sms' | 'email';
     fullName: string;
     password: string;
+    referralCode?: string;
   }) {
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+    const referredByUserId = await this.findReferrerId(input.referralCode);
 
-    const user = this.users.create({
-      region: input.region,
-      fullName: input.fullName,
-      mobile: input.channel === 'sms' ? input.destination : null,
-      email: input.channel === 'email' ? input.destination : null,
-      passwordHash,
-      referralCode: this.generateReferralCode(),
-      accessLinkToken: randomBytes(16).toString('hex'),
-      hasUsedFreeTrial: false,
-      role: 'user',
-    });
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const referralCode = await this.allocateUniqueReferralCode(input.fullName);
+      const accessLinkToken = await this.allocateUniqueAccessLinkSlug(
+        input.fullName,
+      );
 
-    return this.users.save(user);
+      try {
+        const user = this.users.create({
+          region: input.region,
+          fullName: input.fullName,
+          mobile: input.channel === 'sms' ? input.destination : null,
+          email: input.channel === 'email' ? input.destination : null,
+          passwordHash,
+          referralCode,
+          accessLinkToken,
+          referredByUserId,
+          hasUsedFreeTrial: false,
+          role: 'user',
+        });
+        return await this.users.save(user);
+      } catch (error) {
+        if (!isUniqueViolation(error) || attempt === 39) {
+          throw error;
+        }
+      }
+    }
+
+    throw new ServiceUnavailableException(
+      'Unable to create a unique account identifier. Please try again.',
+    );
+  }
+
+  private async findReferrerId(referralCode?: string) {
+    const code = referralCode?.trim().toLowerCase();
+    if (!code) return null;
+    const referrer = await this.users.findOne({ where: { referralCode: code } });
+    return referrer?.id ?? null;
+  }
+
+  private async allocateUniqueReferralCode(fullName: string) {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const referralCode = buildReferralCode(fullName);
+      const exists = await this.users.findOne({
+        where: { referralCode },
+      });
+      if (!exists) return referralCode;
+    }
+    throw new ServiceUnavailableException(
+      'Unable to assign a unique referral code. Please try again.',
+    );
+  }
+
+  private async allocateUniqueAccessLinkSlug(fullName: string) {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const accessLinkToken = buildAccessLinkSlug(fullName);
+      const exists = await this.users.findOne({
+        where: { accessLinkToken },
+      });
+      if (!exists) return accessLinkToken;
+    }
+    throw new ServiceUnavailableException(
+      'Unable to assign a unique access link. Please try again.',
+    );
   }
 
   private dummyHashPromise: Promise<string> | null = null;
@@ -615,13 +674,21 @@ export class AuthService {
     }
   }
 
-  private generateReferralCode(): string {
-    const raw = createHash('sha1')
-      .update(randomBytes(12))
-      .digest('hex')
-      .slice(0, 6)
-      .toUpperCase();
-    return `THM-${raw}`;
+  async resolveAccessLink(slug: string) {
+    const accessLinkToken = slug.trim().toLowerCase();
+    if (!/^[a-z0-9]{3,64}$/.test(accessLinkToken)) {
+      throw new NotFoundException('Access link not found.');
+    }
+
+    const user = await this.users.findOne({ where: { accessLinkToken } });
+    if (!user) {
+      throw new NotFoundException('Access link not found.');
+    }
+
+    return {
+      valid: true,
+      slug: user.accessLinkToken,
+    };
   }
 
   private normalizeMobile(mobile: string): string {
@@ -651,7 +718,7 @@ export class AuthService {
       'FRONTEND_URL',
       'http://localhost:3000',
     );
-    return `${base.replace(/\/$/, '')}/access/${token}`;
+    return `${base.replace(/\/$/, '')}/u/${token}`;
   }
 
   private frontendBaseUrl() {

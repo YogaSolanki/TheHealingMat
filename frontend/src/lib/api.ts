@@ -179,6 +179,7 @@ export async function verifyOtp(input: {
   code: string;
   fullName?: string;
   password?: string;
+  referralCode?: string;
 }): Promise<OtpVerifyResponse> {
   const response = await fetch(`${API_URL}/auth/otp/verify`, {
     method: "POST",
@@ -232,6 +233,16 @@ export async function getMyTrial(
     cache: "no-store",
   });
   return parseJson<TrialAccountResponse>(response);
+}
+
+export async function resolveAccessLink(
+  slug: string,
+): Promise<{ valid: true; slug: string }> {
+  const response = await fetch(
+    `${API_URL}/auth/access/${encodeURIComponent(slug)}`,
+    { cache: "no-store" },
+  );
+  return parseJson<{ valid: true; slug: string }>(response);
 }
 
 export async function getAuthMe(accessToken: string): Promise<PublicUser> {

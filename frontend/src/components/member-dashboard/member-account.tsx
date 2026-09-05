@@ -254,13 +254,19 @@ export function MemberAccountPage() {
                   />
                 }
               />
+              <InfoRow
+                icon={<LinkIcon className="h-5 w-5 text-[#1f6b3a]" />}
+                label="Personal Access Link"
+                value={user.accessLink}
+              />
             </div>
 
             <div className="flex items-start gap-2.5 border-t border-[#eef2ee] bg-[#fafbf9] px-5 py-4 sm:px-6">
               <InfoCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-[#8a9a8d]" />
               <p className="text-[12px] leading-relaxed text-[#6b7c6e] sm:text-[13px]">
                 To change your mobile number, OTP verification is required. Email changes, if
-                allowed, will also require verification.
+                allowed, will also require verification. Your personal access link and referral
+                code stay the same if you later update your name.
               </p>
             </div>
           </section>
@@ -471,6 +477,26 @@ function MailIcon({ className }: { className?: string }) {
     <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
       <rect x="3.5" y="5.5" width="17" height="13" rx="2" stroke="currentColor" strokeWidth="1.6" />
       <path d="M4 7l8 6 8-6" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function LinkIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path
+        d="M10 13.5 8.8 14.7a3.2 3.2 0 0 1-4.5-4.5L5.5 9"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M14 10.5 15.2 9.3a3.2 3.2 0 0 1 4.5 4.5L18.5 15"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <path d="M9 15l6-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }
