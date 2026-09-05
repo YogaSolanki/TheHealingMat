@@ -8,6 +8,10 @@ import { clearStoredToken, getStoredToken } from "@/lib/auth-storage";
 
 let cachedUser: PublicUser | null = null;
 
+export function clearMemberAuthCache() {
+  cachedUser = null;
+}
+
 type MemberAuthGateProps = {
   children: (props: { user: PublicUser; signOut: () => void }) => ReactNode;
   loadingLabel?: string;

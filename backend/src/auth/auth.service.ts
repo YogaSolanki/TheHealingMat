@@ -18,6 +18,11 @@ import { sendResendEmail } from '../mail/resend';
 import { sendMsg91Otp } from '../sms/msg91';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import {
+  PASSWORD_MESSAGE,
+  isValidPassword,
+} from './dto/password.rules';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UserLoginDto } from './dto/user-login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -284,6 +289,51 @@ export class AuthService {
     return {
       success: true,
       message: 'Password updated. You can log in with your new password.',
+    };
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const currentPassword = dto.currentPassword;
+    const newPassword = dto.newPassword;
+
+    if (!isValidPassword(newPassword)) {
+      throw new BadRequestException(PASSWORD_MESSAGE);
+    }
+
+    if (currentPassword === newPassword) {
+      throw new BadRequestException(
+        'New password must be different from your current password.',
+      );
+    }
+
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user?.passwordHash) {
+      throw new BadRequestException(
+        'No password is set on this account. Use forgot password to create one.',
+      );
+    }
+
+    const currentMatches = await bcrypt.compare(
+      currentPassword,
+      user.passwordHash,
+    );
+    if (!currentMatches) {
+      throw new UnauthorizedException('Current password is incorrect.');
+    }
+
+    const sameAsCurrent = await bcrypt.compare(newPassword, user.passwordHash);
+    if (sameAsCurrent) {
+      throw new BadRequestException(
+        'New password must be different from your current password.',
+      );
+    }
+
+    user.passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await this.users.save(user);
+
+    return {
+      success: true,
+      message: 'Password updated successfully.',
     };
   }
 

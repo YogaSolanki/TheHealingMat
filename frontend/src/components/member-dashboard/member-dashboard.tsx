@@ -19,7 +19,6 @@ const eveningSlots = ["5:00 PM", "6:00 PM", "7:00 PM"];
 
 type MemberDashboardProps = {
   user: PublicUser;
-  onSignOut: () => void;
 };
 
 function firstName(fullName: string) {
@@ -35,7 +34,7 @@ function formatDashboardDate(date: Date) {
   });
 }
 
-export function MemberDashboard({ user, onSignOut }: MemberDashboardProps) {
+export function MemberDashboard({ user }: MemberDashboardProps) {
   const name = firstName(user.fullName);
   const todayLabel = formatDashboardDate(new Date());
 
@@ -235,16 +234,6 @@ export function MemberDashboard({ user, onSignOut }: MemberDashboardProps) {
             decor={<LeafDecor />}
           />
         </section>
-
-        <div className="mt-6 flex justify-end sm:mt-8">
-          <button
-            type="button"
-            onClick={onSignOut}
-            className="cursor-pointer rounded-[14px] border border-[#d7e0d6] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#1f6b3a] transition hover:bg-[#f6f8f5]"
-          >
-            Log out
-          </button>
-        </div>
       </div>
     </div>
   );

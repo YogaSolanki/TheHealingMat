@@ -134,6 +134,24 @@ export async function resetPassword(input: {
   return parseJson<{ success: boolean; message: string }>(response);
 }
 
+export async function changePassword(
+  accessToken: string,
+  input: {
+    currentPassword: string;
+    newPassword: string;
+  },
+): Promise<{ success: boolean; message: string }> {
+  const response = await fetch(`${API_URL}/auth/password/change`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(input),
+  });
+  return parseJson<{ success: boolean; message: string }>(response);
+}
+
 export async function verifyOtp(input: {
   challengeId: string;
   code: string;

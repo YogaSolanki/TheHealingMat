@@ -5,3 +5,12 @@ export const PASSWORD_PATTERN =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d\W_]{8,72}$/;
 export const PASSWORD_MESSAGE =
   'Password must be 8–72 characters and include uppercase, lowercase, and a number.';
+
+export function isValidPassword(password: string): boolean {
+  return (
+    typeof password === 'string' &&
+    password.length >= PASSWORD_MIN_LENGTH &&
+    password.length <= PASSWORD_MAX_LENGTH &&
+    PASSWORD_PATTERN.test(password)
+  );
+}

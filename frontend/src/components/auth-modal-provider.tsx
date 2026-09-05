@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { AuthLoginModal } from "@/components/auth-login-modal";
 import { getStoredToken } from "@/lib/auth-storage";
 
-type AuthMode = "login" | "signup";
+type AuthMode = "login" | "signup" | "forgot";
 
 type AuthModalContextValue = {
   openAuth: (mode?: AuthMode) => void;
@@ -69,7 +69,7 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
       changed = true;
     }
 
-    if (authMode === "login" || authMode === "signup") {
+    if (authMode === "login" || authMode === "signup" || authMode === "forgot") {
       setMode(authMode);
       setOpen(true);
       params.delete("auth");

@@ -9,7 +9,7 @@ const navItems = [
   { href: "/dashboard/membership", label: "My Membership" },
   { href: "/dashboard/refer", label: "Refer & Win" },
   { href: "/guides", label: "Health Guides" },
-  { href: "#account", label: "My Account" },
+  { href: "/dashboard/account", label: "My Account" },
 ] as const;
 
 function isActive(pathname: string, href: string) {
