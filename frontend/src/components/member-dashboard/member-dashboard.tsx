@@ -223,7 +223,7 @@ export function MemberDashboard({ user, onSignOut }: MemberDashboardProps) {
                 </p>
               </>
             }
-            href="#refer"
+            href="/dashboard/refer"
             linkLabel="Refer a Friend"
           />
 

@@ -7,7 +7,7 @@ import { SiteLogo } from "@/components/site-logo";
 const navItems = [
   { href: "/dashboard", label: "Home" },
   { href: "/dashboard/membership", label: "My Membership" },
-  { href: "#refer", label: "Refer & Win" },
+  { href: "/dashboard/refer", label: "Refer & Win" },
   { href: "/guides", label: "Resources" },
   { href: "#account", label: "My Account" },
 ] as const;

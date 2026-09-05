@@ -7,3 +7,6 @@ export const memberPrimaryBtnSmClass =
 
 export const memberOutlineBtnSmClass =
   "btn-outline inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-[12px] border border-[#1f6b3a] bg-white font-bold text-[#1f6b3a]";
+
+export const memberOutlineBtnClass =
+  "btn-outline inline-flex cursor-pointer items-center justify-center gap-2 rounded-[16px] border border-[#1f6b3a] bg-white px-5 py-3 text-[14px] font-bold text-[#1f6b3a] sm:text-[15px]";
