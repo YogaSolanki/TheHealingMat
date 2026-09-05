@@ -11,8 +11,18 @@ import yogaMenIcon from "@/assets/yoga-men.png";
 import {
   memberPrimaryBtnClass,
 } from "@/components/member-dashboard/member-button-styles";
+import { getMemberAccess, membershipStatusLabel } from "@/lib/member-access";
 
 export function MemberMembershipPage() {
+  const access = getMemberAccess();
+  const statusLabel = membershipStatusLabel(access.state);
+  const statusMessage =
+    access.state === "trial"
+      ? `Your trial is active. Trial ends on ${access.trialEndsOnLabel}.`
+      : access.state === "expired"
+        ? `Your membership has ended. Renew to continue daily yoga sessions.`
+        : `Your membership is active. Valid until ${access.validUntilLabel}.`;
+
   return (
     <div className="w-full bg-[#FBF9F5]">
       <div className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-8 sm:px-6 sm:pt-8 sm:pb-10 lg:px-6 lg:pb-10 xl:px-8">
@@ -46,14 +56,14 @@ export function MemberMembershipPage() {
                 <div className="hidden h-[22px] lg:block" aria-hidden="true" />
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <h2 className="text-[16px] font-bold text-[#243028] sm:text-[17px]">
-                    12-Month Membership
+                    {access.state === "trial" ? "Your Trial" : access.planName}
                   </h2>
                   <span className="inline-flex rounded-[6px] bg-[#eef6f0] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#1f6b3a] uppercase">
-                    Active
+                    {statusLabel}
                   </span>
                 </div>
                 <p className="mt-2 max-w-[250px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
-                  You have full access to all live sessions and member benefits.
+                  {statusMessage}
                 </p>
               </div>
             </div>
@@ -64,7 +74,7 @@ export function MemberMembershipPage() {
               <MembershipStat
                 icon={<GreenCalendarIcon />}
                 label="Start Date"
-                value="1 September 2025"
+                value={access.startDateLabel ?? "—"}
                 alignValueWithLabel
               />
               <div className="mt-7 sm:mt-8">
@@ -79,8 +89,12 @@ export function MemberMembershipPage() {
                     />
                   }
                   label="Amount Paid"
-                  value="₹4,999"
+                  value={access.amountPaid}
                 />
+                <p className="mt-2 text-[12px] text-[#6b7c6e]">
+                  Paid on {access.paymentDateLabel}
+                  {access.transactionRef ? ` · Ref ${access.transactionRef}` : ""}
+                </p>
                 <button
                   type="button"
                   className="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a] decoration-dotted underline-offset-[3px] transition hover:text-[#185830] sm:text-[13px]"
@@ -97,7 +111,13 @@ export function MemberMembershipPage() {
               <MembershipStat
                 icon={<GreenCalendarIcon />}
                 label="Valid Until"
-                value="30 September 2026"
+                value={
+                  access.state === "expired"
+                    ? access.expiredOnLabel ?? "—"
+                    : access.state === "trial"
+                      ? access.trialEndsOnLabel ?? "—"
+                      : access.validUntilLabel ?? "—"
+                }
                 alignValueWithLabel
               />
               <div className="mt-7 sm:mt-8">
@@ -112,7 +132,7 @@ export function MemberMembershipPage() {
                     />
                   }
                   label="Discount"
-                  value="₹1,000 (20%)"
+                  value={access.discount}
                 />
               </div>
             </div>
@@ -128,19 +148,19 @@ export function MemberMembershipPage() {
                   height={160}
                   className="pointer-events-none absolute bottom-full left-1/2 mb-2 h-32 w-32 -translate-x-1/2 object-contain sm:h-40 sm:w-40"
                 />
-                <button
-                  type="button"
+                <Link
+                  href={access.state === "trial" ? "/membership" : "/membership"}
                   className={`${memberPrimaryBtnClass} w-full px-5 py-3 text-[14px] sm:w-auto sm:min-w-[190px] sm:text-[15px]`}
                 >
-                  Renew Membership
+                  {access.state === "trial" ? "Start Membership" : "Renew Membership"}
                   <ChevronRightIcon className="h-4 w-4" />
-                </button>
+                </Link>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Next membership */}
+        {access.hasScheduledMembership && access.state !== "expired" ? (
         <section className="mb-5 overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white px-4 py-5 sm:mb-6 sm:px-6 sm:py-6 lg:px-8 lg:py-7">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-[12px] font-bold tracking-[0.08em] text-[#1f6b3a] uppercase sm:text-[13px]">
@@ -164,7 +184,7 @@ export function MemberMembershipPage() {
               </span>
               <div>
                 <h2 className="text-[16px] font-bold text-[#243028] sm:text-[17px]">
-                  12-Month Membership
+                    {access.scheduledPlanName}
                 </h2>
                 <p className="mt-2 max-w-[320px] text-[13px] leading-snug text-[#6b7c6e] sm:text-[14px]">
                   Your next membership will start automatically after your current
@@ -179,7 +199,7 @@ export function MemberMembershipPage() {
               <MembershipStat
                 icon={<GreenCalendarIcon />}
                 label="Starts On"
-                value="1 October 2026"
+                value={access.scheduledStartsOnLabel ?? "—"}
               />
             </div>
 
@@ -190,7 +210,7 @@ export function MemberMembershipPage() {
                 <div className="flex items-start justify-between gap-4">
                   <dt className="font-semibold text-[#6b7c6e]">Plan</dt>
                   <dd className="text-right font-bold text-[#3d4a3c]">
-                    12-Month Membership
+                    {access.scheduledPlanName}
                   </dd>
                 </div>
                 <div className="flex items-start justify-between gap-4">
@@ -201,31 +221,22 @@ export function MemberMembershipPage() {
             </div>
           </div>
         </section>
+        ) : null}
 
         {/* Renewal info */}
         <section className="rounded-[18px] border border-[#ebe6dc] bg-[#F7F3EA] px-4 py-4 sm:px-6 sm:py-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-            <div className="flex min-w-0 items-start gap-3 sm:items-center">
-              <InfoIcon className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#C4A574] sm:mt-0" />
-              <div className="min-w-0">
-                <p className="text-[14px] font-bold leading-snug text-[#243028] sm:text-[15px]">
-                  Need to renew early?
-                </p>
-                <p className="mt-0.5 text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
-                  You can renew your membership anytime. The new membership will be
-                  scheduled automatically.
-                </p>
-              </div>
+          <div className="flex min-w-0 items-start gap-3 sm:items-center">
+            <InfoIcon className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#C4A574] sm:mt-0" />
+            <div className="min-w-0">
+              <p className="text-[14px] font-bold leading-snug text-[#243028] sm:text-[15px]">
+                {access.state === "expired" ? "Your account is still here" : "Need to renew early?"}
+              </p>
+              <p className="mt-0.5 text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
+                {access.state === "expired"
+                  ? "Your account and referral information are still available. Renew membership to restore session access."
+                  : "Early renewal leaves your current membership unchanged and creates the next scheduled membership. It begins automatically after this one ends."}
+              </p>
             </div>
-            <Link
-              href="/refund"
-              className="link-animate inline-flex shrink-0 items-center gap-1 self-start text-[13px] font-bold text-[#1f6b3a] transition hover:text-[#185830] sm:self-auto sm:text-[14px]"
-            >
-              Learn more about renewals
-              <span aria-hidden="true">
-                <ChevronRightIcon className="h-4 w-4" />
-              </span>
-            </Link>
           </div>
         </section>
       </div>

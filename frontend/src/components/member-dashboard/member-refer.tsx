@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import buddyIcon from "@/assets/buddy.png";
 import referralArt from "@/assets/referal.png";
@@ -13,6 +12,7 @@ import { FaWhatsapp } from "react-icons/fa";
 
 const REFERRAL_CODE = "THM94725";
 const REFERRAL_LINK = "https://thehealingmat.com/register?ref=THM94725";
+const READY_MADE_MESSAGE = `Join me on The Healing Mat! Your friend gets 14 days of FREE yoga classes + 20% OFF membership. Use my referral code ${REFERRAL_CODE} or sign up here: ${REFERRAL_LINK}`;
 
 const howItWorksSteps = [
   {
@@ -36,10 +36,10 @@ const howItWorksSteps = [
 
 const statusFilterOptions = [
   { label: "All Status", value: "all" },
-  { label: "Membership Completed", value: "MEMBERSHIP COMPLETED" },
-  { label: "Trial Active", value: "TRIAL ACTIVE" },
+  { label: "Successful", value: "SUCCESSFUL" },
+  { label: "Trial", value: "TRIAL" },
+  { label: "Membership Pending", value: "MEMBERSHIP PENDING" },
   { label: "Registered", value: "REGISTERED" },
-  { label: "Link Clicked", value: "LINK CLICKED" },
 ] as const;
 
 const milestones = [
@@ -47,7 +47,6 @@ const milestones = [
   { count: 10, status: "unlocked" as const },
   { count: 15, status: "upcoming" as const },
   { count: 20, status: "upcoming" as const },
-  { count: 25, status: "upcoming" as const },
   { count: 30, status: "upcoming" as const },
   { count: 40, status: "upcoming" as const },
   { count: 50, status: "upcoming" as const },
@@ -57,7 +56,7 @@ const referrals = [
   {
     initials: "RS",
     name: "Rohit Sharma",
-    status: "MEMBERSHIP COMPLETED",
+    status: "SUCCESSFUL",
     statusTone: "green" as const,
     note: "Successfully joined",
     date: "29 Aug 2026",
@@ -66,7 +65,7 @@ const referrals = [
   {
     initials: "NM",
     name: "Neha Mehta",
-    status: "TRIAL ACTIVE",
+    status: "TRIAL",
     statusTone: "blue" as const,
     note: "14-day trial in progress",
     date: "25 Aug 2026",
@@ -75,7 +74,7 @@ const referrals = [
   {
     initials: "AV",
     name: "Amit Verma",
-    status: "REGISTERED",
+    status: "MEMBERSHIP PENDING",
     statusTone: "orange" as const,
     note: "Registered, membership pending",
     date: "20 Aug 2026",
@@ -84,9 +83,9 @@ const referrals = [
   {
     initials: "PI",
     name: "Priya Iyer",
-    status: "LINK CLICKED",
+    status: "REGISTERED",
     statusTone: "gray" as const,
-    note: "Opened referral link",
+    note: "Registered",
     date: "18 Aug 2026",
     avatarBg: "bg-[#F0F0F0] text-[#6b7c6e]",
   },
@@ -100,7 +99,9 @@ const statusBadgeClass: Record<(typeof referrals)[number]["statusTone"], string>
 };
 
 export function MemberReferPage() {
-  const [copiedField, setCopiedField] = useState<"code" | "link" | null>(null);
+  const [copiedField, setCopiedField] = useState<"code" | "link" | "message" | null>(null);
+  const [messageOpen, setMessageOpen] = useState(false);
+  const [redeemedCount, setRedeemedCount] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] =
     useState<(typeof statusFilterOptions)[number]["value"]>("all");
 
@@ -108,7 +109,7 @@ export function MemberReferPage() {
     (referral) => statusFilter === "all" || referral.status === statusFilter,
   );
 
-  async function copyText(text: string, field: "code" | "link") {
+  async function copyText(text: string, field: "code" | "link" | "message") {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedField(field);
@@ -119,9 +120,7 @@ export function MemberReferPage() {
   }
 
   function shareOnWhatsApp() {
-    const message = encodeURIComponent(
-      `Join me on The Healing Mat! Use my referral code ${REFERRAL_CODE} or sign up here: ${REFERRAL_LINK}`,
-    );
+    const message = encodeURIComponent(READY_MADE_MESSAGE);
     window.open(`https://wa.me/?text=${message}`, "_blank", "noopener,noreferrer");
   }
 
@@ -141,7 +140,7 @@ export function MemberReferPage() {
         </section>
 
         {/* Share + code cards */}
-        <section className="mb-5 grid gap-4 lg:mb-6 lg:grid-cols-2 lg:items-stretch lg:gap-5">
+        <section id="share" className="mb-5 grid gap-4 lg:mb-6 lg:grid-cols-2 lg:items-stretch lg:gap-5">
           <div className="relative flex h-full flex-col justify-center overflow-hidden rounded-[24px] border border-[#d5e8d9] bg-[#F4F8F2] p-6 shadow-[0_8px_24px_rgba(31,107,58,0.05)] sm:p-7">
             <div className="flex flex-col justify-center gap-7">
               <div className="relative flex items-center gap-4">
@@ -189,16 +188,34 @@ export function MemberReferPage() {
                 <div className="flex min-w-0 flex-col items-center">
                   <button
                     type="button"
+                    onClick={() => setMessageOpen((current) => !current)}
                     className={`${memberOutlineBtnClass} w-full min-h-[48px] px-3 py-3 text-[13px] sm:px-4 sm:text-[14px]`}
                   >
                     <MessageBubbleIcon className="h-4 w-4 shrink-0" />
-                    <span className="truncate">View Message</span>
+                    <span className="truncate">
+                      {messageOpen ? "Hide Message" : "View Ready-made Message"}
+                    </span>
                   </button>
                   <p className="mt-2.5 px-1 text-center text-[11px] leading-snug text-[#6b7c6e] sm:text-[12px]">
                     See, copy or share the ready-made message
                   </p>
                 </div>
               </div>
+
+              {messageOpen ? (
+                <div className="rounded-[14px] border border-[#d5e8d9] bg-white px-4 py-3.5">
+                  <p className="text-[13px] leading-relaxed text-[#243028] sm:text-[14px]">
+                    {READY_MADE_MESSAGE}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => copyText(READY_MADE_MESSAGE, "message")}
+                    className="mt-3 inline-flex cursor-pointer items-center gap-1.5 text-[13px] font-bold text-[#1f6b3a] hover:text-[#185830]"
+                  >
+                    {copiedField === "message" ? "Copied!" : "Copy Message"}
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -357,31 +374,39 @@ export function MemberReferPage() {
 
           <div className="divide-y divide-[#eef2ee]">
             {milestones.map((milestone) => (
-              <MilestoneRow key={milestone.count} {...milestone} />
+              <MilestoneRow
+                key={milestone.count}
+                {...milestone}
+                status={
+                  redeemedCount === milestone.count ? "requested" : milestone.status
+                }
+                onRedeem={() => setRedeemedCount(milestone.count)}
+              />
             ))}
           </div>
 
+          {redeemedCount ? (
+            <div className="border-t border-[#eef2ee] bg-[#F4F8F2] px-4 py-3.5 sm:px-6">
+              <p className="text-[13px] font-semibold text-[#1f6b3a] sm:text-[14px]">
+                Redemption Requested
+              </p>
+              <p className="mt-1 text-[12px] leading-relaxed text-[#5f6f64] sm:text-[13px]">
+                You have redeemed your reward. We&apos;ll send it within 15 days.
+              </p>
+            </div>
+          ) : null}
+
           <div className="border-t border-[#eef2ee] bg-[#FBF9F5] px-4 py-3.5 sm:px-6">
-            <p className="flex flex-col gap-3 text-[12px] leading-relaxed text-[#5f6f64] sm:flex-row sm:items-center sm:justify-between sm:text-[13px]">
-              <span className="flex items-start gap-2 sm:items-center">
-                <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-[#8a968c] sm:mt-0" />
-                Trial registrations do not count toward milestones.
-              </span>
-              <Link
-                href="/refund"
-                className="link-animate inline-flex shrink-0 items-center gap-1 font-bold text-[#1f6b3a] hover:text-[#185830]"
-              >
-                Learn more about referrals
-                <span aria-hidden="true">
-                  <ChevronRightIcon className="h-4 w-4" />
-                </span>
-              </Link>
+            <p className="flex items-start gap-2 text-[12px] leading-relaxed text-[#5f6f64] sm:items-center sm:text-[13px]">
+              <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-[#8a968c] sm:mt-0" />
+              Trial registrations do not count toward milestones. Rewards stay recorded even if
+              Admin later changes the programme. A ₹0 membership does not count as a successful referral.
             </p>
           </div>
         </section>
 
         {/* My referrals table */}
-        <section className="overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white">
+        <section id="referrals" className="overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white">
           <div className="flex flex-col gap-3 border-b border-[#eef2ee] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <h2 className="text-[16px] font-bold text-[#1f6b3a] sm:text-[17px]">
               My Referrals
@@ -400,38 +425,55 @@ export function MemberReferPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredReferrals.map((referral) => (
-                  <tr
-                    key={referral.name}
-                    className="border-b border-[#eef2ee] last:border-b-0"
-                  >
-                    <td className="px-4 py-3.5 sm:px-6">
-                      <div className="flex items-center gap-2.5">
-                        <span
-                          className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${referral.avatarBg}`}
-                        >
-                          {referral.initials}
-                        </span>
-                        <span className="text-[13px] font-semibold text-[#243028] sm:text-[14px]">
-                          {referral.name}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5 sm:px-6">
-                      <span
-                        className={`inline-flex rounded-[6px] px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${statusBadgeClass[referral.statusTone]}`}
+                {filteredReferrals.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center sm:px-6">
+                      <p className="text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
+                        Start referring your friends. Share The Healing Mat with someone who could
+                        benefit from it.
+                      </p>
+                      <a
+                        href="#share"
+                        className={`${memberPrimaryBtnClass} mt-4 px-4 py-2.5 text-[13px]`}
                       >
-                        {referral.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-[13px] text-[#6b7c6e] sm:px-6">
-                      {referral.note}
-                    </td>
-                    <td className="px-4 py-3.5 text-[13px] font-semibold text-[#243028] sm:px-6">
-                      {referral.date}
+                        Refer a Friend
+                      </a>
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredReferrals.map((referral) => (
+                    <tr
+                      key={referral.name}
+                      className="border-b border-[#eef2ee] last:border-b-0"
+                    >
+                      <td className="px-4 py-3.5 sm:px-6">
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${referral.avatarBg}`}
+                          >
+                            {referral.initials}
+                          </span>
+                          <span className="text-[13px] font-semibold text-[#243028] sm:text-[14px]">
+                            {referral.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 sm:px-6">
+                        <span
+                          className={`inline-flex rounded-[6px] px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${statusBadgeClass[referral.statusTone]}`}
+                        >
+                          {referral.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-[13px] text-[#6b7c6e] sm:px-6">
+                        {referral.note}
+                      </td>
+                      <td className="px-4 py-3.5 text-[13px] font-semibold text-[#243028] sm:px-6">
+                        {referral.date}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -537,12 +579,15 @@ function ReferralStatusFilter({
 function MilestoneRow({
   count,
   status,
+  onRedeem,
 }: {
   count: number;
-  status: "completed" | "unlocked" | "upcoming";
+  status: "completed" | "unlocked" | "upcoming" | "requested";
+  onRedeem: () => void;
 }) {
   const isUnlocked = status === "unlocked";
   const isCompleted = status === "completed";
+  const isRequested = status === "requested";
 
   return (
     <div
@@ -594,9 +639,14 @@ function MilestoneRow({
             <CheckIcon className="h-4 w-4" />
             Completed
           </span>
+        ) : isRequested ? (
+          <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#C58A1A]">
+            Redemption Requested
+          </span>
         ) : isUnlocked ? (
           <button
             type="button"
+            onClick={onRedeem}
             className={`${memberPrimaryBtnClass} px-4 py-2 text-[13px] sm:px-5 sm:py-2.5`}
           >
             Redeem Reward
@@ -613,7 +663,11 @@ function MilestoneRow({
   );
 }
 
-function MilestoneBadge({ status }: { status: "completed" | "unlocked" | "upcoming" }) {
+function MilestoneBadge({
+  status,
+}: {
+  status: "completed" | "unlocked" | "upcoming" | "requested";
+}) {
   if (status === "completed") {
     return (
       <span className="inline-flex rounded-[6px] bg-[#F0F0F0] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#6b7c6e] uppercase">
@@ -621,10 +675,17 @@ function MilestoneBadge({ status }: { status: "completed" | "unlocked" | "upcomi
       </span>
     );
   }
+  if (status === "requested") {
+    return (
+      <span className="inline-flex rounded-[6px] bg-[#FFF4DC] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#C58A1A] uppercase">
+        Redemption Requested
+      </span>
+    );
+  }
   if (status === "unlocked") {
     return (
       <span className="inline-flex rounded-[6px] bg-[#1f6b3a] px-2 py-0.5 text-[10px] font-bold tracking-wide text-white uppercase">
-        Reward Unlocked
+        Available
       </span>
     );
   }

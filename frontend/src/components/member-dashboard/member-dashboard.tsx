@@ -8,21 +8,45 @@ import leafRight from "@/assets/leaf-right.png";
 import moonIcon from "@/assets/moon.png";
 import sunIcon from "@/assets/sun.png";
 import yogaMenIcon from "@/assets/yoga-men.png";
-import {
-  memberOutlineBtnSmClass,
-  memberPrimaryBtnSmClass,
-} from "@/components/member-dashboard/member-button-styles";
+import { memberPrimaryBtnClass, memberPrimaryBtnSmClass } from "@/components/member-dashboard/member-button-styles";
 import type { PublicUser } from "@/lib/api";
-
-const morningSlots = ["6:30 AM", "7:30 AM", "8:30 AM"];
-const eveningSlots = ["5:00 PM", "6:00 PM", "7:00 PM"];
+import {
+  getMemberAccess,
+  greetingForName,
+  membershipStatusLabel,
+} from "@/lib/member-access";
+import {
+  findRunningSession,
+  isSunday,
+  sessionUnavailableMessage,
+  sundayQaSlots,
+  trialSessionSlots,
+  weekdayEveningSlots,
+  weekdayMorningSlots,
+} from "@/lib/member-session-schedule";
 
 type MemberDashboardProps = {
   user: PublicUser;
 };
 
-function firstName(fullName: string) {
-  return fullName.trim().split(/\s+/)[0] || "there";
+function CalendarMaskIcon() {
+  return (
+    <span
+      aria-hidden="true"
+      className="block h-3.5 w-3.5 sm:h-4 sm:w-4"
+      style={{
+        backgroundColor: "#1f6b3a",
+        WebkitMaskImage: `url(${calendarIcon.src})`,
+        WebkitMaskSize: "contain",
+        WebkitMaskRepeat: "no-repeat",
+        WebkitMaskPosition: "center",
+        maskImage: `url(${calendarIcon.src})`,
+        maskSize: "contain",
+        maskRepeat: "no-repeat",
+        maskPosition: "center",
+      }}
+    />
+  );
 }
 
 function formatDashboardDate(date: Date) {
@@ -35,8 +59,31 @@ function formatDashboardDate(date: Date) {
 }
 
 export function MemberDashboard({ user }: MemberDashboardProps) {
-  const name = firstName(user.fullName);
-  const todayLabel = formatDashboardDate(new Date());
+  const access = getMemberAccess();
+  const nameGreeting = greetingForName(user.fullName);
+  const now = new Date();
+  const todayLabel = formatDashboardDate(now);
+  const sunday = isSunday(now);
+  const sessionKind = access.state === "trial" ? "trial" : "member";
+  const running = access.state === "expired" ? null : findRunningSession(now, sessionKind);
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+
+  function handleJoin() {
+    if (access.state === "expired") return;
+    const current = findRunningSession(new Date(), sessionKind);
+    if (!current) {
+      setSessionNotice(sessionUnavailableMessage(new Date(), sessionKind));
+      return;
+    }
+    window.location.assign("/dashboard/join");
+  }
+
+  const supportingMessage =
+    access.state === "trial"
+      ? `Your trial is active until ${access.trialEndsOnLabel ?? "its end date"}.`
+      : access.state === "expired"
+        ? "Renew your membership to continue your daily yoga sessions."
+        : "Let’s begin your day with yoga.";
 
   return (
     <div className="w-full bg-[#FBF9F5]">
@@ -44,10 +91,10 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
         {/* Greeting row */}
         <section className="mb-6 sm:mb-8">
           <h1 className="font-serif text-[1.75rem] leading-tight font-bold text-[#1f6b3a] sm:text-[2rem] lg:text-[2.15rem]">
-            Namaste, {name} 🙏
+            {nameGreeting}
           </h1>
           <p className="mt-1.5 text-[14px] text-[#5f6f64] sm:text-[15px]">
-            Great to see you! Let&apos;s begin your day with yoga.
+            {supportingMessage}
           </p>
         </section>
 
@@ -79,9 +126,74 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
             </div>
           </div>
 
-          <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
-            {/* Regular sessions */}
-            <div className="border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-r">
+          {sessionNotice ? (
+            <div className="border-b border-[#eef2ee] bg-[#F7F3EA] px-4 py-3 sm:px-6">
+              <p className="flex items-start gap-2 text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
+                <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-[#C4A574]" />
+                {sessionNotice}
+              </p>
+            </div>
+          ) : null}
+
+          {access.state === "expired" ? (
+            <div className="px-4 py-6 sm:px-6 sm:py-8">
+              <p className="text-[16px] font-bold text-[#243028] sm:text-[18px]">
+                Your membership has expired
+              </p>
+              <p className="mt-2 text-[14px] text-[#5f6f64] sm:text-[15px]">
+                Membership: {access.planName}
+              </p>
+              <p className="mt-1 text-[14px] text-[#5f6f64] sm:text-[15px]">
+                Expired on: {access.expiredOnLabel}
+              </p>
+              <p className="mt-3 max-w-[520px] text-[14px] leading-relaxed text-[#6b7c6e]">
+                Renew your membership to continue your daily yoga sessions. Your account,
+                referrals and membership history remain available.
+              </p>
+              <Link
+                href="/dashboard/membership"
+                className={`${memberPrimaryBtnClass} mt-5 px-5 py-3 text-[14px] sm:text-[15px]`}
+              >
+                Renew Membership
+              </Link>
+            </div>
+          ) : access.state === "trial" ? (
+            <div className="px-4 py-4 sm:px-6 sm:py-5">
+              <SectionHeading
+                icon={
+                  <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-7 sm:w-7">
+                    <CalendarMaskIcon />
+                  </span>
+                }
+                title="Trial Sessions"
+                subtitle="7:00 AM and 7:00 PM"
+              />
+              <SessionRow
+                icon={sunIcon}
+                label="Today's Trial Sessions"
+                slots={[...trialSessionSlots]}
+                tint="bg-[#F4F8F2]"
+                liveSlot={running?.label}
+                onJoin={handleJoin}
+              />
+              <p className="mt-4 text-[13px] leading-relaxed text-[#6b7c6e]">
+                Trial access includes these two session times. Regular membership sessions
+                become available when your membership starts.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Link href="/membership?start=now" className={`${memberPrimaryBtnClass} px-4 py-2.5 text-[13px] sm:text-[14px]`}>
+                  Start Membership Now
+                </Link>
+                <Link
+                  href="/membership?start=after-trial"
+                  className="inline-flex items-center justify-center rounded-[16px] border border-[#1f6b3a] bg-white px-4 py-2.5 text-[13px] font-bold text-[#1f6b3a] sm:text-[14px]"
+                >
+                  Start After Trial
+                </Link>
+              </div>
+            </div>
+          ) : sunday ? (
+            <div className="px-4 py-4 sm:px-6 sm:py-5">
               <SectionHeading
                 icon={
                   <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-7 sm:w-7">
@@ -102,84 +214,126 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                     />
                   </span>
                 }
-                title="Regular Yoga Sessions"
-                subtitle="(Monday to Saturday)"
+                title="Q&A & Guidance"
+                subtitle="Sunday · 8:00 AM and 7:00 PM"
               />
-
               <SessionRow
                 icon={sunIcon}
-                label="Morning Sessions"
-                slots={morningSlots}
+                label="Sunday Sessions"
+                slots={[...sundayQaSlots]}
                 tint="bg-[#F4F8F2]"
+                liveSlot={running?.label}
+                onJoin={handleJoin}
               />
-              <SessionRow
-                icon={moonIcon}
-                label="Evening Sessions"
-                slots={eveningSlots}
-                tint="bg-[#F7F7F5]"
-              />
-
               <p className="mt-4 flex items-start gap-2 text-[12px] leading-snug text-[#6b7c6e] sm:text-[13px]">
                 <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-[#8a968c]" />
-                Select one or more session times, then click Join.
+                Have a question? Send it to us via WhatsApp or email for Sunday Q&amp;A.
               </p>
             </div>
+          ) : (
+            <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
+              <div className="border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-r">
+                <SectionHeading
+                  icon={
+                    <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-7 sm:w-7">
+                      <span
+                        aria-hidden="true"
+                        className="block h-3.5 w-3.5 sm:h-4 sm:w-4"
+                        style={{
+                          backgroundColor: "#1f6b3a",
+                          WebkitMaskImage: `url(${calendarIcon.src})`,
+                          WebkitMaskSize: "contain",
+                          WebkitMaskRepeat: "no-repeat",
+                          WebkitMaskPosition: "center",
+                          maskImage: `url(${calendarIcon.src})`,
+                          maskSize: "contain",
+                          maskRepeat: "no-repeat",
+                          maskPosition: "center",
+                        }}
+                      />
+                    </span>
+                  }
+                  title="Regular Yoga Sessions"
+                  subtitle="(Monday to Saturday)"
+                />
 
-            {/* Special sessions */}
-            <div className="border-t border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-t-0">
-              <SectionHeading
-                icon={
-                  <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FFF4DC] text-[#C58A1A] sm:h-7 sm:w-7">
-                    <StarIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  </span>
-                }
-                title="11:30 AM Special Session"
-                subtitle="(Monday to Saturday)"
-              />
+                <SessionRow
+                  icon={sunIcon}
+                  label="Morning Sessions"
+                  slots={[...weekdayMorningSlots]}
+                  tint="bg-[#F4F8F2]"
+                  liveSlot={running?.label}
+                  onJoin={handleJoin}
+                />
+                <SessionRow
+                  icon={moonIcon}
+                  label="Evening Sessions"
+                  slots={[...weekdayEveningSlots]}
+                  tint="bg-[#F7F7F5]"
+                  liveSlot={running?.label}
+                  onJoin={handleJoin}
+                />
 
-              <SpecialTopicRow
-                icon={
-                  <Image
-                    src={sunIcon}
-                    alt=""
-                    width={32}
-                    height={32}
-                    className="h-8 w-8 shrink-0 object-contain sm:h-9 sm:w-9"
-                  />
-                }
-                label="Today's Topic"
-                topic="Back Care & Spine Strength"
-                actionLabel="Join"
-                tint="bg-[#F4F8F2]"
-              />
-              <SpecialTopicRow
-                icon={
-                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center sm:h-9 sm:w-9">
-                    <span
-                      aria-hidden="true"
-                      className="block h-5 w-5 sm:h-6 sm:w-6"
-                      style={{
-                        backgroundColor: "#1f6b3a",
-                        WebkitMaskImage: `url(${calendarIcon.src})`,
-                        WebkitMaskSize: "contain",
-                        WebkitMaskRepeat: "no-repeat",
-                        WebkitMaskPosition: "center",
-                        maskImage: `url(${calendarIcon.src})`,
-                        maskSize: "contain",
-                        maskRepeat: "no-repeat",
-                        maskPosition: "center",
-                      }}
+                <p className="mt-4 flex items-start gap-2 text-[12px] leading-snug text-[#6b7c6e] sm:text-[13px]">
+                  <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-[#8a968c]" />
+                  Morning and evening times share one Join action. Regular sessions do not show individual topics.
+                </p>
+              </div>
+
+              <div className="border-t border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-t-0">
+                <SectionHeading
+                  icon={
+                    <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FFF4DC] text-[#C58A1A] sm:h-7 sm:w-7">
+                      <StarIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    </span>
+                  }
+                  title="11:30 AM Special Session"
+                  subtitle="(Monday to Saturday)"
+                />
+
+                <SpecialTopicRow
+                  icon={
+                    <Image
+                      src={sunIcon}
+                      alt=""
+                      width={32}
+                      height={32}
+                      className="h-8 w-8 shrink-0 object-contain sm:h-9 sm:w-9"
                     />
-                  </span>
-                }
-                label="Tomorrow's Topic"
-                topic="Detox Yoga Flow"
-                actionLabel="View"
-                tint="bg-[#F7F7F5]"
-                actionVariant="outline"
-              />
+                  }
+                  label="Today's Topic"
+                  topic="Back Care & Spine Strength"
+                  actionLabel="Join"
+                  tint="bg-[#F4F8F2]"
+                  onJoin={handleJoin}
+                />
+                <SpecialTopicRow
+                  icon={
+                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center sm:h-9 sm:w-9">
+                      <span
+                        aria-hidden="true"
+                        className="block h-5 w-5 sm:h-6 sm:w-6"
+                        style={{
+                          backgroundColor: "#1f6b3a",
+                          WebkitMaskImage: `url(${calendarIcon.src})`,
+                          WebkitMaskSize: "contain",
+                          WebkitMaskRepeat: "no-repeat",
+                          WebkitMaskPosition: "center",
+                          maskImage: `url(${calendarIcon.src})`,
+                          maskSize: "contain",
+                          maskRepeat: "no-repeat",
+                          maskPosition: "center",
+                        }}
+                      />
+                    </span>
+                  }
+                  label="Tomorrow's Topic"
+                  topic="Detox Yoga Flow"
+                  tint="bg-[#F7F7F5]"
+                />
+              </div>
             </div>
-          </div>
+          )}
         </section>
 
         {/* Bottom cards */}
@@ -187,17 +341,33 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
           <DashboardCard
             icon={<WalletIcon className="h-7 w-7 text-[#1f6b3a]" />}
             title="My Membership"
-            badge="ACTIVE"
+            badge={membershipStatusLabel(access.state)}
             body={
               <>
-                <p className="font-semibold text-[#3d4a3c]">12-Month Membership</p>
+                <p className="font-semibold text-[#3d4a3c]">{access.planName}</p>
                 <p className="mt-0.5 text-[13px] text-[#6b7c6e]">
-                  Valid until 30 September 2026
+                  {access.state === "trial"
+                    ? `Trial ends ${access.trialEndsOnLabel}`
+                    : access.state === "expired"
+                      ? `Expired on ${access.expiredOnLabel}`
+                      : `Valid until ${access.validUntilLabel}`}
                 </p>
               </>
             }
             href="/dashboard/membership"
-            linkLabel="View Membership Details"
+            linkLabel="View Membership"
+            secondaryHref={
+              access.state === "expired" || access.state === "trial"
+                ? "/dashboard/membership"
+                : undefined
+            }
+            secondaryLabel={
+              access.state === "expired"
+                ? "Renew Membership"
+                : access.state === "trial"
+                  ? "Start Membership"
+                  : undefined
+            }
             decor={<LeafDecor />}
           />
 
@@ -208,19 +378,19 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
             subtitle="Share with friends and earn exciting rewards."
             body={
               <>
-                <div className="mt-1 flex items-center justify-between text-[12px] font-semibold text-[#6b7c6e]">
-                  <span>2 / 5 Completed</span>
-                </div>
+                <p className="text-[13px] font-semibold text-[#243028]">7 successful referrals</p>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#EDE8DF]">
-                  <div className="h-full w-[40%] rounded-full bg-[#E07A2F]" />
+                  <div className="h-full w-[70%] rounded-full bg-[#E07A2F]" />
                 </div>
                 <p className="mt-2 text-[12px] leading-snug text-[#6b7c6e] sm:text-[13px]">
-                  3 more successful referrals to unlock next reward!
+                  3 more to unlock your next reward
                 </p>
               </>
             }
             href="/dashboard/refer"
             linkLabel="Refer a Friend"
+            secondaryHref="/dashboard/refer#referrals"
+            secondaryLabel="My Referrals & Rewards"
           />
 
           <DashboardCard
@@ -230,7 +400,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
             subtitle="Simple and practical guidance for a healthier you."
             body={null}
             href="/guides"
-            linkLabel="Explore Health Guides"
+            linkLabel="Health Guides"
             decor={<LeafDecor />}
           />
         </section>
@@ -269,14 +439,14 @@ function SpecialTopicRow({
   topic,
   actionLabel,
   tint,
-  actionVariant = "primary",
+  onJoin,
 }: {
   icon: ReactNode;
   label: string;
   topic: string;
-  actionLabel: string;
+  actionLabel?: string;
   tint: string;
-  actionVariant?: "primary" | "outline";
+  onJoin?: () => void;
 }) {
   return (
     <div
@@ -292,12 +462,15 @@ function SpecialTopicRow({
         </div>
       </div>
 
-      <button
-        type="button"
-        className={`${actionVariant === "primary" ? memberPrimaryBtnSmClass : memberOutlineBtnSmClass} shrink-0 px-4 py-1.5 text-[12px] whitespace-nowrap sm:px-5 sm:text-[13px]`}
-      >
-        {actionLabel}
-      </button>
+      {actionLabel ? (
+        <button
+          type="button"
+          onClick={onJoin}
+          className={`${memberPrimaryBtnSmClass} shrink-0 px-4 py-1.5 text-[12px] whitespace-nowrap sm:px-5 sm:text-[13px]`}
+        >
+          {actionLabel}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -307,23 +480,16 @@ function SessionRow({
   label,
   slots,
   tint,
+  onJoin,
+  liveSlot,
 }: {
   icon: typeof sunIcon;
   label: string;
   slots: string[];
   tint: string;
+  onJoin: () => void;
+  liveSlot?: string;
 }) {
-  const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
-  const canJoin = selectedSlots.length > 0;
-
-  function toggleSlot(slot: string) {
-    setSelectedSlots((current) =>
-      current.includes(slot)
-        ? current.filter((value) => value !== slot)
-        : [...current, slot],
-    );
-  }
-
   return (
     <div
       className={`mb-3 flex flex-wrap items-center gap-x-2.5 gap-y-2 rounded-[14px] px-3 py-3 sm:gap-x-3 sm:px-4 sm:py-3.5 ${tint}`}
@@ -343,26 +509,24 @@ function SessionRow({
 
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:justify-end sm:gap-2.5">
         {slots.map((slot) => {
-          const selected = selectedSlots.includes(slot);
+          const live = liveSlot === slot;
           return (
-            <button
+            <span
               key={slot}
-              type="button"
-              aria-pressed={selected}
-              onClick={() => toggleSlot(slot)}
-              className={`cursor-pointer rounded-[12px] border px-2.5 py-1 text-[12px] font-bold whitespace-nowrap transition sm:px-3 sm:py-1.5 sm:text-[13px] ${
-                selected
-                  ? "border-[#1f6b3a] bg-[#1f6b3a] text-white shadow-sm"
-                  : "border-transparent bg-white text-[#1f6b3a] hover:border-[#c5d9c8] hover:bg-[#eef6f0]"
+              className={`rounded-[12px] border px-2.5 py-1 text-[12px] font-bold whitespace-nowrap sm:px-3 sm:py-1.5 sm:text-[13px] ${
+                live
+                  ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
+                  : "border-transparent bg-white text-[#1f6b3a]"
               }`}
             >
               {slot}
-            </button>
+              {live ? <span className="sr-only"> (now)</span> : null}
+            </span>
           );
         })}
         <button
           type="button"
-          disabled={!canJoin}
+          onClick={onJoin}
           className={`${memberPrimaryBtnSmClass} px-4 py-1.5 text-[12px] whitespace-nowrap sm:px-5 sm:text-[13px]`}
         >
           Join
@@ -381,6 +545,8 @@ function DashboardCard({
   body,
   href,
   linkLabel,
+  secondaryHref,
+  secondaryLabel,
   decor,
 }: {
   icon: ReactNode;
@@ -391,6 +557,8 @@ function DashboardCard({
   body: ReactNode;
   href: string;
   linkLabel: string;
+  secondaryHref?: string;
+  secondaryLabel?: string;
   decor?: React.ReactNode;
 }) {
   return (
@@ -416,7 +584,7 @@ function DashboardCard({
         </div>
       </div>
 
-      <div className="mt-auto flex justify-center border-t border-[#eef2ee] pt-3">
+      <div className="mt-auto flex flex-col items-center gap-2 border-t border-[#eef2ee] pt-3">
         <Link
           href={href}
           className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[#1f6b3a] transition hover:text-[#185830] sm:text-[15px]"
@@ -424,6 +592,15 @@ function DashboardCard({
           {linkLabel}
           <ChevronRightIcon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
         </Link>
+        {secondaryHref && secondaryLabel ? (
+          <Link
+            href={secondaryHref}
+            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#6b7c6e] transition hover:text-[#1f6b3a]"
+          >
+            {secondaryLabel}
+            <ChevronRightIcon className="h-3.5 w-3.5" />
+          </Link>
+        ) : null}
       </div>
     </article>
   );

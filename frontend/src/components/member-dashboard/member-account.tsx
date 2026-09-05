@@ -63,6 +63,8 @@ export function MemberAccountPage() {
   const [fullName, setFullName] = useState(user.fullName);
   const [dateOfBirth, setDateOfBirth] = useState(user.dateOfBirth ?? "");
   const [gender, setGender] = useState<UserGender | "">(user.gender ?? "");
+  const [mobileDraft, setMobileDraft] = useState(user.mobile ?? "");
+  const [emailDraft, setEmailDraft] = useState(user.email ?? "");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
 
@@ -70,6 +72,8 @@ export function MemberAccountPage() {
     setFullName(user.fullName);
     setDateOfBirth(user.dateOfBirth ?? "");
     setGender(user.gender ?? "");
+    setMobileDraft(user.mobile ?? "");
+    setEmailDraft(user.email ?? "");
     setProfileError(null);
     setIsEditing(true);
   }
@@ -85,6 +89,14 @@ export function MemberAccountPage() {
 
     const trimmedDob = dateOfBirth.trim();
     const parsedDob = trimmedDob === "" ? null : trimmedDob;
+    if ((mobileDraft.trim() || "") !== (user.mobile ?? "")) {
+      setProfileError("Changing your mobile number requires OTP verification before it becomes your login number.");
+      return;
+    }
+    if ((emailDraft.trim() || "") !== (user.email ?? "")) {
+      setProfileError("Email changes require verification before they are saved.");
+      return;
+    }
     if (parsedDob !== null && !isValidDob(parsedDob)) {
       setProfileError("Please enter a valid date of birth.");
       return;
@@ -210,17 +222,37 @@ export function MemberAccountPage() {
                   />
                 }
               />
-              <InfoRow
+              <EditableInfoRow
                 icon={<PhoneIcon className="h-5 w-5 text-[#1f6b3a]" />}
                 label="Mobile Number"
+                isEditing={isEditing}
                 value={formatMobile(user.mobile)}
-                verified={Boolean(user.mobile)}
+                editContent={
+                  <input
+                    type="tel"
+                    value={mobileDraft}
+                    onChange={(event) => setMobileDraft(event.target.value)}
+                    className={inlineFieldClass}
+                    placeholder="Enter mobile number"
+                    autoComplete="tel"
+                  />
+                }
               />
-              <InfoRow
+              <EditableInfoRow
                 icon={<MailIcon className="h-5 w-5 text-[#1f6b3a]" />}
                 label="Email Address"
+                isEditing={isEditing}
                 value={user.email || "—"}
-                verified={Boolean(user.email)}
+                editContent={
+                  <input
+                    type="email"
+                    value={emailDraft}
+                    onChange={(event) => setEmailDraft(event.target.value)}
+                    className={inlineFieldClass}
+                    placeholder="Enter email address"
+                    autoComplete="email"
+                  />
+                }
               />
             </div>
 
