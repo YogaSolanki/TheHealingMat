@@ -1,16 +1,10 @@
 import type { Metadata } from "next";
-import { EmptyPanel } from "@/components/empty-panel";
+import { CouponsPanel } from "@/components/coupons-panel";
 
 export const metadata: Metadata = {
   title: "Coupons",
 };
 
 export default function CouponManagementPage() {
-  return (
-    <EmptyPanel
-      action="Add coupon"
-      columns={["Code", "Discount", "Status"]}
-      empty="No coupons yet"
-    />
-  );
+  return <CouponsPanel />;
 }

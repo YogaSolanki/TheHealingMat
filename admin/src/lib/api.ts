@@ -229,6 +229,63 @@ export function deleteAdminArticle(token: string, id: string) {
   );
 }
 
+export type CouponDiscountType = "percent" | "fixed";
+
+export type AdminCoupon = {
+  id: string;
+  code: string;
+  userName: string;
+  discountType: CouponDiscountType;
+  discountValue: number;
+  discountLabel: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type GeneratedCoupon = {
+  code: string;
+  userName: string;
+  discountType: CouponDiscountType;
+  discountValue: number;
+  discountLabel: string;
+};
+
+export function listAdminCoupons(token: string) {
+  return authJson<AdminCoupon[]>("GET", "/admin/coupons", token);
+}
+
+export function generateAdminCoupon(
+  token: string,
+  body: {
+    userName: string;
+    discountType: CouponDiscountType;
+    discountValue: number;
+  },
+) {
+  return authJson<GeneratedCoupon>("POST", "/admin/coupons/generate", token, body);
+}
+
+export function createAdminCoupon(
+  token: string,
+  body: {
+    userName: string;
+    code: string;
+    discountType: CouponDiscountType;
+    discountValue: number;
+    discountLabel: string;
+  },
+) {
+  return authJson<AdminCoupon>("POST", "/admin/coupons", token, body);
+}
+
+export function deleteAdminCoupon(token: string, id: string) {
+  return authJson<{ success: boolean }>(
+    "DELETE",
+    `/admin/coupons/${id}`,
+    token,
+  ).then(() => undefined);
+}
+
 export function listAdminVideos(token: string) {
   return authJson<AdminContentItem[]>("GET", "/admin/videos", token);
 }

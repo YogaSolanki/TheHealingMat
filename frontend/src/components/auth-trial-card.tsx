@@ -30,6 +30,7 @@ import {
   TOKEN_KEY,
 } from "@/lib/auth-storage";
 import trialIcon from "@/assets/trail.png";
+import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
 
 type Mode = "login" | "signup" | "forgot";
 type Step = "identity" | "otp" | "orientation" | "done" | "reset_done";
@@ -673,6 +674,7 @@ export function AuthTrialCard({
   );
   const [error, setError] = useState<string | null>(initialError);
   const [loading, setLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(TOKEN_KEY);
@@ -717,6 +719,12 @@ export function AuthTrialCard({
   async function onRequestOtp(event: FormEvent) {
     event.preventDefault();
     setError(null);
+
+    if (mode === "signup" && !termsAccepted) {
+      setError("Please agree to the Terms & Conditions to continue.");
+      return;
+    }
+
     setLoading(true);
     try {
       if (mode === "login") {
@@ -841,6 +849,7 @@ export function AuthTrialCard({
     setSlotId("");
     setConfirmation(null);
     setResetMessage(null);
+    setTermsAccepted(false);
   }
 
   function openForgotPassword() {
@@ -1115,7 +1124,19 @@ export function AuthTrialCard({
             </div>
           ) : null}
 
-          <button type="submit" disabled={loading} className={primaryBtnClass}>
+          {mode === "signup" ? (
+            <TermsAcceptanceField
+              checked={termsAccepted}
+              onChange={setTermsAccepted}
+              disabled={loading}
+            />
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={loading || (mode === "signup" && !termsAccepted)}
+            className={primaryBtnClass}
+          >
             {loading ? (
               <ButtonLoader label="Please wait…" />
             ) : mode === "login" ? (

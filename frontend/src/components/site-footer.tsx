@@ -23,11 +23,11 @@ const exploreLinks = [
 ];
 
 const legalLinks = [
-  { href: "#privacy", label: "Privacy Policy" },
-  { href: "#refund", label: "Refund Policy" },
-  { href: "#terms", label: "Terms & Conditions" },
+  { href: "/privacy", label: "Privacy Policy" },
+  { href: "/refund", label: "Refund Policy" },
+  { href: "/terms", label: "Terms & Conditions" },
   { href: "#cookies", label: "Cookie Policy" },
-  { href: "#disclaimer", label: "Disclaimer" },
+  { href: "/health-and-safety", label: "Health & Safety" },
 ];
 
 const socialLinks: { key: string; href: string; label: string; icon: IconType }[] = [

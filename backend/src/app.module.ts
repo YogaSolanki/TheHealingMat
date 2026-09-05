@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module';
 import { ContactModule } from './contact/contact.module';
 import { ContentModule } from './content/content.module';
+import { CouponsModule } from './coupons/coupons.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { ContentModule } from './content/content.module';
     AdminDashboardModule,
     ContactModule,
     ContentModule,
+    CouponsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
