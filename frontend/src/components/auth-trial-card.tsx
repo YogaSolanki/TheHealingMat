@@ -30,6 +30,9 @@ import {
   TOKEN_KEY,
 } from "@/lib/auth-storage";
 import trialIcon from "@/assets/trail.png";
+import { ButtonLoader } from "@/components/site-loader";
+import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
+import { getCapturedReferralCode } from "@/lib/referral-storage";
 
 type Mode = "login" | "signup" | "forgot";
 type Step = "identity" | "otp" | "orientation" | "done" | "reset_done";
@@ -91,18 +94,6 @@ function FieldShieldIcon() {
 }
 
 const OTP_LENGTH = 6;
-
-function ButtonLoader({ label }: { label: string }) {
-  return (
-    <span className="inline-flex items-center justify-center gap-2">
-      <span
-        aria-hidden="true"
-        className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white"
-      />
-      <span>{label}</span>
-    </span>
-  );
-}
 
 function TrialBrandMark() {
   return (
@@ -673,6 +664,7 @@ export function AuthTrialCard({
   );
   const [error, setError] = useState<string | null>(initialError);
   const [loading, setLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(TOKEN_KEY);
@@ -717,6 +709,12 @@ export function AuthTrialCard({
   async function onRequestOtp(event: FormEvent) {
     event.preventDefault();
     setError(null);
+
+    if (mode === "signup" && !termsAccepted) {
+      setError("Please agree to the Terms & Conditions to continue.");
+      return;
+    }
+
     setLoading(true);
     try {
       if (mode === "login") {
@@ -795,6 +793,7 @@ export function AuthTrialCard({
         return;
       }
 
+      const capturedReferral = getCapturedReferralCode();
       const result = await verifyOtp({
         challengeId,
         code: otp,
@@ -802,6 +801,7 @@ export function AuthTrialCard({
           ? {
               fullName,
               ...(password.trim() ? { password } : {}),
+              ...(capturedReferral ? { referralCode: capturedReferral } : {}),
             }
           : {}),
       });
@@ -841,6 +841,7 @@ export function AuthTrialCard({
     setSlotId("");
     setConfirmation(null);
     setResetMessage(null);
+    setTermsAccepted(false);
   }
 
   function openForgotPassword() {
@@ -892,7 +893,7 @@ export function AuthTrialCard({
     "w-full rounded-[16px] border border-[#d7e0d6] bg-white px-4 py-3 text-sm text-[#1f6b3a] outline-none transition focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
   const labelClass = "mb-1.5 block text-sm font-medium text-[#3d4a3c]";
   const primaryBtnClass =
-    "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-3.5 text-[15px] font-bold text-white shadow-[0_10px_24px_rgba(31,107,58,0.22)] transition hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-60";
+    "btn-primary inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-3.5 text-[15px] font-bold text-white shadow-[0_10px_24px_rgba(31,107,58,0.22)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-[0_10px_24px_rgba(31,107,58,0.22)] disabled:hover:filter-none";
   const textBtnClass =
     "w-full cursor-pointer text-sm font-medium text-[#6d8474] transition hover:text-[#1f6b3a]";
   const headerOffsetClass = "mt-1";
@@ -1115,9 +1116,21 @@ export function AuthTrialCard({
             </div>
           ) : null}
 
-          <button type="submit" disabled={loading} className={primaryBtnClass}>
+          {mode === "signup" ? (
+            <TermsAcceptanceField
+              checked={termsAccepted}
+              onChange={setTermsAccepted}
+              disabled={loading}
+            />
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={loading || (mode === "signup" && !termsAccepted)}
+            className={primaryBtnClass}
+          >
             {loading ? (
-              <ButtonLoader label="Please wait…" />
+              <ButtonLoader />
             ) : mode === "login" ? (
               "Login"
             ) : mode === "forgot" ? (
@@ -1213,9 +1226,7 @@ export function AuthTrialCard({
             className={primaryBtnClass}
           >
             {loading ? (
-              <ButtonLoader
-                label={mode === "forgot" ? "Updating…" : "Verifying…"}
-              />
+              <ButtonLoader />
             ) : mode === "forgot" ? (
               "Reset password"
             ) : (
@@ -1292,7 +1303,7 @@ export function AuthTrialCard({
             className={primaryBtnClass}
           >
             {loading ? (
-              <ButtonLoader label="Registering…" />
+              <ButtonLoader />
             ) : (
               "Confirm Free Trial"
             )}

@@ -7,7 +7,7 @@ import { AuthTrialCard } from "@/components/auth-trial-card";
 type AuthLoginModalProps = {
   open: boolean;
   onClose: () => void;
-  initialMode?: "login" | "signup";
+  initialMode?: "login" | "signup" | "forgot";
   initialError?: string | null;
 };
 
@@ -69,7 +69,13 @@ export function AuthLoginModal({
       }`}
       role="dialog"
       aria-modal="true"
-      aria-label={initialMode === "login" ? "Member login" : "Free trial signup"}
+      aria-label={
+        initialMode === "login"
+          ? "Member login"
+          : initialMode === "forgot"
+            ? "Forgot password"
+            : "Free trial signup"
+      }
     >
       <button
         type="button"

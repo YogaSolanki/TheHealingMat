@@ -9,9 +9,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import { AuthLoginModal } from "@/components/auth-login-modal";
+import { getStoredToken } from "@/lib/auth-storage";
 
-type AuthMode = "login" | "signup";
+type AuthMode = "login" | "signup" | "forgot";
 
 type AuthModalContextValue = {
   openAuth: (mode?: AuthMode) => void;
@@ -21,15 +23,23 @@ type AuthModalContextValue = {
 const AuthModalContext = createContext<AuthModalContextValue | null>(null);
 
 export function AuthModalProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>("login");
   const [error, setError] = useState<string | null>(null);
 
-  const openAuth = useCallback((nextMode: AuthMode = "login") => {
-    setMode(nextMode);
-    setError(null);
-    setOpen(true);
-  }, []);
+  const openAuth = useCallback(
+    (nextMode: AuthMode = "login") => {
+      if (getStoredToken()) {
+        router.replace("/dashboard");
+        return;
+      }
+      setMode(nextMode);
+      setError(null);
+      setOpen(true);
+    },
+    [router],
+  );
 
   const closeAuth = useCallback(() => {
     setOpen(false);
@@ -43,6 +53,14 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
     const authMode = params.get("auth");
     let changed = false;
 
+    if (getStoredToken() && (authMode === "login" || authMode === "signup")) {
+      router.replace("/dashboard");
+      params.delete("auth");
+      const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
+      window.history.replaceState({}, "", next);
+      return;
+    }
+
     if (authError) {
       setError(authError);
       setMode("login");
@@ -51,7 +69,7 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
       changed = true;
     }
 
-    if (authMode === "login" || authMode === "signup") {
+    if (authMode === "login" || authMode === "signup" || authMode === "forgot") {
       setMode(authMode);
       setOpen(true);
       params.delete("auth");
@@ -61,7 +79,7 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
     if (!changed) return;
     const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
     window.history.replaceState({}, "", next);
-  }, []);
+  }, [router]);
 
   const value = useMemo(
     () => ({

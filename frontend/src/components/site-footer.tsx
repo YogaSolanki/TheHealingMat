@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { IconType } from "react-icons";
-import { FaFacebookF, FaLinkedinIn, FaPinterestP, FaWhatsapp, FaYoutube } from "react-icons/fa";
+import { FaFacebookF, FaPinterestP, FaWhatsapp, FaYoutube } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import { HiOutlineMail, HiOutlineLocationMarker, HiOutlinePhone } from "react-icons/hi";
 import { RiInstagramFill } from "react-icons/ri";
@@ -23,20 +23,44 @@ const exploreLinks = [
 ];
 
 const legalLinks = [
-  { href: "#privacy", label: "Privacy Policy" },
-  { href: "#refund", label: "Refund Policy" },
-  { href: "#terms", label: "Terms & Conditions" },
+  { href: "/privacy", label: "Privacy Policy" },
+  { href: "/refund", label: "Refund Policy" },
+  { href: "/terms", label: "Terms & Conditions" },
   { href: "#cookies", label: "Cookie Policy" },
-  { href: "#disclaimer", label: "Disclaimer" },
+  { href: "/health-and-safety", label: "Health & Safety" },
 ];
 
 const socialLinks: { key: string; href: string; label: string; icon: IconType }[] = [
-  { key: "instagram", href: "#", label: "Instagram", icon: RiInstagramFill },
-  { key: "facebook", href: "#", label: "Facebook", icon: FaFacebookF },
-  { key: "youtube", href: "#", label: "YouTube", icon: FaYoutube },
-  { key: "linkedin", href: "#", label: "LinkedIn", icon: FaLinkedinIn },
-  { key: "x", href: "#", label: "X", icon: FaXTwitter },
-  { key: "pinterest", href: "#", label: "Pinterest", icon: FaPinterestP },
+  {
+    key: "instagram",
+    href: "https://www.instagram.com/thehealingmat.official/",
+    label: "Instagram",
+    icon: RiInstagramFill,
+  },
+  {
+    key: "facebook",
+    href: "https://www.facebook.com/TheHealingMat.Official",
+    label: "Facebook",
+    icon: FaFacebookF,
+  },
+  {
+    key: "youtube",
+    href: "https://www.youtube.com/@the_healing_mat",
+    label: "YouTube",
+    icon: FaYoutube,
+  },
+  {
+    key: "x",
+    href: "https://x.com/the_healing_mat",
+    label: "X",
+    icon: FaXTwitter,
+  },
+  {
+    key: "pinterest",
+    href: "https://pin.it/5ieOmFhl4",
+    label: "Pinterest",
+    icon: FaPinterestP,
+  },
 ];
 
 function FooterLinkColumn({
@@ -67,14 +91,18 @@ function FooterLinkColumn({
 
 export function SiteFooter() {
   const pathname = usePathname();
+  const isMemberDashboard =
+    pathname === "/dashboard" || pathname.startsWith("/dashboard/");
   const showTopBorder =
-    pathname === "/corporate/enquiry" || pathname === "/contact";
+    pathname === "/corporate/enquiry" ||
+    pathname === "/contact" ||
+    isMemberDashboard;
 
   return (
     <footer
-      className={`mt-auto w-full bg-[#FBF9F5] ${
+      className={`w-full bg-[#FBF9F5] ${
         showTopBorder ? "border-t border-[#d9e0d4]" : ""
-      }`}
+      } ${isMemberDashboard ? "" : "mt-auto"}`}
     >
       <div className="mx-auto grid w-full max-w-[1140px] grid-cols-2 gap-x-4 gap-y-6 px-5 py-8 sm:gap-x-8 sm:px-6 sm:py-8 lg:grid-cols-[1.3fr_1fr_1.3fr] lg:gap-0 lg:px-8 lg:py-8 xl:px-10">
         {/* Brand — full width on phone; left column on desktop */}
@@ -93,13 +121,15 @@ export function SiteFooter() {
           <ul className="mt-3.5 flex flex-wrap items-center justify-start gap-2">
             {socialLinks.map((social) => (
               <li key={social.key}>
-                <Link
+                <a
                   href={social.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   aria-label={social.label}
                   className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-[#cfd8cf] bg-white text-[#1f6b3a] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#1f6b3a] hover:bg-[#eef6f0] hover:shadow-md"
                 >
                   <social.icon className="h-[15px] w-[15px]" />
-                </Link>
+                </a>
               </li>
             ))}
           </ul>

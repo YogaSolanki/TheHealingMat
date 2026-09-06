@@ -14,6 +14,7 @@ import contactFormArt from "@/assets/contact-form.png";
 import leafRight from "@/assets/leaf-right.png";
 import mapIcon from "@/assets/map.png";
 import studioImage from "@/assets/Studio.jpg";
+import { ButtonLoader } from "@/components/site-loader";
 import { submitContact } from "@/lib/api";
 
 const cream = "#FBF9F5";
@@ -324,8 +325,14 @@ function ContactFormBlock() {
                 disabled={loading}
                 className="btn-primary inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-full bg-[#1f6b3a] px-6 py-3.5 text-[14px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? "Sending…" : "Send Message"}
-                {!loading ? <span aria-hidden="true">→</span> : null}
+                {loading ? (
+                  <ButtonLoader />
+                ) : (
+                  <>
+                    Send Message
+                    <span aria-hidden="true">→</span>
+                  </>
+                )}
               </button>
               <p className="flex items-center gap-1.5 text-[12px] text-[#6d8474]">
                 <HiOutlineLockClosed

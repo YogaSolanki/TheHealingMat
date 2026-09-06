@@ -212,6 +212,6 @@ export class TrialsService {
       'FRONTEND_URL',
       'http://localhost:3000',
     );
-    return `${base.replace(/\/$/, '')}/access/${token}`;
+    return `${base.replace(/\/$/, '')}/u/${token}`;
   }
 }

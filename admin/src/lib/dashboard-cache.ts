@@ -7,6 +7,7 @@ const store = new Map<string, unknown>();
 export const DASHBOARD_CACHE_KEYS = {
   overview: "dashboard:overview",
   users: "dashboard:users",
+  coupons: "dashboard:coupons",
   resources: "content:resources",
   articles: "content:articles",
   videos: "content:videos",

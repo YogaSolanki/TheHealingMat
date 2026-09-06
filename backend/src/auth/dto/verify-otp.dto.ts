@@ -37,4 +37,10 @@ export class VerifyOtpDto {
   @MaxLength(PASSWORD_MAX_LENGTH)
   @Matches(PASSWORD_PATTERN, { message: PASSWORD_MESSAGE })
   password?: string;
+
+  /** Optional. Stored permanently as Referring User → Referred User. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  referralCode?: string;
 }

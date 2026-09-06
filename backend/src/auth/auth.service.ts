@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -8,16 +9,28 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { createHash, randomBytes, randomInt } from 'crypto';
+import { randomBytes, randomInt } from 'crypto';
 import { Repository } from 'typeorm';
 import { Admin } from '../admins/admin.entity';
 import { Region } from '../users/enums/region.enum';
+import { Gender } from '../users/enums/gender.enum';
 import { OtpChallenge } from '../users/otp-challenge.entity';
 import { User } from '../users/user.entity';
+import {
+  buildAccessLinkSlug,
+  buildReferralCode,
+  isUniqueViolation,
+} from '../users/account-identity';
 import { sendResendEmail } from '../mail/resend';
 import { sendMsg91Otp } from '../sms/msg91';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import {
+  PASSWORD_MESSAGE,
+  isValidPassword,
+} from './dto/password.rules';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UserLoginDto } from './dto/user-login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -30,6 +43,8 @@ export type PublicAdmin = {
 export type PublicUser = {
   id: string;
   fullName: string;
+  dateOfBirth: string | null;
+  gender: Gender | null;
   region: Region;
   mobile: string | null;
   email: string | null;
@@ -231,6 +246,7 @@ export class AuthService {
         channel: challenge.channel,
         fullName,
         password,
+        referralCode: dto.referralCode,
       });
       isNewAccount = true;
     }
@@ -287,6 +303,70 @@ export class AuthService {
     };
   }
 
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const currentPassword = dto.currentPassword;
+    const newPassword = dto.newPassword;
+
+    if (!isValidPassword(newPassword)) {
+      throw new BadRequestException(PASSWORD_MESSAGE);
+    }
+
+    if (currentPassword === newPassword) {
+      throw new BadRequestException(
+        'New password must be different from your current password.',
+      );
+    }
+
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user?.passwordHash) {
+      throw new BadRequestException(
+        'No password is set on this account. Use forgot password to create one.',
+      );
+    }
+
+    const currentMatches = await bcrypt.compare(
+      currentPassword,
+      user.passwordHash,
+    );
+    if (!currentMatches) {
+      throw new UnauthorizedException('Current password is incorrect.');
+    }
+
+    const sameAsCurrent = await bcrypt.compare(newPassword, user.passwordHash);
+    if (sameAsCurrent) {
+      throw new BadRequestException(
+        'New password must be different from your current password.',
+      );
+    }
+
+    user.passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await this.users.save(user);
+
+    return {
+      success: true,
+      message: 'Password updated successfully.',
+    };
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new BadRequestException('Account not found.');
+    }
+
+    user.fullName = dto.fullName.trim();
+    user.dateOfBirth = dto.dateOfBirth ?? null;
+    user.gender = dto.gender ?? null;
+
+    const saved = await this.users.save(user);
+
+    return {
+      success: true,
+      message: 'Profile updated successfully.',
+      user: this.toPublicUser(saved),
+    };
+  }
+
   toPublicAdmin(admin: Admin): PublicAdmin {
     return {
       email: admin.email,
@@ -298,6 +378,8 @@ export class AuthService {
     return {
       id: user.id,
       fullName: user.fullName,
+      dateOfBirth: user.dateOfBirth ?? null,
+      gender: user.gender ?? null,
       region: user.region,
       mobile: user.mobile,
       email: user.email,
@@ -389,22 +471,74 @@ export class AuthService {
     channel: 'sms' | 'email';
     fullName: string;
     password: string;
+    referralCode?: string;
   }) {
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+    const referredByUserId = await this.findReferrerId(input.referralCode);
 
-    const user = this.users.create({
-      region: input.region,
-      fullName: input.fullName,
-      mobile: input.channel === 'sms' ? input.destination : null,
-      email: input.channel === 'email' ? input.destination : null,
-      passwordHash,
-      referralCode: this.generateReferralCode(),
-      accessLinkToken: randomBytes(16).toString('hex'),
-      hasUsedFreeTrial: false,
-      role: 'user',
-    });
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const referralCode = await this.allocateUniqueReferralCode(input.fullName);
+      const accessLinkToken = await this.allocateUniqueAccessLinkSlug(
+        input.fullName,
+      );
 
-    return this.users.save(user);
+      try {
+        const user = this.users.create({
+          region: input.region,
+          fullName: input.fullName,
+          mobile: input.channel === 'sms' ? input.destination : null,
+          email: input.channel === 'email' ? input.destination : null,
+          passwordHash,
+          referralCode,
+          accessLinkToken,
+          referredByUserId,
+          hasUsedFreeTrial: false,
+          role: 'user',
+        });
+        return await this.users.save(user);
+      } catch (error) {
+        if (!isUniqueViolation(error) || attempt === 39) {
+          throw error;
+        }
+      }
+    }
+
+    throw new ServiceUnavailableException(
+      'Unable to create a unique account identifier. Please try again.',
+    );
+  }
+
+  private async findReferrerId(referralCode?: string) {
+    const code = referralCode?.trim().toLowerCase();
+    if (!code) return null;
+    const referrer = await this.users.findOne({ where: { referralCode: code } });
+    return referrer?.id ?? null;
+  }
+
+  private async allocateUniqueReferralCode(fullName: string) {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const referralCode = buildReferralCode(fullName);
+      const exists = await this.users.findOne({
+        where: { referralCode },
+      });
+      if (!exists) return referralCode;
+    }
+    throw new ServiceUnavailableException(
+      'Unable to assign a unique referral code. Please try again.',
+    );
+  }
+
+  private async allocateUniqueAccessLinkSlug(fullName: string) {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const accessLinkToken = buildAccessLinkSlug(fullName);
+      const exists = await this.users.findOne({
+        where: { accessLinkToken },
+      });
+      if (!exists) return accessLinkToken;
+    }
+    throw new ServiceUnavailableException(
+      'Unable to assign a unique access link. Please try again.',
+    );
   }
 
   private dummyHashPromise: Promise<string> | null = null;
@@ -540,13 +674,21 @@ export class AuthService {
     }
   }
 
-  private generateReferralCode(): string {
-    const raw = createHash('sha1')
-      .update(randomBytes(12))
-      .digest('hex')
-      .slice(0, 6)
-      .toUpperCase();
-    return `THM-${raw}`;
+  async resolveAccessLink(slug: string) {
+    const accessLinkToken = slug.trim().toLowerCase();
+    if (!/^[a-z0-9]{3,64}$/.test(accessLinkToken)) {
+      throw new NotFoundException('Access link not found.');
+    }
+
+    const user = await this.users.findOne({ where: { accessLinkToken } });
+    if (!user) {
+      throw new NotFoundException('Access link not found.');
+    }
+
+    return {
+      valid: true,
+      slug: user.accessLinkToken,
+    };
   }
 
   private normalizeMobile(mobile: string): string {
@@ -576,7 +718,7 @@ export class AuthService {
       'FRONTEND_URL',
       'http://localhost:3000',
     );
-    return `${base.replace(/\/$/, '')}/access/${token}`;
+    return `${base.replace(/\/$/, '')}/u/${token}`;
   }
 
   private frontendBaseUrl() {

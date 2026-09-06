@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Region } from './enums/region.enum';
+import { Gender } from './enums/gender.enum';
 
 @Entity({ name: 'users' })
 export class User {
@@ -28,6 +29,12 @@ export class User {
   @Column()
   fullName: string;
 
+  @Column({ type: 'date', nullable: true })
+  dateOfBirth: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  gender: Gender | null;
+
   /** bcrypt hash only - never returned in API responses. */
   @Column({ select: false })
   passwordHash: string;
@@ -35,9 +42,16 @@ export class User {
   @Column({ unique: true })
   referralCode: string;
 
-  /** Token used in Personal THM Access Link. */
+  /**
+   * Permanent Personal THM Access Link slug (`/u/{slug}`).
+   * Assigned once at registration and never changed if the name is edited.
+   */
   @Column({ unique: true })
   accessLinkToken: string;
+
+  /** Referring member, if this account signed up with a referral code. */
+  @Column({ type: 'uuid', nullable: true })
+  referredByUserId: string | null;
 
   /** One Free Trial per user (lifetime). */
   @Column({ default: false })

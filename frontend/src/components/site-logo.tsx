@@ -7,16 +7,25 @@ type SiteLogoProps = {
   className?: string;
   /** Load with priority (header). */
   priority?: boolean;
+  /** Link target — defaults to marketing home. */
+  href?: string;
+  /** Accessible label override. */
+  ariaLabel?: string;
 };
 
 /**
  * Brand mark: icon on small screens; full logo (icon + name, designed spacing) from tablet up.
  */
-export function SiteLogo({ className = "", priority = false }: SiteLogoProps) {
+export function SiteLogo({
+  className = "",
+  priority = false,
+  href = "/",
+  ariaLabel = "The Healing Mat home",
+}: SiteLogoProps) {
   return (
     <Link
-      href="/"
-      aria-label="The Healing Mat home"
+      href={href}
+      aria-label={ariaLabel}
       className={`inline-flex min-w-0 shrink items-center ${className}`}
     >
       {/* Mobile — icon only */}
