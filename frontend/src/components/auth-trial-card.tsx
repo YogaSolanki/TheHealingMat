@@ -32,7 +32,7 @@ import {
 import trialIcon from "@/assets/trail.png";
 import { ButtonLoader } from "@/components/site-loader";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
-import { getCapturedReferralCode } from "@/lib/referral-storage";
+import { captureReferralCode, getCapturedReferralCode } from "@/lib/referral-storage";
 import { checkoutPath, readCheckoutIntent } from "@/lib/checkout-intent";
 
 type Mode = "login" | "signup" | "forgot";
@@ -106,66 +106,6 @@ function TrialBrandMark() {
         className="h-10 w-10 object-contain"
         priority
       />
-    </div>
-  );
-}
-
-function SignupStepIndicator({
-  current,
-  region,
-}: {
-  current: 1 | 2;
-  region: Region;
-}) {
-  const stepOneHint =
-    region === "india"
-      ? "Name, mobile number, and password."
-      : "Name, email address, and password.";
-
-  return (
-    <div className="mt-6 overflow-hidden border-t border-[#eef2ee] pt-5">
-      <div className="flex items-start gap-2 sm:gap-3">
-        <div
-          className="min-w-0 flex-1"
-          aria-current={current === 1 ? "step" : undefined}
-        >
-          <div className="flex h-7 items-center gap-2">
-            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#E8F0E4] text-[12px] font-bold text-[#1f6b3a]">
-              1
-            </span>
-            <p className="text-[13px] leading-none font-semibold text-[#3d4a3c]">
-              Enter Your Details
-            </p>
-          </div>
-          <p className="mt-0.5 pl-9 text-[12px] leading-snug text-[#8a968c]">
-            {stepOneHint}
-          </p>
-        </div>
-
-        <div
-          aria-hidden="true"
-          className="flex h-7 shrink-0 items-center justify-center px-1 text-[15px] leading-none text-[#c5d0c6]"
-        >
-          →
-        </div>
-
-        <div
-          className="min-w-0 flex-1"
-          aria-current={current === 2 ? "step" : undefined}
-        >
-          <div className="flex h-7 items-center gap-2">
-            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#E8F0E4] text-[12px] font-bold text-[#1f6b3a]">
-              2
-            </span>
-            <p className="text-[13px] leading-none font-semibold text-[#3d4a3c]">
-              Verify OTP
-            </p>
-          </div>
-          <p className="mt-0.5 pl-9 text-[12px] leading-snug text-[#8a968c]">
-            Enter the {OTP_LENGTH}-digit OTP and start your trial.
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
@@ -494,6 +434,9 @@ export function AuthTrialCard({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [referralCodeInput, setReferralCodeInput] = useState(
+    () => getCapturedReferralCode() ?? "",
+  );
   const [otp, setOtp] = useState("");
   const [challengeId, setChallengeId] = useState("");
   const [destinationMasked, setDestinationMasked] = useState<string | null>(
@@ -535,6 +478,13 @@ export function AuthTrialCard({
     };
   }, [router]);
 
+  useEffect(() => {
+    if (mode !== "signup") return;
+    const captured = getCapturedReferralCode();
+    if (!captured) return;
+    setReferralCodeInput((current) => current.trim() || captured);
+  }, [mode]);
+
   function goToDashboard() {
     onCloseRef.current?.();
     const intent = readCheckoutIntent();
@@ -565,6 +515,11 @@ export function AuthTrialCard({
         "Password must be 8–72 characters and include uppercase, lowercase, and a number.",
       );
       return;
+    }
+
+    if (mode === "signup") {
+      const trimmedReferral = referralCodeInput.trim();
+      if (trimmedReferral) captureReferralCode(trimmedReferral);
     }
 
     setLoading(true);
@@ -645,7 +600,9 @@ export function AuthTrialCard({
         return;
       }
 
-      const capturedReferral = getCapturedReferralCode();
+      const referralCode =
+        referralCodeInput.trim() || getCapturedReferralCode() || "";
+      if (referralCode) captureReferralCode(referralCode);
       const result = await verifyOtp({
         challengeId,
         code: otp,
@@ -653,7 +610,7 @@ export function AuthTrialCard({
           ? {
               fullName,
               password,
-              ...(capturedReferral ? { referralCode: capturedReferral } : {}),
+              ...(referralCode ? { referralCode } : {}),
             }
           : {}),
       });
@@ -676,6 +633,9 @@ export function AuthTrialCard({
     setDestinationMasked(null);
     setResetMessage(null);
     setTermsAccepted(false);
+    if (nextMode === "signup") {
+      setReferralCodeInput(getCapturedReferralCode() ?? "");
+    }
   }
 
   function openForgotPassword() {
@@ -708,8 +668,12 @@ export function AuthTrialCard({
     setError(null);
     const intent = mode === "signup" ? "signup" : "login";
     const params = new URLSearchParams({ intent });
-    const capturedReferral = getCapturedReferralCode();
-    if (capturedReferral) params.set("ref", capturedReferral);
+    const referralCode =
+      referralCodeInput.trim() || getCapturedReferralCode() || "";
+    if (referralCode) {
+      captureReferralCode(referralCode);
+      params.set("ref", referralCode);
+    }
     window.location.assign(`${API_URL}/auth/google?${params.toString()}`);
   }
 
@@ -968,6 +932,24 @@ export function AuthTrialCard({
           ) : null}
 
           {mode === "signup" ? (
+            <div>
+              <label className={labelClass}>
+                Referral code{" "}
+                <span className="font-normal text-[#8a968c]">(optional)</span>
+              </label>
+              <input
+                value={referralCodeInput}
+                onChange={(e) => setReferralCodeInput(e.target.value)}
+                className={fieldClass}
+                placeholder="Enter referral code if you have one"
+                autoComplete="off"
+                maxLength={64}
+                spellCheck={false}
+              />
+            </div>
+          ) : null}
+
+          {mode === "signup" ? (
             <TermsAcceptanceField
               checked={termsAccepted}
               onChange={setTermsAccepted}
@@ -1116,13 +1098,6 @@ export function AuthTrialCard({
             Resend OTP
           </button>
         </form>
-      ) : null}
-
-      {mode === "signup" && (step === "identity" || step === "otp") ? (
-        <SignupStepIndicator
-          current={step === "otp" ? 2 : 1}
-          region={region}
-        />
       ) : null}
 
       {step === "reset_done" ? (

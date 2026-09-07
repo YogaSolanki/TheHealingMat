@@ -178,6 +178,8 @@ export function MemberReferPage() {
     nextMilestone > 0
       ? Math.min(100, Math.round((successfulCount / nextMilestone) * 100))
       : 0;
+  const totalReferred = referrals.length;
+  const trialReferred = referrals.filter((row) => row.status === "TRIAL").length;
 
   async function copyText(text: string, field: "code" | "link" | "message") {
     try {
@@ -418,6 +420,14 @@ export function MemberReferPage() {
                 <p className="mt-1.5 text-[13px] font-medium text-[#243028] sm:text-[14px]">
                   Successful Referrals
                 </p>
+                {!loadingReferrals && totalReferred > 0 ? (
+                  <p className="mt-1.5 text-[12px] leading-snug text-[#6b7c6e]">
+                    {totalReferred} friend{totalReferred === 1 ? "" : "s"} referred
+                    {trialReferred > 0
+                      ? ` · ${trialReferred} on trial`
+                      : ""}
+                  </p>
+                ) : null}
               </div>
             </div>
 
