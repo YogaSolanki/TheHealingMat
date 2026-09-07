@@ -405,6 +405,14 @@ export class PaymentsService {
       if (!coupon) {
         throw new BadRequestException('This coupon code is not valid.');
       }
+      if (
+        coupon.assignedUserId &&
+        coupon.assignedUserId !== user.id
+      ) {
+        throw new BadRequestException(
+          'This coupon is assigned to another member.',
+        );
+      }
       appliedCoupon = coupon.code;
       discountPaise =
         coupon.discountType === 'percent'

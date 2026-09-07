@@ -433,3 +433,25 @@ export async function getMyReferrals(
   });
   return parseJson<MyReferralsResponse>(response);
 }
+
+export type MemberCoupon = {
+  id: string;
+  code: string;
+  discountType: "percent" | "fixed";
+  discountValue: number;
+  discountLabel: string;
+};
+
+export type MyCouponsResponse = {
+  coupons: MemberCoupon[];
+};
+
+export async function getMyCoupons(
+  accessToken: string,
+): Promise<MyCouponsResponse> {
+  const response = await fetch(`${API_URL}/coupons/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  return parseJson<MyCouponsResponse>(response);
+}

@@ -243,6 +243,8 @@ export type AdminCoupon = {
   id: string;
   code: string;
   userName: string;
+  assignedUserId: string | null;
+  assignedReferralCode: string | null;
   discountType: CouponDiscountType;
   discountValue: number;
   discountLabel: string;
@@ -284,6 +286,19 @@ export function createAdminCoupon(
   },
 ) {
   return authJson<AdminCoupon>("POST", "/admin/coupons", token, body);
+}
+
+export function assignAdminCoupon(
+  token: string,
+  id: string,
+  body: { referralCode: string },
+) {
+  return authJson<AdminCoupon>(
+    "PATCH",
+    `/admin/coupons/${id}/assign`,
+    token,
+    body,
+  );
 }
 
 export function deleteAdminCoupon(token: string, id: string) {

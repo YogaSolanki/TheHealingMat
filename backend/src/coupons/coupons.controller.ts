@@ -5,12 +5,17 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
 } from '@nestjs/common';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
 import { CouponsService } from './coupons.service';
-import { CreateCouponDto, GenerateCouponDto } from './dto/coupon.dto';
+import {
+  AssignCouponDto,
+  CreateCouponDto,
+  GenerateCouponDto,
+} from './dto/coupon.dto';
 
 @Roles(Role.Admin)
 @Controller('admin/coupons')
@@ -32,6 +37,15 @@ export class CouponsController {
   @Post()
   create(@Body() dto: CreateCouponDto) {
     return this.coupons.create(dto);
+  }
+
+  /** Lock a coupon to a member via their unique referral code. */
+  @Patch(':id/assign')
+  assign(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AssignCouponDto,
+  ) {
+    return this.coupons.assign(id, dto);
   }
 
   @Delete(':id')

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthModal } from "@/components/auth-modal-provider";
 import {
   createRazorpayOrder,
+  getMyCoupons,
   quoteMembership,
   verifyRazorpayPayment,
   type MembershipQuote,
@@ -92,11 +93,27 @@ export function MembershipCheckout() {
     let cancelled = false;
     Promise.all([
       sessionStore.ensureUser(),
-      quoteMembership(token, { planMonths }),
+      getMyCoupons(token).catch(() => ({ coupons: [] })),
     ])
-      .then(([me, nextQuote]) => {
+      .then(async ([me, mine]) => {
         if (cancelled) return;
         setUser(me);
+
+        const assignedCode = mine.coupons[0]?.code?.trim() ?? "";
+        if (assignedCode) {
+          setCouponInput(assignedCode);
+          const nextQuote = await quoteMembership(token, {
+            planMonths,
+            couponCode: assignedCode,
+          });
+          if (cancelled) return;
+          setQuote(nextQuote);
+          setAppliedCoupon(nextQuote.couponCode ?? assignedCode);
+          return;
+        }
+
+        const nextQuote = await quoteMembership(token, { planMonths });
+        if (cancelled) return;
         setQuote(nextQuote);
       })
       .catch((err: unknown) => {
@@ -287,6 +304,11 @@ export function MembershipCheckout() {
           </button>
         </span>
       </label>
+      {appliedCoupon ? (
+        <p className="mt-2 text-[12px] font-medium text-[#1f6b3a]">
+          Applied: {appliedCoupon}
+        </p>
+      ) : null}
 
       {error ? (
         <p className="mt-4 rounded-[12px] border border-[#f0d4d0] bg-[#fff6f5] px-3 py-2.5 text-[13px] text-[#9b3b32]">
