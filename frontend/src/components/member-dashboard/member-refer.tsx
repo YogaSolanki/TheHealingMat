@@ -9,6 +9,7 @@ import {
   memberPrimaryBtnClass,
 } from "@/components/member-dashboard/member-button-styles";
 import { useMemberDashboard } from "@/components/member-dashboard/member-dashboard-provider";
+import { SiteLoader } from "@/components/site-loader";
 import {
   getMyReferrals,
   type ReferralListItem,
@@ -117,6 +118,7 @@ function activeMilestoneCount(
 }
 
 const REFERRAL_PAGE_SIZE = 10;
+const REFERRAL_SCROLL_THROTTLE_MS = 300;
 
 export function MemberReferPage() {
   const { user } = useMemberDashboard();
@@ -132,9 +134,14 @@ export function MemberReferPage() {
   const [successfulCount, setSuccessfulCount] = useState(0);
   const [loadingReferrals, setLoadingReferrals] = useState(true);
   const [visibleCount, setVisibleCount] = useState(REFERRAL_PAGE_SIZE);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const loadMoreLockRef = useRef(false);
+  const lastScrollLoadRef = useRef(0);
 
   useEffect(() => {
     setVisibleCount(REFERRAL_PAGE_SIZE);
+    loadMoreLockRef.current = false;
   }, [statusFilter]);
 
   useEffect(() => {
@@ -182,6 +189,43 @@ export function MemberReferPage() {
       : 0;
   const totalReferred = referrals.length;
   const trialReferred = referrals.filter((row) => row.status === "TRIAL").length;
+
+  useEffect(() => {
+    const root = listScrollRef.current;
+    if (!root || loadingReferrals) return;
+
+    function loadNextPage() {
+      if (!hasMoreReferrals || loadMoreLockRef.current) return;
+      const now = Date.now();
+      if (now - lastScrollLoadRef.current < REFERRAL_SCROLL_THROTTLE_MS) return;
+      lastScrollLoadRef.current = now;
+      loadMoreLockRef.current = true;
+      setLoadingMore(true);
+      window.setTimeout(() => {
+        setVisibleCount((current) =>
+          Math.min(current + REFERRAL_PAGE_SIZE, filteredReferrals.length),
+        );
+        setLoadingMore(false);
+        loadMoreLockRef.current = false;
+      }, 180);
+    }
+
+    function onScroll() {
+      if (!root) return;
+      const distanceFromBottom =
+        root.scrollHeight - root.scrollTop - root.clientHeight;
+      if (distanceFromBottom <= 72) loadNextPage();
+    }
+
+    root.addEventListener("scroll", onScroll, { passive: true });
+    return () => root.removeEventListener("scroll", onScroll);
+  }, [
+    filteredReferrals.length,
+    hasMoreReferrals,
+    loadingReferrals,
+    statusFilter,
+    visibleCount,
+  ]);
 
   async function copyText(text: string, field: "code" | "link" | "message") {
     try {
@@ -527,17 +571,20 @@ export function MemberReferPage() {
         </section>
 
         {/* My referrals table */}
-        <section id="referrals" className="overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white">
-          <div className="flex flex-col gap-3 border-b border-[#eef2ee] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <section id="referrals" className="overflow-visible rounded-[22px] border border-[#e6ebe3] bg-white">
+          <div className="relative z-30 flex flex-col gap-3 rounded-t-[22px] border-b border-[#eef2ee] bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <h2 className="text-[16px] font-bold text-[#1f6b3a] sm:text-[17px]">
               My Referrals
             </h2>
             <ReferralStatusFilter value={statusFilter} onChange={setStatusFilter} />
           </div>
 
-          <div className="overflow-x-auto">
+          <div
+            ref={listScrollRef}
+            className="max-h-[420px] overflow-auto overscroll-contain rounded-b-[22px]"
+          >
             <table className="min-w-[720px] w-full text-left">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b border-[#eef2ee] bg-[#FBF9F5] text-[11px] font-bold tracking-[0.06em] text-[#6b7c6e] uppercase sm:text-[12px]">
                   <th className="px-4 py-3 font-bold sm:px-6">Name</th>
                   <th className="px-4 py-3 font-bold sm:px-6">Current Status</th>
@@ -548,10 +595,13 @@ export function MemberReferPage() {
               <tbody>
                 {loadingReferrals ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center sm:px-6">
-                      <p className="text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
-                        Loading your referrals…
-                      </p>
+                    <td colSpan={4} className="px-4 py-12 text-center sm:px-6">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <SiteLoader size="md" label="Loading your referrals" />
+                        <p className="text-[13px] text-[#6b7c6e] sm:text-[14px]">
+                          Loading your referrals…
+                        </p>
+                      </div>
                     </td>
                   </tr>
                 ) : filteredReferrals.length === 0 ? (
@@ -608,22 +658,17 @@ export function MemberReferPage() {
                 )}
               </tbody>
             </table>
-          </div>
 
-          {hasMoreReferrals ? (
-            <div className="border-t border-[#eef2ee] px-4 py-3.5 text-center sm:px-6">
-              <button
-                type="button"
-                onClick={() =>
-                  setVisibleCount((current) => current + REFERRAL_PAGE_SIZE)
-                }
-                className="link-animate inline-flex cursor-pointer items-center gap-1 text-[13px] font-bold text-[#1f6b3a] hover:text-[#185830]"
-              >
-                View more referrals
-                <ChevronDownIcon className="h-4 w-4" />
-              </button>
-            </div>
-          ) : null}
+            {!loadingReferrals && hasMoreReferrals ? (
+              <div className="flex items-center justify-center gap-2 border-t border-[#eef2ee] px-4 py-3.5 sm:px-6">
+                {loadingMore ? (
+                  <SiteLoader size="sm" label="Loading more referrals" />
+                ) : (
+                  <p className="text-[12px] text-[#8a968c]">Scroll for more</p>
+                )}
+              </div>
+            ) : null}
+          </div>
         </section>
       </div>
     </div>
@@ -658,7 +703,7 @@ function ReferralStatusFilter({
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative shrink-0">
+    <div ref={rootRef} className="relative z-40 shrink-0">
       <button
         type="button"
         aria-haspopup="listbox"
@@ -678,7 +723,7 @@ function ReferralStatusFilter({
         <div
           role="listbox"
           aria-label="Filter by status"
-          className="absolute top-[calc(100%+8px)] right-0 z-20 min-w-full overflow-hidden rounded-[14px] border border-[#e6ebe3] bg-white py-1 shadow-[0_12px_28px_rgba(31,107,58,0.12)]"
+          className="absolute top-[calc(100%+8px)] right-0 z-50 min-w-[180px] overflow-hidden rounded-[14px] border border-[#e6ebe3] bg-white py-1 shadow-[0_16px_36px_rgba(31,107,58,0.16)]"
         >
           {statusFilterOptions.map((option) => {
             const active = option.value === value;
