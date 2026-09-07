@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import type { ReactNode } from "react";
 import calendarIcon from "@/assets/calander-icon.png";
 import rsIcon from "@/assets/rs.png";
@@ -11,6 +10,8 @@ import yogaMenIcon from "@/assets/yoga-men.png";
 import {
   memberPrimaryBtnClass,
 } from "@/components/member-dashboard/member-button-styles";
+import { MembershipSection } from "@/components/membership-section";
+import type { CheckoutStartMode } from "@/lib/checkout-intent";
 import { useMemberAccess, membershipStatusLabel } from "@/lib/member-access";
 
 export function MemberMembershipPage() {
@@ -22,6 +23,15 @@ export function MemberMembershipPage() {
       : access.state === "expired"
         ? `Your membership has ended. Renew to continue daily yoga sessions.`
         : `Your membership is active. Valid until ${access.validUntilLabel ?? "—"}.`;
+
+  const renewStartMode: CheckoutStartMode =
+    access.state === "active" ? "after_current" : "now";
+
+  function scrollToPlans() {
+    document
+      .getElementById("membership-plans")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   return (
     <div className="w-full bg-[#FBF9F5]">
@@ -97,13 +107,15 @@ export function MemberMembershipPage() {
                     {access.transactionRef ? ` · Ref ${access.transactionRef}` : ""}
                   </p>
                 ) : null}
-                <button
-                  type="button"
-                  className="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a] decoration-dotted underline-offset-[3px] transition hover:text-[#185830] sm:text-[13px]"
-                >
-                  Download Invoice / Receipt
-                  <DownloadIcon className="h-4 w-4" />
-                </button>
+                {access.state !== "trial" ? (
+                  <button
+                    type="button"
+                    className="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a] decoration-dotted underline-offset-[3px] transition hover:text-[#185830] sm:text-[13px]"
+                  >
+                    Download Invoice / Receipt
+                    <DownloadIcon className="h-4 w-4" />
+                  </button>
+                ) : null}
               </div>
             </div>
 
@@ -150,13 +162,14 @@ export function MemberMembershipPage() {
                   height={160}
                   className="pointer-events-none absolute bottom-full left-1/2 mb-2 h-32 w-32 -translate-x-1/2 object-contain sm:h-40 sm:w-40"
                 />
-                <Link
-                  href="/membership"
+                <button
+                  type="button"
+                  onClick={scrollToPlans}
                   className={`${memberPrimaryBtnClass} w-full px-5 py-3 text-[14px] sm:w-auto sm:min-w-[190px] sm:text-[15px]`}
                 >
                   {access.state === "trial" ? "Start Membership" : "Renew Membership"}
                   <ChevronRightIcon className="h-4 w-4" />
-                </Link>
+                </button>
               </div>
             </div>
           </div>
@@ -226,7 +239,7 @@ export function MemberMembershipPage() {
         ) : null}
 
         {/* Renewal info */}
-        <section className="rounded-[18px] border border-[#ebe6dc] bg-[#F7F3EA] px-4 py-4 sm:px-6 sm:py-4">
+        <section className="mb-2 rounded-[18px] border border-[#ebe6dc] bg-[#F7F3EA] px-4 py-4 sm:mb-4 sm:px-6 sm:py-4">
           <div className="flex min-w-0 items-start gap-3 sm:items-center">
             <InfoIcon className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#C4A574] sm:mt-0" />
             <div className="min-w-0">
@@ -242,6 +255,8 @@ export function MemberMembershipPage() {
           </div>
         </section>
       </div>
+
+      <MembershipSection variant="renew" startMode={renewStartMode} />
     </div>
   );
 }

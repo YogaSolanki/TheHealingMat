@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { SiteLogo } from "@/components/site-logo";
-import { isHealthGuidePath } from "@/lib/member-routes";
+import { isHealthGuidePath, isMembershipBrowsePath } from "@/lib/member-routes";
 
 const navItems = [
   { href: "/dashboard", label: "Home" },
@@ -41,6 +41,12 @@ const sampleNotifications = [
 function isActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === "/dashboard";
   if (href === "/guides" && isHealthGuidePath(pathname)) {
+    return true;
+  }
+  if (
+    href === "/dashboard/membership" &&
+    (pathname === "/dashboard/membership" || isMembershipBrowsePath(pathname))
+  ) {
     return true;
   }
   return pathname === href || pathname.startsWith(`${href}/`);

@@ -8,13 +8,14 @@ import { LoggedInRedirect } from "@/components/logged-in-redirect";
 import { MemberDashboardHeader } from "@/components/member-dashboard/member-dashboard-header";
 import { ReferralCapture } from "@/components/referral-capture";
 import { getStoredToken } from "@/lib/auth-storage";
-import { isDashboardPath, isHealthGuidePath } from "@/lib/member-routes";
+import { isDashboardPath, isMemberChromePath } from "@/lib/member-routes";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [signedIn, setSignedIn] = useState(false);
   const isMemberDashboard = isDashboardPath(pathname);
-  const showMemberHeader = isMemberDashboard || (signedIn && isHealthGuidePath(pathname));
+  const showMemberHeader =
+    isMemberDashboard || (signedIn && isMemberChromePath(pathname));
 
   useEffect(() => {
     setSignedIn(Boolean(getStoredToken()));

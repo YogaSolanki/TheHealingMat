@@ -10,6 +10,7 @@ import { HiOutlineMail, HiOutlineLocationMarker, HiOutlinePhone } from "react-ic
 import { RiInstagramFill } from "react-icons/ri";
 import omIcon from "@/assets/om.png";
 import { SiteLogo } from "@/components/site-logo";
+import { isDashboardPath, isMembershipBrowsePath } from "@/lib/member-routes";
 
 const exploreLinks = [
   { href: "/", label: "Home" },
@@ -91,11 +92,13 @@ function FooterLinkColumn({
 
 export function SiteFooter() {
   const pathname = usePathname();
-  const isMemberDashboard =
-    pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+  const isMemberDashboard = isDashboardPath(pathname);
   const showTopBorder =
     pathname === "/corporate/enquiry" ||
     pathname === "/contact" ||
+    pathname === "/membership" ||
+    pathname.startsWith("/membership/") ||
+    isMembershipBrowsePath(pathname) ||
     isMemberDashboard;
 
   return (

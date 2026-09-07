@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { MembershipSection } from "@/components/membership-section";
+import { MembershipPageView } from "@/components/membership-page-view";
 
 export const metadata: Metadata = {
   title: "Membership Plans | The Healing Mat",
@@ -8,9 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function MembershipPage() {
-  return (
-    <main>
-      <MembershipSection />
-    </main>
-  );
+  return <MembershipPageView />;
 }

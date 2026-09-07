@@ -2,15 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import calendarIcon from "@/assets/calander-icon.png";
 import leafRight from "@/assets/leaf-right.png";
 import moonIcon from "@/assets/moon.png";
 import sunIcon from "@/assets/sun.png";
 import yogaMenIcon from "@/assets/yoga-men.png";
 import { memberPrimaryBtnClass, memberPrimaryBtnSmClass } from "@/components/member-dashboard/member-button-styles";
-import { getMyReferrals, type PublicUser } from "@/lib/api";
-import { getStoredToken } from "@/lib/auth-storage";
+import type { PublicUser } from "@/lib/api";
 import {
   greetingForName,
   membershipStatusLabel,
@@ -25,6 +24,7 @@ import {
   weekdayEveningSlots,
   weekdayMorningSlots,
 } from "@/lib/member-session-schedule";
+import { useMyReferrals } from "@/lib/session-store";
 
 type MemberDashboardProps = {
   user: PublicUser;
@@ -80,25 +80,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const sessionKind = isTrial ? "trial" : "member";
   const running = isExpired ? null : findRunningSession(now, sessionKind);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
-  const [successfulReferrals, setSuccessfulReferrals] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function loadReferrals() {
-      const token = getStoredToken();
-      if (!token) return;
-      try {
-        const data = await getMyReferrals(token);
-        if (!cancelled) setSuccessfulReferrals(data.successfulCount);
-      } catch {
-        /* keep default */
-      }
-    }
-    void loadReferrals();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { successfulCount: successfulReferrals } = useMyReferrals();
 
   const nextMilestone = nextReferralMilestone(successfulReferrals);
   const remainingToMilestone = Math.max(0, nextMilestone - successfulReferrals);

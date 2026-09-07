@@ -10,12 +10,8 @@ import {
 } from "@/components/member-dashboard/member-button-styles";
 import { useMemberDashboard } from "@/components/member-dashboard/member-dashboard-provider";
 import { SiteLoader } from "@/components/site-loader";
-import {
-  getMyReferrals,
-  type ReferralListItem,
-  type ReferralStatus,
-} from "@/lib/api";
-import { getStoredToken } from "@/lib/auth-storage";
+import type { ReferralListItem, ReferralStatus } from "@/lib/api";
+import { useMyReferrals } from "@/lib/session-store";
 import { FaWhatsapp } from "react-icons/fa";
 
 function referralShareLink(accessLink: string, referralCode: string) {
@@ -122,6 +118,13 @@ const REFERRAL_SCROLL_THROTTLE_MS = 300;
 
 export function MemberReferPage() {
   const { user } = useMemberDashboard();
+  const {
+    referrals,
+    successfulCount,
+    loading: loadingReferrals,
+    refreshing,
+    refresh,
+  } = useMyReferrals();
   const referralCode = user.referralCode;
   const referralLink = referralShareLink(user.accessLink, referralCode);
   const readyMadeMessage = `Join me on The Healing Mat! Your friend gets 14 days of FREE yoga classes + 20% OFF membership. Use my referral code ${referralCode} or sign up here: ${referralLink}`;
@@ -130,9 +133,6 @@ export function MemberReferPage() {
   const [redeemedCount, setRedeemedCount] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] =
     useState<(typeof statusFilterOptions)[number]["value"]>("all");
-  const [referrals, setReferrals] = useState<ReferralListItem[]>([]);
-  const [successfulCount, setSuccessfulCount] = useState(0);
-  const [loadingReferrals, setLoadingReferrals] = useState(true);
   const [visibleCount, setVisibleCount] = useState(REFERRAL_PAGE_SIZE);
   const [loadingMore, setLoadingMore] = useState(false);
   const listScrollRef = useRef<HTMLDivElement>(null);
@@ -143,38 +143,6 @@ export function MemberReferPage() {
     setVisibleCount(REFERRAL_PAGE_SIZE);
     loadMoreLockRef.current = false;
   }, [statusFilter]);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      const token = getStoredToken();
-      if (!token) {
-        if (!cancelled) {
-          setReferrals([]);
-          setSuccessfulCount(0);
-          setLoadingReferrals(false);
-        }
-        return;
-      }
-      try {
-        const data = await getMyReferrals(token);
-        if (cancelled) return;
-        setReferrals(data.referrals);
-        setSuccessfulCount(data.successfulCount);
-      } catch {
-        if (!cancelled) {
-          setReferrals([]);
-          setSuccessfulCount(0);
-        }
-      } finally {
-        if (!cancelled) setLoadingReferrals(false);
-      }
-    }
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const filteredReferrals = referrals.filter(
     (referral) => statusFilter === "all" || referral.status === statusFilter,
@@ -576,7 +544,21 @@ export function MemberReferPage() {
             <h2 className="text-[16px] font-bold text-[#1f6b3a] sm:text-[17px]">
               My Referrals
             </h2>
-            <ReferralStatusFilter value={statusFilter} onChange={setStatusFilter} />
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <button
+                type="button"
+                onClick={() => void refresh()}
+                disabled={loadingReferrals || refreshing}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[#d7e0d6] bg-white px-3.5 py-2 text-[12px] font-semibold text-[#243028] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] disabled:cursor-not-allowed disabled:opacity-50 sm:text-[13px]"
+                aria-label="Refresh referrals"
+              >
+                <RefreshIcon
+                  className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`}
+                />
+                {refreshing ? "Refreshing…" : "Refresh"}
+              </button>
+              <ReferralStatusFilter value={statusFilter} onChange={setStatusFilter} />
+            </div>
           </div>
 
           <div
@@ -959,6 +941,26 @@ function CheckIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
       <path d="M6 12.5 10 16.5 18 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function RefreshIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path
+        d="M20 12a8 8 0 1 1-2.2-5.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M20 4v5h-5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
