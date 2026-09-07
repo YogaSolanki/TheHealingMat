@@ -1,4 +1,23 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
+/**
+ * Browser: prefer same-origin `/api` (Next rewrite → backend).
+ * Server Components: relative URLs fail in Node fetch — call the backend absolute URL.
+ */
+function resolveApiUrl() {
+  const configured = (process.env.NEXT_PUBLIC_API_URL ?? "/api").replace(/\/$/, "") || "/api";
+  if (configured.startsWith("http://") || configured.startsWith("https://")) {
+    return configured;
+  }
+  if (typeof window === "undefined") {
+    const backend = (
+      process.env.BACKEND_URL ?? "http://localhost:4000"
+    ).replace(/\/$/, "");
+    const prefix = configured.startsWith("/") ? configured : `/${configured}`;
+    return `${backend}${prefix}`;
+  }
+  return configured;
+}
+
+export const API_URL = resolveApiUrl();
 
 export type HealthResponse = {
   status: "ok" | "degraded";

@@ -4,7 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { SiteLogo } from "@/components/site-logo";
-import { isHealthGuidePath, isMembershipBrowsePath } from "@/lib/member-routes";
+import {
+  isHealthGuidePath,
+  isMemberNavOrphanPath,
+  isMembershipBrowsePath,
+} from "@/lib/member-routes";
 
 const navItems = [
   { href: "/dashboard", label: "Home" },
@@ -13,6 +17,8 @@ const navItems = [
   { href: "/guides", label: "Resources" },
   { href: "/dashboard/account", label: "My Account" },
 ] as const;
+
+const LAST_MEMBER_NAV_KEY = "thm_last_member_nav";
 
 const sampleNotifications = [
   {
@@ -38,18 +44,41 @@ const sampleNotifications = [
   },
 ];
 
-function isActive(pathname: string, href: string) {
+function pathMatchesNav(pathname: string, href: (typeof navItems)[number]["href"]) {
   if (href === "/dashboard") return pathname === "/dashboard";
-  if (href === "/guides" && isHealthGuidePath(pathname)) {
-    return true;
-  }
+  if (href === "/guides" && isHealthGuidePath(pathname)) return true;
   if (
     href === "/dashboard/membership" &&
-    (pathname === "/dashboard/membership" || isMembershipBrowsePath(pathname))
+    (pathname === "/dashboard/membership" ||
+      isMembershipBrowsePath(pathname) ||
+      pathname.startsWith("/membership/"))
   ) {
     return true;
   }
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function rememberMemberNav(href: string) {
+  try {
+    sessionStorage.setItem(LAST_MEMBER_NAV_KEY, href);
+  } catch {
+    /* ignore */
+  }
+}
+
+function isActive(pathname: string, href: (typeof navItems)[number]["href"]) {
+  if (pathMatchesNav(pathname, href)) {
+    rememberMemberNav(href);
+    return true;
+  }
+
+  // Footer/site pages (About, Contact, Corporate, …) highlight Home.
+  if (isMemberNavOrphanPath(pathname) && href === "/dashboard") {
+    rememberMemberNav(href);
+    return true;
+  }
+
+  return false;
 }
 
 export function MemberDashboardHeader() {
