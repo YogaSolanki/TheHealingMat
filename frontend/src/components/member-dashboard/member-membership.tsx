@@ -11,10 +11,10 @@ import yogaMenIcon from "@/assets/yoga-men.png";
 import {
   memberPrimaryBtnClass,
 } from "@/components/member-dashboard/member-button-styles";
-import { getMemberAccess, membershipStatusLabel } from "@/lib/member-access";
+import { useMemberAccess, membershipStatusLabel } from "@/lib/member-access";
 
 export function MemberMembershipPage() {
-  const access = getMemberAccess();
+  const { access, loading } = useMemberAccess();
   const statusLabel = membershipStatusLabel(access.state);
   const statusMessage =
     access.state === "trial"
@@ -22,6 +22,16 @@ export function MemberMembershipPage() {
       : access.state === "expired"
         ? `Your membership has ended. Renew to continue daily yoga sessions.`
         : `Your membership is active. Valid until ${access.validUntilLabel}.`;
+
+  if (loading) {
+    return (
+      <div className="w-full bg-[#FBF9F5]">
+        <div className="mx-auto w-full max-w-[1440px] px-4 py-10 sm:px-6">
+          <p className="text-[14px] text-[#5f6f64]">Loading membership…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full bg-[#FBF9F5]">
@@ -91,10 +101,12 @@ export function MemberMembershipPage() {
                   label="Amount Paid"
                   value={access.amountPaid}
                 />
-                <p className="mt-2 text-[12px] text-[#6b7c6e]">
-                  Paid on {access.paymentDateLabel}
-                  {access.transactionRef ? ` · Ref ${access.transactionRef}` : ""}
-                </p>
+                {access.paymentDateLabel ? (
+                  <p className="mt-2 text-[12px] text-[#6b7c6e]">
+                    Paid on {access.paymentDateLabel}
+                    {access.transactionRef ? ` · Ref ${access.transactionRef}` : ""}
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   className="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a] decoration-dotted underline-offset-[3px] transition hover:text-[#185830] sm:text-[13px]"
@@ -149,7 +161,7 @@ export function MemberMembershipPage() {
                   className="pointer-events-none absolute bottom-full left-1/2 mb-2 h-32 w-32 -translate-x-1/2 object-contain sm:h-40 sm:w-40"
                 />
                 <Link
-                  href={access.state === "trial" ? "/membership" : "/membership"}
+                  href="/membership"
                   className={`${memberPrimaryBtnClass} w-full px-5 py-3 text-[14px] sm:w-auto sm:min-w-[190px] sm:text-[15px]`}
                 >
                   {access.state === "trial" ? "Start Membership" : "Renew Membership"}

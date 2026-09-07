@@ -1,3 +1,10 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import type { MembershipAccessResponse } from "@/lib/api";
+import { getMyMembership } from "@/lib/api";
+import { getStoredToken } from "@/lib/auth-storage";
+
 export type MemberAccessState = "trial" | "active" | "expired";
 
 export type MemberAccess = {
@@ -16,28 +23,6 @@ export type MemberAccess = {
   scheduledStartsOnLabel: string | null;
 };
 
-/**
- * Member Home is determined by current access only (Decision 01 / 19).
- * Replace this with the membership API when it is available.
- */
-export function getMemberAccess(): MemberAccess {
-  return {
-    state: "active",
-    planName: "12-Month Membership",
-    startDateLabel: "1 September 2025",
-    validUntilLabel: "30 September 2026",
-    trialEndsOnLabel: null,
-    expiredOnLabel: null,
-    amountPaid: "₹4,999",
-    discount: "₹1,000 (20%)",
-    paymentDateLabel: "1 September 2025",
-    transactionRef: "THM-PAY-45991",
-    hasScheduledMembership: true,
-    scheduledPlanName: "12-Month Membership",
-    scheduledStartsOnLabel: "1 October 2026",
-  };
-}
-
 export function membershipStatusLabel(state: MemberAccessState) {
   if (state === "trial") return "Trial";
   if (state === "expired") return "Expired";
@@ -50,4 +35,107 @@ export function greetingForName(fullName: string, now = new Date()) {
   const period =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   return `${period}, ${name}`;
+}
+
+function formatLongDate(iso: string | null | undefined) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatInr(paise: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(paise / 100);
+}
+
+function formatDiscount(listPaise: number, discountPaise: number) {
+  if (discountPaise <= 0) return "—";
+  const percent = listPaise > 0 ? Math.round((discountPaise / listPaise) * 100) : 0;
+  return percent > 0
+    ? `${formatInr(discountPaise)} (${percent}%)`
+    : formatInr(discountPaise);
+}
+
+export function emptyMemberAccess(state: MemberAccessState = "expired"): MemberAccess {
+  return {
+    state,
+    planName: state === "trial" ? "Your Trial" : "Membership",
+    startDateLabel: null,
+    validUntilLabel: null,
+    trialEndsOnLabel: null,
+    expiredOnLabel: null,
+    amountPaid: "—",
+    discount: "—",
+    paymentDateLabel: null,
+    transactionRef: null,
+    hasScheduledMembership: false,
+    scheduledPlanName: null,
+    scheduledStartsOnLabel: null,
+  };
+}
+
+export function mapMembershipAccess(data: MembershipAccessResponse): MemberAccess {
+  const membership = data.current ?? data.lastExpired;
+  const access = emptyMemberAccess(data.state);
+  access.trialEndsOnLabel = formatLongDate(data.trial?.endsAt);
+  access.hasScheduledMembership = Boolean(data.scheduled);
+  access.scheduledPlanName = data.scheduled?.planName ?? null;
+  access.scheduledStartsOnLabel = formatLongDate(data.scheduled?.startsAt);
+
+  if (data.state === "trial") {
+    access.planName = "Your Trial";
+    access.startDateLabel = formatLongDate(data.trial?.startsAt);
+    access.validUntilLabel = formatLongDate(data.trial?.endsAt);
+    return access;
+  }
+
+  if (!membership) return access;
+
+  access.planName = membership.planName;
+  access.startDateLabel = formatLongDate(membership.startsAt);
+  access.validUntilLabel = formatLongDate(membership.endsAt);
+  access.expiredOnLabel =
+    data.state === "expired" ? formatLongDate(membership.endsAt) : null;
+  access.amountPaid = formatInr(membership.amountPaidPaise);
+  access.discount = formatDiscount(membership.listPricePaise, membership.discountPaise);
+  access.paymentDateLabel = formatLongDate(membership.paidAt);
+  access.transactionRef = membership.razorpayPaymentId;
+  return access;
+}
+
+export function useMemberAccess() {
+  const [access, setAccess] = useState<MemberAccess>(emptyMemberAccess("expired"));
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = getStoredToken();
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    getMyMembership(token)
+      .then((data) => {
+        if (!cancelled) setAccess(mapMembershipAccess(data));
+      })
+      .catch(() => {
+        if (!cancelled) setAccess(emptyMemberAccess("expired"));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { access, loading };
 }

@@ -78,6 +78,12 @@ export class CouponsService {
     return this.coupons.save(coupon);
   }
 
+  findByCode(code: string) {
+    const normalized = code.trim().toUpperCase();
+    if (!normalized) return Promise.resolve(null);
+    return this.coupons.findOne({ where: { code: normalized } });
+  }
+
   async remove(id: string) {
     const coupon = await this.coupons.findOne({ where: { id } });
     if (!coupon) {

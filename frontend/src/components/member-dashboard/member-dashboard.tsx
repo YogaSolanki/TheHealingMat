@@ -11,9 +11,9 @@ import yogaMenIcon from "@/assets/yoga-men.png";
 import { memberPrimaryBtnClass, memberPrimaryBtnSmClass } from "@/components/member-dashboard/member-button-styles";
 import type { PublicUser } from "@/lib/api";
 import {
-  getMemberAccess,
   greetingForName,
   membershipStatusLabel,
+  useMemberAccess,
 } from "@/lib/member-access";
 import {
   findRunningSession,
@@ -59,7 +59,7 @@ function formatDashboardDate(date: Date) {
 }
 
 export function MemberDashboard({ user }: MemberDashboardProps) {
-  const access = getMemberAccess();
+  const { access } = useMemberAccess();
   const nameGreeting = greetingForName(user.fullName);
   const now = new Date();
   const todayLabel = formatDashboardDate(now);

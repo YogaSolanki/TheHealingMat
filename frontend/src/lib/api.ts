@@ -272,3 +272,116 @@ export async function submitContact(input: {
   });
   return parseJson<ContactSubmitResponse>(response);
 }
+
+export type MembershipPlanMonths = 3 | 6 | 12;
+
+export type MembershipQuote = {
+  planMonths: MembershipPlanMonths;
+  planName: string;
+  listPricePaise: number;
+  discountPaise: number;
+  amountPaise: number;
+  discountLabel: string;
+  couponCode: string | null;
+  currency: "INR";
+};
+
+export type PublicMembership = {
+  id: string;
+  planName: string;
+  planMonths: number;
+  status: "active" | "scheduled" | "expired";
+  startsAt: string;
+  endsAt: string;
+  listPricePaise: number;
+  discountPaise: number;
+  amountPaidPaise: number;
+  razorpayPaymentId: string | null;
+  paidAt: string;
+};
+
+export type MembershipAccessResponse = {
+  state: "trial" | "active" | "expired";
+  current: PublicMembership | null;
+  scheduled: PublicMembership | null;
+  lastExpired: PublicMembership | null;
+  trial: { startsAt: string; endsAt: string } | null;
+};
+
+export type CreateOrderResponse = {
+  skipCheckout: boolean;
+  order_id: string | null;
+  amount: number;
+  currency: string;
+  key_id: string;
+  membership?: PublicMembership;
+};
+
+export type VerifyPaymentResponse = {
+  success: boolean;
+  membership: PublicMembership | null;
+};
+
+function authHeaders(accessToken: string) {
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${accessToken}`,
+  };
+}
+
+export async function quoteMembership(
+  accessToken: string,
+  input: { planMonths: MembershipPlanMonths; couponCode?: string },
+): Promise<MembershipQuote> {
+  const response = await fetch(`${API_URL}/memberships/quote`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+  return parseJson<MembershipQuote>(response);
+}
+
+export async function getMyMembership(
+  accessToken: string,
+): Promise<MembershipAccessResponse> {
+  const response = await fetch(`${API_URL}/memberships/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  return parseJson<MembershipAccessResponse>(response);
+}
+
+export async function createRazorpayOrder(
+  accessToken: string,
+  input: {
+    planMonths?: MembershipPlanMonths;
+    amount?: number;
+    currency?: string;
+    receipt?: string;
+    couponCode?: string;
+    startMode?: "now" | "after_current";
+  },
+): Promise<CreateOrderResponse> {
+  const response = await fetch(`${API_URL}/create-order`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+  return parseJson<CreateOrderResponse>(response);
+}
+
+export async function verifyRazorpayPayment(
+  accessToken: string,
+  input: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  },
+): Promise<VerifyPaymentResponse> {
+  const response = await fetch(`${API_URL}/verify-payment`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+  return parseJson<VerifyPaymentResponse>(response);
+}

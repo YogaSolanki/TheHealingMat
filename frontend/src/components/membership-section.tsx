@@ -17,13 +17,14 @@ import referralArt from "@/assets/referal.png";
 import sunIcon from "@/assets/sun.png";
 import tagIcon from "@/assets/tag.png";
 import yogaIcon from "@/assets/yoga.png";
+import { ChoosePlanButton } from "@/components/choose-plan-button";
 import { StartTrialButton } from "@/components/start-trial-button";
 import { TrialTrustRow } from "@/components/trial-trust-row";
 
 const cream = "#FBF9F5";
 
 type Plan = {
-  months: number;
+  months: 3 | 6 | 12;
   price: string;
   perDay: string;
   featured?: boolean;
@@ -282,7 +283,8 @@ function PlanCard({ plan }: { plan: Plan }) {
       )}
 
       <div className="relative z-10 mt-auto pt-4 sm:pt-5">
-        <StartTrialButton
+        <ChoosePlanButton
+          months={plan.months}
           className={`inline-flex w-full items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-[13px] font-bold sm:text-[14px] ${
             plan.featured
               ? "btn-primary bg-[#1f6b3a] text-white"
@@ -291,7 +293,7 @@ function PlanCard({ plan }: { plan: Plan }) {
         >
           Choose {plan.months} Months
           <span aria-hidden="true">→</span>
-        </StartTrialButton>
+        </ChoosePlanButton>
       </div>
     </article>
   );

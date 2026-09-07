@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
 import { memberPrimaryBtnClass } from "@/components/member-dashboard/member-button-styles";
-import { getMemberAccess } from "@/lib/member-access";
+import { useMemberAccess } from "@/lib/member-access";
 import {
   findRunningSession,
   sessionUnavailableMessage,
@@ -13,7 +13,7 @@ import {
 const LIVE_SESSION_URL = process.env.NEXT_PUBLIC_LIVE_SESSION_URL;
 
 export function MemberJoinPage() {
-  const access = getMemberAccess();
+  const { access } = useMemberAccess();
   const kind: SessionAccessKind = access.state === "trial" ? "trial" : "member";
   const running = useMemo(
     () => (access.state === "expired" ? null : findRunningSession(new Date(), kind)),
