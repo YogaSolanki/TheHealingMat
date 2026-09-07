@@ -13,6 +13,7 @@ import { ContactModule } from './contact/contact.module';
 import { ContentModule } from './content/content.module';
 import { CouponsModule } from './coupons/coupons.module';
 import { PaymentsModule } from './payments/payments.module';
+import { ReferralsModule } from './referrals/referrals.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { PaymentsModule } from './payments/payments.module';
     ContentModule,
     CouponsModule,
     PaymentsModule,
+    ReferralsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

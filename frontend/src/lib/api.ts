@@ -83,7 +83,7 @@ export type TrialAccountResponse = {
       id: string;
       label: string;
       startsAt: string;
-    };
+    } | null;
     registeredAt: string;
   };
 };
@@ -384,4 +384,33 @@ export async function verifyRazorpayPayment(
     body: JSON.stringify(input),
   });
   return parseJson<VerifyPaymentResponse>(response);
+}
+
+export type ReferralStatus =
+  | "SUCCESSFUL"
+  | "TRIAL"
+  | "MEMBERSHIP PENDING"
+  | "REGISTERED";
+
+export type ReferralListItem = {
+  id: string;
+  fullName: string;
+  status: ReferralStatus;
+  note: string;
+  referredOn: string;
+};
+
+export type MyReferralsResponse = {
+  successfulCount: number;
+  referrals: ReferralListItem[];
+};
+
+export async function getMyReferrals(
+  accessToken: string,
+): Promise<MyReferralsResponse> {
+  const response = await fetch(`${API_URL}/referrals/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  return parseJson<MyReferralsResponse>(response);
 }

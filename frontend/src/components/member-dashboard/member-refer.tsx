@@ -9,6 +9,12 @@ import {
   memberPrimaryBtnClass,
 } from "@/components/member-dashboard/member-button-styles";
 import { useMemberDashboard } from "@/components/member-dashboard/member-dashboard-provider";
+import {
+  getMyReferrals,
+  type ReferralListItem,
+  type ReferralStatus,
+} from "@/lib/api";
+import { getStoredToken } from "@/lib/auth-storage";
 import { FaWhatsapp } from "react-icons/fa";
 
 function referralShareLink(accessLink: string, referralCode: string) {
@@ -48,61 +54,67 @@ const statusFilterOptions = [
   { label: "Registered", value: "REGISTERED" },
 ] as const;
 
-const milestones = [
-  { count: 5, status: "completed" as const },
-  { count: 10, status: "unlocked" as const },
-  { count: 15, status: "upcoming" as const },
-  { count: 20, status: "upcoming" as const },
-  { count: 30, status: "upcoming" as const },
-  { count: 40, status: "upcoming" as const },
-  { count: 50, status: "upcoming" as const },
-];
+const MILESTONE_COUNTS = [5, 10, 15, 20, 30, 40, 50] as const;
 
-const referrals = [
-  {
-    initials: "RS",
-    name: "Rohit Sharma",
-    status: "SUCCESSFUL",
-    statusTone: "green" as const,
-    note: "Successfully joined",
-    date: "29 Aug 2026",
-    avatarBg: "bg-[#eef6f0] text-[#1f6b3a]",
-  },
-  {
-    initials: "NM",
-    name: "Neha Mehta",
-    status: "TRIAL",
-    statusTone: "blue" as const,
-    note: "14-day trial in progress",
-    date: "25 Aug 2026",
-    avatarBg: "bg-[#EAF2F8] text-[#4A6B8A]",
-  },
-  {
-    initials: "AV",
-    name: "Amit Verma",
-    status: "MEMBERSHIP PENDING",
-    statusTone: "orange" as const,
-    note: "Registered, membership pending",
-    date: "20 Aug 2026",
-    avatarBg: "bg-[#FFF4DC] text-[#C58A1A]",
-  },
-  {
-    initials: "PI",
-    name: "Priya Iyer",
-    status: "REGISTERED",
-    statusTone: "gray" as const,
-    note: "Registered",
-    date: "18 Aug 2026",
-    avatarBg: "bg-[#F0F0F0] text-[#6b7c6e]",
-  },
-];
+const statusToneByStatus: Record<
+  ReferralStatus,
+  "green" | "blue" | "orange" | "gray"
+> = {
+  SUCCESSFUL: "green",
+  TRIAL: "blue",
+  "MEMBERSHIP PENDING": "orange",
+  REGISTERED: "gray",
+};
 
-const statusBadgeClass: Record<(typeof referrals)[number]["statusTone"], string> = {
+const statusBadgeClass: Record<"green" | "blue" | "orange" | "gray", string> = {
   green: "bg-[#eef6f0] text-[#1f6b3a]",
   blue: "bg-[#EAF2F8] text-[#4A6B8A]",
   orange: "bg-[#FFF4DC] text-[#C58A1A]",
   gray: "bg-[#F0F0F0] text-[#6b7c6e]",
 };
+
+const avatarBgByTone: Record<"green" | "blue" | "orange" | "gray", string> = {
+  green: "bg-[#eef6f0] text-[#1f6b3a]",
+  blue: "bg-[#EAF2F8] text-[#4A6B8A]",
+  orange: "bg-[#FFF4DC] text-[#C58A1A]",
+  gray: "bg-[#F0F0F0] text-[#6b7c6e]",
+};
+
+function initialsFromName(fullName: string) {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+}
+
+function formatReferredOn(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function nextMilestoneCount(successfulCount: number) {
+  return (
+    MILESTONE_COUNTS.find((count) => count > successfulCount) ??
+    MILESTONE_COUNTS[MILESTONE_COUNTS.length - 1]
+  );
+}
+
+function milestoneStatusFor(
+  count: number,
+  successfulCount: number,
+): "completed" | "unlocked" | "upcoming" {
+  if (successfulCount >= count) return "completed";
+  const next = nextMilestoneCount(successfulCount);
+  if (count === next) return "unlocked";
+  return "upcoming";
+}
+
+const REFERRAL_PAGE_SIZE = 10;
 
 export function MemberReferPage() {
   const { user } = useMemberDashboard();
@@ -114,10 +126,58 @@ export function MemberReferPage() {
   const [redeemedCount, setRedeemedCount] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] =
     useState<(typeof statusFilterOptions)[number]["value"]>("all");
+  const [referrals, setReferrals] = useState<ReferralListItem[]>([]);
+  const [successfulCount, setSuccessfulCount] = useState(0);
+  const [loadingReferrals, setLoadingReferrals] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(REFERRAL_PAGE_SIZE);
+
+  useEffect(() => {
+    setVisibleCount(REFERRAL_PAGE_SIZE);
+  }, [statusFilter]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const token = getStoredToken();
+      if (!token) {
+        if (!cancelled) {
+          setReferrals([]);
+          setSuccessfulCount(0);
+          setLoadingReferrals(false);
+        }
+        return;
+      }
+      try {
+        const data = await getMyReferrals(token);
+        if (cancelled) return;
+        setReferrals(data.referrals);
+        setSuccessfulCount(data.successfulCount);
+      } catch {
+        if (!cancelled) {
+          setReferrals([]);
+          setSuccessfulCount(0);
+        }
+      } finally {
+        if (!cancelled) setLoadingReferrals(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filteredReferrals = referrals.filter(
     (referral) => statusFilter === "all" || referral.status === statusFilter,
   );
+  const visibleReferrals = filteredReferrals.slice(0, visibleCount);
+  const hasMoreReferrals = visibleCount < filteredReferrals.length;
+  const nextMilestone = nextMilestoneCount(successfulCount);
+  const remainingToMilestone = Math.max(0, nextMilestone - successfulCount);
+  const progressPercent =
+    nextMilestone > 0
+      ? Math.min(100, Math.round((successfulCount / nextMilestone) * 100))
+      : 0;
 
   async function copyText(text: string, field: "code" | "link" | "message") {
     try {
@@ -150,8 +210,8 @@ export function MemberReferPage() {
         </section>
 
         {/* Share + code cards */}
-        <section id="share" className="mb-5 grid gap-4 lg:mb-6 lg:grid-cols-2 lg:items-stretch lg:gap-5">
-          <div className="relative flex h-full flex-col justify-center overflow-hidden rounded-[24px] border border-[#d5e8d9] bg-[#F4F8F2] p-6 shadow-[0_8px_24px_rgba(31,107,58,0.05)] sm:p-7">
+        <section id="share" className="mb-5 grid gap-4 lg:mb-6 lg:grid-cols-2 lg:items-start lg:gap-5">
+          <div className="relative flex flex-col justify-center overflow-hidden rounded-[24px] border border-[#d5e8d9] bg-[#F4F8F2] p-6 shadow-[0_8px_24px_rgba(31,107,58,0.05)] sm:p-7">
             <div className="flex flex-col justify-center gap-7">
               <div className="relative flex items-center gap-4">
                 <span className="inline-flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-white shadow-[0_2px_12px_rgba(31,107,58,0.1)]">
@@ -181,51 +241,67 @@ export function MemberReferPage() {
                 </div>
               </div>
 
-              <div className="relative grid grid-cols-2 gap-3 sm:gap-4">
-                <div className="flex min-w-0 flex-col items-center">
-                  <button
-                    type="button"
-                    onClick={shareOnWhatsApp}
-                    className={`${memberPrimaryBtnClass} w-full min-h-[48px] px-3 py-3 text-[13px] sm:px-4 sm:text-[14px]`}
-                  >
-                    <FaWhatsapp className="h-4 w-4 shrink-0" />
-                    <span className="truncate">Share on WhatsApp</span>
-                  </button>
-                  <p className="mt-2.5 px-1 text-center text-[11px] leading-snug text-[#6b7c6e] sm:text-[12px]">
-                    Open WhatsApp with your referral message
-                  </p>
+              <div className="relative flex flex-col">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                  <div className="flex min-w-0 flex-col items-center">
+                    <button
+                      type="button"
+                      onClick={shareOnWhatsApp}
+                      className={`${memberPrimaryBtnClass} w-full min-h-[48px] px-3 py-3 text-[13px] sm:px-4 sm:text-[14px]`}
+                    >
+                      <FaWhatsapp className="h-4 w-4 shrink-0" />
+                      <span className="truncate">Share on WhatsApp</span>
+                    </button>
+                    <p className="mt-2.5 px-1 text-center text-[11px] leading-snug text-[#6b7c6e] sm:text-[12px]">
+                      Open WhatsApp with your referral message
+                    </p>
+                  </div>
+                  <div className="flex min-w-0 flex-col items-center">
+                    <button
+                      type="button"
+                      onClick={() => setMessageOpen((current) => !current)}
+                      className={`${memberOutlineBtnClass} w-full min-h-[48px] px-3 py-3 text-[13px] sm:px-4 sm:text-[14px]`}
+                    >
+                      <MessageBubbleIcon className="h-4 w-4 shrink-0" />
+                      <span className="truncate">
+                        {messageOpen ? "Hide Message" : "View Ready-made Message"}
+                      </span>
+                    </button>
+                    <p className="mt-2.5 px-1 text-center text-[11px] leading-snug text-[#6b7c6e] sm:text-[12px]">
+                      See, copy or share the ready-made message
+                    </p>
+                  </div>
                 </div>
-                <div className="flex min-w-0 flex-col items-center">
-                  <button
-                    type="button"
-                    onClick={() => setMessageOpen((current) => !current)}
-                    className={`${memberOutlineBtnClass} w-full min-h-[48px] px-3 py-3 text-[13px] sm:px-4 sm:text-[14px]`}
-                  >
-                    <MessageBubbleIcon className="h-4 w-4 shrink-0" />
-                    <span className="truncate">
-                      {messageOpen ? "Hide Message" : "View Ready-made Message"}
-                    </span>
-                  </button>
-                  <p className="mt-2.5 px-1 text-center text-[11px] leading-snug text-[#6b7c6e] sm:text-[12px]">
-                    See, copy or share the ready-made message
-                  </p>
+
+                <div
+                  className={`grid transition-[grid-template-rows,opacity,margin] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                    messageOpen
+                      ? "mt-5 grid-rows-[1fr] opacity-100"
+                      : "pointer-events-none mt-0 grid-rows-[0fr] opacity-0"
+                  }`}
+                  aria-hidden={!messageOpen}
+                >
+                  <div className="overflow-hidden">
+                    <div
+                      className={`rounded-[14px] border border-[#d5e8d9] bg-white px-4 py-3.5 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                        messageOpen ? "translate-y-0" : "-translate-y-1.5"
+                      }`}
+                    >
+                      <p className="text-[13px] leading-relaxed text-[#243028] sm:text-[14px]">
+                        {readyMadeMessage}
+                      </p>
+                      <button
+                        type="button"
+                        tabIndex={messageOpen ? 0 : -1}
+                        onClick={() => copyText(readyMadeMessage, "message")}
+                        className="mt-3 inline-flex cursor-pointer items-center gap-1.5 text-[13px] font-bold text-[#1f6b3a] hover:text-[#185830]"
+                      >
+                        {copiedField === "message" ? "Copied!" : "Copy Message"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              {messageOpen ? (
-                <div className="rounded-[14px] border border-[#d5e8d9] bg-white px-4 py-3.5">
-                  <p className="text-[13px] leading-relaxed text-[#243028] sm:text-[14px]">
-                    {readyMadeMessage}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => copyText(readyMadeMessage, "message")}
-                    className="mt-3 inline-flex cursor-pointer items-center gap-1.5 text-[13px] font-bold text-[#1f6b3a] hover:text-[#185830]"
-                  >
-                    {copiedField === "message" ? "Copied!" : "Copy Message"}
-                  </button>
-                </div>
-              ) : null}
             </div>
           </div>
 
@@ -337,7 +413,7 @@ export function MemberReferPage() {
               </div>
               <div>
                 <p className="text-[24px] font-bold leading-none text-[#243028] sm:text-[26px]">
-                  7
+                  {successfulCount}
                 </p>
                 <p className="mt-1.5 text-[13px] font-medium text-[#243028] sm:text-[14px]">
                   Successful Referrals
@@ -353,22 +429,27 @@ export function MemberReferPage() {
 
               <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                 <p className="shrink-0 text-[14px] text-[#243028] sm:text-[15px]">
-                  <span className="text-[22px] font-bold leading-none sm:text-[24px]">10</span>{" "}
+                  <span className="text-[22px] font-bold leading-none sm:text-[24px]">{nextMilestone}</span>{" "}
                   Referrals
                 </p>
 
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <div className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[#EDE8DF]">
-                    <div className="h-full w-[70%] rounded-full bg-[#1f6b3a]" />
+                    <div
+                      className="h-full rounded-full bg-[#1f6b3a] transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                      style={{ width: `${progressPercent}%` }}
+                    />
                   </div>
                   <span className="shrink-0 text-[14px] font-bold text-[#1f6b3a] sm:text-[15px]">
-                    7 / 10
+                    {successfulCount} / {nextMilestone}
                   </span>
                 </div>
               </div>
 
               <p className="mt-3 text-[12px] leading-relaxed text-[#5f6f64] sm:text-[13px]">
-                3 more successful referrals to unlock your next reward.
+                {remainingToMilestone === 0
+                  ? "You have reached the highest milestone. Keep referring friends!"
+                  : `${remainingToMilestone} more successful referral${remainingToMilestone === 1 ? "" : "s"} to unlock your next reward.`}
               </p>
             </div>
           </div>
@@ -383,14 +464,16 @@ export function MemberReferPage() {
           </div>
 
           <div className="divide-y divide-[#eef2ee]">
-            {milestones.map((milestone) => (
+            {MILESTONE_COUNTS.map((count) => (
               <MilestoneRow
-                key={milestone.count}
-                {...milestone}
+                key={count}
+                count={count}
                 status={
-                  redeemedCount === milestone.count ? "requested" : milestone.status
+                  redeemedCount === count
+                    ? "requested"
+                    : milestoneStatusFor(count, successfulCount)
                 }
-                onRedeem={() => setRedeemedCount(milestone.count)}
+                onRedeem={() => setRedeemedCount(count)}
               />
             ))}
           </div>
@@ -435,7 +518,15 @@ export function MemberReferPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredReferrals.length === 0 ? (
+                {loadingReferrals ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center sm:px-6">
+                      <p className="text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
+                        Loading your referrals…
+                      </p>
+                    </td>
+                  </tr>
+                ) : filteredReferrals.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-4 py-8 text-center sm:px-6">
                       <p className="text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
@@ -451,52 +542,60 @@ export function MemberReferPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredReferrals.map((referral) => (
-                    <tr
-                      key={referral.name}
-                      className="border-b border-[#eef2ee] last:border-b-0"
-                    >
-                      <td className="px-4 py-3.5 sm:px-6">
-                        <div className="flex items-center gap-2.5">
+                  visibleReferrals.map((referral) => {
+                    const tone = statusToneByStatus[referral.status];
+                    return (
+                      <tr
+                        key={referral.id}
+                        className="border-b border-[#eef2ee] last:border-b-0"
+                      >
+                        <td className="px-4 py-3.5 sm:px-6">
+                          <div className="flex items-center gap-2.5">
+                            <span
+                              className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${avatarBgByTone[tone]}`}
+                            >
+                              {initialsFromName(referral.fullName)}
+                            </span>
+                            <span className="text-[13px] font-semibold text-[#243028] sm:text-[14px]">
+                              {referral.fullName}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5 sm:px-6">
                           <span
-                            className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${referral.avatarBg}`}
+                            className={`inline-flex rounded-[6px] px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${statusBadgeClass[tone]}`}
                           >
-                            {referral.initials}
+                            {referral.status}
                           </span>
-                          <span className="text-[13px] font-semibold text-[#243028] sm:text-[14px]">
-                            {referral.name}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5 sm:px-6">
-                        <span
-                          className={`inline-flex rounded-[6px] px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${statusBadgeClass[referral.statusTone]}`}
-                        >
-                          {referral.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 text-[13px] text-[#6b7c6e] sm:px-6">
-                        {referral.note}
-                      </td>
-                      <td className="px-4 py-3.5 text-[13px] font-semibold text-[#243028] sm:px-6">
-                        {referral.date}
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td className="px-4 py-3.5 text-[13px] text-[#6b7c6e] sm:px-6">
+                          {referral.note}
+                        </td>
+                        <td className="px-4 py-3.5 text-[13px] font-semibold text-[#243028] sm:px-6">
+                          {formatReferredOn(referral.referredOn)}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
 
-          <div className="border-t border-[#eef2ee] px-4 py-3.5 text-center sm:px-6">
-            <button
-              type="button"
-              className="link-animate inline-flex cursor-pointer items-center gap-1 text-[13px] font-bold text-[#1f6b3a] hover:text-[#185830]"
-            >
-              View more referrals
-              <ChevronDownIcon className="h-4 w-4" />
-            </button>
-          </div>
+          {hasMoreReferrals ? (
+            <div className="border-t border-[#eef2ee] px-4 py-3.5 text-center sm:px-6">
+              <button
+                type="button"
+                onClick={() =>
+                  setVisibleCount((current) => current + REFERRAL_PAGE_SIZE)
+                }
+                className="link-animate inline-flex cursor-pointer items-center gap-1 text-[13px] font-bold text-[#1f6b3a] hover:text-[#185830]"
+              >
+                View more referrals
+                <ChevronDownIcon className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
         </section>
       </div>
     </div>

@@ -14,6 +14,9 @@ import { OrientationSlot } from './orientation-slot.entity';
 import { TrialCohort } from './trial-cohort.entity';
 import { TrialRegistration } from './trial-registration.entity';
 
+/** Free trial length granted automatically on signup. */
+export const FREE_TRIAL_DAYS = 14;
+
 @Injectable()
 export class TrialsService {
   constructor(
@@ -27,6 +30,50 @@ export class TrialsService {
     private readonly users: Repository<User>,
     private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Ensures the member has a signup-day 14-day trial.
+   * Idempotent: existing registrations are only status-refreshed.
+   */
+  async ensureFreeTrial(user: User): Promise<User> {
+    const existing = await this.registrations.findOne({
+      where: { userId: user.id },
+    });
+
+    if (existing) {
+      const refreshed = this.refreshStatus(existing);
+      if (refreshed.status !== existing.status) {
+        await this.registrations.save(refreshed);
+      }
+      if (!user.hasUsedFreeTrial) {
+        user.hasUsedFreeTrial = true;
+        return this.users.save(user);
+      }
+      return user;
+    }
+
+    if (user.hasUsedFreeTrial) {
+      return user;
+    }
+
+    const now = new Date();
+    const trialEndsAt = new Date(now);
+    trialEndsAt.setUTCDate(trialEndsAt.getUTCDate() + FREE_TRIAL_DAYS);
+
+    await this.registrations.save(
+      this.registrations.create({
+        userId: user.id,
+        cohortId: null,
+        orientationSlotId: null,
+        status: TrialStatus.Active,
+        trialStartsAt: now,
+        trialEndsAt,
+      }),
+    );
+
+    user.hasUsedFreeTrial = true;
+    return this.users.save(user);
+  }
 
   async getNextCohort() {
     const now = new Date();
@@ -186,22 +233,24 @@ export class TrialsService {
   private toTrialAccount(
     user: User,
     registration: TrialRegistration,
-    cohort: TrialCohort,
-    slot: OrientationSlot,
+    cohort: TrialCohort | null,
+    slot: OrientationSlot | null,
   ) {
     return {
       account: this.toBasicAccount(user),
       trial: {
         id: registration.id,
         status: registration.status,
-        cohortLabel: cohort.label,
+        cohortLabel: cohort?.label ?? '14-Day Free Trial',
         trialStartsAt: registration.trialStartsAt,
         trialEndsAt: registration.trialEndsAt,
-        orientation: {
-          id: slot.id,
-          label: slot.label,
-          startsAt: slot.startsAt,
-        },
+        orientation: slot
+          ? {
+              id: slot.id,
+              label: slot.label,
+              startsAt: slot.startsAt,
+            }
+          : null,
         registeredAt: registration.registeredAt,
       },
     };

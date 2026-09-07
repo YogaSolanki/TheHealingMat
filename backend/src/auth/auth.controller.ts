@@ -95,9 +95,15 @@ export class AuthController {
 
   @Public()
   @Get('auth/google')
-  googleStart(@Query('intent') intent: string | undefined, @Res() res: Response) {
+  googleStart(
+    @Query('intent') intent: string | undefined,
+    @Query('ref') referralCode: string | undefined,
+    @Res() res: Response,
+  ) {
     try {
-      return res.redirect(this.authService.getGoogleAuthUrl(intent));
+      return res.redirect(
+        this.authService.getGoogleAuthUrl(intent, referralCode),
+      );
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Google sign-in is unavailable.';

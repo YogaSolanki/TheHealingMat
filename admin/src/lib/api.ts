@@ -149,6 +149,14 @@ export function getAdminUsers(token: string) {
   return authGet<{ users: AdminUserRow[] }>("/admin/users", token);
 }
 
+export function deleteAdminUser(token: string, id: string) {
+  return authJson<{ success: boolean }>(
+    "DELETE",
+    `/admin/users/${id}`,
+    token,
+  ).then(() => undefined);
+}
+
 export type AdminContentItem = {
   id: string;
   slug: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AuthTrialCard } from "@/components/auth-trial-card";
 
@@ -22,6 +22,10 @@ export function AuthLoginModal({
   const [mounted, setMounted] = useState(false);
   const [rendered, setRendered] = useState(open);
   const [exiting, setExiting] = useState(false);
+
+  const handleClose = useCallback(() => {
+    if (!exiting) onClose();
+  }, [exiting, onClose]);
 
   useEffect(() => {
     setMounted(true);
@@ -50,7 +54,7 @@ export function AuthLoginModal({
     document.body.style.overflow = "hidden";
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && !exiting) onClose();
+      if (event.key === "Escape") handleClose();
     }
 
     window.addEventListener("keydown", onKeyDown);
@@ -58,7 +62,7 @@ export function AuthLoginModal({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [rendered, exiting, onClose]);
+  }, [rendered, handleClose]);
 
   if (!mounted || !rendered) return null;
 
@@ -81,9 +85,7 @@ export function AuthLoginModal({
         type="button"
         aria-label="Close login dialog"
         className="auth-modal-backdrop absolute inset-0 bg-black/25 backdrop-blur-[1px]"
-        onClick={() => {
-          if (!exiting) onClose();
-        }}
+        onClick={handleClose}
       />
       <div
         className={`auth-modal-panel relative z-10 flex w-full max-w-[600px] justify-center ${
@@ -94,9 +96,7 @@ export function AuthLoginModal({
           key={`${initialMode}-${initialError ?? ""}`}
           initialMode={initialMode}
           initialError={initialError}
-          onClose={() => {
-            if (!exiting) onClose();
-          }}
+          onClose={handleClose}
         />
       </div>
     </div>,

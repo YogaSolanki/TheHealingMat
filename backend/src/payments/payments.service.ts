@@ -11,6 +11,7 @@ import Razorpay from 'razorpay';
 import { Repository } from 'typeorm';
 import { CouponsService } from '../coupons/coupons.service';
 import { TrialRegistration } from '../trials/trial-registration.entity';
+import { TrialStatus } from '../users/enums/trial-status.enum';
 import { User } from '../users/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { QuoteMembershipDto } from './dto/quote-membership.dto';
@@ -210,6 +211,21 @@ export class PaymentsService {
       rows.find((row) => row.status === 'scheduled' && row.startsAt > now) ??
       null;
     const trial = await this.trials.findOne({ where: { userId: user.id } });
+    if (trial) {
+      const nowMs = now.getTime();
+      if (nowMs > trial.trialEndsAt.getTime()) {
+        if (trial.status !== TrialStatus.Expired) {
+          trial.status = TrialStatus.Expired;
+          await this.trials.save(trial);
+        }
+      } else if (nowMs >= trial.trialStartsAt.getTime()) {
+        if (trial.status !== TrialStatus.Active) {
+          trial.status = TrialStatus.Active;
+          await this.trials.save(trial);
+        }
+      }
+    }
+
     const trialActive =
       trial && now >= trial.trialStartsAt && now <= trial.trialEndsAt
         ? trial

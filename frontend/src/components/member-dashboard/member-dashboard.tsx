@@ -2,14 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import calendarIcon from "@/assets/calander-icon.png";
 import leafRight from "@/assets/leaf-right.png";
 import moonIcon from "@/assets/moon.png";
 import sunIcon from "@/assets/sun.png";
 import yogaMenIcon from "@/assets/yoga-men.png";
 import { memberPrimaryBtnClass, memberPrimaryBtnSmClass } from "@/components/member-dashboard/member-button-styles";
-import type { PublicUser } from "@/lib/api";
+import { getMyReferrals, type PublicUser } from "@/lib/api";
+import { getStoredToken } from "@/lib/auth-storage";
 import {
   greetingForName,
   membershipStatusLabel,
@@ -28,6 +29,15 @@ import {
 type MemberDashboardProps = {
   user: PublicUser;
 };
+
+const DASHBOARD_REFERRAL_MILESTONES = [5, 10, 15, 20, 30, 40, 50] as const;
+
+function nextReferralMilestone(successfulCount: number) {
+  return (
+    DASHBOARD_REFERRAL_MILESTONES.find((count) => count > successfulCount) ??
+    DASHBOARD_REFERRAL_MILESTONES[DASHBOARD_REFERRAL_MILESTONES.length - 1]
+  );
+}
 
 function CalendarMaskIcon() {
   return (
@@ -70,6 +80,32 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const sessionKind = isTrial ? "trial" : "member";
   const running = isExpired ? null : findRunningSession(now, sessionKind);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+  const [successfulReferrals, setSuccessfulReferrals] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadReferrals() {
+      const token = getStoredToken();
+      if (!token) return;
+      try {
+        const data = await getMyReferrals(token);
+        if (!cancelled) setSuccessfulReferrals(data.successfulCount);
+      } catch {
+        /* keep default */
+      }
+    }
+    void loadReferrals();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const nextMilestone = nextReferralMilestone(successfulReferrals);
+  const remainingToMilestone = Math.max(0, nextMilestone - successfulReferrals);
+  const referralProgressPercent =
+    nextMilestone > 0
+      ? Math.min(100, Math.round((successfulReferrals / nextMilestone) * 100))
+      : 0;
 
   function handleJoin() {
     if (isExpired) return;
@@ -374,12 +410,20 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
             subtitle="Share with friends and earn exciting rewards."
             body={
               <>
-                <p className="text-[13px] font-semibold text-[#243028]">7 successful referrals</p>
+                <p className="text-[13px] font-semibold text-[#243028]">
+                  {successfulReferrals} successful referral
+                  {successfulReferrals === 1 ? "" : "s"}
+                </p>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#EDE8DF]">
-                  <div className="h-full w-[70%] rounded-full bg-[#E07A2F]" />
+                  <div
+                    className="h-full rounded-full bg-[#E07A2F] transition-[width] duration-300"
+                    style={{ width: `${referralProgressPercent}%` }}
+                  />
                 </div>
                 <p className="mt-2 text-[12px] leading-snug text-[#6b7c6e] sm:text-[13px]">
-                  3 more to unlock your next reward
+                  {remainingToMilestone === 0
+                    ? "Highest milestone reached"
+                    : `${remainingToMilestone} more to unlock your next reward`}
                 </p>
               </>
             }

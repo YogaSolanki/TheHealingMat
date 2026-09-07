@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthModal } from "@/components/auth-modal-provider";
 import {
   createRazorpayOrder,
-  getAuthMe,
   quoteMembership,
   verifyRazorpayPayment,
   type MembershipQuote,
@@ -18,6 +17,7 @@ import {
   saveCheckoutIntent,
   type CheckoutStartMode,
 } from "@/lib/checkout-intent";
+import { sessionStore } from "@/lib/session-store";
 
 const PAYMENT_INCOMPLETE =
   "Payment was not completed. Please try again to start or renew your membership.";
@@ -90,7 +90,10 @@ export function MembershipCheckout() {
     }
 
     let cancelled = false;
-    Promise.all([getAuthMe(token), quoteMembership(token, { planMonths })])
+    Promise.all([
+      sessionStore.ensureUser(),
+      quoteMembership(token, { planMonths }),
+    ])
       .then(([me, nextQuote]) => {
         if (cancelled) return;
         setUser(me);
@@ -153,6 +156,7 @@ export function MembershipCheckout() {
 
       if (order.skipCheckout) {
         clearCheckoutIntent();
+        sessionStore.invalidateAccess();
         setSuccess(true);
         setPaying(false);
         return;
@@ -189,6 +193,7 @@ export function MembershipCheckout() {
               razorpay_signature: response.razorpay_signature,
             });
             clearCheckoutIntent();
+            sessionStore.invalidateAccess();
             setSuccess(true);
           } catch (err: unknown) {
             setError(err instanceof Error ? err.message : PAYMENT_INCOMPLETE);

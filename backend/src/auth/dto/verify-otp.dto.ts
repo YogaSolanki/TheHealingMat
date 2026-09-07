@@ -30,8 +30,8 @@ export class VerifyOtpDto {
   @MaxLength(120)
   fullName?: string;
 
-  /** Optional on OTP signup — if omitted, a random password is generated. */
-  @ValidateIf((dto: VerifyOtpDto) => dto.password !== undefined)
+  /** Required when creating a new account (signup). Stored as a bcrypt hash. */
+  @ValidateIf((dto: VerifyOtpDto) => Boolean(dto.fullName?.trim()))
   @IsString()
   @MinLength(PASSWORD_MIN_LENGTH)
   @MaxLength(PASSWORD_MAX_LENGTH)
