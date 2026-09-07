@@ -104,14 +104,16 @@ function nextMilestoneCount(successfulCount: number) {
   );
 }
 
-function milestoneStatusFor(
-  count: number,
+/** Single green row: next redeemable milestone, else the next target. */
+function activeMilestoneCount(
   successfulCount: number,
-): "completed" | "unlocked" | "upcoming" {
-  if (successfulCount >= count) return "completed";
-  const next = nextMilestoneCount(successfulCount);
-  if (count === next) return "unlocked";
-  return "upcoming";
+  redeemedCount: number | null,
+) {
+  const redeemable = MILESTONE_COUNTS.find(
+    (count) => successfulCount >= count && redeemedCount !== count,
+  );
+  if (redeemable != null) return redeemable;
+  return nextMilestoneCount(successfulCount);
 }
 
 const REFERRAL_PAGE_SIZE = 10;
@@ -474,18 +476,34 @@ export function MemberReferPage() {
           </div>
 
           <div className="divide-y divide-[#eef2ee]">
-            {MILESTONE_COUNTS.map((count) => (
-              <MilestoneRow
-                key={count}
-                count={count}
-                status={
-                  redeemedCount === count
-                    ? "requested"
-                    : milestoneStatusFor(count, successfulCount)
-                }
-                onRedeem={() => setRedeemedCount(count)}
-              />
-            ))}
+            {MILESTONE_COUNTS.map((count) => {
+              const activeCount = activeMilestoneCount(
+                successfulCount,
+                redeemedCount,
+              );
+              const isActive = count === activeCount;
+              const canRedeem = isActive && successfulCount >= count;
+              const status =
+                redeemedCount === count
+                  ? "requested"
+                  : canRedeem
+                    ? "unlocked"
+                    : "upcoming";
+
+              return (
+                <MilestoneRow
+                  key={count}
+                  count={count}
+                  isActive={isActive}
+                  canRedeem={canRedeem}
+                  status={status}
+                  onRedeem={() => {
+                    if (!canRedeem) return;
+                    setRedeemedCount(count);
+                  }}
+                />
+              );
+            })}
           </div>
 
           {redeemedCount ? (
@@ -698,37 +716,40 @@ function ReferralStatusFilter({
 function MilestoneRow({
   count,
   status,
+  isActive,
+  canRedeem,
   onRedeem,
 }: {
   count: number;
   status: "completed" | "unlocked" | "upcoming" | "requested";
+  isActive: boolean;
+  canRedeem: boolean;
   onRedeem: () => void;
 }) {
-  const isUnlocked = status === "unlocked";
   const isCompleted = status === "completed";
   const isRequested = status === "requested";
 
   return (
     <div
       className={`grid gap-3 px-4 py-4 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:gap-4 sm:px-6 ${
-        isUnlocked ? "bg-[#F4F8F2]" : ""
+        isActive && canRedeem ? "bg-[#F4F8F2]" : ""
       }`}
     >
       <div className="flex items-center gap-3 sm:col-span-1">
         <span
           className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-bold ${
-            isCompleted
+            isCompleted || isRequested
               ? "bg-[#1f6b3a] text-white"
-              : isUnlocked
+              : isActive
                 ? "bg-[#1f6b3a] text-white"
-                : "border border-[#d7e0d6] bg-white text-[#6b7c6e]"
+                : "border border-[#d7e0d6] bg-[#F0F0F0] text-[#8a968c]"
           }`}
         >
-          {isCompleted ? <CheckIcon className="h-4 w-4" /> : count}
+          {isCompleted || isRequested ? <CheckIcon className="h-4 w-4" /> : count}
         </span>
         <div className="min-w-0 sm:hidden">
           <p className="text-[14px] font-bold text-[#243028]">{count} Referrals</p>
-          <MilestoneBadge status={status} />
+          <MilestoneBadge status={status} isActive={isActive} canRedeem={canRedeem} />
         </div>
       </div>
 
@@ -737,7 +758,7 @@ function MilestoneRow({
           <p className="text-[14px] font-bold text-[#243028] sm:text-[15px]">
             {count} Referrals
           </p>
-          <MilestoneBadge status={status} />
+          <MilestoneBadge status={status} isActive={isActive} canRedeem={canRedeem} />
         </div>
         <p className="mt-1 flex items-center gap-1.5 text-[13px] text-[#6b7c6e]">
           <GiftIcon className="h-4 w-4 shrink-0 text-[#8a968c]" />
@@ -762,7 +783,7 @@ function MilestoneRow({
           <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#C58A1A]">
             Redemption Requested
           </span>
-        ) : isUnlocked ? (
+        ) : canRedeem ? (
           <button
             type="button"
             onClick={onRedeem}
@@ -772,10 +793,14 @@ function MilestoneRow({
             <ChevronRightIcon className="h-4 w-4" />
           </button>
         ) : (
-          <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#8a968c]">
+          <button
+            type="button"
+            disabled
+            className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-[16px] border border-[#d7e0d6] bg-[#F0F0F0] px-4 py-2 text-[13px] font-bold text-[#8a968c] sm:px-5 sm:py-2.5"
+          >
             <LockIcon className="h-4 w-4" />
-            Locked
-          </span>
+            Redeem Reward
+          </button>
         )}
       </div>
     </div>
@@ -784,8 +809,12 @@ function MilestoneRow({
 
 function MilestoneBadge({
   status,
+  isActive,
+  canRedeem,
 }: {
   status: "completed" | "unlocked" | "upcoming" | "requested";
+  isActive: boolean;
+  canRedeem: boolean;
 }) {
   if (status === "completed") {
     return (
@@ -801,16 +830,23 @@ function MilestoneBadge({
       </span>
     );
   }
-  if (status === "unlocked") {
+  if (canRedeem) {
     return (
       <span className="inline-flex rounded-[6px] bg-[#1f6b3a] px-2 py-0.5 text-[10px] font-bold tracking-wide text-white uppercase">
         Available
       </span>
     );
   }
+  if (isActive) {
+    return (
+      <span className="inline-flex rounded-[6px] bg-[#eef6f0] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#1f6b3a] uppercase">
+        Upcoming
+      </span>
+    );
+  }
   return (
     <span className="inline-flex rounded-[6px] bg-[#F0F0F0] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#6b7c6e] uppercase">
-      Upcoming
+      Locked
     </span>
   );
 }
