@@ -241,78 +241,73 @@ export function MembershipCheckout() {
         successful payment.
       </p>
 
-      {loading ? (
-        <p className="mt-6 text-[14px] text-[#6b7c6e]">Loading your order…</p>
-      ) : (
-        <>
-          <dl className="mt-6 space-y-2 rounded-[16px] border border-[#e6ebe3] bg-[#F4F8F2] px-4 py-4 text-[14px]">
-            <div className="flex justify-between gap-4">
-              <dt className="text-[#5f6f64]">Plan price</dt>
-              <dd className="font-semibold text-[#243028]">
-                {quote ? formatInr(quote.listPricePaise) : "—"}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-[#5f6f64]">Discount</dt>
-              <dd className="font-semibold text-[#1f6b3a]">
-                {quote && quote.discountPaise > 0
-                  ? `− ${formatInr(quote.discountPaise)} (${quote.discountLabel})`
-                  : "—"}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-4 border-t border-[#d7e5d9] pt-2">
-              <dt className="font-bold text-[#243028]">Amount payable</dt>
-              <dd className="font-bold text-[#1f6b3a]">{payableLabel || "—"}</dd>
-            </div>
-          </dl>
+      <dl className="mt-6 space-y-2 rounded-[16px] border border-[#e6ebe3] bg-[#F4F8F2] px-4 py-4 text-[14px]">
+        <div className="flex justify-between gap-4">
+          <dt className="text-[#5f6f64]">Plan price</dt>
+          <dd className="font-semibold text-[#243028]">
+            {quote ? formatInr(quote.listPricePaise) : "—"}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-4">
+          <dt className="text-[#5f6f64]">Discount</dt>
+          <dd className="font-semibold text-[#1f6b3a]">
+            {quote && quote.discountPaise > 0
+              ? `− ${formatInr(quote.discountPaise)} (${quote.discountLabel})`
+              : "—"}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-4 border-t border-[#d7e5d9] pt-2">
+          <dt className="font-bold text-[#243028]">Amount payable</dt>
+          <dd className="font-bold text-[#1f6b3a]">{payableLabel || "—"}</dd>
+        </div>
+      </dl>
 
-          <label className="mt-5 block text-[13px] font-semibold text-[#243028]">
-            Coupon or referral code
-            <span className="mt-1.5 flex gap-2">
-              <input
-                value={couponInput}
-                onChange={(event) => setCouponInput(event.target.value)}
-                className="min-w-0 flex-1 rounded-[12px] border border-[#d7e5d9] bg-white px-3 py-2.5 text-[14px] font-medium text-[#243028] outline-none focus:border-[#1f6b3a]"
-                placeholder="Enter code"
-                autoComplete="off"
-              />
-              <button
-                type="button"
-                onClick={() => void applyCoupon()}
-                className="rounded-[12px] border border-[#1f6b3a] px-3 py-2.5 text-[13px] font-bold text-[#1f6b3a]"
-              >
-                Apply
-              </button>
-            </span>
-          </label>
-
-          {error ? (
-            <p className="mt-4 rounded-[12px] border border-[#f0d4d0] bg-[#fff6f5] px-3 py-2.5 text-[13px] text-[#9b3b32]">
-              {error}
-            </p>
-          ) : null}
-
+      <label className="mt-5 block text-[13px] font-semibold text-[#243028]">
+        Coupon or referral code
+        <span className="mt-1.5 flex gap-2">
+          <input
+            value={couponInput}
+            onChange={(event) => setCouponInput(event.target.value)}
+            className="min-w-0 flex-1 rounded-[12px] border border-[#d7e5d9] bg-white px-3 py-2.5 text-[14px] font-medium text-[#243028] outline-none focus:border-[#1f6b3a]"
+            placeholder="Enter code"
+            autoComplete="off"
+          />
           <button
             type="button"
-            disabled={paying || !quote}
-            onClick={() => void onPay()}
-            className="btn-primary mt-6 inline-flex w-full items-center justify-center rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white disabled:opacity-60"
+            onClick={() => void applyCoupon()}
+            disabled={loading}
+            className="rounded-[12px] border border-[#1f6b3a] px-3 py-2.5 text-[13px] font-bold text-[#1f6b3a] disabled:opacity-60"
           >
-            {paying
-              ? "Opening payment…"
-              : quote && quote.amountPaise === 0
-                ? "Confirm membership"
-                : `Pay ${payableLabel}`}
+            Apply
           </button>
+        </span>
+      </label>
 
-          <Link
-            href="/membership"
-            className="mt-4 inline-flex w-full items-center justify-center text-[13px] font-semibold text-[#5f6f64] underline-offset-2 hover:underline"
-          >
-            Back to plans
-          </Link>
-        </>
-      )}
+      {error ? (
+        <p className="mt-4 rounded-[12px] border border-[#f0d4d0] bg-[#fff6f5] px-3 py-2.5 text-[13px] text-[#9b3b32]">
+          {error}
+        </p>
+      ) : null}
+
+      <button
+        type="button"
+        disabled={paying || loading || !quote}
+        onClick={() => void onPay()}
+        className="btn-primary mt-6 inline-flex w-full items-center justify-center rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white disabled:opacity-60"
+      >
+        {paying
+          ? "Opening payment…"
+          : quote && quote.amountPaise === 0
+            ? "Confirm membership"
+            : `Pay ${payableLabel || "—"}`}
+      </button>
+
+      <Link
+        href="/membership"
+        className="mt-4 inline-flex w-full items-center justify-center text-[13px] font-semibold text-[#5f6f64] underline-offset-2 hover:underline"
+      >
+        Back to plans
+      </Link>
     </CheckoutCard>
   );
 }

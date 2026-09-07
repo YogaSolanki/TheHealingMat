@@ -14,24 +14,14 @@ import {
 import { useMemberAccess, membershipStatusLabel } from "@/lib/member-access";
 
 export function MemberMembershipPage() {
-  const { access, loading } = useMemberAccess();
+  const { access } = useMemberAccess();
   const statusLabel = membershipStatusLabel(access.state);
   const statusMessage =
     access.state === "trial"
-      ? `Your trial is active. Trial ends on ${access.trialEndsOnLabel}.`
+      ? `Your trial is active. Trial ends on ${access.trialEndsOnLabel ?? "—"}.`
       : access.state === "expired"
         ? `Your membership has ended. Renew to continue daily yoga sessions.`
-        : `Your membership is active. Valid until ${access.validUntilLabel}.`;
-
-  if (loading) {
-    return (
-      <div className="w-full bg-[#FBF9F5]">
-        <div className="mx-auto w-full max-w-[1440px] px-4 py-10 sm:px-6">
-          <p className="text-[14px] text-[#5f6f64]">Loading membership…</p>
-        </div>
-      </div>
-    );
-  }
+        : `Your membership is active. Valid until ${access.validUntilLabel ?? "—"}.`;
 
   return (
     <div className="w-full bg-[#FBF9F5]">

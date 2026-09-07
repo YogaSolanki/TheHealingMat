@@ -23,6 +23,16 @@ export type MemberAccess = {
   scheduledStartsOnLabel: string | null;
 };
 
+let cachedAccess: MemberAccess | null = null;
+let accessResolved = false;
+let accessInflight: Promise<MemberAccess> | null = null;
+
+export function clearMemberAccessCache() {
+  cachedAccess = null;
+  accessResolved = false;
+  accessInflight = null;
+}
+
 export function membershipStatusLabel(state: MemberAccessState) {
   if (state === "trial") return "Trial";
   if (state === "expired") return "Expired";
@@ -62,7 +72,7 @@ function formatDiscount(listPaise: number, discountPaise: number) {
     : formatInr(discountPaise);
 }
 
-export function emptyMemberAccess(state: MemberAccessState = "expired"): MemberAccess {
+export function emptyMemberAccess(state: MemberAccessState = "active"): MemberAccess {
   return {
     state,
     planName: state === "trial" ? "Your Trial" : "Membership",
@@ -109,28 +119,57 @@ export function mapMembershipAccess(data: MembershipAccessResponse): MemberAcces
   return access;
 }
 
+function fetchMemberAccess(token: string): Promise<MemberAccess> {
+  if (!accessInflight) {
+    accessInflight = getMyMembership(token)
+      .then((data) => {
+        const mapped = mapMembershipAccess(data);
+        cachedAccess = mapped;
+        accessResolved = true;
+        return mapped;
+      })
+      .catch(() => {
+        const fallback = cachedAccess ?? emptyMemberAccess("active");
+        cachedAccess = fallback;
+        accessResolved = true;
+        return fallback;
+      })
+      .finally(() => {
+        accessInflight = null;
+      });
+  }
+  return accessInflight;
+}
+
 export function useMemberAccess() {
-  const [access, setAccess] = useState<MemberAccess>(emptyMemberAccess("expired"));
-  const [loading, setLoading] = useState(true);
+  const [access, setAccess] = useState<MemberAccess>(
+    () => cachedAccess ?? emptyMemberAccess("active"),
+  );
+  const [loading, setLoading] = useState(() => !accessResolved);
 
   useEffect(() => {
     const token = getStoredToken();
     if (!token) {
+      const fallback = emptyMemberAccess("active");
+      cachedAccess = fallback;
+      accessResolved = true;
+      setAccess(fallback);
       setLoading(false);
       return;
     }
 
+    if (accessResolved && cachedAccess) {
+      setAccess(cachedAccess);
+      setLoading(false);
+    }
+
     let cancelled = false;
-    getMyMembership(token)
-      .then((data) => {
-        if (!cancelled) setAccess(mapMembershipAccess(data));
-      })
-      .catch(() => {
-        if (!cancelled) setAccess(emptyMemberAccess("expired"));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    fetchMemberAccess(token).then((next) => {
+      if (!cancelled) {
+        setAccess(next);
+        setLoading(false);
+      }
+    });
 
     return () => {
       cancelled = true;

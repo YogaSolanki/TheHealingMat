@@ -29,6 +29,7 @@ import {
   setStoredToken,
   TOKEN_KEY,
 } from "@/lib/auth-storage";
+import { updateMemberAuthCache } from "@/components/member-dashboard/member-auth-gate";
 import trialIcon from "@/assets/trail.png";
 import { ButtonLoader } from "@/components/site-loader";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
@@ -698,6 +699,7 @@ export function AuthTrialCard({
     setStoredToken(accessToken);
     setToken(accessToken);
     setUser(authedUser);
+    updateMemberAuthCache(authedUser);
 
     // New free-trial signup still picks an orientation slot first.
     // Login / returning members go straight to the member dashboard.

@@ -59,17 +59,20 @@ function formatDashboardDate(date: Date) {
 }
 
 export function MemberDashboard({ user }: MemberDashboardProps) {
-  const { access } = useMemberAccess();
+  const { access, loading } = useMemberAccess();
   const nameGreeting = greetingForName(user.fullName);
   const now = new Date();
   const todayLabel = formatDashboardDate(now);
   const sunday = isSunday(now);
-  const sessionKind = access.state === "trial" ? "trial" : "member";
-  const running = access.state === "expired" ? null : findRunningSession(now, sessionKind);
+  const membershipKnown = !loading;
+  const isExpired = membershipKnown && access.state === "expired";
+  const isTrial = membershipKnown && access.state === "trial";
+  const sessionKind = isTrial ? "trial" : "member";
+  const running = isExpired ? null : findRunningSession(now, sessionKind);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
 
   function handleJoin() {
-    if (access.state === "expired") return;
+    if (isExpired) return;
     const current = findRunningSession(new Date(), sessionKind);
     if (!current) {
       setSessionNotice(sessionUnavailableMessage(new Date(), sessionKind));
@@ -78,12 +81,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     window.location.assign("/dashboard/join");
   }
 
-  const supportingMessage =
-    access.state === "trial"
-      ? `Your trial is active until ${access.trialEndsOnLabel ?? "its end date"}.`
-      : access.state === "expired"
-        ? "Renew your membership to continue your daily yoga sessions."
-        : "Let’s begin your day with yoga.";
+  const supportingMessage = isTrial
+    ? `Your trial is active until ${access.trialEndsOnLabel ?? "its end date"}.`
+    : isExpired
+      ? "Renew your membership to continue your daily yoga sessions."
+      : "Let’s begin your day with yoga.";
 
   return (
     <div className="w-full bg-[#FBF9F5]">
@@ -135,7 +137,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
             </div>
           ) : null}
 
-          {access.state === "expired" ? (
+          {isExpired ? (
             <div className="px-4 py-6 sm:px-6 sm:py-8">
               <p className="text-[16px] font-bold text-[#243028] sm:text-[18px]">
                 Your membership has expired
@@ -157,7 +159,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 Renew Membership
               </Link>
             </div>
-          ) : access.state === "trial" ? (
+          ) : isTrial ? (
             <div className="px-4 py-4 sm:px-6 sm:py-5">
               <SectionHeading
                 icon={
@@ -341,32 +343,26 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
           <DashboardCard
             icon={<WalletIcon className="h-7 w-7 text-[#1f6b3a]" />}
             title="My Membership"
-            badge={membershipStatusLabel(access.state)}
+            badge={membershipKnown ? membershipStatusLabel(access.state) : "—"}
             body={
               <>
                 <p className="font-semibold text-[#3d4a3c]">{access.planName}</p>
                 <p className="mt-0.5 text-[13px] text-[#6b7c6e]">
-                  {access.state === "trial"
-                    ? `Trial ends ${access.trialEndsOnLabel}`
-                    : access.state === "expired"
-                      ? `Expired on ${access.expiredOnLabel}`
-                      : `Valid until ${access.validUntilLabel}`}
+                  {isTrial
+                    ? `Trial ends ${access.trialEndsOnLabel ?? "—"}`
+                    : isExpired
+                      ? `Expired on ${access.expiredOnLabel ?? "—"}`
+                      : `Valid until ${access.validUntilLabel ?? "—"}`}
                 </p>
               </>
             }
             href="/dashboard/membership"
             linkLabel="View Membership"
             secondaryHref={
-              access.state === "expired" || access.state === "trial"
-                ? "/dashboard/membership"
-                : undefined
+              isExpired || isTrial ? "/dashboard/membership" : undefined
             }
             secondaryLabel={
-              access.state === "expired"
-                ? "Renew Membership"
-                : access.state === "trial"
-                  ? "Start Membership"
-                  : undefined
+              isExpired ? "Renew Membership" : isTrial ? "Start Membership" : undefined
             }
             decor={<LeafDecor />}
           />
