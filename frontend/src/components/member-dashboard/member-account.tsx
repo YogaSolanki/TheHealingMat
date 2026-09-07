@@ -63,8 +63,6 @@ export function MemberAccountPage() {
   const [fullName, setFullName] = useState(user.fullName);
   const [dateOfBirth, setDateOfBirth] = useState(user.dateOfBirth ?? "");
   const [gender, setGender] = useState<UserGender | "">(user.gender ?? "");
-  const [mobileDraft, setMobileDraft] = useState(user.mobile ?? "");
-  const [emailDraft, setEmailDraft] = useState(user.email ?? "");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
 
@@ -72,10 +70,16 @@ export function MemberAccountPage() {
     setFullName(user.fullName);
     setDateOfBirth(user.dateOfBirth ?? "");
     setGender(user.gender ?? "");
-    setMobileDraft(user.mobile ?? "");
-    setEmailDraft(user.email ?? "");
     setProfileError(null);
     setIsEditing(true);
+  }
+
+  function cancelEditing() {
+    setFullName(user.fullName);
+    setDateOfBirth(user.dateOfBirth ?? "");
+    setGender(user.gender ?? "");
+    setProfileError(null);
+    setIsEditing(false);
   }
 
   async function saveProfile() {
@@ -89,14 +93,6 @@ export function MemberAccountPage() {
 
     const trimmedDob = dateOfBirth.trim();
     const parsedDob = trimmedDob === "" ? null : trimmedDob;
-    if ((mobileDraft.trim() || "") !== (user.mobile ?? "")) {
-      setProfileError("Changing your mobile number requires OTP verification before it becomes your login number.");
-      return;
-    }
-    if ((emailDraft.trim() || "") !== (user.email ?? "")) {
-      setProfileError("Email changes require verification before they are saved.");
-      return;
-    }
     if (parsedDob !== null && !isValidDob(parsedDob)) {
       setProfileError("Please enter a valid date of birth.");
       return;
@@ -147,14 +143,24 @@ export function MemberAccountPage() {
                 subtitle="Your personal details used for your account."
               />
               {isEditing ? (
-                <button
-                  type="button"
-                  onClick={saveProfile}
-                  disabled={profileSaving}
-                  className={`${memberPrimaryBtnClass} inline-flex shrink-0 cursor-pointer items-center justify-center self-start rounded-[12px] px-4 py-2 text-[13px] sm:text-[14px]`}
-                >
-                  {profileSaving ? "Saving..." : "Save"}
-                </button>
+                <div className="flex shrink-0 flex-wrap items-center gap-2 self-start">
+                  <button
+                    type="button"
+                    onClick={cancelEditing}
+                    disabled={profileSaving}
+                    className="inline-flex cursor-pointer items-center justify-center rounded-[12px] border border-[#d7e0d6] bg-white px-4 py-2 text-[13px] font-semibold text-[#3d4a3c] transition hover:bg-[#f6f8f5] disabled:cursor-not-allowed disabled:opacity-60 sm:text-[14px]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveProfile}
+                    disabled={profileSaving}
+                    className={`${memberPrimaryBtnClass} inline-flex cursor-pointer items-center justify-center rounded-[12px] px-4 py-2 text-[13px] sm:text-[14px]`}
+                  >
+                    {profileSaving ? "Saving..." : "Save"}
+                  </button>
+                </div>
               ) : (
                 <button
                   type="button"
@@ -222,42 +228,21 @@ export function MemberAccountPage() {
                   />
                 }
               />
-              <EditableInfoRow
+              <InfoRow
                 icon={<PhoneIcon className="h-5 w-5 text-[#1f6b3a]" />}
                 label="Mobile Number"
-                isEditing={isEditing}
                 value={formatMobile(user.mobile)}
-                editContent={
-                  <input
-                    type="tel"
-                    value={mobileDraft}
-                    onChange={(event) => setMobileDraft(event.target.value)}
-                    className={inlineFieldClass}
-                    placeholder="Enter mobile number"
-                    autoComplete="tel"
-                  />
-                }
               />
-              <EditableInfoRow
+              <InfoRow
                 icon={<MailIcon className="h-5 w-5 text-[#1f6b3a]" />}
                 label="Email Address"
-                isEditing={isEditing}
                 value={user.email || "—"}
-                editContent={
-                  <input
-                    type="email"
-                    value={emailDraft}
-                    onChange={(event) => setEmailDraft(event.target.value)}
-                    className={inlineFieldClass}
-                    placeholder="Enter email address"
-                    autoComplete="email"
-                  />
-                }
               />
               <InfoRow
                 icon={<LinkIcon className="h-5 w-5 text-[#1f6b3a]" />}
                 label="Personal Access Link"
                 value={user.accessLink}
+                copyable
               />
             </div>
 
@@ -397,12 +382,26 @@ function InfoRow({
   label,
   value,
   verified = false,
+  copyable = false,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
   verified?: boolean;
+  copyable?: boolean;
 }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyValue() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 gap-2 px-5 py-4 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)] sm:items-center sm:gap-x-6 sm:py-[18px] lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">
       <div className="flex items-center gap-3">
@@ -412,13 +411,32 @@ function InfoRow({
         <span className="text-[13px] font-medium text-[#6b7c6e] sm:text-[14px]">{label}</span>
       </div>
       <div className="flex flex-wrap items-center gap-2 pl-12 sm:pl-0">
-        <span className="break-all text-[14px] font-bold text-[#243028] sm:text-[15px]">
+        <span className="min-w-0 break-all text-[14px] font-bold text-[#243028] sm:text-[15px]">
           {value}
         </span>
         {verified ? (
           <span className="inline-flex rounded-[6px] bg-[#eef6f0] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#1f6b3a] uppercase">
             Verified
           </span>
+        ) : null}
+        {copyable ? (
+          <button
+            type="button"
+            onClick={copyValue}
+            className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] border border-[#d7e0d6] bg-white px-2.5 py-1.5 text-[12px] font-semibold text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] sm:text-[13px]"
+          >
+            {copied ? (
+              <>
+                <CheckIcon className="h-3.5 w-3.5" />
+                Copied
+              </>
+            ) : (
+              <>
+                <CopyIcon className="h-3.5 w-3.5" />
+                Copy
+              </>
+            )}
+          </button>
         ) : null}
       </div>
     </div>
@@ -497,6 +515,34 @@ function LinkIcon({ className }: { className?: string }) {
         strokeLinecap="round"
       />
       <path d="M9 15l6-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CopyIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <rect x="8" y="8" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M6 16V6.5A1.5 1.5 0 0 1 7.5 5H16"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path
+        d="m5.5 12.5 4 4 9-9"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
