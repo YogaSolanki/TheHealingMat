@@ -342,6 +342,8 @@ export type PublicMembership = {
   discountPaise: number;
   amountPaidPaise: number;
   razorpayPaymentId: string | null;
+  razorpayInvoiceId?: string | null;
+  razorpayInvoiceUrl?: string | null;
   paidAt: string;
 };
 
@@ -436,6 +438,53 @@ export async function verifyRazorpayPayment(
     body: JSON.stringify(input),
   });
   return parseJson<VerifyPaymentResponse>(response);
+}
+
+export async function downloadMembershipInvoice(
+  accessToken: string,
+  membershipId: string,
+) {
+  const response = await fetch(
+    `${API_URL}/memberships/${membershipId}/invoice`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as {
+      message?: string | string[];
+    };
+    const message = Array.isArray(body.message)
+      ? body.message[0]
+      : body.message;
+    throw new Error(message || "Unable to download invoice.");
+  }
+
+  const contentType = response.headers.get("Content-Type") || "";
+  if (contentType.includes("application/json")) {
+    const body = (await response.json()) as { url?: string };
+    if (!body.url) {
+      throw new Error("Invoice link is unavailable.");
+    }
+    window.open(body.url, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="?([^"]+)"?/i);
+  const filename = match?.[1] || `the-healing-mat-invoice.pdf`;
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 export type ReferralStatus =

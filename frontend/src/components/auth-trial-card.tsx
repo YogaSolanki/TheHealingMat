@@ -34,7 +34,12 @@ import { ButtonLoader } from "@/components/site-loader";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
 import { captureReferralCode, getCapturedReferralCode } from "@/lib/referral-storage";
 import { openCheckoutModal } from "@/components/checkout-modal-provider";
-import { readCheckoutIntent } from "@/lib/checkout-intent";
+import {
+  clearCheckoutIntent,
+  markCheckoutResumeAfterAuth,
+  readCheckoutIntent,
+  shouldResumeCheckoutAfterAuth,
+} from "@/lib/checkout-intent";
 
 type Mode = "login" | "signup" | "forgot";
 type Step = "identity" | "otp" | "reset_done";
@@ -488,11 +493,22 @@ export function AuthTrialCard({
 
   function goToDashboard() {
     onCloseRef.current?.();
+
+    // New signups always start on the member dashboard with their free trial.
+    if (mode === "signup") {
+      clearCheckoutIntent();
+      router.push("/dashboard");
+      return;
+    }
+
     const intent = readCheckoutIntent();
-    if (intent.planMonths) {
+    if (shouldResumeCheckoutAfterAuth() && intent.planMonths) {
+      clearCheckoutIntent();
       openCheckoutModal(intent.planMonths, intent.startMode);
       return;
     }
+
+    clearCheckoutIntent();
     router.push("/dashboard");
   }
 

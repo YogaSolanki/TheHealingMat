@@ -1,11 +1,24 @@
 export const CHECKOUT_PLAN_KEY = "thm_membership_plan";
 export const CHECKOUT_START_KEY = "thm_membership_start";
+export const CHECKOUT_RESUME_KEY = "thm_membership_resume";
 
 export type CheckoutStartMode = "now" | "after_current";
 
-export function saveCheckoutIntent(planMonths: number, startMode?: CheckoutStartMode) {
+export function saveCheckoutIntent(
+  planMonths: number,
+  startMode?: CheckoutStartMode,
+) {
   sessionStorage.setItem(CHECKOUT_PLAN_KEY, String(planMonths));
   if (startMode) sessionStorage.setItem(CHECKOUT_START_KEY, startMode);
+}
+
+/** Only resume checkout after auth when the user explicitly chose a plan. */
+export function markCheckoutResumeAfterAuth() {
+  sessionStorage.setItem(CHECKOUT_RESUME_KEY, "1");
+}
+
+export function shouldResumeCheckoutAfterAuth() {
+  return sessionStorage.getItem(CHECKOUT_RESUME_KEY) === "1";
 }
 
 export function readCheckoutIntent(): {
@@ -26,6 +39,7 @@ export function readCheckoutIntent(): {
 export function clearCheckoutIntent() {
   sessionStorage.removeItem(CHECKOUT_PLAN_KEY);
   sessionStorage.removeItem(CHECKOUT_START_KEY);
+  sessionStorage.removeItem(CHECKOUT_RESUME_KEY);
 }
 
 export function checkoutPath(planMonths: number, startMode?: CheckoutStartMode) {

@@ -5,6 +5,7 @@ import { useAuthModal } from "@/components/auth-modal-provider";
 import { openCheckoutModal } from "@/components/checkout-modal-provider";
 import { getStoredToken } from "@/lib/auth-storage";
 import {
+  markCheckoutResumeAfterAuth,
   saveCheckoutIntent,
   type CheckoutStartMode,
 } from "@/lib/checkout-intent";
@@ -30,8 +31,9 @@ export function ChoosePlanButton({
       type="button"
       className={`cursor-pointer ${className}`.trim()}
       onClick={() => {
-        saveCheckoutIntent(months, startMode);
         if (!getStoredToken()) {
+          saveCheckoutIntent(months, startMode);
+          markCheckoutResumeAfterAuth();
           openAuth("login");
           return;
         }

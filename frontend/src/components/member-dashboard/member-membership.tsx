@@ -11,15 +11,27 @@ import {
   memberPrimaryBtnClass,
 } from "@/components/member-dashboard/member-button-styles";
 import { MembershipSection } from "@/components/membership-section";
-import { getMyCoupons, type MemberCoupon } from "@/lib/api";
+import {
+  downloadMembershipInvoice,
+  getMyCoupons,
+  getMyMembership,
+  type MemberCoupon,
+} from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
 import type { CheckoutStartMode } from "@/lib/checkout-intent";
-import { useMemberAccess, membershipStatusLabel } from "@/lib/member-access";
+import {
+  mapMembershipAccess,
+  useMemberAccess,
+  membershipStatusLabel,
+} from "@/lib/member-access";
+import { sessionStore } from "@/lib/session-store";
 
 export function MemberMembershipPage() {
   const { access } = useMemberAccess();
   const [assignedCoupons, setAssignedCoupons] = useState<MemberCoupon[]>([]);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const statusLabel = membershipStatusLabel(access.state);
   const statusMessage =
     access.state === "trial"
@@ -60,6 +72,34 @@ export function MemberMembershipPage() {
       window.setTimeout(() => setCopiedCode(null), 2000);
     } catch {
       /* ignore */
+    }
+  }
+
+  async function onDownloadInvoice() {
+    const token = getStoredToken();
+    if (!token || downloadingInvoice) return;
+    setInvoiceError(null);
+    setDownloadingInvoice(true);
+    try {
+      let membershipId = access.membershipId;
+      if (!membershipId) {
+        const data = await getMyMembership(token);
+        membershipId =
+          data.current?.id ?? data.lastExpired?.id ?? null;
+        if (membershipId) {
+          sessionStore.setAccess(mapMembershipAccess(data));
+        }
+      }
+      if (!membershipId) {
+        throw new Error("No paid membership invoice found.");
+      }
+      await downloadMembershipInvoice(token, membershipId);
+    } catch (err: unknown) {
+      setInvoiceError(
+        err instanceof Error ? err.message : "Unable to download invoice.",
+      );
+    } finally {
+      setDownloadingInvoice(false);
     }
   }
 
@@ -138,13 +178,24 @@ export function MemberMembershipPage() {
                   </p>
                 ) : null}
                 {access.state !== "trial" ? (
-                  <button
-                    type="button"
-                    className="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a] decoration-dotted underline-offset-[3px] transition hover:text-[#185830] sm:text-[13px]"
-                  >
-                    Download Invoice / Receipt
-                    <DownloadIcon className="h-4 w-4" />
-                  </button>
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      disabled={downloadingInvoice}
+                      onClick={() => void onDownloadInvoice()}
+                      className="inline-flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a] decoration-dotted underline-offset-[3px] transition hover:text-[#185830] disabled:cursor-wait disabled:opacity-60 sm:text-[13px]"
+                    >
+                      {downloadingInvoice
+                        ? "Downloading…"
+                        : "Download Invoice / Receipt"}
+                      <DownloadIcon className="h-4 w-4" />
+                    </button>
+                    {invoiceError ? (
+                      <p className="mt-1 text-[12px] font-medium text-[#b42318]">
+                        {invoiceError}
+                      </p>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
             </div>

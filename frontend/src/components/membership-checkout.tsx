@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuthModal } from "@/components/auth-modal-provider";
 import {
   createRazorpayOrder,
+  downloadMembershipInvoice,
   getMyCoupons,
   quoteMembership,
   verifyRazorpayPayment,
@@ -12,9 +13,15 @@ import {
   type PublicMembershipPlan,
   type PublicUser,
 } from "@/lib/api";
+import {
+  closeCheckoutModal,
+  openPaymentRetryModal,
+} from "@/components/checkout-modal-provider";
+import { ButtonLoader } from "@/components/site-loader";
 import { getStoredToken } from "@/lib/auth-storage";
 import {
   clearCheckoutIntent,
+  markCheckoutResumeAfterAuth,
   saveCheckoutIntent,
   type CheckoutStartMode,
 } from "@/lib/checkout-intent";
@@ -102,8 +109,11 @@ export function MembershipCheckoutPanel({
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
   const [paying, setPaying] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [paidMembershipId, setPaidMembershipId] = useState<string | null>(null);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
 
   const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "";
 
@@ -113,6 +123,7 @@ export function MembershipCheckoutPanel({
     setAppliedCoupon("");
     setError(null);
     setSuccess(false);
+    setPaidMembershipId(null);
   }, [planMonths]);
 
   useEffect(() => {
@@ -129,6 +140,7 @@ export function MembershipCheckoutPanel({
     const token = getStoredToken();
     if (!token) {
       saveCheckoutIntent(planMonths, startMode);
+      markCheckoutResumeAfterAuth();
       openAuth("login");
       return;
     }
@@ -188,6 +200,49 @@ export function MembershipCheckoutPanel({
     }
   }
 
+  async function refreshMemberDetails() {
+    sessionStore.invalidateAccess();
+    await Promise.all([
+      sessionStore.ensureAccess({ force: true }),
+      sessionStore.ensureUser({ force: true }).catch(() => null),
+    ]);
+  }
+
+  function failPayment(message?: string) {
+    setPaying(false);
+    setVerifying(false);
+    openPaymentRetryModal({
+      planMonths,
+      startMode,
+      message: message || PAYMENT_INCOMPLETE,
+    });
+  }
+
+  async function confirmPaidMembership(membershipId?: string | null) {
+    setVerifying(true);
+    setPaying(false);
+    if (membershipId) setPaidMembershipId(membershipId);
+    clearCheckoutIntent();
+    await refreshMemberDetails();
+    setVerifying(false);
+    setSuccess(true);
+  }
+
+  async function onDownloadInvoice() {
+    const token = getStoredToken();
+    if (!token || !paidMembershipId || downloadingInvoice) return;
+    setDownloadingInvoice(true);
+    try {
+      await downloadMembershipInvoice(token, paidMembershipId);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Unable to download invoice.",
+      );
+    } finally {
+      setDownloadingInvoice(false);
+    }
+  }
+
   async function onPay() {
     const token = getStoredToken();
     if (!token) {
@@ -195,7 +250,7 @@ export function MembershipCheckoutPanel({
       return;
     }
     if (!window.Razorpay) {
-      setError("Payment is still loading. Please try again in a moment.");
+      failPayment("Payment is still loading. Please try again in a moment.");
       return;
     }
 
@@ -210,10 +265,7 @@ export function MembershipCheckoutPanel({
       });
 
       if (order.skipCheckout) {
-        clearCheckoutIntent();
-        sessionStore.invalidateAccess();
-        setSuccess(true);
-        setPaying(false);
+        await confirmPaidMembership(order.membership?.id);
         return;
       }
 
@@ -221,13 +273,15 @@ export function MembershipCheckoutPanel({
         throw new Error("Unable to start payment.");
       }
 
+      const razorpayOrderId = String(order.order_id);
+
       const checkout = new window.Razorpay({
         key: order.key_id || keyId,
         amount: order.amount,
         currency: order.currency,
         name: "The Healing Mat",
         description: quote.planName,
-        order_id: order.order_id,
+        order_id: razorpayOrderId,
         prefill: {
           name: user?.fullName,
           email: user?.email ?? undefined,
@@ -236,65 +290,123 @@ export function MembershipCheckoutPanel({
         theme: { color: "#1f6b3a" },
         modal: {
           ondismiss: () => {
-            setPaying(false);
-            setError(PAYMENT_INCOMPLETE);
+            failPayment();
           },
         },
         handler: async (response: RazorpaySuccess) => {
           try {
-            await verifyRazorpayPayment(token, {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            });
-            clearCheckoutIntent();
-            sessionStore.invalidateAccess();
-            setSuccess(true);
-          } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : PAYMENT_INCOMPLETE);
-          } finally {
+            setVerifying(true);
             setPaying(false);
+            const paymentId = String(response.razorpay_payment_id || "").trim();
+            const signature = String(response.razorpay_signature || "").trim();
+            // Verify against the order we created on the server.
+            const orderId = razorpayOrderId;
+            if (!paymentId || !signature || !orderId) {
+              throw new Error(
+                "Payment confirmation was incomplete. Please retry payment.",
+              );
+            }
+            const verified = await verifyRazorpayPayment(token, {
+              razorpay_order_id: orderId,
+              razorpay_payment_id: paymentId,
+              razorpay_signature: signature,
+            });
+            await confirmPaidMembership(verified.membership?.id);
+          } catch (err: unknown) {
+            failPayment(
+              err instanceof Error ? err.message : PAYMENT_INCOMPLETE,
+            );
           }
         },
       });
 
       checkout.on("payment.failed", () => {
-        setPaying(false);
-        setError(PAYMENT_INCOMPLETE);
+        failPayment();
       });
 
       checkout.open();
     } catch (err: unknown) {
-      setPaying(false);
-      setError(err instanceof Error ? err.message : PAYMENT_INCOMPLETE);
+      failPayment(err instanceof Error ? err.message : PAYMENT_INCOMPLETE);
     }
   }
 
   if (success) {
     return (
-      <CheckoutCard>
-        <h1 className="font-serif text-[1.7rem] font-bold text-[#1f6b3a] sm:text-[1.9rem]">
+      <CheckoutCard className="payment-success-card overflow-hidden text-center">
+        <div className="relative mx-auto flex h-20 w-20 items-center justify-center">
+          <span
+            aria-hidden="true"
+            className="payment-success-ring absolute inset-0 rounded-full bg-[#1f6b3a]/20"
+          />
+          <span className="payment-success-check relative inline-flex h-16 w-16 items-center justify-center rounded-full bg-[#1f6b3a] text-white shadow-[0_12px_28px_rgba(31,107,58,0.28)]">
+            <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" aria-hidden="true">
+              <path
+                d="M6.5 12.5 10.2 16 17.5 8.5"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </div>
+        <p className="mt-5 text-[11px] font-bold tracking-[0.2em] text-black uppercase">
+          Confirmed
+        </p>
+        <h1 className="mt-2 font-serif text-[1.7rem] font-bold text-[#1f6b3a] sm:text-[1.9rem]">
           Payment successful
         </h1>
         <p className="mt-3 text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
-          Your membership is confirmed. You can view the details on My Membership.
+          Your membership is active. Details have been updated on your account.
         </p>
-        <button
-          type="button"
-          className="btn-primary mt-6 inline-flex items-center justify-center rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white"
-          onClick={() => {
-            onClose?.();
-            router.replace("/dashboard/membership");
-          }}
-        >
-          Go to My Membership
-        </button>
+        {error ? (
+          <p className="mt-3 text-[13px] font-medium text-[#b42318]">{error}</p>
+        ) : null}
+        <div className="mt-6 flex flex-col gap-2.5">
+          {paidMembershipId ? (
+            <button
+              type="button"
+              disabled={downloadingInvoice}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-[16px] border border-[#1f6b3a] bg-white px-5 py-3 text-[14px] font-bold text-[#1f6b3a] transition hover:bg-[#f4f8f2] disabled:opacity-60"
+              onClick={() => void onDownloadInvoice()}
+            >
+              {downloadingInvoice ? "Downloading…" : "Download invoice"}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="btn-primary inline-flex w-full items-center justify-center rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white"
+            onClick={() => {
+              closeCheckoutModal();
+              onClose?.();
+              router.replace("/dashboard/membership");
+            }}
+          >
+            Go to My Membership
+          </button>
+        </div>
       </CheckoutCard>
     );
   }
 
   return (
-    <CheckoutCard>
+    <CheckoutCard className="relative overflow-hidden">
+      {verifying ? (
+        <div
+          className="payment-verify-overlay absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-[22px] bg-white/78 backdrop-blur-[6px]"
+          aria-busy="true"
+          aria-live="polite"
+        >
+          <ButtonLoader tone="brand" size="md" label="Confirming payment" />
+          <p className="text-[13px] font-semibold text-[#1f6b3a]">
+            Confirming payment…
+          </p>
+          <p className="px-6 text-center text-[12px] text-[#5f6f64]">
+            Checking status with our server and updating your membership.
+          </p>
+        </div>
+      ) : null}
+
       <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase">
         Checkout
       </p>
@@ -349,14 +461,16 @@ export function MembershipCheckoutPanel({
           <input
             value={couponInput}
             onChange={(event) => setCouponInput(event.target.value)}
-            className="min-w-0 flex-1 rounded-[12px] border border-[#d7e5d9] bg-white px-3 py-2.5 text-[14px] font-medium text-[#243028] outline-none focus:border-[#1f6b3a]"
+            disabled={paying || verifying}
+            className="min-w-0 flex-1 rounded-[12px] border border-[#d7e5d9] bg-white px-3 py-2.5 text-[14px] font-medium text-[#243028] outline-none focus:border-[#1f6b3a] disabled:opacity-60"
             placeholder="Enter code"
             autoComplete="off"
           />
           <button
             type="button"
             onClick={() => void applyCoupon()}
-            className="rounded-[12px] border border-[#1f6b3a] px-3 py-2.5 text-[13px] font-bold text-[#1f6b3a]"
+            disabled={paying || verifying}
+            className="rounded-[12px] border border-[#1f6b3a] px-3 py-2.5 text-[13px] font-bold text-[#1f6b3a] disabled:opacity-60"
           >
             Apply
           </button>
@@ -376,21 +490,25 @@ export function MembershipCheckoutPanel({
 
       <button
         type="button"
-        disabled={paying}
+        disabled={paying || verifying}
         onClick={() => void onPay()}
-        className="btn-primary mt-6 inline-flex w-full items-center justify-center rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white disabled:opacity-60"
+        className="btn-primary mt-6 inline-flex w-full items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white disabled:opacity-60"
       >
-        {paying
-          ? "Opening payment…"
-          : quote.amountPaise === 0
-            ? "Confirm membership"
-            : `Pay ${payableLabel}`}
+        {paying || verifying ? <ButtonLoader /> : null}
+        {verifying
+          ? "Confirming…"
+          : paying
+            ? "Opening payment…"
+            : quote.amountPaise === 0
+              ? "Confirm membership"
+              : `Pay ${payableLabel}`}
       </button>
 
       <button
         type="button"
+        disabled={paying || verifying}
         onClick={() => onClose?.()}
-        className="mt-4 inline-flex w-full items-center justify-center text-[13px] font-semibold text-[#5f6f64] underline-offset-2 hover:underline"
+        className="mt-4 inline-flex w-full items-center justify-center text-[13px] font-semibold text-[#5f6f64] underline-offset-2 hover:underline disabled:opacity-50"
       >
         Back to plans
       </button>
@@ -398,9 +516,17 @@ export function MembershipCheckoutPanel({
   );
 }
 
-function CheckoutCard({ children }: { children: React.ReactNode }) {
+function CheckoutCard({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <section className="rounded-[22px] border border-[#e6ebe3] bg-white px-5 py-7 shadow-[0_10px_32px_rgba(31,107,58,0.08)] sm:px-8 sm:py-8">
+    <section
+      className={`rounded-[22px] border border-[#e6ebe3] bg-white px-5 py-7 shadow-[0_18px_48px_rgba(15,28,20,0.16)] sm:px-8 sm:py-8 ${className}`.trim()}
+    >
       {children}
     </section>
   );

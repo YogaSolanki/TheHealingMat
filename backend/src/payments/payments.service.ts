@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -16,6 +17,7 @@ import { User } from '../users/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { QuoteMembershipDto } from './dto/quote-membership.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
+import { buildMembershipInvoicePdf } from './invoice-pdf';
 import { Membership } from './membership.entity';
 import { MembershipPlan } from './membership-plan.entity';
 import { REFERRAL_DISCOUNT_PERCENT } from './membership-plans';
@@ -24,6 +26,15 @@ import { MembershipPlansService } from './membership-plans.service';
 import { PaymentOrder } from './payment-order.entity';
 
 const MIN_ORDER_PAISE = 100;
+
+type RazorpayInvoiceRecord = {
+  id: string;
+  order_id?: string | null;
+  short_url?: string | null;
+  status?: string;
+  amount?: number;
+  currency?: string;
+};
 
 @Injectable()
 export class PaymentsService {
@@ -83,6 +94,7 @@ export class PaymentsService {
         notes: {
           userId: user.id,
           planMonths: String(quote.plan.months),
+          planName: quote.plan.name,
         },
       });
 
@@ -161,14 +173,21 @@ export class PaymentsService {
       throw new BadRequestException('Order not found.');
     }
 
-    const valid = this.signaturesMatch(
-      dto.razorpay_order_id,
+    // Always sign with the order id from our DB (not a client-only value).
+    const signatureOk = this.signaturesMatch(
+      order.razorpayOrderId,
       dto.razorpay_payment_id,
       dto.razorpay_signature,
     );
-    if (!valid) {
-      order.status = 'failed';
-      await this.orders.save(order);
+    const paymentOk = signatureOk
+      ? true
+      : await this.razorpayPaymentMatchesOrder(
+          order.razorpayOrderId,
+          dto.razorpay_payment_id,
+          order.amountPaise,
+        );
+
+    if (!paymentOk) {
       throw new BadRequestException('Payment signature mismatch.');
     }
 
@@ -251,6 +270,74 @@ export class PaymentsService {
     };
   }
 
+  async getInvoice(user: User, membershipId: string) {
+    const membership = await this.memberships.findOne({
+      where: { id: membershipId, userId: user.id },
+    });
+    if (!membership) {
+      throw new NotFoundException('Membership invoice not found.');
+    }
+
+    let invoiceUrl = membership.razorpayInvoiceUrl;
+    let invoiceId = membership.razorpayInvoiceId;
+
+    // Older memberships may only have the invoice on the payment order row.
+    if (!invoiceId || !invoiceUrl) {
+      const order = await this.orders.findOne({
+        where: { id: membership.paymentOrderId, userId: user.id },
+      });
+      if (order?.razorpayInvoiceId) {
+        invoiceId = order.razorpayInvoiceId;
+        invoiceUrl = order.razorpayInvoiceUrl;
+        membership.razorpayInvoiceId = order.razorpayInvoiceId;
+        membership.razorpayInvoiceUrl = order.razorpayInvoiceUrl;
+        await this.memberships.save(membership);
+      }
+    }
+
+    if (invoiceId) {
+      try {
+        const invoice = await this.fetchRazorpayInvoice(invoiceId);
+        if (invoice.short_url) {
+          invoiceUrl = invoice.short_url;
+          if (membership.razorpayInvoiceUrl !== invoice.short_url) {
+            membership.razorpayInvoiceUrl = invoice.short_url;
+            await this.memberships.save(membership);
+          }
+        }
+      } catch {
+        // Fall through to stored URL / PDF fallback.
+      }
+    }
+
+    if (invoiceUrl) {
+      return { type: 'razorpay' as const, url: invoiceUrl };
+    }
+
+    const invoiceNo = `THM-${membership.id.slice(0, 8).toUpperCase()}`;
+    const pdf = buildMembershipInvoicePdf({
+      invoiceNo,
+      issuedAt: membership.createdAt,
+      memberName: user.fullName,
+      memberEmail: user.email,
+      memberMobile: user.mobile,
+      planName: membership.planName,
+      planMonths: membership.planMonths,
+      listPricePaise: membership.listPricePaise,
+      discountPaise: membership.discountPaise,
+      amountPaidPaise: membership.amountPaidPaise,
+      paymentRef: membership.razorpayPaymentId,
+      startsAt: membership.startsAt,
+      endsAt: membership.endsAt,
+    });
+
+    return {
+      type: 'pdf' as const,
+      filename: `the-healing-mat-invoice-${invoiceNo}.pdf`,
+      pdf,
+    };
+  }
+
   private async fulfillZeroAmount(
     user: User,
     quote: Awaited<ReturnType<PaymentsService['buildQuote']>>,
@@ -310,6 +397,8 @@ export class PaymentsService {
         endsAt,
         paymentOrderId: order.id,
         razorpayPaymentId: order.razorpayPaymentId,
+        razorpayInvoiceId: order.razorpayInvoiceId,
+        razorpayInvoiceUrl: order.razorpayInvoiceUrl,
       }),
     );
   }
@@ -484,8 +573,134 @@ export class PaymentsService {
       discountPaise: membership.discountPaise,
       amountPaidPaise: membership.amountPaidPaise,
       razorpayPaymentId: membership.razorpayPaymentId,
+      razorpayInvoiceId: membership.razorpayInvoiceId,
+      razorpayInvoiceUrl: membership.razorpayInvoiceUrl,
       paidAt: membership.createdAt.toISOString(),
     };
+  }
+
+  private async razorpayPaymentMatchesOrder(
+    orderId: string,
+    paymentId: string,
+    amountPaise: number,
+  ) {
+    try {
+      const client = this.requireClient();
+      const payment = (await client.payments.fetch(paymentId)) as {
+        order_id?: string | null;
+        status?: string;
+        amount?: number;
+      };
+      const status = String(payment.status || '');
+      const paidStatuses = new Set(['authorized', 'captured']);
+      return (
+        payment.order_id === orderId &&
+        paidStatuses.has(status) &&
+        Number(payment.amount) === amountPaise
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  private async createRazorpayInvoice(input: {
+    amountPaise: number;
+    currency: string;
+    receipt?: string;
+    planName: string;
+    description: string;
+    customer: {
+      name: string;
+      email: string | null;
+      contact: string | null;
+    };
+    notes: Record<string, string>;
+  }): Promise<RazorpayInvoiceRecord> {
+    const client = this.requireClient();
+    const name = this.invoiceCustomerName(input.customer.name);
+    const customer: Record<string, string> = { name };
+    if (input.customer.email?.trim()) {
+      customer.email = input.customer.email.trim();
+    }
+    const contact = this.invoiceCustomerContact(input.customer.contact);
+    if (contact) customer.contact = contact;
+
+    try {
+      let invoice = (await client.invoices.create({
+        type: 'invoice',
+        description: input.description.slice(0, 2048),
+        partial_payment: false,
+        // Don't email "pay now" during checkout — invoice updates after payment.
+        email_notify: 0,
+        sms_notify: 0,
+        customer,
+        line_items: [
+          {
+            name: input.planName.slice(0, 255),
+            description: input.description.slice(0, 2048),
+            amount: input.amountPaise,
+            currency: input.currency.toUpperCase(),
+            quantity: 1,
+          },
+        ],
+        notes: input.notes,
+        receipt: (input.receipt?.slice(0, 40) || this.makeReceipt()).slice(0, 40),
+      })) as RazorpayInvoiceRecord;
+
+      // Draft invoices have no order_id until issued.
+      if (!invoice.order_id && invoice.id) {
+        invoice = (await client.invoices.issue(
+          invoice.id,
+        )) as RazorpayInvoiceRecord;
+      }
+
+      if (!invoice.order_id) {
+        throw new InternalServerErrorException(
+          'Razorpay invoice did not return an order id.',
+        );
+      }
+
+      return {
+        ...invoice,
+        id: String(invoice.id),
+        order_id: String(invoice.order_id),
+        short_url: invoice.short_url ? String(invoice.short_url) : null,
+      };
+    } catch (error) {
+      if (error instanceof InternalServerErrorException) throw error;
+      const status = this.razorpayStatus(error);
+      const detail = this.razorpayMessage(error);
+      if (status === 401) {
+        throw new ServiceUnavailableException(
+          'Razorpay rejected the API keys. Copy Key ID and Key Secret from Razorpay Dashboard → Account & Settings → API Keys (Test mode), put them in backend/.env as RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET, then restart the API.',
+        );
+      }
+      throw new InternalServerErrorException(
+        detail || 'Unable to create Razorpay invoice.',
+      );
+    }
+  }
+
+  private async fetchRazorpayInvoice(invoiceId: string) {
+    const client = this.requireClient();
+    return (await client.invoices.fetch(
+      invoiceId,
+    )) as RazorpayInvoiceRecord;
+  }
+
+  private invoiceCustomerName(fullName: string) {
+    const cleaned = fullName.replace(/[^\w\s.'.()-]/g, '').trim();
+    if (cleaned.length >= 3) return cleaned.slice(0, 50);
+    return 'Member';
+  }
+
+  private invoiceCustomerContact(mobile: string | null) {
+    if (!mobile?.trim()) return null;
+    const digits = mobile.replace(/\D/g, '');
+    if (!digits) return null;
+    if (digits.length === 10) return `+91${digits}`;
+    if (mobile.trim().startsWith('+')) return `+${digits}`;
+    return digits;
   }
 
   private async createRazorpayOrder(input: {

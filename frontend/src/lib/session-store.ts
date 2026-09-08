@@ -101,8 +101,17 @@ class SessionStore {
 
     const storedAccess = readJson<MemberAccess>(ACCESS_STORAGE_KEY);
     if (storedAccess) {
-      this.access = storedAccess;
-      this.accessReady = true;
+      // Merge so older caches without membershipId still get defaults.
+      const access: MemberAccess = {
+        ...emptyMemberAccess(storedAccess.state),
+        ...storedAccess,
+        membershipId: storedAccess.membershipId ?? null,
+      };
+      this.access = access;
+      // Paid memberships without an id are from a stale cache — refetch.
+      const stalePaid =
+        access.state !== "trial" && !access.membershipId;
+      this.accessReady = !stalePaid;
       changed = true;
     }
 
