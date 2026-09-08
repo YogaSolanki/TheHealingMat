@@ -290,6 +290,36 @@ body {
   animation: page-enter 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.google-auth-bridge-label {
+  animation: google-auth-label-in 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.google-auth-bridge-card {
+  animation: google-auth-card-in 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes google-auth-label-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes google-auth-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Hero trust points: tablet widths wrap with the 3rd point centered under the pair */
 @media (min-width: 640px) and (max-width: 1023px) {
   .hero-trust-row > li:last-child:nth-child(3) {
@@ -549,6 +579,8 @@ body {
   .link-animate .link-arrow,
   .link-underline,
   .page-transition,
+  .google-auth-bridge-label,
+  .google-auth-bridge-card,
   .catalog-results,
   .catalog-results-in,
   .catalog-results-out,

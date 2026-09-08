@@ -858,9 +858,14 @@ export class AuthService {
     }
 
     const issued = await this.issueUserToken(user, isNewAccount);
+    // Use query params (not hash). Fragments in Location redirects are often dropped by browsers.
+    const params = new URLSearchParams({
+      access_token: issued.accessToken,
+      is_new: isNewAccount ? '1' : '0',
+    });
     return {
       ...issued,
-      redirectUrl: `${this.frontendBaseUrl()}/auth/callback#access_token=${encodeURIComponent(issued.accessToken)}`,
+      redirectUrl: `${this.frontendBaseUrl()}/auth/callback?${params.toString()}`,
     };
   }
 
@@ -878,7 +883,10 @@ export class AuthService {
   }
 
   googleFrontendErrorRedirect(message: string) {
-    const params = new URLSearchParams({ authError: message });
+    const params = new URLSearchParams({
+      auth: 'login',
+      authError: message,
+    });
     return `${this.frontendBaseUrl()}/?${params.toString()}`;
   }
 }

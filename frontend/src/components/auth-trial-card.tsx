@@ -34,6 +34,7 @@ import { ButtonLoader } from "@/components/site-loader";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
 import { captureReferralCode, getCapturedReferralCode } from "@/lib/referral-storage";
 import { openCheckoutModal } from "@/components/checkout-modal-provider";
+import { markGoogleAuthPending, clearGoogleAuthPending } from "@/components/google-auth-bridge";
 import {
   clearCheckoutIntent,
   markCheckoutResumeAfterAuth,
@@ -452,8 +453,20 @@ export function AuthTrialCard({
   const [error, setError] = useState<string | null>(initialError);
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [googleLeaving, setGoogleLeaving] = useState(false);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+
+  // Back from Google restores this page (often via bfcache) with the button still spinning.
+  useEffect(() => {
+    function resetGoogleLeaving() {
+      setGoogleLeaving(false);
+      clearGoogleAuthPending();
+    }
+
+    window.addEventListener("pageshow", resetGoogleLeaving);
+    return () => window.removeEventListener("pageshow", resetGoogleLeaving);
+  }, []);
 
   useEffect(() => {
     const saved = getStoredToken();
@@ -682,6 +695,7 @@ export function AuthTrialCard({
   }
 
   function continueWithGoogle() {
+    if (googleLeaving) return;
     setError(null);
     const intent = mode === "signup" ? "signup" : "login";
     const params = new URLSearchParams({ intent });
@@ -691,6 +705,11 @@ export function AuthTrialCard({
       captureReferralCode(referralCode);
       params.set("ref", referralCode);
     }
+
+    markGoogleAuthPending(intent);
+    setGoogleLeaving(true);
+    // If navigation is cancelled / Back returns quickly, don't leave spinner stuck.
+    window.setTimeout(() => setGoogleLeaving(false), 12000);
     window.location.assign(`${API_URL}/auth/google?${params.toString()}`);
   }
 
@@ -1005,9 +1024,14 @@ export function AuthTrialCard({
               <button
                 type="button"
                 onClick={continueWithGoogle}
-                className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-[16px] border border-[#d7e0d6] bg-white px-3 py-3 text-sm font-semibold text-[#1f6b3a] transition hover:border-[#b7cbb8] hover:bg-[#f7faf7]"
+                disabled={googleLeaving || loading}
+                className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-[16px] border border-[#d7e0d6] bg-white px-3 py-3 text-sm font-semibold text-[#1f6b3a] transition hover:border-[#b7cbb8] hover:bg-[#f7faf7] disabled:cursor-wait disabled:opacity-70"
               >
-                <GoogleMark />
+                {googleLeaving ? (
+                  <ButtonLoader tone="brand" />
+                ) : (
+                  <GoogleMark />
+                )}
                 Continue with Google
               </button>
             </div>
