@@ -86,7 +86,7 @@ export function MemberMembershipPage() {
         </section>
 
         {/* Current membership */}
-        <section className="mb-5 overflow-visible rounded-[22px] border border-[#e6ebe3] bg-white px-4 py-5 sm:mb-6 sm:px-6 sm:py-6 lg:px-8 lg:py-7">
+        <section className="mb-5 overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white px-4 py-5 sm:mb-6 sm:px-6 sm:py-6 lg:overflow-visible lg:px-8 lg:py-7">
           <p className="text-[14px] font-semibold text-[#1f6b3a] sm:text-[15px]">
             Current Membership
           </p>
@@ -102,7 +102,7 @@ export function MemberMembershipPage() {
                   className="h-8 w-8 object-contain sm:h-9 sm:w-9"
                 />
               </span>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="hidden h-[22px] lg:block" aria-hidden="true" />
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <h2 className="text-[16px] font-bold text-[#243028] sm:text-[17px]">
@@ -112,7 +112,7 @@ export function MemberMembershipPage() {
                     {statusLabel}
                   </span>
                 </div>
-                <p className="mt-2 max-w-[250px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
+                <p className="mt-2 text-[13px] leading-relaxed text-[#5f6f64] sm:max-w-[320px] sm:text-[14px] lg:max-w-[280px]">
                   {statusMessage}
                 </p>
               </div>
@@ -142,7 +142,7 @@ export function MemberMembershipPage() {
                   value={access.amountPaid}
                 />
                 {access.paymentDateLabel ? (
-                  <p className="mt-2 text-[12px] text-[#6b7c6e]">
+                  <p className="mt-2 break-words text-[12px] text-[#6b7c6e]">
                     Paid on {access.paymentDateLabel}
                     {access.transactionRef ? ` · Ref ${access.transactionRef}` : ""}
                   </p>
@@ -204,14 +204,14 @@ export function MemberMembershipPage() {
 
             <MembershipColumnDivider />
 
-            <div className="flex justify-center max-lg:-mt-28 lg:flex-none lg:flex-col lg:justify-end lg:pl-7">
-              <div className="relative w-full sm:w-auto">
+            <div className="flex justify-center pt-1 lg:flex-none lg:flex-col lg:justify-end lg:pt-0 lg:pl-7">
+              <div className="relative flex w-full flex-col items-center sm:w-auto">
                 <Image
                   src={yogaGirlIcon}
                   alt=""
                   width={160}
                   height={160}
-                  className="pointer-events-none absolute bottom-full left-1/2 mb-2 h-32 w-32 -translate-x-1/2 object-contain sm:h-40 sm:w-40"
+                  className="pointer-events-none mb-3 h-28 w-28 object-contain sm:h-36 sm:w-36 lg:absolute lg:bottom-full lg:left-1/2 lg:mb-2 lg:h-40 lg:w-40 lg:-translate-x-1/2"
                 />
                 <button
                   type="button"
@@ -346,7 +346,7 @@ function MembershipStat({
               {label}
             </p>
             <p
-              className={`text-[15px] font-bold text-[#243028] sm:text-[16px] ${
+              className={`break-words text-[15px] font-bold text-[#243028] sm:text-[16px] ${
                 alignValueWithLabel ? "mt-1 lg:mt-0" : "mt-1"
               }`}
             >
@@ -364,7 +364,9 @@ function MembershipStat({
         {icon}
         {label}
       </div>
-      <p className="mt-1 text-[15px] font-bold text-[#243028] sm:text-[16px]">{value}</p>
+      <p className="mt-1 break-words text-[15px] font-bold text-[#243028] sm:text-[16px]">
+        {value}
+      </p>
     </div>
   );
 }

@@ -59,11 +59,11 @@ function CalendarMaskIcon() {
   );
 }
 
-function formatDashboardDate(date: Date) {
+function formatDashboardDate(date: Date, compact = false) {
   return date.toLocaleDateString("en-IN", {
-    weekday: "long",
+    weekday: compact ? "short" : "long",
     day: "numeric",
-    month: "long",
+    month: compact ? "short" : "long",
     year: "numeric",
   });
 }
@@ -73,6 +73,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const nameGreeting = greetingForName(user.fullName);
   const now = new Date();
   const todayLabel = formatDashboardDate(now);
+  const todayLabelCompact = formatDashboardDate(now, true);
   const sunday = isSunday(now);
   const membershipKnown = !loading;
   const isExpired = membershipKnown && access.state === "expired";
@@ -140,9 +141,10 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-[13px] font-semibold text-[#3d4a3c] sm:text-[14px]">
-              <Image src={calendarIcon} alt="" width={20} height={20} className="h-5 w-5 object-contain" />
-              {todayLabel}
+            <div className="flex min-w-0 items-start gap-2 text-[13px] font-semibold text-[#3d4a3c] sm:items-center sm:text-[14px]">
+              <Image src={calendarIcon} alt="" width={20} height={20} className="mt-0.5 h-5 w-5 shrink-0 object-contain sm:mt-0" />
+              <span className="min-w-0 break-words sm:hidden">{todayLabelCompact}</span>
+              <span className="hidden min-w-0 break-words sm:inline">{todayLabel}</span>
             </div>
           </div>
 
@@ -172,7 +174,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
               </p>
               <Link
                 href="/dashboard/membership"
-                className={`${memberPrimaryBtnClass} mt-5 px-5 py-3 text-[14px] sm:text-[15px]`}
+                className={`${memberPrimaryBtnClass} mt-5 w-full justify-center px-5 py-3 text-[14px] sm:w-auto sm:text-[15px]`}
               >
                 Renew Membership
               </Link>
@@ -200,13 +202,13 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 Trial access includes these two session times. Regular membership sessions
                 become available when your membership starts.
               </p>
-              <div className="mt-5 flex flex-wrap gap-3">
-                <Link href="/membership?start=now" className={`${memberPrimaryBtnClass} px-4 py-2.5 text-[13px] sm:text-[14px]`}>
+              <div className="mt-5 flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <Link href="/membership?start=now" className={`${memberPrimaryBtnClass} w-full justify-center px-4 py-2.5 text-[13px] sm:w-auto sm:text-[14px]`}>
                   Start Membership Now
                 </Link>
                 <Link
                   href="/membership?start=after-trial"
-                  className="inline-flex items-center justify-center rounded-[16px] border border-[#1f6b3a] bg-white px-4 py-2.5 text-[13px] font-bold text-[#1f6b3a] sm:text-[14px]"
+                  className="inline-flex w-full items-center justify-center rounded-[16px] border border-[#1f6b3a] bg-white px-4 py-2.5 text-[13px] font-bold text-[#1f6b3a] sm:w-auto sm:text-[14px]"
                 >
                   Start After Trial
                 </Link>
@@ -488,7 +490,7 @@ function SpecialTopicRow({
         <button
           type="button"
           onClick={onJoin}
-          className={`${memberPrimaryBtnSmClass} shrink-0 px-4 py-1.5 text-[12px] whitespace-nowrap sm:px-5 sm:text-[13px]`}
+          className={`${memberPrimaryBtnSmClass} w-full justify-center px-4 py-2 text-[12px] whitespace-nowrap sm:w-auto sm:px-5 sm:py-1.5 sm:text-[13px]`}
         >
           {actionLabel}
         </button>
@@ -514,17 +516,17 @@ function SessionRow({
 }) {
   return (
     <div
-      className={`mb-3 flex flex-wrap items-center gap-x-2.5 gap-y-2 rounded-[14px] px-3 py-3 sm:gap-x-3 sm:px-4 sm:py-3.5 ${tint}`}
+      className={`mb-3 flex flex-col gap-3 rounded-[14px] px-3 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2 sm:px-4 sm:py-3.5 ${tint}`}
     >
-      <div className="flex shrink-0 items-center gap-2.5">
+      <div className="flex min-w-0 items-center gap-2.5">
         <Image
           src={icon}
           alt=""
           width={32}
           height={32}
-          className="h-8 w-8 object-contain sm:h-9 sm:w-9"
+          className="h-8 w-8 shrink-0 object-contain sm:h-9 sm:w-9"
         />
-        <span className="whitespace-nowrap text-[14px] font-bold text-[#3d4a3c] sm:text-[15px]">
+        <span className="min-w-0 text-[14px] font-bold leading-snug text-[#3d4a3c] sm:text-[15px]">
           {label}
         </span>
       </div>
@@ -549,7 +551,7 @@ function SessionRow({
         <button
           type="button"
           onClick={onJoin}
-          className={`${memberPrimaryBtnSmClass} px-4 py-1.5 text-[12px] whitespace-nowrap sm:px-5 sm:text-[13px]`}
+          className={`${memberPrimaryBtnSmClass} w-full justify-center px-4 py-2 text-[12px] whitespace-nowrap sm:w-auto sm:px-5 sm:py-1.5 sm:text-[13px]`}
         >
           Join
         </button>

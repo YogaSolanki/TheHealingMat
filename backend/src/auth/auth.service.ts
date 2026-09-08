@@ -840,22 +840,12 @@ export class AuthService {
     }
 
     const email = profile.email.trim().toLowerCase();
-    let user = await this.users.findOne({ where: { email } });
-    let isNewAccount = false;
-
-    if (!user) {
-      const fullName = profile.name?.trim() || email.split('@')[0];
-      const randomPassword = `Gg-${randomBytes(24).toString('hex')}aA1`;
-      user = await this.createUser({
-        region: Region.OutsideIndia,
-        destination: email,
-        channel: 'email',
-        fullName,
-        password: randomPassword,
-        referralCode,
-      });
-      isNewAccount = true;
-    }
+    const fullName = profile.name?.trim() || email.split('@')[0];
+    const { user, isNewAccount } = await this.findOrCreateGoogleUser({
+      email,
+      fullName,
+      referralCode,
+    });
 
     const issued = await this.issueUserToken(user, isNewAccount);
     // Use query params (not hash). Fragments in Location redirects are often dropped by browsers.
@@ -867,6 +857,52 @@ export class AuthService {
       ...issued,
       redirectUrl: `${this.frontendBaseUrl()}/auth/callback?${params.toString()}`,
     };
+  }
+
+  /**
+   * Google login + signup share one path:
+   * - existing email → sign in
+   * - new email → create account (with free trial via issueUserToken)
+   */
+  private async findOrCreateGoogleUser(input: {
+    email: string;
+    fullName: string;
+    referralCode?: string;
+  }): Promise<{ user: User; isNewAccount: boolean }> {
+    const existing = await this.users
+      .createQueryBuilder('user')
+      .where('LOWER(user.email) = :email', { email: input.email })
+      .getOne();
+
+    if (existing) {
+      // Keep stored email normalized for future lookups.
+      if (existing.email !== input.email) {
+        existing.email = input.email;
+        await this.users.save(existing);
+      }
+      return { user: existing, isNewAccount: false };
+    }
+
+    try {
+      const user = await this.createUser({
+        region: Region.OutsideIndia,
+        destination: input.email,
+        channel: 'email',
+        fullName: input.fullName,
+        password: `Gg-${randomBytes(24).toString('hex')}aA1`,
+        referralCode: input.referralCode,
+      });
+      return { user, isNewAccount: true };
+    } catch (error) {
+      // Race: another request created the same email — treat as login.
+      if (!isUniqueViolation(error)) throw error;
+      const raced = await this.users
+        .createQueryBuilder('user')
+        .where('LOWER(user.email) = :email', { email: input.email })
+        .getOne();
+      if (!raced) throw error;
+      return { user: raced, isNewAccount: false };
+    }
   }
 
   private parseGoogleStateReferral(state?: string) {
