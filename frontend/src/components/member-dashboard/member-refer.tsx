@@ -143,6 +143,7 @@ export function MemberReferPage() {
   const [visibleCount, setVisibleCount] = useState(REFERRAL_PAGE_SIZE);
   const [loadingMore, setLoadingMore] = useState(false);
   const listScrollRef = useRef<HTMLDivElement>(null);
+  const desktopScrollRef = useRef<HTMLDivElement>(null);
   const loadMoreLockRef = useRef(false);
   const lastScrollLoadRef = useRef(0);
 
@@ -210,8 +211,10 @@ export function MemberReferPage() {
   }
 
   useEffect(() => {
-    const root = listScrollRef.current;
-    if (!root || loadingReferrals) return;
+    const roots = [listScrollRef.current, desktopScrollRef.current].filter(
+      (el): el is HTMLDivElement => Boolean(el),
+    );
+    if (roots.length === 0 || loadingReferrals) return;
 
     function loadNextPage() {
       if (!hasMoreReferrals || loadMoreLockRef.current) return;
@@ -229,15 +232,21 @@ export function MemberReferPage() {
       }, 180);
     }
 
-    function onScroll() {
-      if (!root) return;
+    function onScroll(event: Event) {
+      const root = event.currentTarget as HTMLDivElement;
       const distanceFromBottom =
         root.scrollHeight - root.scrollTop - root.clientHeight;
       if (distanceFromBottom <= 72) loadNextPage();
     }
 
-    root.addEventListener("scroll", onScroll, { passive: true });
-    return () => root.removeEventListener("scroll", onScroll);
+    for (const root of roots) {
+      root.addEventListener("scroll", onScroll, { passive: true });
+    }
+    return () => {
+      for (const root of roots) {
+        root.removeEventListener("scroll", onScroll);
+      }
+    };
   }, [
     filteredReferrals.length,
     hasMoreReferrals,
@@ -270,24 +279,23 @@ export function MemberReferPage() {
             Refer & Win
           </h1>
           <p className="mt-1.5 max-w-[720px] text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
-            Invite your friends and family to join The Healing Mat.
-            <br />
-            When they become members, you earn exciting rewards.
+            Invite your friends and family to join The Healing Mat. When they become
+            members, you earn exciting rewards.
           </p>
         </section>
 
         {/* Share + code cards */}
         <section id="share" className="mb-5 grid gap-4 lg:mb-6 lg:grid-cols-2 lg:items-start lg:gap-5">
-          <div className="relative flex flex-col justify-center overflow-hidden rounded-[24px] border border-[#d5e8d9] bg-[#F4F8F2] p-6 shadow-[0_8px_24px_rgba(31,107,58,0.05)] sm:p-7">
-            <div className="flex flex-col justify-center gap-7">
-              <div className="relative flex items-center gap-4">
-                <span className="inline-flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-white shadow-[0_2px_12px_rgba(31,107,58,0.1)]">
+          <div className="relative flex flex-col justify-center overflow-hidden rounded-[24px] border border-[#d5e8d9] bg-[#F4F8F2] p-5 shadow-[0_8px_24px_rgba(31,107,58,0.05)] sm:p-7">
+            <div className="flex flex-col justify-center gap-6 sm:gap-7">
+              <div className="relative flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                <span className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white shadow-[0_2px_12px_rgba(31,107,58,0.1)] sm:h-20 sm:w-20">
                   <Image
                     src={buddyIcon}
                     alt=""
                     width={64}
                     height={64}
-                    className="h-16 w-16 object-contain"
+                    className="h-12 w-12 object-contain sm:h-16 sm:w-16"
                   />
                 </span>
                 <div className="min-w-0">
@@ -295,21 +303,18 @@ export function MemberReferPage() {
                     Share The Healing Mat with a friend
                   </h2>
                   <p className="mt-2.5 text-[13px] leading-[1.6] text-[#5f6f64] sm:text-[14px]">
-                    Give a friend the gift of better health.
-                    <br />
-                    They get{" "}
-                    <span className="font-bold text-[#243028]">14 days of FREE</span> yoga classes
-                    <br />
-                    + <span className="font-bold text-[#243028]">20% OFF</span> on membership,
-                    <br />
-                    and{" "}
-                    <span className="font-bold text-[#1f6b3a]">you get rewarded</span> when they join!
+                    Give a friend the gift of better health. They get{" "}
+                    <span className="font-bold text-[#243028]">14 days of FREE</span> yoga
+                    classes + <span className="font-bold text-[#243028]">20% OFF</span> on
+                    membership, and{" "}
+                    <span className="font-bold text-[#1f6b3a]">you get rewarded</span> when
+                    they join!
                   </p>
                 </div>
               </div>
 
               <div className="relative flex flex-col">
-                <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                   <div className="flex min-w-0 flex-col items-center">
                     <button
                       type="button"
@@ -317,7 +322,7 @@ export function MemberReferPage() {
                       className={`${memberPrimaryBtnClass} w-full min-h-[48px] px-3 py-3 text-[13px] sm:px-4 sm:text-[14px]`}
                     >
                       <FaWhatsapp className="h-4 w-4 shrink-0" />
-                      <span className="truncate">Share on WhatsApp</span>
+                      <span>Share on WhatsApp</span>
                     </button>
                     <p className="mt-2.5 px-1 text-center text-[11px] leading-snug text-[#6b7c6e] sm:text-[12px]">
                       Open WhatsApp with your referral message
@@ -330,7 +335,7 @@ export function MemberReferPage() {
                       className={`${memberOutlineBtnClass} w-full min-h-[48px] px-3 py-3 text-[13px] sm:px-4 sm:text-[14px]`}
                     >
                       <MessageBubbleIcon className="h-4 w-4 shrink-0" />
-                      <span className="truncate">
+                      <span>
                         {messageOpen ? "Hide Message" : "View Ready-made Message"}
                       </span>
                     </button>
@@ -460,7 +465,7 @@ export function MemberReferPage() {
         </section>
 
         {/* Referral progress */}
-        <section className="mb-5 overflow-visible rounded-[22px] border border-[#e6ebe3] bg-white sm:mb-6">
+        <section className="mb-5 overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white sm:mb-6">
           <div className="border-b border-[#eef2ee] px-4 py-4 sm:px-6">
             <h2 className="text-[16px] font-bold text-[#1f6b3a] sm:text-[17px]">
               Your Referral Progress
@@ -469,13 +474,13 @@ export function MemberReferPage() {
 
           <div className="flex flex-col lg:flex-row lg:items-stretch">
             <div className="flex items-center gap-3 px-4 py-5 sm:gap-4 sm:px-6 sm:py-6 lg:flex-[0.95] lg:pr-7">
-              <div className="relative h-12 w-[72px] shrink-0 sm:h-[52px] sm:w-20">
+              <div className="relative h-20 w-[88px] shrink-0 sm:h-[88px] sm:w-24">
                 <Image
                   src={referralArt}
                   alt=""
                   width={96}
                   height={96}
-                  className="pointer-events-none absolute top-1/2 left-0 h-[80px] w-auto -translate-y-1/2 object-contain sm:h-[88px]"
+                  className="pointer-events-none h-full w-auto object-contain object-left"
                 />
               </div>
               <div>
@@ -597,17 +602,17 @@ export function MemberReferPage() {
 
         {/* My referrals table — only when the member has at least one referral */}
         {loadingReferrals || referrals.length > 0 ? (
-        <section id="referrals" className="overflow-visible rounded-[22px] border border-[#e6ebe3] bg-white">
+        <section id="referrals" className="overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white">
           <div className="relative z-30 flex flex-col gap-3 rounded-t-[22px] border-b border-[#eef2ee] bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <h2 className="text-[16px] font-bold text-[#1f6b3a] sm:text-[17px]">
               My Referrals
             </h2>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
               <button
                 type="button"
                 onClick={() => void refresh()}
                 disabled={loadingReferrals || refreshing}
-                className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[#d7e0d6] bg-white px-3.5 py-2 text-[12px] font-semibold text-[#243028] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] disabled:cursor-not-allowed disabled:opacity-50 sm:text-[13px]"
+                className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-full border border-[#d7e0d6] bg-white px-3.5 py-2 text-[12px] font-semibold text-[#243028] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:text-[13px]"
                 aria-label="Refresh referrals"
               >
                 <RefreshIcon
@@ -621,9 +626,69 @@ export function MemberReferPage() {
 
           <div
             ref={listScrollRef}
-            className="max-h-[420px] overflow-auto overscroll-contain rounded-b-[22px]"
+            className="max-h-[420px] overflow-auto overscroll-contain rounded-b-[22px] md:hidden"
           >
-            <table className="min-w-[720px] w-full text-left">
+            {loadingReferrals ? (
+              <div className="flex flex-col items-center justify-center gap-3 px-4 py-12">
+                <SiteLoader size="md" label="Loading your referrals" />
+                <p className="text-[13px] text-[#6b7c6e]">Loading your referrals…</p>
+              </div>
+            ) : filteredReferrals.length === 0 ? (
+              <p className="px-4 py-8 text-center text-[13px] leading-relaxed text-[#6b7c6e]">
+                No referrals match this status filter.
+              </p>
+            ) : (
+              <ul className="divide-y divide-[#eef2ee]">
+                {visibleReferrals.map((referral) => {
+                  const tone = statusToneByStatus[referral.status];
+                  return (
+                    <li key={referral.id} className="px-4 py-4">
+                      <div className="flex items-start gap-3">
+                        <span
+                          className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${avatarBgByTone[tone]}`}
+                        >
+                          {initialsFromName(referral.fullName)}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="break-words text-[14px] font-semibold text-[#243028]">
+                              {referral.fullName}
+                            </p>
+                            <span
+                              className={`inline-flex rounded-[6px] px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${statusBadgeClass[tone]}`}
+                            >
+                              {referral.status}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-[13px] leading-relaxed break-words text-[#6b7c6e]">
+                            {referral.note}
+                          </p>
+                          <p className="mt-2 text-[12px] font-semibold text-[#243028]">
+                            {formatReferredOn(referral.referredOn)}
+                          </p>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {!loadingReferrals && hasMoreReferrals ? (
+              <div className="flex items-center justify-center gap-2 border-t border-[#eef2ee] px-4 py-3.5">
+                {loadingMore ? (
+                  <SiteLoader size="sm" label="Loading more referrals" />
+                ) : (
+                  <p className="text-[12px] text-[#8a968c]">Scroll for more</p>
+                )}
+              </div>
+            ) : null}
+          </div>
+
+          <div
+            ref={desktopScrollRef}
+            className="hidden max-h-[420px] overflow-auto overscroll-contain rounded-b-[22px] md:block"
+          >
+            <table className="min-w-[640px] w-full text-left">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-[#eef2ee] bg-[#FBF9F5] text-[11px] font-bold tracking-[0.06em] text-[#6b7c6e] uppercase sm:text-[12px]">
                   <th className="px-4 py-3 font-bold sm:px-6">Name</th>
@@ -737,13 +802,13 @@ function ReferralStatusFilter({
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative z-40 shrink-0">
+    <div ref={rootRef} className="relative z-40 w-full shrink-0 sm:w-auto">
       <button
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className="inline-flex min-w-[148px] cursor-pointer items-center justify-between gap-3 rounded-full border border-[#1f6b3a] bg-white px-4 py-2 text-[13px] font-semibold text-[#243028] transition hover:bg-[#f6f8f5] sm:min-w-[156px] sm:text-[14px]"
+        className="inline-flex w-full min-w-0 cursor-pointer items-center justify-between gap-3 rounded-full border border-[#1f6b3a] bg-white px-4 py-2 text-[13px] font-semibold text-[#243028] transition hover:bg-[#f6f8f5] sm:min-w-[156px] sm:w-auto sm:text-[14px]"
       >
         <span>{selected.label}</span>
         <ChevronDownIcon
@@ -757,7 +822,7 @@ function ReferralStatusFilter({
         <div
           role="listbox"
           aria-label="Filter by status"
-          className="absolute top-[calc(100%+8px)] right-0 z-50 min-w-[180px] overflow-hidden rounded-[14px] border border-[#e6ebe3] bg-white py-1 shadow-[0_16px_36px_rgba(31,107,58,0.16)]"
+          className="absolute top-[calc(100%+8px)] right-0 left-0 z-50 min-w-0 overflow-hidden rounded-[14px] border border-[#e6ebe3] bg-white py-1 shadow-[0_16px_36px_rgba(31,107,58,0.16)] sm:left-auto sm:min-w-[180px]"
         >
           {statusFilterOptions.map((option) => {
             const active = option.value === value;
@@ -860,9 +925,14 @@ function MilestoneRow({
           <GiftIcon className="h-4 w-4 shrink-0 text-[#8a968c]" />
           {rewardLabel}
         </p>
+        {rewardDescription ? (
+          <p className="mt-0.5 text-[12px] leading-snug text-[#8a968c]">
+            {rewardDescription}
+          </p>
+        ) : null}
       </div>
 
-      <div className="flex justify-start sm:justify-end">
+      <div className="flex w-full justify-stretch sm:w-auto sm:justify-end">
         {isCompleted ? (
           <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#1f6b3a]">
             <CheckIcon className="h-4 w-4" />
@@ -877,7 +947,7 @@ function MilestoneRow({
             type="button"
             disabled={redeeming}
             onClick={onRedeem}
-            className={`${memberPrimaryBtnClass} px-4 py-2 text-[13px] sm:px-5 sm:py-2.5 disabled:opacity-60`}
+            className={`${memberPrimaryBtnClass} w-full justify-center px-4 py-2 text-[13px] sm:w-auto sm:px-5 sm:py-2.5 disabled:opacity-60`}
           >
             {redeeming ? "Submitting…" : "Redeem Reward"}
             <ChevronRightIcon className="h-4 w-4" />
@@ -886,7 +956,7 @@ function MilestoneRow({
           <button
             type="button"
             disabled
-            className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-[16px] border border-[#d7e0d6] bg-[#F0F0F0] px-4 py-2 text-[13px] font-bold text-[#8a968c] sm:px-5 sm:py-2.5"
+            className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-[16px] border border-[#d7e0d6] bg-[#F0F0F0] px-4 py-2 text-[13px] font-bold text-[#8a968c] sm:w-auto sm:px-5 sm:py-2.5"
           >
             <LockIcon className="h-4 w-4" />
             Redeem Reward

@@ -23,7 +23,7 @@ const genderOptions: { value: UserGender; label: string }[] = [
 ];
 
 const inlineFieldClass =
-  "w-full max-w-[300px] rounded-[12px] border border-[#d7e0d6] bg-white px-3 py-2 text-[14px] font-semibold text-[#243028] outline-none transition focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
+  "w-full max-w-full rounded-[12px] border border-[#d7e0d6] bg-white px-3 py-2 text-[14px] font-semibold text-[#243028] outline-none transition focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 sm:max-w-[300px]";
 
 function formatMobile(mobile: string | null) {
   if (!mobile) return "—";
@@ -186,27 +186,26 @@ export function MemberAccountPage() {
             My Account
           </h1>
           <p className="mt-1.5 text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
-            Manage your personal information and account security.
-            <br />
-            Keep your details up to date for a smooth experience.
+            Manage your personal information and account security. Keep your details
+            up to date for a smooth experience.
           </p>
         </section>
 
         <div className="space-y-5 sm:space-y-6">
           <section className="overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white shadow-[0_10px_32px_rgba(31,107,58,0.05)]">
-            <div className="flex flex-col gap-4 border-b border-[#eef2ee] px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6 sm:py-6">
+            <div className="flex flex-col gap-4 border-b border-[#eef2ee] px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6 sm:py-6">
               <CardHeading
                 icon={<UserCircleIcon className="h-6 w-6 text-[#1f6b3a]" />}
                 title="Personal Information"
                 subtitle="Your personal details used for your account."
               />
               {isEditing ? (
-                <div className="flex shrink-0 flex-wrap items-center gap-2 self-start">
+                <div className="flex w-full shrink-0 flex-wrap items-center gap-2 self-start sm:w-auto">
                   <button
                     type="button"
                     onClick={cancelEditing}
                     disabled={profileSaving}
-                    className="inline-flex cursor-pointer items-center justify-center rounded-[12px] border border-[#d7e0d6] bg-white px-4 py-2 text-[13px] font-semibold text-[#3d4a3c] transition hover:bg-[#f6f8f5] disabled:cursor-not-allowed disabled:opacity-60 sm:text-[14px]"
+                    className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-[12px] border border-[#d7e0d6] bg-white px-4 py-2 text-[13px] font-semibold text-[#3d4a3c] transition hover:bg-[#f6f8f5] disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none sm:text-[14px]"
                   >
                     Cancel
                   </button>
@@ -214,7 +213,7 @@ export function MemberAccountPage() {
                     type="button"
                     onClick={saveProfile}
                     disabled={profileSaving}
-                    className={`${memberPrimaryBtnClass} inline-flex cursor-pointer items-center justify-center rounded-[12px] px-4 py-2 text-[13px] sm:text-[14px]`}
+                    className={`${memberPrimaryBtnClass} inline-flex flex-1 cursor-pointer items-center justify-center rounded-[12px] px-4 py-2 text-[13px] sm:flex-none sm:text-[14px]`}
                   >
                     {profileSaving ? "Saving..." : "Save"}
                   </button>
@@ -223,7 +222,7 @@ export function MemberAccountPage() {
                 <button
                   type="button"
                   onClick={startEditing}
-                  className="inline-flex shrink-0 cursor-pointer items-center gap-2 self-start rounded-[12px] border border-[#d7e0d6] bg-white px-4 py-2 text-[13px] font-semibold text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] sm:text-[14px]"
+                  className="inline-flex w-full shrink-0 cursor-pointer items-center justify-center gap-2 self-start rounded-[12px] border border-[#d7e0d6] bg-white px-4 py-2 text-[13px] font-semibold text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] sm:w-auto sm:text-[14px]"
                 >
                   <PencilIcon className="h-4 w-4" />
                   Edit
@@ -232,7 +231,7 @@ export function MemberAccountPage() {
             </div>
 
             {profileError ? (
-              <div className="border-b border-[#eef2ee] px-5 py-3 sm:px-6">
+              <div className="border-b border-[#eef2ee] px-4 py-3 sm:px-6">
                 <p className="rounded-[12px] bg-[#fdecec] px-3 py-2 text-[13px] text-[#8a2f2f]">
                   {profileError}
                 </p>
@@ -304,7 +303,7 @@ export function MemberAccountPage() {
               />
             </div>
 
-            <div className="flex items-start gap-2.5 border-t border-[#eef2ee] bg-[#fafbf9] px-5 py-4 sm:px-6">
+            <div className="flex items-start gap-2.5 border-t border-[#eef2ee] bg-[#fafbf9] px-4 py-4 sm:px-6">
               <InfoCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-[#8a9a8d]" />
               <p className="text-[12px] leading-relaxed text-[#6b7c6e] sm:text-[13px]">
                 To change your mobile number, OTP verification is required. Email changes, if
@@ -319,7 +318,7 @@ export function MemberAccountPage() {
               type="button"
               onClick={() => void toggleCoupons()}
               aria-expanded={couponsOpen}
-              className="flex w-full cursor-pointer items-center gap-4 px-5 py-5 text-left transition hover:bg-[#fafbf9] sm:px-6 sm:py-5"
+              className="flex w-full cursor-pointer items-center gap-4 px-4 py-5 text-left transition hover:bg-[#fafbf9] sm:px-6 sm:py-5"
             >
               <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-12 sm:w-12">
                 <TagIcon className="h-5 w-5 text-[#1f6b3a]" />
@@ -339,7 +338,7 @@ export function MemberAccountPage() {
             {couponsOpen ? (
               <div className="border-t border-[#eef2ee]">
                 {couponsError ? (
-                  <div className="px-5 py-4 sm:px-6">
+                  <div className="px-4 py-4 sm:px-6">
                     <p className="rounded-[12px] bg-[#fdecec] px-3 py-2 text-[13px] text-[#8a2f2f]">
                       {couponsError}
                     </p>
@@ -356,14 +355,14 @@ export function MemberAccountPage() {
                     <table className="w-full text-left">
                       <thead>
                         <tr className="border-b border-[#eef2ee] bg-[#FBF9F5] text-[11px] font-bold tracking-[0.06em] text-[#6b7c6e] uppercase sm:text-[12px]">
-                          <th className="px-5 py-3 font-bold sm:px-6">Code</th>
+                          <th className="px-4 py-3 font-bold sm:px-6">Code</th>
                           <th className="px-4 py-3 font-bold sm:px-6">Discount</th>
                         </tr>
                       </thead>
                       <tbody>
                         {couponsLoading ? (
                           <tr>
-                            <td colSpan={2} className="px-5 py-10 text-center sm:px-6">
+                            <td colSpan={2} className="px-4 py-10 text-center sm:px-6">
                               <div className="flex flex-col items-center justify-center gap-3">
                                 <SiteLoader size="md" label="Loading your coupons" />
                                 <p className="text-[13px] text-[#6b7c6e] sm:text-[14px]">
@@ -374,7 +373,7 @@ export function MemberAccountPage() {
                           </tr>
                         ) : assignedCoupons.length === 0 ? (
                           <tr>
-                            <td colSpan={2} className="px-5 py-8 text-center sm:px-6">
+                            <td colSpan={2} className="px-4 py-8 text-center sm:px-6">
                               <p className="text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
                                 No coupons are assigned to your account right now.
                               </p>
@@ -386,7 +385,7 @@ export function MemberAccountPage() {
                               key={coupon.id}
                               className="border-b border-[#eef2ee] last:border-b-0"
                             >
-                              <td className="px-5 py-3.5 sm:px-6">
+                              <td className="px-4 py-3.5 sm:px-6">
                                 <button
                                   type="button"
                                   onClick={() => void copyCoupon(coupon.code)}
@@ -414,7 +413,7 @@ export function MemberAccountPage() {
           </section>
 
           <section className="overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white shadow-[0_10px_32px_rgba(31,107,58,0.05)]">
-            <div className="border-b border-[#eef2ee] px-5 py-5 sm:px-6 sm:py-6">
+            <div className="border-b border-[#eef2ee] px-4 py-5 sm:px-6 sm:py-6">
               <CardHeading
                 icon={<ShieldIcon className="h-6 w-6 text-[#1f6b3a]" />}
                 title="Account & Security"
@@ -425,7 +424,7 @@ export function MemberAccountPage() {
             <button
               type="button"
               onClick={() => setChangePasswordOpen(true)}
-              className="flex w-full cursor-pointer items-center gap-4 px-5 py-5 text-left transition hover:bg-[#fafbf9] sm:px-6 sm:py-5"
+              className="flex w-full cursor-pointer items-center gap-4 px-4 py-5 text-left transition hover:bg-[#fafbf9] sm:px-6 sm:py-5"
             >
               <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-12 sm:w-12">
                 <LockIcon className="h-5 w-5 text-[#1f6b3a]" />
@@ -443,7 +442,7 @@ export function MemberAccountPage() {
           </section>
 
           <section className="overflow-hidden rounded-[22px] border border-[#f0e2d8] bg-[#FAF4EF]">
-            <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
+            <div className="flex flex-col gap-4 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
               <div className="flex items-start gap-4 sm:items-center">
                 <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#fdeee4] sm:h-12 sm:w-12">
                   <LogOutIcon className="h-5 w-5 text-[#c45c4a]" />
@@ -458,7 +457,7 @@ export function MemberAccountPage() {
               <button
                 type="button"
                 onClick={signOut}
-                className="inline-flex shrink-0 cursor-pointer items-center justify-center self-start rounded-[14px] border border-[#d9a89a] bg-white px-5 py-2.5 text-[13px] font-semibold text-[#c45c4a] transition hover:bg-[#fff8f6] sm:self-center sm:text-[14px]"
+                className="inline-flex w-full shrink-0 cursor-pointer items-center justify-center rounded-[14px] border border-[#d9a89a] bg-white px-5 py-2.5 text-[13px] font-semibold text-[#c45c4a] transition hover:bg-[#fff8f6] sm:w-auto sm:self-center sm:text-[14px]"
               >
                 Log Out
               </button>
@@ -514,7 +513,7 @@ function EditableInfoRow({
   editContent?: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-2 px-5 py-4 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)] sm:items-center sm:gap-x-6 sm:py-[18px] lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 gap-2 px-4 py-4 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)] sm:items-center sm:gap-x-6 sm:px-5 sm:py-[18px] lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)] lg:px-6">
       <div className="flex items-center gap-3">
         <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#eef6f0]">
           {icon}
@@ -560,7 +559,7 @@ function InfoRow({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-2 px-5 py-4 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)] sm:items-center sm:gap-x-6 sm:py-[18px] lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 gap-2 px-4 py-4 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)] sm:items-center sm:gap-x-6 sm:px-5 sm:py-[18px] lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)] lg:px-6">
       <div className="flex items-center gap-3">
         <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#eef6f0]">
           {icon}
