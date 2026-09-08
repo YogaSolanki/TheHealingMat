@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
 import { memberPrimaryBtnClass } from "@/components/member-dashboard/member-button-styles";
-import { getMemberAccess } from "@/lib/member-access";
+import { useMemberAccess } from "@/lib/member-access";
 import {
   findRunningSession,
   sessionUnavailableMessage,
@@ -13,17 +13,31 @@ import {
 const LIVE_SESSION_URL = process.env.NEXT_PUBLIC_LIVE_SESSION_URL;
 
 export function MemberJoinPage() {
-  const access = getMemberAccess();
+  const { access, loading } = useMemberAccess();
   const kind: SessionAccessKind = access.state === "trial" ? "trial" : "member";
   const running = useMemo(
-    () => (access.state === "expired" ? null : findRunningSession(new Date(), kind)),
-    [access.state, kind],
+    () =>
+      loading || access.state === "expired"
+        ? null
+        : findRunningSession(new Date(), kind),
+    [access.state, kind, loading],
   );
 
   useEffect(() => {
-    if (access.state === "expired" || !running || !LIVE_SESSION_URL) return;
+    if (loading || access.state === "expired" || !running || !LIVE_SESSION_URL) return;
     window.location.assign(LIVE_SESSION_URL);
-  }, [access.state, running]);
+  }, [access.state, loading, running]);
+
+  if (loading) {
+    return (
+      <StateCard
+        title="Opening today's session"
+        body="Checking your membership and connecting you to class."
+        actionHref="/dashboard"
+        actionLabel="Back to Home"
+      />
+    );
+  }
 
   if (access.state === "expired") {
     return (

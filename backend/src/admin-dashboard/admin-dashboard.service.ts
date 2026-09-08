@@ -1,16 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
+import { Membership } from '../payments/membership.entity';
+import { PaymentOrder } from '../payments/payment-order.entity';
 import { OrientationSlot } from '../trials/orientation-slot.entity';
 import { TrialCohort } from '../trials/trial-cohort.entity';
 import { TrialRegistration } from '../trials/trial-registration.entity';
 import { Region } from '../users/enums/region.enum';
 import { TrialStatus } from '../users/enums/trial-status.enum';
+import { OtpChallenge } from '../users/otp-challenge.entity';
 import { User } from '../users/user.entity';
 
 @Injectable()
 export class AdminDashboardService {
   constructor(
+    private readonly dataSource: DataSource,
     @InjectRepository(User)
     private readonly users: Repository<User>,
     @InjectRepository(TrialRegistration)
@@ -160,6 +164,50 @@ export class AdminDashboardService {
         };
       }),
     };
+  }
+
+  async deleteUser(id: string) {
+    const user = await this.users.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      const trial = await manager.findOne(TrialRegistration, {
+        where: { userId: id },
+        relations: { orientationSlot: true },
+      });
+
+      if (trial) {
+        if (trial.orientationSlot) {
+          trial.orientationSlot.bookedCount = Math.max(
+            0,
+            trial.orientationSlot.bookedCount - 1,
+          );
+          await manager.save(trial.orientationSlot);
+        }
+        await manager.remove(trial);
+      }
+
+      await manager.delete(Membership, { userId: id });
+      await manager.delete(PaymentOrder, { userId: id });
+      await manager.update(
+        User,
+        { referredByUserId: id },
+        { referredByUserId: null },
+      );
+
+      const destinations = [user.mobile, user.email].filter(
+        (value): value is string => Boolean(value),
+      );
+      if (destinations.length > 0) {
+        await manager.delete(OtpChallenge, { destination: In(destinations) });
+      }
+
+      await manager.remove(user);
+    });
+
+    return { success: true };
   }
 
   private toUserRow(user: User) {

@@ -1,4 +1,23 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
+/**
+ * Browser: prefer same-origin `/api` (Next rewrite → backend).
+ * Server Components: relative URLs fail in Node fetch — call the backend absolute URL.
+ */
+function resolveApiUrl() {
+  const configured = (process.env.NEXT_PUBLIC_API_URL ?? "/api").replace(/\/$/, "") || "/api";
+  if (configured.startsWith("http://") || configured.startsWith("https://")) {
+    return configured;
+  }
+  if (typeof window === "undefined") {
+    const backend = (
+      process.env.BACKEND_URL ?? "http://localhost:4000"
+    ).replace(/\/$/, "");
+    const prefix = configured.startsWith("/") ? configured : `/${configured}`;
+    return `${backend}${prefix}`;
+  }
+  return configured;
+}
+
+export const API_URL = resolveApiUrl();
 
 export type HealthResponse = {
   status: "ok" | "degraded";
@@ -83,7 +102,7 @@ export type TrialAccountResponse = {
       id: string;
       label: string;
       startsAt: string;
-    };
+    } | null;
     registeredAt: string;
   };
 };
@@ -271,4 +290,168 @@ export async function submitContact(input: {
     body: JSON.stringify(input),
   });
   return parseJson<ContactSubmitResponse>(response);
+}
+
+export type MembershipPlanMonths = 3 | 6 | 12;
+
+export type MembershipQuote = {
+  planMonths: MembershipPlanMonths;
+  planName: string;
+  listPricePaise: number;
+  discountPaise: number;
+  amountPaise: number;
+  discountLabel: string;
+  couponCode: string | null;
+  currency: "INR";
+};
+
+export type PublicMembership = {
+  id: string;
+  planName: string;
+  planMonths: number;
+  status: "active" | "scheduled" | "expired";
+  startsAt: string;
+  endsAt: string;
+  listPricePaise: number;
+  discountPaise: number;
+  amountPaidPaise: number;
+  razorpayPaymentId: string | null;
+  paidAt: string;
+};
+
+export type MembershipAccessResponse = {
+  state: "trial" | "active" | "expired";
+  current: PublicMembership | null;
+  scheduled: PublicMembership | null;
+  lastExpired: PublicMembership | null;
+  trial: { startsAt: string; endsAt: string } | null;
+};
+
+export type CreateOrderResponse = {
+  skipCheckout: boolean;
+  order_id: string | null;
+  amount: number;
+  currency: string;
+  key_id: string;
+  membership?: PublicMembership;
+};
+
+export type VerifyPaymentResponse = {
+  success: boolean;
+  membership: PublicMembership | null;
+};
+
+function authHeaders(accessToken: string) {
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${accessToken}`,
+  };
+}
+
+export async function quoteMembership(
+  accessToken: string,
+  input: { planMonths: MembershipPlanMonths; couponCode?: string },
+): Promise<MembershipQuote> {
+  const response = await fetch(`${API_URL}/memberships/quote`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+  return parseJson<MembershipQuote>(response);
+}
+
+export async function getMyMembership(
+  accessToken: string,
+): Promise<MembershipAccessResponse> {
+  const response = await fetch(`${API_URL}/memberships/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  return parseJson<MembershipAccessResponse>(response);
+}
+
+export async function createRazorpayOrder(
+  accessToken: string,
+  input: {
+    planMonths?: MembershipPlanMonths;
+    amount?: number;
+    currency?: string;
+    receipt?: string;
+    couponCode?: string;
+    startMode?: "now" | "after_current";
+  },
+): Promise<CreateOrderResponse> {
+  const response = await fetch(`${API_URL}/create-order`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+  return parseJson<CreateOrderResponse>(response);
+}
+
+export async function verifyRazorpayPayment(
+  accessToken: string,
+  input: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  },
+): Promise<VerifyPaymentResponse> {
+  const response = await fetch(`${API_URL}/verify-payment`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(input),
+  });
+  return parseJson<VerifyPaymentResponse>(response);
+}
+
+export type ReferralStatus =
+  | "SUCCESSFUL"
+  | "TRIAL"
+  | "MEMBERSHIP PENDING"
+  | "REGISTERED";
+
+export type ReferralListItem = {
+  id: string;
+  fullName: string;
+  status: ReferralStatus;
+  note: string;
+  referredOn: string;
+};
+
+export type MyReferralsResponse = {
+  successfulCount: number;
+  referrals: ReferralListItem[];
+};
+
+export async function getMyReferrals(
+  accessToken: string,
+): Promise<MyReferralsResponse> {
+  const response = await fetch(`${API_URL}/referrals/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  return parseJson<MyReferralsResponse>(response);
+}
+
+export type MemberCoupon = {
+  id: string;
+  code: string;
+  discountType: "percent" | "fixed";
+  discountValue: number;
+  discountLabel: string;
+};
+
+export type MyCouponsResponse = {
+  coupons: MemberCoupon[];
+};
+
+export async function getMyCoupons(
+  accessToken: string,
+): Promise<MyCouponsResponse> {
+  const response = await fetch(`${API_URL}/coupons/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  return parseJson<MyCouponsResponse>(response);
 }

@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Delete, Get, Param, ParseUUIDPipe } from '@nestjs/common';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
 import { AdminDashboardService } from './admin-dashboard.service';
@@ -16,5 +16,10 @@ export class AdminDashboardController {
   @Get('users')
   users() {
     return this.dashboard.listUsers();
+  }
+
+  @Delete('users/:id')
+  deleteUser(@Param('id', ParseUUIDPipe) id: string) {
+    return this.dashboard.deleteUser(id);
   }
 }

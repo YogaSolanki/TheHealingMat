@@ -2,9 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { SiteLogo } from "@/components/site-logo";
-import { isHealthGuidePath } from "@/lib/member-routes";
+import {
+  isHealthGuidePath,
+  isMemberNavOrphanPath,
+  isMembershipBrowsePath,
+} from "@/lib/member-routes";
 
 const navItems = [
   { href: "/dashboard", label: "Home" },
@@ -14,80 +18,60 @@ const navItems = [
   { href: "/dashboard/account", label: "My Account" },
 ] as const;
 
-const sampleNotifications = [
-  {
-    id: "1",
-    title: "Membership reminder",
-    body: "Your current membership remains active until 30 September 2026.",
-    time: "2 days ago",
-    unread: true,
-  },
-  {
-    id: "2",
-    title: "Referral reward",
-    body: "A reward is ready to redeem from your Refer & Win milestones.",
-    time: "5 days ago",
-    unread: true,
-  },
-  {
-    id: "3",
-    title: "Account update",
-    body: "Keep your mobile number verified so you can always sign in.",
-    time: "1 week ago",
-    unread: false,
-  },
-];
+const LAST_MEMBER_NAV_KEY = "thm_last_member_nav";
 
-function isActive(pathname: string, href: string) {
+function pathMatchesNav(pathname: string, href: (typeof navItems)[number]["href"]) {
   if (href === "/dashboard") return pathname === "/dashboard";
-  if (href === "/guides" && isHealthGuidePath(pathname)) {
+  if (href === "/guides" && isHealthGuidePath(pathname)) return true;
+  if (
+    href === "/dashboard/membership" &&
+    (pathname === "/dashboard/membership" ||
+      isMembershipBrowsePath(pathname) ||
+      pathname.startsWith("/membership/"))
+  ) {
     return true;
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function rememberMemberNav(href: string) {
+  try {
+    sessionStorage.setItem(LAST_MEMBER_NAV_KEY, href);
+  } catch {
+    /* ignore */
+  }
+}
+
+function isActive(pathname: string, href: (typeof navItems)[number]["href"]) {
+  if (pathMatchesNav(pathname, href)) {
+    rememberMemberNav(href);
+    return true;
+  }
+
+  // Footer/site pages (About, Contact, Corporate, …) highlight Home.
+  if (isMemberNavOrphanPath(pathname) && href === "/dashboard") {
+    rememberMemberNav(href);
+    return true;
+  }
+
+  return false;
+}
+
 export function MemberDashboardHeader() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const notificationsRef = useRef<HTMLDivElement>(null);
-  const [notifications, setNotifications] = useState(sampleNotifications);
-  const [openNotificationId, setOpenNotificationId] = useState<string | null>(null);
-  const unreadCount = notifications.filter((item) => item.unread).length;
-  const openNotification = notifications.find((item) => item.id === openNotificationId) ?? null;
-
-  function openNotificationItem(id: string) {
-    setOpenNotificationId(id);
-    setNotifications((current) =>
-      current.map((item) => (item.id === id ? { ...item, unread: false } : item)),
-    );
-  }
 
   useEffect(() => {
     setMenuOpen(false);
-    setNotificationsOpen(false);
   }, [pathname]);
 
   useEffect(() => {
-    function onPointerDown(event: MouseEvent) {
-      if (!notificationsRef.current?.contains(event.target as Node)) {
-        setNotificationsOpen(false);
-      }
-    }
-
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setNotificationsOpen(false);
-        setMenuOpen(false);
-      }
+      if (event.key === "Escape") setMenuOpen(false);
     }
 
-    document.addEventListener("mousedown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   return (
@@ -118,86 +102,6 @@ export function MemberDashboardHeader() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
-          <div ref={notificationsRef} className="relative">
-            <button
-              type="button"
-              aria-label="Notifications"
-              aria-expanded={notificationsOpen}
-              aria-haspopup="dialog"
-              onClick={() => setNotificationsOpen((current) => !current)}
-              className="relative inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-[#d7ddd6] bg-white text-[#1f6b3a] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#1f6b3a] hover:bg-[#eef6f0] hover:text-[#1f6b3a]"
-            >
-              <BellIcon className="h-5 w-5" />
-              {unreadCount > 0 ? (
-                <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#1f6b3a] px-1 text-[10px] font-bold text-white">
-                  {unreadCount}
-                </span>
-              ) : null}
-            </button>
-
-            {notificationsOpen ? (
-              <div
-                role="dialog"
-                aria-label="Notifications"
-                className="absolute top-[calc(100%+10px)] right-0 z-50 w-[min(calc(100vw-2rem),360px)] overflow-hidden rounded-[16px] border border-[#e6ebe3] bg-white shadow-[0_16px_40px_rgba(31,107,58,0.14)]"
-              >
-                <div className="border-b border-[#eef2ee] px-4 py-3">
-                  <p className="text-[14px] font-bold text-[#243028]">Notifications</p>
-                </div>
-                {notifications.length === 0 ? (
-                  <p className="px-4 py-6 text-[13px] leading-relaxed text-[#6b7c6e]">
-                    You&apos;re all caught up. There are no new notifications.
-                  </p>
-                ) : openNotification ? (
-                  <div className="px-4 py-4">
-                    <button
-                      type="button"
-                      onClick={() => setOpenNotificationId(null)}
-                      className="mb-3 text-[12px] font-semibold text-[#1f6b3a]"
-                    >
-                      Back to list
-                    </button>
-                    <p className="text-[14px] font-bold text-[#243028]">{openNotification.title}</p>
-                    <p className="mt-2 text-[13px] leading-relaxed text-[#5f6f64]">
-                      {openNotification.body}
-                    </p>
-                    <p className="mt-3 text-[11px] font-medium text-[#8a9a8d]">{openNotification.time}</p>
-                    <p className="mt-3 text-[12px] text-[#6b7c6e]">Read</p>
-                  </div>
-                ) : (
-                  <ul className="max-h-[360px] divide-y divide-[#eef2ee] overflow-y-auto">
-                    {notifications.map((item) => (
-                      <li key={item.id}>
-                        <button
-                          type="button"
-                          onClick={() => openNotificationItem(item.id)}
-                          className="w-full cursor-pointer px-4 py-3.5 text-left hover:bg-[#fafbf9]"
-                        >
-                          <p className="flex items-center gap-2 text-[13px] font-bold text-[#243028]">
-                            {item.title}
-                            {item.unread ? (
-                              <span className="inline-flex rounded-full bg-[#eef6f0] px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-[#1f6b3a] uppercase">
-                                Unread
-                              </span>
-                            ) : (
-                              <span className="text-[9px] font-bold tracking-wide text-[#8a9a8d] uppercase">
-                                Read
-                              </span>
-                            )}
-                          </p>
-                          <p className="mt-1 text-[12px] leading-relaxed text-[#6b7c6e]">
-                            {item.body}
-                          </p>
-                          <p className="mt-1.5 text-[11px] font-medium text-[#8a9a8d]">{item.time}</p>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ) : null}
-          </div>
-
           <button
             type="button"
             className="relative z-[100] inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-[#d7ddd6] text-[#1f6b3a] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#1f6b3a] hover:bg-[#eef6f0] hover:text-[#1f6b3a] lg:hidden"
@@ -260,20 +164,6 @@ export function MemberDashboardHeader() {
         </div>
       </div>
     </header>
-  );
-}
-
-function BellIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
-      <path
-        d="M12 4.5a4.5 4.5 0 0 0-4.5 4.5v2.8L6 15h12l-1.5-3.2V9A4.5 4.5 0 0 0 12 4.5Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <path d="M10 17a2 2 0 0 0 4 0" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
   );
 }
 

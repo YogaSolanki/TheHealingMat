@@ -24,19 +24,21 @@ export class TrialRegistration {
   @JoinColumn({ name: 'userId' })
   user: User;
 
-  @Column()
-  cohortId: string;
+  /** Legacy cohort booking; null for signup-day 14-day trials. */
+  @Column({ type: 'uuid', nullable: true })
+  cohortId: string | null;
 
-  @ManyToOne(() => TrialCohort, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => TrialCohort, { onDelete: 'RESTRICT', nullable: true })
   @JoinColumn({ name: 'cohortId' })
-  cohort: TrialCohort;
+  cohort: TrialCohort | null;
 
-  @Column()
-  orientationSlotId: string;
+  /** Legacy orientation booking; null for signup-day 14-day trials. */
+  @Column({ type: 'uuid', nullable: true })
+  orientationSlotId: string | null;
 
-  @ManyToOne(() => OrientationSlot, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => OrientationSlot, { onDelete: 'RESTRICT', nullable: true })
   @JoinColumn({ name: 'orientationSlotId' })
-  orientationSlot: OrientationSlot;
+  orientationSlot: OrientationSlot | null;
 
   @Column({ type: 'varchar', default: TrialStatus.Scheduled })
   status: TrialStatus;

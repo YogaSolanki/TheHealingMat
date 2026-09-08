@@ -18,8 +18,17 @@ export class Coupon {
   @Column({ unique: true })
   code: string;
 
+  /** Display / generation label (often the assignee name once assigned). */
   @Column()
   userName: string;
+
+  /** Member this coupon is locked to; null = anyone can use it. */
+  @Column({ type: 'uuid', nullable: true })
+  assignedUserId: string | null;
+
+  /** Snapshot of the assignee's referral code for admin display. */
+  @Column({ type: 'varchar', nullable: true })
+  assignedReferralCode: string | null;
 
   /** percent = % off, fixed = flat amount off (e.g. ₹) */
   @Column({ type: 'varchar', length: 20, default: 'fixed' })

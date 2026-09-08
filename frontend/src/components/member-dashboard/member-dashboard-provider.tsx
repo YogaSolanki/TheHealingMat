@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import type { PublicUser } from "@/lib/api";
-import { updateMemberAuthCache } from "@/components/member-dashboard/member-auth-gate";
+import { updateMemberAuthCache } from "@/lib/session-store";
 
 type MemberDashboardContextValue = {
   user: PublicUser;

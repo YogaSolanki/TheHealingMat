@@ -1,53 +1,48 @@
-export type MemberAccessState = "trial" | "active" | "expired";
+"use client";
 
-export type MemberAccess = {
-  state: MemberAccessState;
-  planName: string;
-  startDateLabel: string | null;
-  validUntilLabel: string | null;
-  trialEndsOnLabel: string | null;
-  expiredOnLabel: string | null;
-  amountPaid: string;
-  discount: string;
-  paymentDateLabel: string | null;
-  transactionRef: string | null;
-  hasScheduledMembership: boolean;
-  scheduledPlanName: string | null;
-  scheduledStartsOnLabel: string | null;
+import { useEffect, useState } from "react";
+import {
+  emptyMemberAccess,
+  greetingForName,
+  mapMembershipAccess,
+  membershipStatusLabel,
+  type MemberAccess,
+  type MemberAccessState,
+} from "@/lib/member-access-model";
+import { sessionStore, useSessionAccess } from "@/lib/session-store";
+
+export type { MemberAccess, MemberAccessState };
+export {
+  emptyMemberAccess,
+  greetingForName,
+  mapMembershipAccess,
+  membershipStatusLabel,
 };
 
-/**
- * Member Home is determined by current access only (Decision 01 / 19).
- * Replace this with the membership API when it is available.
- */
-export function getMemberAccess(): MemberAccess {
-  return {
-    state: "active",
-    planName: "12-Month Membership",
-    startDateLabel: "1 September 2025",
-    validUntilLabel: "30 September 2026",
-    trialEndsOnLabel: null,
-    expiredOnLabel: null,
-    amountPaid: "₹4,999",
-    discount: "₹1,000 (20%)",
-    paymentDateLabel: "1 September 2025",
-    transactionRef: "THM-PAY-45991",
-    hasScheduledMembership: true,
-    scheduledPlanName: "12-Month Membership",
-    scheduledStartsOnLabel: "1 October 2026",
-  };
+export function clearMemberAccessCache() {
+  sessionStore.invalidateAccess();
 }
 
-export function membershipStatusLabel(state: MemberAccessState) {
-  if (state === "trial") return "Trial";
-  if (state === "expired") return "Expired";
-  return "Active";
-}
+export function useMemberAccess() {
+  const { access, ready } = useSessionAccess();
+  const [loading, setLoading] = useState(!ready);
 
-export function greetingForName(fullName: string, now = new Date()) {
-  const name = fullName.trim().split(/\s+/)[0] || "there";
-  const hour = now.getHours();
-  const period =
-    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  return `${period}, ${name}`;
+  useEffect(() => {
+    if (ready) {
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    void sessionStore.ensureAccess().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ready]);
+
+  return { access, loading: loading && !ready };
 }

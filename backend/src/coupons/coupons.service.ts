@@ -7,14 +7,21 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
+import { User } from '../users/user.entity';
 import { Coupon, type CouponDiscountType } from './coupon.entity';
-import { CreateCouponDto, GenerateCouponDto } from './dto/coupon.dto';
+import {
+  AssignCouponDto,
+  CreateCouponDto,
+  GenerateCouponDto,
+} from './dto/coupon.dto';
 
 @Injectable()
 export class CouponsService {
   constructor(
     @InjectRepository(Coupon)
     private readonly coupons: Repository<Coupon>,
+    @InjectRepository(User)
+    private readonly users: Repository<User>,
   ) {}
 
   list() {
@@ -74,7 +81,47 @@ export class CouponsService {
       discountType,
       discountValue,
       discountLabel,
+      assignedUserId: null,
+      assignedReferralCode: null,
     });
+    return this.coupons.save(coupon);
+  }
+
+  findByCode(code: string) {
+    const normalized = code.trim().toUpperCase();
+    if (!normalized) return Promise.resolve(null);
+    return this.coupons.findOne({ where: { code: normalized } });
+  }
+
+  /** Coupons locked to this member (admin-assigned via referral code). */
+  listMine(userId: string) {
+    return this.coupons.find({
+      where: { assignedUserId: userId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async assign(id: string, dto: AssignCouponDto) {
+    const coupon = await this.coupons.findOne({ where: { id } });
+    if (!coupon) {
+      throw new NotFoundException('Coupon not found.');
+    }
+
+    const referralCode = dto.referralCode.trim().toLowerCase();
+    if (!referralCode) {
+      throw new BadRequestException('Referral code is required.');
+    }
+
+    const user = await this.users.findOne({ where: { referralCode } });
+    if (!user) {
+      throw new NotFoundException(
+        'No member found with that referral code.',
+      );
+    }
+
+    coupon.assignedUserId = user.id;
+    coupon.assignedReferralCode = user.referralCode;
+    coupon.userName = user.fullName;
     return this.coupons.save(coupon);
   }
 

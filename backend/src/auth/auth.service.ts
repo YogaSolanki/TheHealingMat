@@ -34,6 +34,7 @@ import {
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UserLoginDto } from './dto/user-login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { TrialsService } from '../trials/trials.service';
 
 export type PublicAdmin = {
   email: string;
@@ -69,6 +70,7 @@ export class AuthService {
     private readonly otps: Repository<OtpChallenge>,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly trials: TrialsService,
   ) {}
 
   async login(dto: AdminLoginDto) {
@@ -234,11 +236,13 @@ export class AuthService {
         throw new BadRequestException('fullName is required for signup.');
       }
 
-      // Trial / OTP signup may omit password; generate a strong random one.
-      // Users can set a known password later via forgot-password.
-      const password =
-        dto.password?.trim() ||
-        `Otp-${randomBytes(24).toString('hex')}aA1`;
+      const password = dto.password?.trim();
+      if (!password) {
+        throw new BadRequestException('password is required for signup.');
+      }
+      if (!isValidPassword(password)) {
+        throw new BadRequestException(PASSWORD_MESSAGE);
+      }
 
       user = await this.createUser({
         region: challenge.region,
@@ -391,8 +395,9 @@ export class AuthService {
   }
 
   private async issueUserToken(user: User, isNewAccount: boolean) {
+    const withTrial = await this.trials.ensureFreeTrial(user);
     const accessToken = await this.jwt.signAsync(
-      { sub: user.id, typ: 'user' },
+      { sub: withTrial.id, typ: 'user' },
       { expiresIn: USER_TOKEN_TTL_SECONDS },
     );
 
@@ -401,7 +406,7 @@ export class AuthService {
       tokenType: 'Bearer',
       expiresIn: USER_TOKEN_TTL_SECONDS,
       isNewAccount,
-      user: this.toPublicUser(user),
+      user: this.toPublicUser(withTrial),
     };
   }
 
@@ -746,13 +751,15 @@ export class AuthService {
     return { clientId, clientSecret };
   }
 
-  getGoogleAuthUrl(intent: string = 'login') {
+  getGoogleAuthUrl(intent: string = 'login', referralCode?: string) {
     const { clientId } = this.requireGoogleConfig();
     const safeIntent = intent === 'signup' ? 'signup' : 'login';
+    const code = referralCode?.trim().toLowerCase() || undefined;
     const state = Buffer.from(
       JSON.stringify({
         intent: safeIntent,
         nonce: randomBytes(8).toString('hex'),
+        ...(code ? { referralCode: code } : {}),
       }),
     ).toString('base64url');
 
@@ -782,6 +789,7 @@ export class AuthService {
     }
 
     const { clientId, clientSecret } = this.requireGoogleConfig();
+    const referralCode = this.parseGoogleStateReferral(input.state);
 
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -844,6 +852,7 @@ export class AuthService {
         channel: 'email',
         fullName,
         password: randomPassword,
+        referralCode,
       });
       isNewAccount = true;
     }
@@ -853,6 +862,19 @@ export class AuthService {
       ...issued,
       redirectUrl: `${this.frontendBaseUrl()}/auth/callback#access_token=${encodeURIComponent(issued.accessToken)}`,
     };
+  }
+
+  private parseGoogleStateReferral(state?: string) {
+    if (!state) return undefined;
+    try {
+      const parsed = JSON.parse(
+        Buffer.from(state, 'base64url').toString('utf8'),
+      ) as { referralCode?: string };
+      const code = parsed.referralCode?.trim().toLowerCase();
+      return code || undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   googleFrontendErrorRedirect(message: string) {

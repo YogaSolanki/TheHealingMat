@@ -3,18 +3,18 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { SiteLoader } from "@/components/site-loader";
-import { getAuthMe, type PublicUser } from "@/lib/api";
+import type { PublicUser } from "@/lib/api";
 import { clearStoredToken, getStoredToken } from "@/lib/auth-storage";
+import {
+  sessionStore,
+  useSessionUser,
+} from "@/lib/session-store";
 
-let cachedUser: PublicUser | null = null;
-
-export function clearMemberAuthCache() {
-  cachedUser = null;
-}
-
-export function updateMemberAuthCache(user: PublicUser) {
-  cachedUser = user;
-}
+export {
+  clearMemberAuthCache,
+  getCachedPublicUser,
+  updateMemberAuthCache,
+} from "@/lib/session-store";
 
 type MemberAuthGateProps = {
   children: (props: { user: PublicUser; signOut: () => void }) => ReactNode;
@@ -26,37 +26,53 @@ export function MemberAuthGate({
   loadingLabel = "Loading",
 }: MemberAuthGateProps) {
   const router = useRouter();
-  const [user, setUser] = useState<PublicUser | null>(cachedUser);
-  const [loading, setLoading] = useState(!cachedUser);
+  const { user, ready } = useSessionUser();
+  const [bootstrapping, setBootstrapping] = useState(() => !sessionStore.getUser());
 
   useEffect(() => {
     const token = getStoredToken();
     if (!token) {
-      cachedUser = null;
+      sessionStore.clear();
+      setBootstrapping(false);
       router.replace("/?auth=login");
       return;
     }
 
-    getAuthMe(token)
+    if (ready && user) {
+      setBootstrapping(false);
+      return;
+    }
+
+    let cancelled = false;
+    setBootstrapping(true);
+    void sessionStore
+      .ensureUser()
       .then((me) => {
-        cachedUser = me;
-        setUser(me);
-        setLoading(false);
+        if (cancelled) return;
+        if (!me) {
+          router.replace("/?auth=login");
+        }
+        setBootstrapping(false);
       })
       .catch(() => {
-        cachedUser = null;
+        if (cancelled) return;
         clearStoredToken();
+        setBootstrapping(false);
         router.replace("/?auth=login");
       });
-  }, [router]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, user, router]);
 
   function signOut() {
-    cachedUser = null;
+    sessionStore.clear();
     clearStoredToken();
     router.replace("/");
   }
 
-  if (loading || !user) {
+  if (bootstrapping || !user) {
     return (
       <main className="min-h-screen bg-[#FBF9F5]">
         <SiteLoader variant="page" pageClassName="min-h-screen" label={loadingLabel} />

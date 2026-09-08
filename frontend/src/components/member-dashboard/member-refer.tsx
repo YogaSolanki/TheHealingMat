@@ -9,6 +9,9 @@ import {
   memberPrimaryBtnClass,
 } from "@/components/member-dashboard/member-button-styles";
 import { useMemberDashboard } from "@/components/member-dashboard/member-dashboard-provider";
+import { SiteLoader } from "@/components/site-loader";
+import type { ReferralListItem, ReferralStatus } from "@/lib/api";
+import { useMyReferrals } from "@/lib/session-store";
 import { FaWhatsapp } from "react-icons/fa";
 
 function referralShareLink(accessLink: string, referralCode: string) {
@@ -48,64 +51,80 @@ const statusFilterOptions = [
   { label: "Registered", value: "REGISTERED" },
 ] as const;
 
-const milestones = [
-  { count: 5, status: "completed" as const },
-  { count: 10, status: "unlocked" as const },
-  { count: 15, status: "upcoming" as const },
-  { count: 20, status: "upcoming" as const },
-  { count: 30, status: "upcoming" as const },
-  { count: 40, status: "upcoming" as const },
-  { count: 50, status: "upcoming" as const },
-];
+const MILESTONE_COUNTS = [5, 10, 15, 20, 30, 40, 50] as const;
 
-const referrals = [
-  {
-    initials: "RS",
-    name: "Rohit Sharma",
-    status: "SUCCESSFUL",
-    statusTone: "green" as const,
-    note: "Successfully joined",
-    date: "29 Aug 2026",
-    avatarBg: "bg-[#eef6f0] text-[#1f6b3a]",
-  },
-  {
-    initials: "NM",
-    name: "Neha Mehta",
-    status: "TRIAL",
-    statusTone: "blue" as const,
-    note: "14-day trial in progress",
-    date: "25 Aug 2026",
-    avatarBg: "bg-[#EAF2F8] text-[#4A6B8A]",
-  },
-  {
-    initials: "AV",
-    name: "Amit Verma",
-    status: "MEMBERSHIP PENDING",
-    statusTone: "orange" as const,
-    note: "Registered, membership pending",
-    date: "20 Aug 2026",
-    avatarBg: "bg-[#FFF4DC] text-[#C58A1A]",
-  },
-  {
-    initials: "PI",
-    name: "Priya Iyer",
-    status: "REGISTERED",
-    statusTone: "gray" as const,
-    note: "Registered",
-    date: "18 Aug 2026",
-    avatarBg: "bg-[#F0F0F0] text-[#6b7c6e]",
-  },
-];
+const statusToneByStatus: Record<
+  ReferralStatus,
+  "green" | "blue" | "orange" | "gray"
+> = {
+  SUCCESSFUL: "green",
+  TRIAL: "blue",
+  "MEMBERSHIP PENDING": "orange",
+  REGISTERED: "gray",
+};
 
-const statusBadgeClass: Record<(typeof referrals)[number]["statusTone"], string> = {
+const statusBadgeClass: Record<"green" | "blue" | "orange" | "gray", string> = {
   green: "bg-[#eef6f0] text-[#1f6b3a]",
   blue: "bg-[#EAF2F8] text-[#4A6B8A]",
   orange: "bg-[#FFF4DC] text-[#C58A1A]",
   gray: "bg-[#F0F0F0] text-[#6b7c6e]",
 };
 
+const avatarBgByTone: Record<"green" | "blue" | "orange" | "gray", string> = {
+  green: "bg-[#eef6f0] text-[#1f6b3a]",
+  blue: "bg-[#EAF2F8] text-[#4A6B8A]",
+  orange: "bg-[#FFF4DC] text-[#C58A1A]",
+  gray: "bg-[#F0F0F0] text-[#6b7c6e]",
+};
+
+function initialsFromName(fullName: string) {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+}
+
+function formatReferredOn(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function nextMilestoneCount(successfulCount: number) {
+  return (
+    MILESTONE_COUNTS.find((count) => count > successfulCount) ??
+    MILESTONE_COUNTS[MILESTONE_COUNTS.length - 1]
+  );
+}
+
+/** Single green row: next redeemable milestone, else the next target. */
+function activeMilestoneCount(
+  successfulCount: number,
+  redeemedCount: number | null,
+) {
+  const redeemable = MILESTONE_COUNTS.find(
+    (count) => successfulCount >= count && redeemedCount !== count,
+  );
+  if (redeemable != null) return redeemable;
+  return nextMilestoneCount(successfulCount);
+}
+
+const REFERRAL_PAGE_SIZE = 10;
+const REFERRAL_SCROLL_THROTTLE_MS = 300;
+
 export function MemberReferPage() {
   const { user } = useMemberDashboard();
+  const {
+    referrals,
+    successfulCount,
+    loading: loadingReferrals,
+    refreshing,
+    refresh,
+  } = useMyReferrals();
   const referralCode = user.referralCode;
   const referralLink = referralShareLink(user.accessLink, referralCode);
   const readyMadeMessage = `Join me on The Healing Mat! Your friend gets 14 days of FREE yoga classes + 20% OFF membership. Use my referral code ${referralCode} or sign up here: ${referralLink}`;
@@ -114,10 +133,67 @@ export function MemberReferPage() {
   const [redeemedCount, setRedeemedCount] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] =
     useState<(typeof statusFilterOptions)[number]["value"]>("all");
+  const [visibleCount, setVisibleCount] = useState(REFERRAL_PAGE_SIZE);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const loadMoreLockRef = useRef(false);
+  const lastScrollLoadRef = useRef(0);
+
+  useEffect(() => {
+    setVisibleCount(REFERRAL_PAGE_SIZE);
+    loadMoreLockRef.current = false;
+  }, [statusFilter]);
 
   const filteredReferrals = referrals.filter(
     (referral) => statusFilter === "all" || referral.status === statusFilter,
   );
+  const visibleReferrals = filteredReferrals.slice(0, visibleCount);
+  const hasMoreReferrals = visibleCount < filteredReferrals.length;
+  const nextMilestone = nextMilestoneCount(successfulCount);
+  const remainingToMilestone = Math.max(0, nextMilestone - successfulCount);
+  const progressPercent =
+    nextMilestone > 0
+      ? Math.min(100, Math.round((successfulCount / nextMilestone) * 100))
+      : 0;
+  const totalReferred = referrals.length;
+  const trialReferred = referrals.filter((row) => row.status === "TRIAL").length;
+
+  useEffect(() => {
+    const root = listScrollRef.current;
+    if (!root || loadingReferrals) return;
+
+    function loadNextPage() {
+      if (!hasMoreReferrals || loadMoreLockRef.current) return;
+      const now = Date.now();
+      if (now - lastScrollLoadRef.current < REFERRAL_SCROLL_THROTTLE_MS) return;
+      lastScrollLoadRef.current = now;
+      loadMoreLockRef.current = true;
+      setLoadingMore(true);
+      window.setTimeout(() => {
+        setVisibleCount((current) =>
+          Math.min(current + REFERRAL_PAGE_SIZE, filteredReferrals.length),
+        );
+        setLoadingMore(false);
+        loadMoreLockRef.current = false;
+      }, 180);
+    }
+
+    function onScroll() {
+      if (!root) return;
+      const distanceFromBottom =
+        root.scrollHeight - root.scrollTop - root.clientHeight;
+      if (distanceFromBottom <= 72) loadNextPage();
+    }
+
+    root.addEventListener("scroll", onScroll, { passive: true });
+    return () => root.removeEventListener("scroll", onScroll);
+  }, [
+    filteredReferrals.length,
+    hasMoreReferrals,
+    loadingReferrals,
+    statusFilter,
+    visibleCount,
+  ]);
 
   async function copyText(text: string, field: "code" | "link" | "message") {
     try {
@@ -150,8 +226,8 @@ export function MemberReferPage() {
         </section>
 
         {/* Share + code cards */}
-        <section id="share" className="mb-5 grid gap-4 lg:mb-6 lg:grid-cols-2 lg:items-stretch lg:gap-5">
-          <div className="relative flex h-full flex-col justify-center overflow-hidden rounded-[24px] border border-[#d5e8d9] bg-[#F4F8F2] p-6 shadow-[0_8px_24px_rgba(31,107,58,0.05)] sm:p-7">
+        <section id="share" className="mb-5 grid gap-4 lg:mb-6 lg:grid-cols-2 lg:items-start lg:gap-5">
+          <div className="relative flex flex-col justify-center overflow-hidden rounded-[24px] border border-[#d5e8d9] bg-[#F4F8F2] p-6 shadow-[0_8px_24px_rgba(31,107,58,0.05)] sm:p-7">
             <div className="flex flex-col justify-center gap-7">
               <div className="relative flex items-center gap-4">
                 <span className="inline-flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-white shadow-[0_2px_12px_rgba(31,107,58,0.1)]">
@@ -181,51 +257,67 @@ export function MemberReferPage() {
                 </div>
               </div>
 
-              <div className="relative grid grid-cols-2 gap-3 sm:gap-4">
-                <div className="flex min-w-0 flex-col items-center">
-                  <button
-                    type="button"
-                    onClick={shareOnWhatsApp}
-                    className={`${memberPrimaryBtnClass} w-full min-h-[48px] px-3 py-3 text-[13px] sm:px-4 sm:text-[14px]`}
-                  >
-                    <FaWhatsapp className="h-4 w-4 shrink-0" />
-                    <span className="truncate">Share on WhatsApp</span>
-                  </button>
-                  <p className="mt-2.5 px-1 text-center text-[11px] leading-snug text-[#6b7c6e] sm:text-[12px]">
-                    Open WhatsApp with your referral message
-                  </p>
+              <div className="relative flex flex-col">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                  <div className="flex min-w-0 flex-col items-center">
+                    <button
+                      type="button"
+                      onClick={shareOnWhatsApp}
+                      className={`${memberPrimaryBtnClass} w-full min-h-[48px] px-3 py-3 text-[13px] sm:px-4 sm:text-[14px]`}
+                    >
+                      <FaWhatsapp className="h-4 w-4 shrink-0" />
+                      <span className="truncate">Share on WhatsApp</span>
+                    </button>
+                    <p className="mt-2.5 px-1 text-center text-[11px] leading-snug text-[#6b7c6e] sm:text-[12px]">
+                      Open WhatsApp with your referral message
+                    </p>
+                  </div>
+                  <div className="flex min-w-0 flex-col items-center">
+                    <button
+                      type="button"
+                      onClick={() => setMessageOpen((current) => !current)}
+                      className={`${memberOutlineBtnClass} w-full min-h-[48px] px-3 py-3 text-[13px] sm:px-4 sm:text-[14px]`}
+                    >
+                      <MessageBubbleIcon className="h-4 w-4 shrink-0" />
+                      <span className="truncate">
+                        {messageOpen ? "Hide Message" : "View Ready-made Message"}
+                      </span>
+                    </button>
+                    <p className="mt-2.5 px-1 text-center text-[11px] leading-snug text-[#6b7c6e] sm:text-[12px]">
+                      See, copy or share the ready-made message
+                    </p>
+                  </div>
                 </div>
-                <div className="flex min-w-0 flex-col items-center">
-                  <button
-                    type="button"
-                    onClick={() => setMessageOpen((current) => !current)}
-                    className={`${memberOutlineBtnClass} w-full min-h-[48px] px-3 py-3 text-[13px] sm:px-4 sm:text-[14px]`}
-                  >
-                    <MessageBubbleIcon className="h-4 w-4 shrink-0" />
-                    <span className="truncate">
-                      {messageOpen ? "Hide Message" : "View Ready-made Message"}
-                    </span>
-                  </button>
-                  <p className="mt-2.5 px-1 text-center text-[11px] leading-snug text-[#6b7c6e] sm:text-[12px]">
-                    See, copy or share the ready-made message
-                  </p>
+
+                <div
+                  className={`grid transition-[grid-template-rows,opacity,margin] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                    messageOpen
+                      ? "mt-5 grid-rows-[1fr] opacity-100"
+                      : "pointer-events-none mt-0 grid-rows-[0fr] opacity-0"
+                  }`}
+                  aria-hidden={!messageOpen}
+                >
+                  <div className="overflow-hidden">
+                    <div
+                      className={`rounded-[14px] border border-[#d5e8d9] bg-white px-4 py-3.5 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                        messageOpen ? "translate-y-0" : "-translate-y-1.5"
+                      }`}
+                    >
+                      <p className="text-[13px] leading-relaxed text-[#243028] sm:text-[14px]">
+                        {readyMadeMessage}
+                      </p>
+                      <button
+                        type="button"
+                        tabIndex={messageOpen ? 0 : -1}
+                        onClick={() => copyText(readyMadeMessage, "message")}
+                        className="mt-3 inline-flex cursor-pointer items-center gap-1.5 text-[13px] font-bold text-[#1f6b3a] hover:text-[#185830]"
+                      >
+                        {copiedField === "message" ? "Copied!" : "Copy Message"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              {messageOpen ? (
-                <div className="rounded-[14px] border border-[#d5e8d9] bg-white px-4 py-3.5">
-                  <p className="text-[13px] leading-relaxed text-[#243028] sm:text-[14px]">
-                    {readyMadeMessage}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => copyText(readyMadeMessage, "message")}
-                    className="mt-3 inline-flex cursor-pointer items-center gap-1.5 text-[13px] font-bold text-[#1f6b3a] hover:text-[#185830]"
-                  >
-                    {copiedField === "message" ? "Copied!" : "Copy Message"}
-                  </button>
-                </div>
-              ) : null}
             </div>
           </div>
 
@@ -337,11 +429,19 @@ export function MemberReferPage() {
               </div>
               <div>
                 <p className="text-[24px] font-bold leading-none text-[#243028] sm:text-[26px]">
-                  7
+                  {successfulCount}
                 </p>
                 <p className="mt-1.5 text-[13px] font-medium text-[#243028] sm:text-[14px]">
                   Successful Referrals
                 </p>
+                {!loadingReferrals && totalReferred > 0 ? (
+                  <p className="mt-1.5 text-[12px] leading-snug text-[#6b7c6e]">
+                    {totalReferred} friend{totalReferred === 1 ? "" : "s"} referred
+                    {trialReferred > 0
+                      ? ` · ${trialReferred} on trial`
+                      : ""}
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -353,22 +453,27 @@ export function MemberReferPage() {
 
               <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                 <p className="shrink-0 text-[14px] text-[#243028] sm:text-[15px]">
-                  <span className="text-[22px] font-bold leading-none sm:text-[24px]">10</span>{" "}
+                  <span className="text-[22px] font-bold leading-none sm:text-[24px]">{nextMilestone}</span>{" "}
                   Referrals
                 </p>
 
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <div className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[#EDE8DF]">
-                    <div className="h-full w-[70%] rounded-full bg-[#1f6b3a]" />
+                    <div
+                      className="h-full rounded-full bg-[#1f6b3a] transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                      style={{ width: `${progressPercent}%` }}
+                    />
                   </div>
                   <span className="shrink-0 text-[14px] font-bold text-[#1f6b3a] sm:text-[15px]">
-                    7 / 10
+                    {successfulCount} / {nextMilestone}
                   </span>
                 </div>
               </div>
 
               <p className="mt-3 text-[12px] leading-relaxed text-[#5f6f64] sm:text-[13px]">
-                3 more successful referrals to unlock your next reward.
+                {remainingToMilestone === 0
+                  ? "You have reached the highest milestone. Keep referring friends!"
+                  : `${remainingToMilestone} more successful referral${remainingToMilestone === 1 ? "" : "s"} to unlock your next reward.`}
               </p>
             </div>
           </div>
@@ -383,16 +488,34 @@ export function MemberReferPage() {
           </div>
 
           <div className="divide-y divide-[#eef2ee]">
-            {milestones.map((milestone) => (
-              <MilestoneRow
-                key={milestone.count}
-                {...milestone}
-                status={
-                  redeemedCount === milestone.count ? "requested" : milestone.status
-                }
-                onRedeem={() => setRedeemedCount(milestone.count)}
-              />
-            ))}
+            {MILESTONE_COUNTS.map((count) => {
+              const activeCount = activeMilestoneCount(
+                successfulCount,
+                redeemedCount,
+              );
+              const isActive = count === activeCount;
+              const canRedeem = isActive && successfulCount >= count;
+              const status =
+                redeemedCount === count
+                  ? "requested"
+                  : canRedeem
+                    ? "unlocked"
+                    : "upcoming";
+
+              return (
+                <MilestoneRow
+                  key={count}
+                  count={count}
+                  isActive={isActive}
+                  canRedeem={canRedeem}
+                  status={status}
+                  onRedeem={() => {
+                    if (!canRedeem) return;
+                    setRedeemedCount(count);
+                  }}
+                />
+              );
+            })}
           </div>
 
           {redeemedCount ? (
@@ -416,17 +539,34 @@ export function MemberReferPage() {
         </section>
 
         {/* My referrals table */}
-        <section id="referrals" className="overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white">
-          <div className="flex flex-col gap-3 border-b border-[#eef2ee] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <section id="referrals" className="overflow-visible rounded-[22px] border border-[#e6ebe3] bg-white">
+          <div className="relative z-30 flex flex-col gap-3 rounded-t-[22px] border-b border-[#eef2ee] bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <h2 className="text-[16px] font-bold text-[#1f6b3a] sm:text-[17px]">
               My Referrals
             </h2>
-            <ReferralStatusFilter value={statusFilter} onChange={setStatusFilter} />
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <button
+                type="button"
+                onClick={() => void refresh()}
+                disabled={loadingReferrals || refreshing}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[#d7e0d6] bg-white px-3.5 py-2 text-[12px] font-semibold text-[#243028] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] disabled:cursor-not-allowed disabled:opacity-50 sm:text-[13px]"
+                aria-label="Refresh referrals"
+              >
+                <RefreshIcon
+                  className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`}
+                />
+                {refreshing ? "Refreshing…" : "Refresh"}
+              </button>
+              <ReferralStatusFilter value={statusFilter} onChange={setStatusFilter} />
+            </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div
+            ref={listScrollRef}
+            className="max-h-[420px] overflow-auto overscroll-contain rounded-b-[22px]"
+          >
             <table className="min-w-[720px] w-full text-left">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="border-b border-[#eef2ee] bg-[#FBF9F5] text-[11px] font-bold tracking-[0.06em] text-[#6b7c6e] uppercase sm:text-[12px]">
                   <th className="px-4 py-3 font-bold sm:px-6">Name</th>
                   <th className="px-4 py-3 font-bold sm:px-6">Current Status</th>
@@ -435,7 +575,18 @@ export function MemberReferPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredReferrals.length === 0 ? (
+                {loadingReferrals ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-12 text-center sm:px-6">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <SiteLoader size="md" label="Loading your referrals" />
+                        <p className="text-[13px] text-[#6b7c6e] sm:text-[14px]">
+                          Loading your referrals…
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredReferrals.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-4 py-8 text-center sm:px-6">
                       <p className="text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
@@ -451,51 +602,54 @@ export function MemberReferPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredReferrals.map((referral) => (
-                    <tr
-                      key={referral.name}
-                      className="border-b border-[#eef2ee] last:border-b-0"
-                    >
-                      <td className="px-4 py-3.5 sm:px-6">
-                        <div className="flex items-center gap-2.5">
+                  visibleReferrals.map((referral) => {
+                    const tone = statusToneByStatus[referral.status];
+                    return (
+                      <tr
+                        key={referral.id}
+                        className="border-b border-[#eef2ee] last:border-b-0"
+                      >
+                        <td className="px-4 py-3.5 sm:px-6">
+                          <div className="flex items-center gap-2.5">
+                            <span
+                              className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${avatarBgByTone[tone]}`}
+                            >
+                              {initialsFromName(referral.fullName)}
+                            </span>
+                            <span className="text-[13px] font-semibold text-[#243028] sm:text-[14px]">
+                              {referral.fullName}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5 sm:px-6">
                           <span
-                            className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${referral.avatarBg}`}
+                            className={`inline-flex rounded-[6px] px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${statusBadgeClass[tone]}`}
                           >
-                            {referral.initials}
+                            {referral.status}
                           </span>
-                          <span className="text-[13px] font-semibold text-[#243028] sm:text-[14px]">
-                            {referral.name}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5 sm:px-6">
-                        <span
-                          className={`inline-flex rounded-[6px] px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${statusBadgeClass[referral.statusTone]}`}
-                        >
-                          {referral.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 text-[13px] text-[#6b7c6e] sm:px-6">
-                        {referral.note}
-                      </td>
-                      <td className="px-4 py-3.5 text-[13px] font-semibold text-[#243028] sm:px-6">
-                        {referral.date}
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td className="px-4 py-3.5 text-[13px] text-[#6b7c6e] sm:px-6">
+                          {referral.note}
+                        </td>
+                        <td className="px-4 py-3.5 text-[13px] font-semibold text-[#243028] sm:px-6">
+                          {formatReferredOn(referral.referredOn)}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
-          </div>
 
-          <div className="border-t border-[#eef2ee] px-4 py-3.5 text-center sm:px-6">
-            <button
-              type="button"
-              className="link-animate inline-flex cursor-pointer items-center gap-1 text-[13px] font-bold text-[#1f6b3a] hover:text-[#185830]"
-            >
-              View more referrals
-              <ChevronDownIcon className="h-4 w-4" />
-            </button>
+            {!loadingReferrals && hasMoreReferrals ? (
+              <div className="flex items-center justify-center gap-2 border-t border-[#eef2ee] px-4 py-3.5 sm:px-6">
+                {loadingMore ? (
+                  <SiteLoader size="sm" label="Loading more referrals" />
+                ) : (
+                  <p className="text-[12px] text-[#8a968c]">Scroll for more</p>
+                )}
+              </div>
+            ) : null}
           </div>
         </section>
       </div>
@@ -531,7 +685,7 @@ function ReferralStatusFilter({
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative shrink-0">
+    <div ref={rootRef} className="relative z-40 shrink-0">
       <button
         type="button"
         aria-haspopup="listbox"
@@ -551,7 +705,7 @@ function ReferralStatusFilter({
         <div
           role="listbox"
           aria-label="Filter by status"
-          className="absolute top-[calc(100%+8px)] right-0 z-20 min-w-full overflow-hidden rounded-[14px] border border-[#e6ebe3] bg-white py-1 shadow-[0_12px_28px_rgba(31,107,58,0.12)]"
+          className="absolute top-[calc(100%+8px)] right-0 z-50 min-w-[180px] overflow-hidden rounded-[14px] border border-[#e6ebe3] bg-white py-1 shadow-[0_16px_36px_rgba(31,107,58,0.16)]"
         >
           {statusFilterOptions.map((option) => {
             const active = option.value === value;
@@ -589,37 +743,40 @@ function ReferralStatusFilter({
 function MilestoneRow({
   count,
   status,
+  isActive,
+  canRedeem,
   onRedeem,
 }: {
   count: number;
   status: "completed" | "unlocked" | "upcoming" | "requested";
+  isActive: boolean;
+  canRedeem: boolean;
   onRedeem: () => void;
 }) {
-  const isUnlocked = status === "unlocked";
   const isCompleted = status === "completed";
   const isRequested = status === "requested";
 
   return (
     <div
       className={`grid gap-3 px-4 py-4 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:gap-4 sm:px-6 ${
-        isUnlocked ? "bg-[#F4F8F2]" : ""
+        isActive && canRedeem ? "bg-[#F4F8F2]" : ""
       }`}
     >
       <div className="flex items-center gap-3 sm:col-span-1">
         <span
           className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-bold ${
-            isCompleted
+            isCompleted || isRequested
               ? "bg-[#1f6b3a] text-white"
-              : isUnlocked
+              : isActive
                 ? "bg-[#1f6b3a] text-white"
-                : "border border-[#d7e0d6] bg-white text-[#6b7c6e]"
+                : "border border-[#d7e0d6] bg-[#F0F0F0] text-[#8a968c]"
           }`}
         >
-          {isCompleted ? <CheckIcon className="h-4 w-4" /> : count}
+          {isCompleted || isRequested ? <CheckIcon className="h-4 w-4" /> : count}
         </span>
         <div className="min-w-0 sm:hidden">
           <p className="text-[14px] font-bold text-[#243028]">{count} Referrals</p>
-          <MilestoneBadge status={status} />
+          <MilestoneBadge status={status} isActive={isActive} canRedeem={canRedeem} />
         </div>
       </div>
 
@@ -628,7 +785,7 @@ function MilestoneRow({
           <p className="text-[14px] font-bold text-[#243028] sm:text-[15px]">
             {count} Referrals
           </p>
-          <MilestoneBadge status={status} />
+          <MilestoneBadge status={status} isActive={isActive} canRedeem={canRedeem} />
         </div>
         <p className="mt-1 flex items-center gap-1.5 text-[13px] text-[#6b7c6e]">
           <GiftIcon className="h-4 w-4 shrink-0 text-[#8a968c]" />
@@ -653,7 +810,7 @@ function MilestoneRow({
           <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#C58A1A]">
             Redemption Requested
           </span>
-        ) : isUnlocked ? (
+        ) : canRedeem ? (
           <button
             type="button"
             onClick={onRedeem}
@@ -663,10 +820,14 @@ function MilestoneRow({
             <ChevronRightIcon className="h-4 w-4" />
           </button>
         ) : (
-          <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#8a968c]">
+          <button
+            type="button"
+            disabled
+            className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-[16px] border border-[#d7e0d6] bg-[#F0F0F0] px-4 py-2 text-[13px] font-bold text-[#8a968c] sm:px-5 sm:py-2.5"
+          >
             <LockIcon className="h-4 w-4" />
-            Locked
-          </span>
+            Redeem Reward
+          </button>
         )}
       </div>
     </div>
@@ -675,8 +836,12 @@ function MilestoneRow({
 
 function MilestoneBadge({
   status,
+  isActive,
+  canRedeem,
 }: {
   status: "completed" | "unlocked" | "upcoming" | "requested";
+  isActive: boolean;
+  canRedeem: boolean;
 }) {
   if (status === "completed") {
     return (
@@ -692,16 +857,23 @@ function MilestoneBadge({
       </span>
     );
   }
-  if (status === "unlocked") {
+  if (canRedeem) {
     return (
       <span className="inline-flex rounded-[6px] bg-[#1f6b3a] px-2 py-0.5 text-[10px] font-bold tracking-wide text-white uppercase">
         Available
       </span>
     );
   }
+  if (isActive) {
+    return (
+      <span className="inline-flex rounded-[6px] bg-[#eef6f0] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#1f6b3a] uppercase">
+        Upcoming
+      </span>
+    );
+  }
   return (
     <span className="inline-flex rounded-[6px] bg-[#F0F0F0] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#6b7c6e] uppercase">
-      Upcoming
+      Locked
     </span>
   );
 }
@@ -769,6 +941,26 @@ function CheckIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
       <path d="M6 12.5 10 16.5 18 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function RefreshIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path
+        d="M20 12a8 8 0 1 1-2.2-5.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M20 4v5h-5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

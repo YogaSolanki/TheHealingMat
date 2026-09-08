@@ -12,30 +12,31 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   API_URL,
-  getMyTrial,
-  getNextCohort,
-  registerTrial,
   requestOtp,
   resetPassword,
   userLogin,
   verifyOtp,
-  type NextCohortResponse,
   type PublicUser,
   type Region,
-  type TrialAccountResponse,
 } from "@/lib/api";
 import {
   clearStoredToken,
+  getStoredToken,
   setStoredToken,
-  TOKEN_KEY,
 } from "@/lib/auth-storage";
+import {
+  getCachedPublicUser,
+  sessionStore,
+  updateMemberAuthCache,
+} from "@/lib/session-store";
 import trialIcon from "@/assets/trail.png";
 import { ButtonLoader } from "@/components/site-loader";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
-import { getCapturedReferralCode } from "@/lib/referral-storage";
+import { captureReferralCode, getCapturedReferralCode } from "@/lib/referral-storage";
+import { checkoutPath, readCheckoutIntent } from "@/lib/checkout-intent";
 
 type Mode = "login" | "signup" | "forgot";
-type Step = "identity" | "otp" | "orientation" | "done" | "reset_done";
+type Step = "identity" | "otp" | "reset_done";
 
 function GoogleMark({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -105,66 +106,6 @@ function TrialBrandMark() {
         className="h-10 w-10 object-contain"
         priority
       />
-    </div>
-  );
-}
-
-function SignupStepIndicator({
-  current,
-  region,
-}: {
-  current: 1 | 2;
-  region: Region;
-}) {
-  const stepOneHint =
-    region === "india"
-      ? "Just your name and mobile number."
-      : "Just your name and email address.";
-
-  return (
-    <div className="mt-6 overflow-hidden border-t border-[#eef2ee] pt-5">
-      <div className="flex items-start gap-2 sm:gap-3">
-        <div
-          className="min-w-0 flex-1"
-          aria-current={current === 1 ? "step" : undefined}
-        >
-          <div className="flex h-7 items-center gap-2">
-            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#E8F0E4] text-[12px] font-bold text-[#1f6b3a]">
-              1
-            </span>
-            <p className="text-[13px] leading-none font-semibold text-[#3d4a3c]">
-              Enter Your Details
-            </p>
-          </div>
-          <p className="mt-0.5 pl-9 text-[12px] leading-snug text-[#8a968c]">
-            {stepOneHint}
-          </p>
-        </div>
-
-        <div
-          aria-hidden="true"
-          className="flex h-7 shrink-0 items-center justify-center px-1 text-[15px] leading-none text-[#c5d0c6]"
-        >
-          →
-        </div>
-
-        <div
-          className="min-w-0 flex-1"
-          aria-current={current === 2 ? "step" : undefined}
-        >
-          <div className="flex h-7 items-center gap-2">
-            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#E8F0E4] text-[12px] font-bold text-[#1f6b3a]">
-              2
-            </span>
-            <p className="text-[13px] leading-none font-semibold text-[#3d4a3c]">
-              Verify OTP
-            </p>
-          </div>
-          <p className="mt-0.5 pl-9 text-[12px] leading-snug text-[#8a968c]">
-            Enter the {OTP_LENGTH}-digit OTP and start your trial.
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
@@ -276,50 +217,55 @@ function IndiaFlag() {
   );
 }
 
-function PasswordRules({ password }: { password: string }) {
-  const rules = [
-    {
-      ok: password.length >= 8 && password.length <= 72,
-      label: "At least 8 characters",
-    },
-    { ok: /[A-Z]/.test(password), label: "One uppercase letter" },
-    { ok: /[a-z]/.test(password), label: "One lowercase letter" },
-    { ok: /\d/.test(password), label: "One number" },
-  ];
+function isValidSignupPassword(password: string) {
+  return (
+    password.length >= 8 &&
+    password.length <= 72 &&
+    /[A-Z]/.test(password) &&
+    /[a-z]/.test(password) &&
+    /\d/.test(password)
+  );
+}
+
+function PasswordValidityIcon({
+  value,
+  valid,
+}: {
+  value: string;
+  valid: boolean;
+}) {
+  if (!value) return null;
 
   return (
-    <ul className="mt-2.5 space-y-1.5 text-xs text-[#6d8474]">
-      {rules.map((rule) => (
-        <li
-          key={rule.label}
-          className={`flex items-center gap-2 transition-colors ${
-            rule.ok ? "text-[#1f6b3a]" : "text-[#6d8474]"
-          }`}
-        >
-          <span
-            aria-hidden="true"
-            className={`inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border ${
-              rule.ok
-                ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
-                : "border-[#c5d0c6] bg-white"
-            }`}
-          >
-            {rule.ok ? (
-              <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none">
-                <path
-                  d="M2.5 6.2L4.8 8.5L9.5 3.5"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            ) : null}
-          </span>
-          {rule.label}
-        </li>
-      ))}
-    </ul>
+    <span
+      aria-hidden="true"
+      className={`pointer-events-none absolute inset-y-0 right-3.5 flex items-center ${
+        valid ? "text-[#1f6b3a]" : "text-[#c45c4a]"
+      }`}
+    >
+      {valid ? (
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" />
+          <path
+            d="m8 12.2 2.6 2.6L16.2 9"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" />
+          <path
+            d="m9 9 6 6M15 9l-6 6"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
+        </svg>
+      )}
+    </span>
   );
 }
 
@@ -468,167 +414,6 @@ function TrialCountrySelect({
   );
 }
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
-function SelectChevron({ open }: { open?: boolean }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-[#6d8474] transition-transform duration-200 ${
-        open ? "rotate-180" : ""
-      }`}
-    >
-      <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none">
-        <path
-          d="M5 7.5L10 12.5L15 7.5"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </span>
-  );
-}
-
-type BrandSelectOption = {
-  value: string;
-  label: string;
-  hint?: string;
-};
-
-function BrandSelect({
-  value,
-  onChange,
-  options,
-  labelId,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: BrandSelectOption[];
-  labelId?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const listId = useId();
-  const selected = options.find((option) => option.value === value) ?? options[0];
-
-  useEffect(() => {
-    if (!open) return;
-
-    function onPointerDown(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-
-    function onKeyDown(event: globalThis.KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-
-    document.addEventListener("mousedown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-
-  function choose(next: string) {
-    onChange(next);
-    setOpen(false);
-  }
-
-  function onTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
-    if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      setOpen(true);
-    }
-  }
-
-  return (
-    <div ref={rootRef} className="relative">
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-controls={listId}
-        aria-labelledby={labelId}
-        onClick={() => setOpen((current) => !current)}
-        onKeyDown={onTriggerKeyDown}
-        className="flex w-full cursor-pointer items-center rounded-xl border border-[#d7e0d6] bg-white py-2.5 pr-11 pl-3.5 text-left text-sm text-[#1f6b3a] outline-none transition hover:border-[#b7cbb8] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
-      >
-        <span className="min-w-0 truncate">
-          <span className="font-medium">{selected?.label}</span>
-          {selected?.hint ? (
-            <span className="text-[#6d8474]"> — {selected.hint}</span>
-          ) : null}
-        </span>
-        <SelectChevron open={open} />
-      </button>
-
-      {open ? (
-        <ul
-          id={listId}
-          role="listbox"
-          aria-labelledby={labelId}
-          className="auth-select-menu absolute top-[calc(100%+6px)] right-0 left-0 z-30 overflow-hidden rounded-xl border border-[#d9e2d8] bg-[#FBF9F5] py-1.5 shadow-[0_16px_40px_rgba(31,107,58,0.14)]"
-        >
-          {options.map((option) => {
-            const active = option.value === value;
-            return (
-              <li key={option.value} role="presentation">
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={active}
-                  onClick={() => choose(option.value)}
-                  className={`flex w-full cursor-pointer items-center gap-2.5 px-3.5 py-2.5 text-left text-sm transition ${
-                    active
-                      ? "bg-[#e8f2ea] text-[#1f6b3a]"
-                      : "text-[#1f6b3a] hover:bg-[#eef3ee]"
-                  }`}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`inline-flex h-4 w-4 shrink-0 items-center justify-center ${
-                      active ? "opacity-100" : "opacity-0"
-                    }`}
-                  >
-                    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none">
-                      <path
-                        d="M3.5 8.2L6.4 11.1L12.5 4.5"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                  <span className="min-w-0">
-                    <span className="font-medium">{option.label}</span>
-                    {option.hint ? (
-                      <span className={active ? "text-[#1f6b3a]" : "text-[#6d8474]"}>
-                        {" "}
-                        — {option.hint}
-                      </span>
-                    ) : null}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
-    </div>
-  );
-}
-
 type AuthTrialCardProps = {
   initialMode?: Mode;
   initialError?: string | null;
@@ -649,60 +434,70 @@ export function AuthTrialCard({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [referralCodeInput, setReferralCodeInput] = useState(
+    () => getCapturedReferralCode() ?? "",
+  );
   const [otp, setOtp] = useState("");
   const [challengeId, setChallengeId] = useState("");
   const [destinationMasked, setDestinationMasked] = useState<string | null>(
     null,
   );
   const [resetMessage, setResetMessage] = useState<string | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [user, setUser] = useState<PublicUser | null>(null);
-  const [cohort, setCohort] = useState<NextCohortResponse | null>(null);
-  const [slotId, setSlotId] = useState("");
-  const [confirmation, setConfirmation] = useState<TrialAccountResponse | null>(
-    null,
-  );
   const [error, setError] = useState<string | null>(initialError);
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(TOKEN_KEY);
+    const saved = getStoredToken();
     if (!saved) return;
 
-    setToken(saved);
-    getMyTrial(saved)
-      .then((data) => {
-        if (data.hasTrial && data.trial) {
-          onClose?.();
-          router.replace("/dashboard");
-        }
+    const cached = getCachedPublicUser();
+    if (cached) {
+      onCloseRef.current?.();
+      router.replace("/dashboard");
+      return;
+    }
+
+    let cancelled = false;
+    void sessionStore
+      .ensureUser()
+      .then((me) => {
+        if (cancelled || !me) return;
+        onCloseRef.current?.();
+        router.replace("/dashboard");
       })
       .catch(() => {
+        if (cancelled) return;
         clearStoredToken();
       });
-  }, [onClose, router]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  useEffect(() => {
+    if (mode !== "signup") return;
+    const captured = getCapturedReferralCode();
+    if (!captured) return;
+    setReferralCodeInput((current) => current.trim() || captured);
+  }, [mode]);
 
   function goToDashboard() {
-    onClose?.();
+    onCloseRef.current?.();
+    const intent = readCheckoutIntent();
+    if (intent.planMonths) {
+      router.push(checkoutPath(intent.planMonths, intent.startMode));
+      return;
+    }
     router.push("/dashboard");
   }
 
   async function afterAuth(accessToken: string, authedUser: PublicUser) {
     setStoredToken(accessToken);
-    setToken(accessToken);
-    setUser(authedUser);
-
-    // New free-trial signup still picks an orientation slot first.
-    // Login / returning members go straight to the member dashboard.
-    if (mode === "signup" && !authedUser.hasUsedFreeTrial) {
-      const next = await getNextCohort();
-      setCohort(next);
-      setSlotId(next.orientationSlots[0]?.id ?? "");
-      setStep("orientation");
-      return;
-    }
-
+    updateMemberAuthCache(authedUser);
     goToDashboard();
   }
 
@@ -713,6 +508,18 @@ export function AuthTrialCard({
     if (mode === "signup" && !termsAccepted) {
       setError("Please agree to the Terms & Conditions to continue.");
       return;
+    }
+
+    if (mode === "signup" && !isValidSignupPassword(password)) {
+      setError(
+        "Password must be 8–72 characters and include uppercase, lowercase, and a number.",
+      );
+      return;
+    }
+
+    if (mode === "signup") {
+      const trimmedReferral = referralCodeInput.trim();
+      if (trimmedReferral) captureReferralCode(trimmedReferral);
     }
 
     setLoading(true);
@@ -793,36 +600,23 @@ export function AuthTrialCard({
         return;
       }
 
-      const capturedReferral = getCapturedReferralCode();
+      const referralCode =
+        referralCodeInput.trim() || getCapturedReferralCode() || "";
+      if (referralCode) captureReferralCode(referralCode);
       const result = await verifyOtp({
         challengeId,
         code: otp,
         ...(mode === "signup"
           ? {
               fullName,
-              ...(password.trim() ? { password } : {}),
-              ...(capturedReferral ? { referralCode: capturedReferral } : {}),
+              password,
+              ...(referralCode ? { referralCode } : {}),
             }
           : {}),
       });
       await afterAuth(result.accessToken, result.user);
     } catch (err) {
       setError(err instanceof Error ? err.message : "OTP verification failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function onRegisterTrial(event: FormEvent) {
-    event.preventDefault();
-    if (!token || !slotId) return;
-    setError(null);
-    setLoading(true);
-    try {
-      await registerTrial(token, slotId);
-      goToDashboard();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Trial registration failed");
     } finally {
       setLoading(false);
     }
@@ -837,11 +631,11 @@ export function AuthTrialCard({
     setConfirmPassword("");
     setChallengeId("");
     setDestinationMasked(null);
-    setCohort(null);
-    setSlotId("");
-    setConfirmation(null);
     setResetMessage(null);
     setTermsAccepted(false);
+    if (nextMode === "signup") {
+      setReferralCodeInput(getCapturedReferralCode() ?? "");
+    }
   }
 
   function openForgotPassword() {
@@ -873,19 +667,16 @@ export function AuthTrialCard({
   function continueWithGoogle() {
     setError(null);
     const intent = mode === "signup" ? "signup" : "login";
-    window.location.assign(
-      `${API_URL}/auth/google?intent=${encodeURIComponent(intent)}`,
-    );
+    const params = new URLSearchParams({ intent });
+    const referralCode =
+      referralCodeInput.trim() || getCapturedReferralCode() || "";
+    if (referralCode) {
+      captureReferralCode(referralCode);
+      params.set("ref", referralCode);
+    }
+    window.location.assign(`${API_URL}/auth/google?${params.toString()}`);
   }
 
-  function signOut() {
-    clearStoredToken();
-    setToken(null);
-    setUser(null);
-    resetFlow("login");
-  }
-
-  const orientationLabelId = useId();
   const isSignupFlow = mode === "signup";
   const showOtpHeader =
     step === "otp" && (mode === "signup" || mode === "forgot");
@@ -1117,6 +908,48 @@ export function AuthTrialCard({
           ) : null}
 
           {mode === "signup" ? (
+            <div>
+              <label className={labelClass}>Password</label>
+              <div className="relative">
+                <input
+                  required
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={`${fieldClass} pr-11`}
+                  placeholder="Create a password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  maxLength={72}
+                  aria-invalid={password.length > 0 && !isValidSignupPassword(password)}
+                />
+                <PasswordValidityIcon
+                  value={password}
+                  valid={isValidSignupPassword(password)}
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {mode === "signup" ? (
+            <div>
+              <label className={labelClass}>
+                Referral code{" "}
+                <span className="font-normal text-[#8a968c]">(optional)</span>
+              </label>
+              <input
+                value={referralCodeInput}
+                onChange={(e) => setReferralCodeInput(e.target.value)}
+                className={fieldClass}
+                placeholder="Enter referral code if you have one"
+                autoComplete="off"
+                maxLength={64}
+                spellCheck={false}
+              />
+            </div>
+          ) : null}
+
+          {mode === "signup" ? (
             <TermsAcceptanceField
               checked={termsAccepted}
               onChange={setTermsAccepted}
@@ -1190,32 +1023,51 @@ export function AuthTrialCard({
             <>
               <div>
                 <label className={labelClass}>New password</label>
-                <input
-                  required
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={fieldClass}
-                  placeholder="Create a new password"
-                  autoComplete="new-password"
-                  minLength={8}
-                  maxLength={72}
-                />
-                <PasswordRules password={password} />
+                <div className="relative">
+                  <input
+                    required
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={`${fieldClass} pr-11`}
+                    placeholder="Create a new password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    maxLength={72}
+                    aria-invalid={password.length > 0 && !isValidSignupPassword(password)}
+                  />
+                  <PasswordValidityIcon
+                    value={password}
+                    valid={isValidSignupPassword(password)}
+                  />
+                </div>
               </div>
               <div>
                 <label className={labelClass}>Confirm password</label>
-                <input
-                  required
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={fieldClass}
-                  placeholder="Re-enter new password"
-                  autoComplete="new-password"
-                  minLength={8}
-                  maxLength={72}
-                />
+                <div className="relative">
+                  <input
+                    required
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className={`${fieldClass} pr-11`}
+                    placeholder="Re-enter new password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    maxLength={72}
+                    aria-invalid={
+                      confirmPassword.length > 0 &&
+                      confirmPassword !== password
+                    }
+                  />
+                  <PasswordValidityIcon
+                    value={confirmPassword}
+                    valid={
+                      isValidSignupPassword(password) &&
+                      confirmPassword === password
+                    }
+                  />
+                </div>
               </div>
             </>
           ) : null}
@@ -1248,13 +1100,6 @@ export function AuthTrialCard({
         </form>
       ) : null}
 
-      {mode === "signup" && (step === "identity" || step === "otp") ? (
-        <SignupStepIndicator
-          current={step === "otp" ? 2 : 1}
-          region={region}
-        />
-      ) : null}
-
       {step === "reset_done" ? (
         <div className="mt-5 space-y-4">
           <p className="rounded-[16px] bg-[#eef6ea] px-3.5 py-3 text-sm text-[#1f6b3a]">
@@ -1266,80 +1111,6 @@ export function AuthTrialCard({
             className={primaryBtnClass}
           >
             Back to Login
-          </button>
-        </div>
-      ) : null}
-
-      {step === "orientation" && cohort ? (
-        <form onSubmit={onRegisterTrial} className="mt-5 space-y-4">
-          <div className="rounded-xl bg-[#f6f8f5] px-3.5 py-3 text-sm text-[#3d4a3c]">
-            <p className="font-semibold text-[#1f6b3a]">{cohort.cohort.label}</p>
-            <p className="mt-1">
-              Trial: {formatDate(cohort.cohort.startsAt)} →{" "}
-              {formatDate(cohort.cohort.endsAt)}
-            </p>
-            <p className="mt-2 text-[#6d8474]">{cohort.note}</p>
-          </div>
-
-          <div>
-            <label id={orientationLabelId} className={labelClass}>
-              Orientation time
-            </label>
-            <BrandSelect
-              value={slotId}
-              labelId={orientationLabelId}
-              onChange={setSlotId}
-              options={cohort.orientationSlots.map((slot) => ({
-                value: slot.id,
-                label: slot.label,
-                hint: `${slot.seatsLeft} seats`,
-              }))}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading || !slotId}
-            className={primaryBtnClass}
-          >
-            {loading ? (
-              <ButtonLoader />
-            ) : (
-              "Confirm Free Trial"
-            )}
-          </button>
-        </form>
-      ) : null}
-
-      {step === "done" && confirmation ? (
-        <div className="mt-5 space-y-3 text-sm text-[#3d4a3c]">
-          <p className="font-semibold text-[#1f6b3a]">
-            {confirmation.account.fullName || user?.fullName}
-          </p>
-          <p>Referral code: {confirmation.account.referralCode}</p>
-          <p className="break-all">
-            Access link: {confirmation.account.accessLink}
-          </p>
-          {confirmation.trial ? (
-            <>
-              <p>
-                Status: <strong>{confirmation.trial.status}</strong>
-              </p>
-              <p>
-                Trial dates: {formatDate(confirmation.trial.trialStartsAt)} →{" "}
-                {formatDate(confirmation.trial.trialEndsAt)}
-              </p>
-              <p>Orientation: {confirmation.trial.orientation.label}</p>
-            </>
-          ) : (
-            <p>No trial registration on this account yet.</p>
-          )}
-          <button
-            type="button"
-            onClick={signOut}
-            className="mt-2 w-full cursor-pointer rounded-xl border border-[#d7e0d6] px-3 py-2.5 text-sm font-semibold text-[#1f6b3a] transition hover:bg-[#f6f8f5]"
-          >
-            Sign out
           </button>
         </div>
       ) : null}

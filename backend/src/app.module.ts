@@ -12,6 +12,8 @@ import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module';
 import { ContactModule } from './contact/contact.module';
 import { ContentModule } from './content/content.module';
 import { CouponsModule } from './coupons/coupons.module';
+import { PaymentsModule } from './payments/payments.module';
+import { ReferralsModule } from './referrals/referrals.module';
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { CouponsModule } from './coupons/coupons.module';
     ContactModule,
     ContentModule,
     CouponsModule,
+    PaymentsModule,
+    ReferralsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

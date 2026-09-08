@@ -11,9 +11,9 @@ import yogaMenIcon from "@/assets/yoga-men.png";
 import { memberPrimaryBtnClass, memberPrimaryBtnSmClass } from "@/components/member-dashboard/member-button-styles";
 import type { PublicUser } from "@/lib/api";
 import {
-  getMemberAccess,
   greetingForName,
   membershipStatusLabel,
+  useMemberAccess,
 } from "@/lib/member-access";
 import {
   findRunningSession,
@@ -24,10 +24,20 @@ import {
   weekdayEveningSlots,
   weekdayMorningSlots,
 } from "@/lib/member-session-schedule";
+import { useMyReferrals } from "@/lib/session-store";
 
 type MemberDashboardProps = {
   user: PublicUser;
 };
+
+const DASHBOARD_REFERRAL_MILESTONES = [5, 10, 15, 20, 30, 40, 50] as const;
+
+function nextReferralMilestone(successfulCount: number) {
+  return (
+    DASHBOARD_REFERRAL_MILESTONES.find((count) => count > successfulCount) ??
+    DASHBOARD_REFERRAL_MILESTONES[DASHBOARD_REFERRAL_MILESTONES.length - 1]
+  );
+}
 
 function CalendarMaskIcon() {
   return (
@@ -59,17 +69,28 @@ function formatDashboardDate(date: Date) {
 }
 
 export function MemberDashboard({ user }: MemberDashboardProps) {
-  const access = getMemberAccess();
+  const { access, loading } = useMemberAccess();
   const nameGreeting = greetingForName(user.fullName);
   const now = new Date();
   const todayLabel = formatDashboardDate(now);
   const sunday = isSunday(now);
-  const sessionKind = access.state === "trial" ? "trial" : "member";
-  const running = access.state === "expired" ? null : findRunningSession(now, sessionKind);
+  const membershipKnown = !loading;
+  const isExpired = membershipKnown && access.state === "expired";
+  const isTrial = membershipKnown && access.state === "trial";
+  const sessionKind = isTrial ? "trial" : "member";
+  const running = isExpired ? null : findRunningSession(now, sessionKind);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+  const { successfulCount: successfulReferrals } = useMyReferrals();
+
+  const nextMilestone = nextReferralMilestone(successfulReferrals);
+  const remainingToMilestone = Math.max(0, nextMilestone - successfulReferrals);
+  const referralProgressPercent =
+    nextMilestone > 0
+      ? Math.min(100, Math.round((successfulReferrals / nextMilestone) * 100))
+      : 0;
 
   function handleJoin() {
-    if (access.state === "expired") return;
+    if (isExpired) return;
     const current = findRunningSession(new Date(), sessionKind);
     if (!current) {
       setSessionNotice(sessionUnavailableMessage(new Date(), sessionKind));
@@ -78,12 +99,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     window.location.assign("/dashboard/join");
   }
 
-  const supportingMessage =
-    access.state === "trial"
-      ? `Your trial is active until ${access.trialEndsOnLabel ?? "its end date"}.`
-      : access.state === "expired"
-        ? "Renew your membership to continue your daily yoga sessions."
-        : "Let’s begin your day with yoga.";
+  const supportingMessage = isTrial
+    ? `Your trial is active until ${access.trialEndsOnLabel ?? "its end date"}.`
+    : isExpired
+      ? "Renew your membership to continue your daily yoga sessions."
+      : "Let’s begin your day with yoga.";
 
   return (
     <div className="w-full bg-[#FBF9F5]">
@@ -135,7 +155,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
             </div>
           ) : null}
 
-          {access.state === "expired" ? (
+          {isExpired ? (
             <div className="px-4 py-6 sm:px-6 sm:py-8">
               <p className="text-[16px] font-bold text-[#243028] sm:text-[18px]">
                 Your membership has expired
@@ -157,7 +177,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 Renew Membership
               </Link>
             </div>
-          ) : access.state === "trial" ? (
+          ) : isTrial ? (
             <div className="px-4 py-4 sm:px-6 sm:py-5">
               <SectionHeading
                 icon={
@@ -341,32 +361,26 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
           <DashboardCard
             icon={<WalletIcon className="h-7 w-7 text-[#1f6b3a]" />}
             title="My Membership"
-            badge={membershipStatusLabel(access.state)}
+            badge={membershipKnown ? membershipStatusLabel(access.state) : "—"}
             body={
               <>
                 <p className="font-semibold text-[#3d4a3c]">{access.planName}</p>
                 <p className="mt-0.5 text-[13px] text-[#6b7c6e]">
-                  {access.state === "trial"
-                    ? `Trial ends ${access.trialEndsOnLabel}`
-                    : access.state === "expired"
-                      ? `Expired on ${access.expiredOnLabel}`
-                      : `Valid until ${access.validUntilLabel}`}
+                  {isTrial
+                    ? `Trial ends ${access.trialEndsOnLabel ?? "—"}`
+                    : isExpired
+                      ? `Expired on ${access.expiredOnLabel ?? "—"}`
+                      : `Valid until ${access.validUntilLabel ?? "—"}`}
                 </p>
               </>
             }
             href="/dashboard/membership"
             linkLabel="View Membership"
             secondaryHref={
-              access.state === "expired" || access.state === "trial"
-                ? "/dashboard/membership"
-                : undefined
+              isExpired || isTrial ? "/dashboard/membership" : undefined
             }
             secondaryLabel={
-              access.state === "expired"
-                ? "Renew Membership"
-                : access.state === "trial"
-                  ? "Start Membership"
-                  : undefined
+              isExpired ? "Renew Membership" : isTrial ? "Start Membership" : undefined
             }
             decor={<LeafDecor />}
           />
@@ -378,12 +392,20 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
             subtitle="Share with friends and earn exciting rewards."
             body={
               <>
-                <p className="text-[13px] font-semibold text-[#243028]">7 successful referrals</p>
+                <p className="text-[13px] font-semibold text-[#243028]">
+                  {successfulReferrals} successful referral
+                  {successfulReferrals === 1 ? "" : "s"}
+                </p>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#EDE8DF]">
-                  <div className="h-full w-[70%] rounded-full bg-[#E07A2F]" />
+                  <div
+                    className="h-full rounded-full bg-[#E07A2F] transition-[width] duration-300"
+                    style={{ width: `${referralProgressPercent}%` }}
+                  />
                 </div>
                 <p className="mt-2 text-[12px] leading-snug text-[#6b7c6e] sm:text-[13px]">
-                  3 more to unlock your next reward
+                  {remainingToMilestone === 0
+                    ? "Highest milestone reached"
+                    : `${remainingToMilestone} more to unlock your next reward`}
                 </p>
               </>
             }

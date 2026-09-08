@@ -5,6 +5,7 @@ import { PanelLoader } from "@/components/panel-loader";
 import { ReloadButton } from "@/components/reload-button";
 import {
   ADMIN_TOKEN_KEY,
+  deleteAdminUser,
   getAdminUsers,
   type AdminUserRow,
 } from "@/lib/api";
@@ -12,6 +13,7 @@ import {
   DASHBOARD_CACHE_KEYS,
   getCached,
   hasCached,
+  invalidateCached,
   setCached,
 } from "@/lib/dashboard-cache";
 
@@ -45,6 +47,7 @@ export function UsersPanel() {
   );
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(() => !hasCached(cacheKey));
 
   const load = useCallback(
@@ -104,11 +107,41 @@ export function UsersPanel() {
     });
   }, [users, query]);
 
+  async function onDelete(user: AdminUserRow) {
+    if (
+      !window.confirm(
+        `Delete user “${user.fullName}”? This permanently removes their account, trial, and membership records.`,
+      )
+    ) {
+      return;
+    }
+
+    const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
+    if (!token) {
+      setError("Please sign in again.");
+      return;
+    }
+
+    setDeletingId(user.id);
+    setError(null);
+    try {
+      await deleteAdminUser(token, user.id);
+      const next = users.filter((row) => row.id !== user.id);
+      setUsers(next);
+      setCached(cacheKey, next);
+      invalidateCached(DASHBOARD_CACHE_KEYS.overview);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete user");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   if (loading) {
     return <PanelLoader label="Loading users…" />;
   }
 
-  if (error) {
+  if (error && users.length === 0) {
     return (
       <div className="space-y-3">
         <div className="flex justify-end">
@@ -146,22 +179,29 @@ export function UsersPanel() {
         </div>
       </div>
 
+      {error ? (
+        <p className="border-b border-[#e6ebe3] bg-[#fff8f7] px-5 py-3 text-sm text-[#8a2f2f]">
+          {error}
+        </p>
+      ) : null}
+
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] table-fixed text-left text-sm">
+        <table className="w-full min-w-[860px] table-fixed text-left text-sm">
           <thead className="text-[#5f6f64]">
             <tr>
-              <th className="w-[28%] px-5 py-3 font-medium">Name</th>
-              <th className="w-[16%] px-5 py-3 font-medium">Region</th>
-              <th className="w-[28%] px-5 py-3 font-medium">Contact</th>
-              <th className="w-[14%] px-5 py-3 font-medium">Trial</th>
+              <th className="w-[24%] px-5 py-3 font-medium">Name</th>
+              <th className="w-[14%] px-5 py-3 font-medium">Region</th>
+              <th className="w-[24%] px-5 py-3 font-medium">Contact</th>
+              <th className="w-[12%] px-5 py-3 font-medium">Trial</th>
               <th className="w-[14%] px-5 py-3 font-medium">Joined</th>
+              <th className="w-[12%] px-5 py-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   className="px-5 py-16 text-center text-[#8a978c]"
                 >
                   {users.length === 0
@@ -214,6 +254,16 @@ export function UsersPanel() {
                     </td>
                     <td className="px-5 py-3 whitespace-nowrap text-[#5f6f64]">
                       {formatDate(user.createdAt)}
+                    </td>
+                    <td className="px-5 py-3">
+                      <button
+                        type="button"
+                        onClick={() => void onDelete(user)}
+                        disabled={deletingId === user.id}
+                        className="rounded-full border border-[#ead9d9] px-3 py-1.5 text-xs font-semibold text-[#8a2f2f] hover:bg-[#faf4f4] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {deletingId === user.id ? "Deleting…" : "Delete"}
+                      </button>
                     </td>
                   </tr>
                 );

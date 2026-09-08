@@ -17,13 +17,17 @@ import referralArt from "@/assets/referal.png";
 import sunIcon from "@/assets/sun.png";
 import tagIcon from "@/assets/tag.png";
 import yogaIcon from "@/assets/yoga.png";
+import { ChoosePlanButton } from "@/components/choose-plan-button";
 import { StartTrialButton } from "@/components/start-trial-button";
 import { TrialTrustRow } from "@/components/trial-trust-row";
+import type { CheckoutStartMode } from "@/lib/checkout-intent";
 
 const cream = "#FBF9F5";
 
+type MembershipSectionVariant = "public" | "renew";
+
 type Plan = {
-  months: number;
+  months: 3 | 6 | 12;
   price: string;
   perDay: string;
   featured?: boolean;
@@ -197,45 +201,77 @@ const sessionPillars: {
   },
 ];
 
-export function MembershipSection() {
+export function MembershipSection({
+  variant = "public",
+  startMode = "now",
+}: {
+  variant?: MembershipSectionVariant;
+  startMode?: CheckoutStartMode;
+} = {}) {
   return (
-    <div className="w-full bg-white">
-      <PlansBlock />
+    <div className={variant === "renew" ? "w-full bg-[#FBF9F5]" : "w-full bg-white"}>
+      <PlansBlock variant={variant} startMode={startMode} />
       <CouponStrip />
       <WeekBlock />
       <BenefitsBlock />
       <DailySessionsBlock />
-      <StillNotSureCta />
+      {variant === "public" ? <StillNotSureCta /> : null}
     </div>
   );
 }
 
-function PlansBlock() {
+function PlansBlock({
+  variant,
+  startMode,
+}: {
+  variant: MembershipSectionVariant;
+  startMode: CheckoutStartMode;
+}) {
+  const isRenew = variant === "renew";
+
   return (
-    <section className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-3 sm:px-6 sm:pt-7 lg:px-6 lg:pt-8 xl:px-8">
+    <section
+      id={isRenew ? "membership-plans" : undefined}
+      className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-3 sm:px-6 sm:pt-7 lg:px-6 lg:pt-8 xl:px-8"
+    >
       <div className="text-center">
         <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[12px]">
           Membership Plans
         </p>
-        <h1 className="mt-2 font-serif text-[1.85rem] leading-[1.12] font-bold tracking-tight text-[#1f6b3a] sm:text-[2.15rem] lg:text-[2.35rem]">
-          Choose Your Membership
-        </h1>
-        <p className="mx-auto mt-2 max-w-[480px] text-[13px] leading-snug text-[#5f6f64] sm:text-[14px]">
-          One membership. The same complete experience. Choose the duration that
-          works for you.
+        {isRenew ? (
+          <h2 className="mt-2 font-serif text-[1.55rem] leading-[1.12] font-bold tracking-tight text-[#1f6b3a] sm:text-[1.85rem] lg:text-[2rem]">
+            Renew or Extend Your Membership
+          </h2>
+        ) : (
+          <h1 className="mt-2 font-serif text-[1.85rem] leading-[1.12] font-bold tracking-tight text-[#1f6b3a] sm:text-[2.15rem] lg:text-[2.35rem]">
+            Choose Your Membership
+          </h1>
+        )}
+        <p className="mx-auto mt-2 max-w-[520px] text-[13px] leading-snug text-[#5f6f64] sm:text-[14px]">
+          {isRenew
+            ? "Pick a plan below. If you already have an active membership, the new plan starts automatically after it ends."
+            : "One membership. The same complete experience. Choose the duration that works for you."}
         </p>
       </div>
 
       <div className="mx-auto mt-5 grid w-full max-w-[960px] items-stretch gap-3 sm:mt-6 sm:grid-cols-3 sm:gap-4 lg:mt-7 lg:gap-5">
         {plans.map((plan) => (
-          <PlanCard key={plan.months} plan={plan} />
+          <PlanCard key={plan.months} plan={plan} startMode={startMode} isRenew={isRenew} />
         ))}
       </div>
     </section>
   );
 }
 
-function PlanCard({ plan }: { plan: Plan }) {
+function PlanCard({
+  plan,
+  startMode = "now",
+  isRenew = false,
+}: {
+  plan: Plan;
+  startMode?: CheckoutStartMode;
+  isRenew?: boolean;
+}) {
   const label = `${plan.months} Months`;
 
   return (
@@ -282,16 +318,18 @@ function PlanCard({ plan }: { plan: Plan }) {
       )}
 
       <div className="relative z-10 mt-auto pt-4 sm:pt-5">
-        <StartTrialButton
+        <ChoosePlanButton
+          months={plan.months}
+          startMode={startMode}
           className={`inline-flex w-full items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-[13px] font-bold sm:text-[14px] ${
             plan.featured
               ? "btn-primary bg-[#1f6b3a] text-white"
               : "btn-outline border-[1.5px] border-[#1f6b3a] text-[#1f6b3a]"
           }`}
         >
-          Choose {plan.months} Months
+          {isRenew ? `Renew · ${plan.months} Months` : `Choose ${plan.months} Months`}
           <span aria-hidden="true">→</span>
-        </StartTrialButton>
+        </ChoosePlanButton>
       </div>
     </article>
   );

@@ -54,3 +54,11 @@ export class CreateCouponDto {
   })
   code: string;
 }
+
+export class AssignCouponDto {
+  /** Member referral code — unique per user. */
+  @IsString()
+  @MinLength(3)
+  @MaxLength(40)
+  referralCode: string;
+}

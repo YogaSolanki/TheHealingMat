@@ -1,8 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import calendarIcon from "@/assets/calander-icon.png";
 import rsIcon from "@/assets/rs.png";
 import tagIcon from "@/assets/tag.png";
@@ -11,17 +10,58 @@ import yogaMenIcon from "@/assets/yoga-men.png";
 import {
   memberPrimaryBtnClass,
 } from "@/components/member-dashboard/member-button-styles";
-import { getMemberAccess, membershipStatusLabel } from "@/lib/member-access";
+import { MembershipSection } from "@/components/membership-section";
+import { getMyCoupons, type MemberCoupon } from "@/lib/api";
+import { getStoredToken } from "@/lib/auth-storage";
+import type { CheckoutStartMode } from "@/lib/checkout-intent";
+import { useMemberAccess, membershipStatusLabel } from "@/lib/member-access";
 
 export function MemberMembershipPage() {
-  const access = getMemberAccess();
+  const { access } = useMemberAccess();
+  const [assignedCoupons, setAssignedCoupons] = useState<MemberCoupon[]>([]);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const statusLabel = membershipStatusLabel(access.state);
   const statusMessage =
     access.state === "trial"
-      ? `Your trial is active. Trial ends on ${access.trialEndsOnLabel}.`
+      ? `Your trial is active. Trial ends on ${access.trialEndsOnLabel ?? "—"}.`
       : access.state === "expired"
         ? `Your membership has ended. Renew to continue daily yoga sessions.`
-        : `Your membership is active. Valid until ${access.validUntilLabel}.`;
+        : `Your membership is active. Valid until ${access.validUntilLabel ?? "—"}.`;
+
+  const renewStartMode: CheckoutStartMode =
+    access.state === "active" ? "after_current" : "now";
+
+  useEffect(() => {
+    const token = getStoredToken();
+    if (!token) return;
+    let cancelled = false;
+    void getMyCoupons(token)
+      .then((data) => {
+        if (!cancelled) setAssignedCoupons(data.coupons);
+      })
+      .catch(() => {
+        if (!cancelled) setAssignedCoupons([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function scrollToPlans() {
+    document
+      .getElementById("membership-plans")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function copyCoupon(code: string) {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      window.setTimeout(() => setCopiedCode(null), 2000);
+    } catch {
+      /* ignore */
+    }
+  }
 
   return (
     <div className="w-full bg-[#FBF9F5]">
@@ -91,17 +131,21 @@ export function MemberMembershipPage() {
                   label="Amount Paid"
                   value={access.amountPaid}
                 />
-                <p className="mt-2 text-[12px] text-[#6b7c6e]">
-                  Paid on {access.paymentDateLabel}
-                  {access.transactionRef ? ` · Ref ${access.transactionRef}` : ""}
-                </p>
-                <button
-                  type="button"
-                  className="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a] decoration-dotted underline-offset-[3px] transition hover:text-[#185830] sm:text-[13px]"
-                >
-                  Download Invoice / Receipt
-                  <DownloadIcon className="h-4 w-4" />
-                </button>
+                {access.paymentDateLabel ? (
+                  <p className="mt-2 text-[12px] text-[#6b7c6e]">
+                    Paid on {access.paymentDateLabel}
+                    {access.transactionRef ? ` · Ref ${access.transactionRef}` : ""}
+                  </p>
+                ) : null}
+                {access.state !== "trial" ? (
+                  <button
+                    type="button"
+                    className="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a] decoration-dotted underline-offset-[3px] transition hover:text-[#185830] sm:text-[13px]"
+                  >
+                    Download Invoice / Receipt
+                    <DownloadIcon className="h-4 w-4" />
+                  </button>
+                ) : null}
               </div>
             </div>
 
@@ -148,13 +192,14 @@ export function MemberMembershipPage() {
                   height={160}
                   className="pointer-events-none absolute bottom-full left-1/2 mb-2 h-32 w-32 -translate-x-1/2 object-contain sm:h-40 sm:w-40"
                 />
-                <Link
-                  href={access.state === "trial" ? "/membership" : "/membership"}
+                <button
+                  type="button"
+                  onClick={scrollToPlans}
                   className={`${memberPrimaryBtnClass} w-full px-5 py-3 text-[14px] sm:w-auto sm:min-w-[190px] sm:text-[15px]`}
                 >
                   {access.state === "trial" ? "Start Membership" : "Renew Membership"}
                   <ChevronRightIcon className="h-4 w-4" />
-                </Link>
+                </button>
               </div>
             </div>
           </div>
@@ -223,8 +268,67 @@ export function MemberMembershipPage() {
         </section>
         ) : null}
 
+        {assignedCoupons.length > 0 ? (
+          <section className="mb-5 overflow-hidden rounded-[22px] border border-[#d7e5d9] bg-[#f4f8f2] px-4 py-5 sm:mb-6 sm:px-6 sm:py-6 lg:px-8 lg:py-7">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white">
+                <Image
+                  src={tagIcon}
+                  alt=""
+                  width={20}
+                  height={20}
+                  className="h-5 w-5 object-contain"
+                />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[14px] font-semibold text-[#1f6b3a] sm:text-[15px]">
+                  Your coupon{assignedCoupons.length === 1 ? "" : "s"}
+                </p>
+                <p className="mt-1 text-[13px] text-[#5f6f64] sm:text-[14px]">
+                  Assigned to your account. Apply at checkout when you start or
+                  renew membership.
+                </p>
+
+                <ul className="mt-4 space-y-3">
+                  {assignedCoupons.map((coupon) => (
+                    <li
+                      key={coupon.id}
+                      className="flex flex-col gap-3 rounded-[16px] border border-[#d7e5d9] bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-mono text-[15px] font-bold tracking-wide text-[#1f6b3a] sm:text-[16px]">
+                          {coupon.code}
+                        </p>
+                        <p className="mt-0.5 text-[12px] font-semibold text-[#5f6f64]">
+                          {coupon.discountLabel}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void copyCoupon(coupon.code)}
+                          className="rounded-full border border-[#d5e0d5] px-3.5 py-2 text-[12px] font-semibold text-[#1f6b3a] hover:bg-[#f4f7f4]"
+                        >
+                          {copiedCode === coupon.code ? "Copied" : "Copy"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={scrollToPlans}
+                          className="rounded-full bg-[#1f6b3a] px-3.5 py-2 text-[12px] font-semibold text-white hover:bg-[#185830]"
+                        >
+                          Use at checkout
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         {/* Renewal info */}
-        <section className="rounded-[18px] border border-[#ebe6dc] bg-[#F7F3EA] px-4 py-4 sm:px-6 sm:py-4">
+        <section className="mb-2 rounded-[18px] border border-[#ebe6dc] bg-[#F7F3EA] px-4 py-4 sm:mb-4 sm:px-6 sm:py-4">
           <div className="flex min-w-0 items-start gap-3 sm:items-center">
             <InfoIcon className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#C4A574] sm:mt-0" />
             <div className="min-w-0">
@@ -240,6 +344,8 @@ export function MemberMembershipPage() {
           </div>
         </section>
       </div>
+
+      <MembershipSection variant="renew" startMode={renewStartMode} />
     </div>
   );
 }
