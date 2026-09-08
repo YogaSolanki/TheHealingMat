@@ -404,6 +404,118 @@ export function deleteAdminMembershipOffer(token: string, id: string) {
   ).then(() => undefined);
 }
 
+export type AdminReferralMilestone = {
+  id: string;
+  referralCount: number;
+  rewardTitle: string;
+  rewardDescription: string;
+  active: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MilestoneInput = {
+  referralCount?: number;
+  rewardTitle?: string;
+  rewardDescription?: string;
+  active?: boolean;
+  sortOrder?: number;
+};
+
+export type AdminRedemptionStatus = "pending" | "fulfilled" | "rejected";
+
+export type AdminRewardRedemption = {
+  id: string;
+  status: AdminRedemptionStatus;
+  referralCount: number;
+  adminNote: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+  user: {
+    id: string;
+    fullName: string;
+    email: string | null;
+    mobile: string | null;
+    referralCode: string;
+  } | null;
+  milestone: {
+    id: string;
+    referralCount: number;
+    rewardTitle: string;
+    rewardDescription: string;
+  };
+};
+
+export function listAdminReferralMilestones(token: string) {
+  return authJson<AdminReferralMilestone[]>(
+    "GET",
+    "/admin/referral-milestones",
+    token,
+  );
+}
+
+export function createAdminReferralMilestone(
+  token: string,
+  body: MilestoneInput,
+) {
+  return authJson<AdminReferralMilestone>(
+    "POST",
+    "/admin/referral-milestones",
+    token,
+    body,
+  );
+}
+
+export function updateAdminReferralMilestone(
+  token: string,
+  id: string,
+  body: MilestoneInput,
+) {
+  return authJson<AdminReferralMilestone>(
+    "PATCH",
+    `/admin/referral-milestones/${id}`,
+    token,
+    body,
+  );
+}
+
+export function deleteAdminReferralMilestone(token: string, id: string) {
+  return authJson<{ success: boolean }>(
+    "DELETE",
+    `/admin/referral-milestones/${id}`,
+    token,
+  ).then(() => undefined);
+}
+
+export function listAdminRewardRedemptions(
+  token: string,
+  status?: AdminRedemptionStatus | "all",
+) {
+  const query =
+    status && status !== "all"
+      ? `?status=${encodeURIComponent(status)}`
+      : "";
+  return authJson<AdminRewardRedemption[]>(
+    "GET",
+    `/admin/reward-redemptions${query}`,
+    token,
+  );
+}
+
+export function updateAdminRewardRedemption(
+  token: string,
+  id: string,
+  body: { status: AdminRedemptionStatus; adminNote?: string },
+) {
+  return authJson<AdminRewardRedemption>(
+    "PATCH",
+    `/admin/reward-redemptions/${id}`,
+    token,
+    body,
+  );
+}
+
 export function listAdminVideos(token: string) {
   return authJson<AdminContentItem[]>("GET", "/admin/videos", token);
 }

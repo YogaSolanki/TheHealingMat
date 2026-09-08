@@ -516,6 +516,62 @@ export async function getMyReferrals(
   return parseJson<MyReferralsResponse>(response);
 }
 
+export type MemberMilestoneStatus =
+  | "locked"
+  | "unlocked"
+  | "pending"
+  | "fulfilled"
+  | "rejected";
+
+export type MemberMilestone = {
+  id: string;
+  referralCount: number;
+  rewardTitle: string;
+  rewardDescription: string;
+  status: MemberMilestoneStatus;
+  canRedeem: boolean;
+  requestId: string | null;
+  requestedAt: string | null;
+};
+
+export type MyMilestonesResponse = {
+  successfulCount: number;
+  milestones: MemberMilestone[];
+};
+
+export async function getMyMilestones(
+  accessToken: string,
+): Promise<MyMilestonesResponse> {
+  const response = await fetch(`${API_URL}/referrals/milestones`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  return parseJson<MyMilestonesResponse>(response);
+}
+
+export async function requestMilestoneRedeem(
+  accessToken: string,
+  milestoneId: string,
+) {
+  const response = await fetch(
+    `${API_URL}/referrals/milestones/${milestoneId}/redeem`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+  return parseJson<{
+    id: string;
+    milestoneId: string;
+    referralCount: number;
+    status: string;
+    createdAt: string;
+  }>(response);
+}
+
 export type MemberCoupon = {
   id: string;
   code: string;
