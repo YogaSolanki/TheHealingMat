@@ -207,6 +207,11 @@ class MembershipPlansStore {
     return this.data.plans;
   }
 
+  getPlanByMonths(months: number) {
+    this.hydrate();
+    return this.data.plans.find((plan) => plan.months === months) ?? null;
+  }
+
   getOffer() {
     this.hydrate();
     return this.data.offer;

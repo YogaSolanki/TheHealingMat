@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { AuthLoginModal } from "@/components/auth-login-modal";
+import { CheckoutModalHost } from "@/components/checkout-modal-provider";
 import { getStoredToken } from "@/lib/auth-storage";
 
 type AuthMode = "login" | "signup" | "forgot";
@@ -98,6 +99,7 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
         initialMode={mode}
         initialError={error}
       />
+      <CheckoutModalHost />
     </AuthModalContext.Provider>
   );
 }

@@ -1,11 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { useAuthModal } from "@/components/auth-modal-provider";
+import { openCheckoutModal } from "@/components/checkout-modal-provider";
 import { getStoredToken } from "@/lib/auth-storage";
 import {
-  checkoutPath,
   saveCheckoutIntent,
   type CheckoutStartMode,
 } from "@/lib/checkout-intent";
@@ -24,7 +23,6 @@ export function ChoosePlanButton({
   className = "",
   ...props
 }: ChoosePlanButtonProps) {
-  const router = useRouter();
   const { openAuth } = useAuthModal();
 
   return (
@@ -37,7 +35,7 @@ export function ChoosePlanButton({
           openAuth("login");
           return;
         }
-        router.push(checkoutPath(months, startMode));
+        openCheckoutModal(months, startMode);
       }}
       {...props}
     >

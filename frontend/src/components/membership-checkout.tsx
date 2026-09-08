@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuthModal } from "@/components/auth-modal-provider";
 import {
   createRazorpayOrder,
@@ -10,6 +9,7 @@ import {
   quoteMembership,
   verifyRazorpayPayment,
   type MembershipQuote,
+  type PublicMembershipPlan,
   type PublicUser,
 } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
@@ -18,7 +18,10 @@ import {
   saveCheckoutIntent,
   type CheckoutStartMode,
 } from "@/lib/checkout-intent";
-import { membershipPlansStore } from "@/lib/membership-plans-store";
+import {
+  BASE_MEMBERSHIP_PLANS,
+  membershipPlansStore,
+} from "@/lib/membership-plans-store";
 import { sessionStore } from "@/lib/session-store";
 
 const PAYMENT_INCOMPLETE =
@@ -32,7 +35,10 @@ type RazorpaySuccess = {
 
 type RazorpayCheckout = {
   open: () => void;
-  on: (event: "payment.failed", handler: (response: { error?: { description?: string } }) => void) => void;
+  on: (
+    event: "payment.failed",
+    handler: (response: { error?: { description?: string } }) => void,
+  ) => void;
 };
 
 declare global {
@@ -49,25 +55,52 @@ function formatInr(paise: number) {
   }).format(paise / 100);
 }
 
-function parsePlan(value: string | null): number {
-  const parsed = value ? Number(value) : NaN;
-  if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 60) return parsed;
-  return 12;
+function resolvePlan(planMonths: number): PublicMembershipPlan {
+  return (
+    membershipPlansStore.getPlanByMonths(planMonths) ??
+    BASE_MEMBERSHIP_PLANS.find((plan) => plan.months === planMonths) ??
+    BASE_MEMBERSHIP_PLANS[0]
+  );
 }
 
-export function MembershipCheckout() {
+/** Build checkout totals from the already-loaded membership plan catalog. */
+function quoteFromPlan(plan: PublicMembershipPlan): MembershipQuote {
+  const offerPricePaise = plan.offerPricePaise;
+  const listPricePaise = offerPricePaise ?? plan.listPricePaise;
+  return {
+    planMonths: plan.months,
+    planName: plan.name,
+    originalPricePaise: plan.listPricePaise,
+    listPricePaise,
+    discountPaise: 0,
+    amountPaise: listPricePaise,
+    discountLabel: "—",
+    couponCode: null,
+    offer: plan.offer,
+    currency: "INR",
+  };
+}
+
+type MembershipCheckoutPanelProps = {
+  planMonths: number;
+  startMode?: CheckoutStartMode;
+  onClose?: () => void;
+};
+
+export function MembershipCheckoutPanel({
+  planMonths,
+  startMode = "now",
+  onClose,
+}: MembershipCheckoutPanelProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { openAuth } = useAuthModal();
-  const planMonths = parsePlan(searchParams.get("plan"));
-  const startMode: CheckoutStartMode =
-    searchParams.get("start") === "after-trial" ? "after_current" : "now";
 
   const [user, setUser] = useState<PublicUser | null>(null);
-  const [quote, setQuote] = useState<MembershipQuote | null>(null);
+  const [quote, setQuote] = useState<MembershipQuote>(() =>
+    quoteFromPlan(resolvePlan(planMonths)),
+  );
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
-  const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -75,8 +108,12 @@ export function MembershipCheckout() {
   const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "";
 
   useEffect(() => {
-    void membershipPlansStore.refresh();
-  }, []);
+    setQuote(quoteFromPlan(resolvePlan(planMonths)));
+    setCouponInput("");
+    setAppliedCoupon("");
+    setError(null);
+    setSuccess(false);
+  }, [planMonths]);
 
   useEffect(() => {
     if (document.getElementById("razorpay-checkout-js")) return;
@@ -87,16 +124,17 @@ export function MembershipCheckout() {
     document.body.appendChild(script);
   }, []);
 
+  /** Soft sync: user + referral/coupon discounts only — UI already has plan/offer prices. */
   useEffect(() => {
     const token = getStoredToken();
     if (!token) {
       saveCheckoutIntent(planMonths, startMode);
       openAuth("login");
-      setLoading(false);
       return;
     }
 
     let cancelled = false;
+
     Promise.all([
       sessionStore.ensureUser(),
       getMyCoupons(token).catch(() => ({ coupons: [] })),
@@ -118,16 +156,13 @@ export function MembershipCheckout() {
           return;
         }
 
+        // Referral / server-side discounts without blocking first paint
         const nextQuote = await quoteMembership(token, { planMonths });
         if (cancelled) return;
         setQuote(nextQuote);
       })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Unable to load checkout.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+      .catch(() => {
+        // Keep catalog quote on screen if soft sync fails.
       });
 
     return () => {
@@ -135,10 +170,7 @@ export function MembershipCheckout() {
     };
   }, [openAuth, planMonths, startMode]);
 
-  const payableLabel = useMemo(() => {
-    if (!quote) return "";
-    return formatInr(quote.amountPaise);
-  }, [quote]);
+  const payableLabel = useMemo(() => formatInr(quote.amountPaise), [quote]);
 
   async function applyCoupon() {
     const token = getStoredToken();
@@ -158,7 +190,7 @@ export function MembershipCheckout() {
 
   async function onPay() {
     const token = getStoredToken();
-    if (!token || !quote) {
+    if (!token) {
       openAuth("login");
       return;
     }
@@ -250,7 +282,10 @@ export function MembershipCheckout() {
         <button
           type="button"
           className="btn-primary mt-6 inline-flex items-center justify-center rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white"
-          onClick={() => router.replace("/dashboard/membership")}
+          onClick={() => {
+            onClose?.();
+            router.replace("/dashboard/membership");
+          }}
         >
           Go to My Membership
         </button>
@@ -260,23 +295,25 @@ export function MembershipCheckout() {
 
   return (
     <CheckoutCard>
-      <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase">Checkout</p>
+      <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase">
+        Checkout
+      </p>
       <h1 className="mt-2 font-serif text-[1.7rem] font-bold text-[#1f6b3a] sm:text-[1.9rem]">
-        {quote?.planName ?? `${planMonths}-Month Membership`}
+        {quote.planName}
       </h1>
       <p className="mt-2 text-[14px] text-[#5f6f64] sm:text-[15px]">
-        Complete payment to start or renew your membership. Access is granted only after a
-        successful payment.
+        Complete payment to start or renew your membership. Access is granted only
+        after a successful payment.
       </p>
 
       <dl className="mt-6 space-y-2 rounded-[16px] border border-[#e6ebe3] bg-[#F4F8F2] px-4 py-4 text-[14px]">
-        {quote?.offer ? (
+        {quote.offer ? (
           <div className="flex justify-between gap-4">
             <dt className="text-[#5f6f64]">Offer</dt>
             <dd className="font-semibold text-[#c45c16]">{quote.offer.badge}</dd>
           </div>
         ) : null}
-        {quote && quote.originalPricePaise > quote.listPricePaise ? (
+        {quote.originalPricePaise > quote.listPricePaise ? (
           <div className="flex justify-between gap-4">
             <dt className="text-[#5f6f64]">Regular price</dt>
             <dd className="font-semibold text-[#8a978c] line-through">
@@ -286,23 +323,23 @@ export function MembershipCheckout() {
         ) : null}
         <div className="flex justify-between gap-4">
           <dt className="text-[#5f6f64]">
-            {quote?.offer ? "Offer price" : "Plan price"}
+            {quote.offer ? "Offer price" : "Plan price"}
           </dt>
           <dd className="font-semibold text-[#243028]">
-            {quote ? formatInr(quote.listPricePaise) : "—"}
+            {formatInr(quote.listPricePaise)}
           </dd>
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-[#5f6f64]">Discount</dt>
           <dd className="font-semibold text-[#1f6b3a]">
-            {quote && quote.discountPaise > 0
+            {quote.discountPaise > 0
               ? `− ${formatInr(quote.discountPaise)} (${quote.discountLabel})`
               : "—"}
           </dd>
         </div>
         <div className="flex justify-between gap-4 border-t border-[#d7e5d9] pt-2">
           <dt className="font-bold text-[#243028]">Amount payable</dt>
-          <dd className="font-bold text-[#1f6b3a]">{payableLabel || "—"}</dd>
+          <dd className="font-bold text-[#1f6b3a]">{payableLabel}</dd>
         </div>
       </dl>
 
@@ -319,8 +356,7 @@ export function MembershipCheckout() {
           <button
             type="button"
             onClick={() => void applyCoupon()}
-            disabled={loading}
-            className="rounded-[12px] border border-[#1f6b3a] px-3 py-2.5 text-[13px] font-bold text-[#1f6b3a] disabled:opacity-60"
+            className="rounded-[12px] border border-[#1f6b3a] px-3 py-2.5 text-[13px] font-bold text-[#1f6b3a]"
           >
             Apply
           </button>
@@ -340,35 +376,32 @@ export function MembershipCheckout() {
 
       <button
         type="button"
-        disabled={paying || loading || !quote}
+        disabled={paying}
         onClick={() => void onPay()}
         className="btn-primary mt-6 inline-flex w-full items-center justify-center rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white disabled:opacity-60"
       >
         {paying
           ? "Opening payment…"
-          : quote && quote.amountPaise === 0
+          : quote.amountPaise === 0
             ? "Confirm membership"
-            : `Pay ${payableLabel || "—"}`}
+            : `Pay ${payableLabel}`}
       </button>
 
-      <Link
-        href="/membership"
+      <button
+        type="button"
+        onClick={() => onClose?.()}
         className="mt-4 inline-flex w-full items-center justify-center text-[13px] font-semibold text-[#5f6f64] underline-offset-2 hover:underline"
       >
         Back to plans
-      </Link>
+      </button>
     </CheckoutCard>
   );
 }
 
 function CheckoutCard({ children }: { children: React.ReactNode }) {
   return (
-    <main className="w-full bg-[#FBF9F5]">
-      <div className="mx-auto w-full max-w-[560px] px-4 py-8 sm:px-6 sm:py-12">
-        <section className="rounded-[22px] border border-[#e6ebe3] bg-white px-5 py-7 shadow-[0_10px_32px_rgba(31,107,58,0.05)] sm:px-8 sm:py-8">
-          {children}
-        </section>
-      </div>
-    </main>
+    <section className="rounded-[22px] border border-[#e6ebe3] bg-white px-5 py-7 shadow-[0_10px_32px_rgba(31,107,58,0.08)] sm:px-8 sm:py-8">
+      {children}
+    </section>
   );
 }

@@ -33,7 +33,8 @@ import trialIcon from "@/assets/trail.png";
 import { ButtonLoader } from "@/components/site-loader";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
 import { captureReferralCode, getCapturedReferralCode } from "@/lib/referral-storage";
-import { checkoutPath, readCheckoutIntent } from "@/lib/checkout-intent";
+import { openCheckoutModal } from "@/components/checkout-modal-provider";
+import { readCheckoutIntent } from "@/lib/checkout-intent";
 
 type Mode = "login" | "signup" | "forgot";
 type Step = "identity" | "otp" | "reset_done";
@@ -489,7 +490,7 @@ export function AuthTrialCard({
     onCloseRef.current?.();
     const intent = readCheckoutIntent();
     if (intent.planMonths) {
-      router.push(checkoutPath(intent.planMonths, intent.startMode));
+      openCheckoutModal(intent.planMonths, intent.startMode);
       return;
     }
     router.push("/dashboard");
