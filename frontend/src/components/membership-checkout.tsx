@@ -18,6 +18,7 @@ import {
   saveCheckoutIntent,
   type CheckoutStartMode,
 } from "@/lib/checkout-intent";
+import { membershipPlansStore } from "@/lib/membership-plans-store";
 import { sessionStore } from "@/lib/session-store";
 
 const PAYMENT_INCOMPLETE =
@@ -48,8 +49,9 @@ function formatInr(paise: number) {
   }).format(paise / 100);
 }
 
-function parsePlan(value: string | null): 3 | 6 | 12 {
-  if (value === "3" || value === "6" || value === "12") return Number(value) as 3 | 6 | 12;
+function parsePlan(value: string | null): number {
+  const parsed = value ? Number(value) : NaN;
+  if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 60) return parsed;
   return 12;
 }
 
@@ -71,6 +73,10 @@ export function MembershipCheckout() {
   const [success, setSuccess] = useState(false);
 
   const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "";
+
+  useEffect(() => {
+    void membershipPlansStore.refresh();
+  }, []);
 
   useEffect(() => {
     if (document.getElementById("razorpay-checkout-js")) return;
@@ -264,8 +270,24 @@ export function MembershipCheckout() {
       </p>
 
       <dl className="mt-6 space-y-2 rounded-[16px] border border-[#e6ebe3] bg-[#F4F8F2] px-4 py-4 text-[14px]">
+        {quote?.offer ? (
+          <div className="flex justify-between gap-4">
+            <dt className="text-[#5f6f64]">Offer</dt>
+            <dd className="font-semibold text-[#c45c16]">{quote.offer.badge}</dd>
+          </div>
+        ) : null}
+        {quote && quote.originalPricePaise > quote.listPricePaise ? (
+          <div className="flex justify-between gap-4">
+            <dt className="text-[#5f6f64]">Regular price</dt>
+            <dd className="font-semibold text-[#8a978c] line-through">
+              {formatInr(quote.originalPricePaise)}
+            </dd>
+          </div>
+        ) : null}
         <div className="flex justify-between gap-4">
-          <dt className="text-[#5f6f64]">Plan price</dt>
+          <dt className="text-[#5f6f64]">
+            {quote?.offer ? "Offer price" : "Plan price"}
+          </dt>
           <dd className="font-semibold text-[#243028]">
             {quote ? formatInr(quote.listPricePaise) : "—"}
           </dd>

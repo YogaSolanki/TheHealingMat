@@ -11,7 +11,7 @@ import {
 } from "@/lib/checkout-intent";
 
 type ChoosePlanButtonProps = {
-  months: 3 | 6 | 12;
+  months: number;
   startMode?: CheckoutStartMode;
   children: ReactNode;
   className?: string;

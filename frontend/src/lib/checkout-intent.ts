@@ -13,7 +13,9 @@ export function readCheckoutIntent(): {
   startMode: CheckoutStartMode;
 } {
   const raw = sessionStorage.getItem(CHECKOUT_PLAN_KEY);
-  const planMonths = raw === "3" || raw === "6" || raw === "12" ? Number(raw) : null;
+  const parsed = raw ? Number(raw) : NaN;
+  const planMonths =
+    Number.isInteger(parsed) && parsed >= 1 && parsed <= 60 ? parsed : null;
   const start =
     sessionStorage.getItem(CHECKOUT_START_KEY) === "after_current"
       ? "after_current"

@@ -14,6 +14,8 @@ export function NavGlyph({ name, className = iconClass }: { name: NavIcon; class
       return <UsersIcon className={className} />;
     case "coupon":
       return <TicketIcon className={className} />;
+    case "offers":
+      return <TagIcon className={className} />;
     case "blog":
       return <PenIcon className={className} />;
     case "resources":
@@ -50,6 +52,15 @@ function TicketIcon({ className = iconClass }: IconProps) {
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
       <path d="M4 9V7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5V9a2 2 0 0 0 0 6v1.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5V15a2 2 0 0 0 0-6Z" />
       <path d="M9 8v8M15 8v8" strokeDasharray="2 3" />
+    </svg>
+  );
+}
+
+function TagIcon({ className = iconClass }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+      <path d="M20 13.2 12.8 20.4a2 2 0 0 1-2.8 0L3.6 14a2 2 0 0 1 0-2.8L10.8 4H20v9.2Z" strokeLinejoin="round" />
+      <circle cx="15.2" cy="8.8" r="1.2" fill="currentColor" stroke="none" />
     </svg>
   );
 }

@@ -309,6 +309,101 @@ export function deleteAdminCoupon(token: string, id: string) {
   ).then(() => undefined);
 }
 
+export type AdminMembershipPlan = {
+  id: string;
+  months: number;
+  name: string;
+  listPricePaise: number;
+  perDayRupees: number;
+  featured: boolean;
+  perk: string | null;
+  active: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminMembershipOfferPrice = {
+  id?: string;
+  months: number;
+  offerPricePaise: number;
+  offerPerDayRupees: number;
+};
+
+export type AdminMembershipOffer = {
+  id: string;
+  title: string;
+  badge: string;
+  active: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  prices: AdminMembershipOfferPrice[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MembershipOfferInput = {
+  title?: string;
+  badge?: string;
+  active?: boolean;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  prices?: {
+    months: number;
+    priceRupees: number;
+    perDayRupees: number;
+  }[];
+};
+
+export function listAdminMembershipPlans(token: string) {
+  return authJson<AdminMembershipPlan[]>(
+    "GET",
+    "/admin/membership-plans",
+    token,
+  );
+}
+
+export function listAdminMembershipOffers(token: string) {
+  return authJson<AdminMembershipOffer[]>(
+    "GET",
+    "/admin/membership-offers",
+    token,
+  );
+}
+
+export function createAdminMembershipOffer(
+  token: string,
+  body: MembershipOfferInput,
+) {
+  return authJson<AdminMembershipOffer>(
+    "POST",
+    "/admin/membership-offers",
+    token,
+    body,
+  );
+}
+
+export function updateAdminMembershipOffer(
+  token: string,
+  id: string,
+  body: MembershipOfferInput,
+) {
+  return authJson<AdminMembershipOffer>(
+    "PATCH",
+    `/admin/membership-offers/${id}`,
+    token,
+    body,
+  );
+}
+
+export function deleteAdminMembershipOffer(token: string, id: string) {
+  return authJson<{ success: boolean }>(
+    "DELETE",
+    `/admin/membership-offers/${id}`,
+    token,
+  ).then(() => undefined);
+}
+
 export function listAdminVideos(token: string) {
   return authJson<AdminContentItem[]>("GET", "/admin/videos", token);
 }

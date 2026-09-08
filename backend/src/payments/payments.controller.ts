@@ -15,7 +15,7 @@ export class PaymentsController {
 
   @Public()
   @Get('memberships/plans')
-  listPlans() {
+  async listPlans() {
     return this.payments.listPlans();
   }
 

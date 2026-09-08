@@ -292,16 +292,42 @@ export async function submitContact(input: {
   return parseJson<ContactSubmitResponse>(response);
 }
 
-export type MembershipPlanMonths = 3 | 6 | 12;
+export type MembershipPlanMonths = number;
+
+export type PublicMembershipPlan = {
+  id: string;
+  months: number;
+  name: string;
+  listPricePaise: number;
+  perDayRupees: number;
+  offerPricePaise: number | null;
+  featured: boolean;
+  perk: string | null;
+  currency: "INR";
+  offer: { title: string; badge: string } | null;
+};
+
+export type MembershipPlansResponse = {
+  plans: PublicMembershipPlan[];
+  offer: {
+    id: string;
+    title: string;
+    badge: string;
+    startsAt: string | null;
+    endsAt: string | null;
+  } | null;
+};
 
 export type MembershipQuote = {
-  planMonths: MembershipPlanMonths;
+  planMonths: number;
   planName: string;
+  originalPricePaise: number;
   listPricePaise: number;
   discountPaise: number;
   amountPaise: number;
   discountLabel: string;
   couponCode: string | null;
+  offer: { title: string; badge: string } | null;
   currency: "INR";
 };
 
@@ -348,9 +374,16 @@ function authHeaders(accessToken: string) {
   };
 }
 
+export async function listMembershipPlans(): Promise<MembershipPlansResponse> {
+  const response = await fetch(`${API_URL}/memberships/plans`, {
+    cache: "no-store",
+  });
+  return parseJson<MembershipPlansResponse>(response);
+}
+
 export async function quoteMembership(
   accessToken: string,
-  input: { planMonths: MembershipPlanMonths; couponCode?: string },
+  input: { planMonths: number; couponCode?: string },
 ): Promise<MembershipQuote> {
   const response = await fetch(`${API_URL}/memberships/quote`, {
     method: "POST",
@@ -373,7 +406,7 @@ export async function getMyMembership(
 export async function createRazorpayOrder(
   accessToken: string,
   input: {
-    planMonths?: MembershipPlanMonths;
+    planMonths?: number;
     amount?: number;
     currency?: string;
     receipt?: string;

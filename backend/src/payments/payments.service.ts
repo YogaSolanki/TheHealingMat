@@ -17,13 +17,10 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { QuoteMembershipDto } from './dto/quote-membership.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
 import { Membership } from './membership.entity';
-import {
-  MEMBERSHIP_PLANS,
-  REFERRAL_DISCOUNT_PERCENT,
-  isMembershipPlanMonths,
-  listMembershipPlans,
-  type MembershipPlanMonths,
-} from './membership-plans';
+import { MembershipPlan } from './membership-plan.entity';
+import { REFERRAL_DISCOUNT_PERCENT } from './membership-plans';
+import { MembershipOffersService } from './membership-offers.service';
+import { MembershipPlansService } from './membership-plans.service';
 import { PaymentOrder } from './payment-order.entity';
 
 const MIN_ORDER_PAISE = 100;
@@ -35,6 +32,8 @@ export class PaymentsService {
   constructor(
     private readonly config: ConfigService,
     private readonly coupons: CouponsService,
+    private readonly membershipPlans: MembershipPlansService,
+    private readonly membershipOffers: MembershipOffersService,
     @InjectRepository(PaymentOrder)
     private readonly orders: Repository<PaymentOrder>,
     @InjectRepository(Membership)
@@ -50,8 +49,8 @@ export class PaymentsService {
         : null;
   }
 
-  listPlans() {
-    return { plans: listMembershipPlans() };
+  async listPlans() {
+    return this.membershipPlans.listPublic();
   }
 
   async quote(user: User, dto: QuoteMembershipDto) {
@@ -188,7 +187,7 @@ export class PaymentsService {
     await this.orders.save(order);
 
     const membership =
-      order.planMonths != null && isMembershipPlanMonths(order.planMonths)
+      order.planMonths != null
         ? await this.activateMembership(user, order)
         : null;
 
@@ -278,14 +277,20 @@ export class PaymentsService {
   }
 
   private async activateMembership(user: User, order: PaymentOrder) {
-    if (order.planMonths == null || !isMembershipPlanMonths(order.planMonths)) {
+    if (order.planMonths == null) {
       throw new BadRequestException('This order is not a membership purchase.');
     }
 
     await this.expireEnded(user.id);
     await this.assertCanPurchase(user.id);
 
-    const plan = MEMBERSHIP_PLANS[order.planMonths];
+    const plan =
+      (await this.membershipPlans.findByMonths(order.planMonths)) ??
+      ({
+        months: order.planMonths,
+        name: `${order.planMonths}-Month Membership`,
+      } satisfies Pick<MembershipPlan, 'months' | 'name'>);
+
     const { startsAt, endsAt, status } = await this.resolveTerm(
       user.id,
       order.startMode,
@@ -390,11 +395,17 @@ export class PaymentsService {
 
   private async buildQuote(
     user: User,
-    planMonths: MembershipPlanMonths,
+    planMonths: number,
     couponCode?: string,
   ) {
-    const plan = MEMBERSHIP_PLANS[planMonths];
-    const listPricePaise = plan.listPricePaise;
+    const plan = await this.membershipPlans.requireActiveByMonths(planMonths);
+    const offer = await this.membershipOffers.findCurrentOffer();
+    const offerPrice = offer
+      ? this.membershipOffers.priceForMonths(offer, planMonths)
+      : null;
+
+    const originalPricePaise = plan.listPricePaise;
+    const listPricePaise = offerPrice?.offerPricePaise ?? plan.listPricePaise;
     let discountPaise = 0;
     let appliedCoupon: string | null = null;
     let discountLabel = '—';
@@ -431,11 +442,18 @@ export class PaymentsService {
 
     return {
       plan,
+      originalPricePaise,
       listPricePaise,
       discountPaise,
       amountPaise,
       couponCode: appliedCoupon,
       discountLabel,
+      offer: offerPrice
+        ? {
+            title: offer!.title,
+            badge: offer!.badge || offer!.title,
+          }
+        : null,
     };
   }
 
@@ -443,11 +461,13 @@ export class PaymentsService {
     return {
       planMonths: quote.plan.months,
       planName: quote.plan.name,
+      originalPricePaise: quote.originalPricePaise,
       listPricePaise: quote.listPricePaise,
       discountPaise: quote.discountPaise,
       amountPaise: quote.amountPaise,
       discountLabel: quote.discountLabel,
       couponCode: quote.couponCode,
+      offer: quote.offer,
       currency: 'INR' as const,
     };
   }
