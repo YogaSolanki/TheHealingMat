@@ -384,7 +384,7 @@ export class PaymentsService {
       plan.months,
     );
 
-    return this.memberships.save(
+    const membership = await this.memberships.save(
       this.memberships.create({
         userId: user.id,
         planMonths: plan.months,
@@ -401,6 +401,16 @@ export class PaymentsService {
         razorpayInvoiceUrl: order.razorpayInvoiceUrl,
       }),
     );
+
+    await this.coupons
+      .recordRedemption({
+        code: order.couponCode,
+        userId: user.id,
+        paymentOrderId: order.id,
+      })
+      .catch(() => null);
+
+    return membership;
   }
 
   private async resolveTerm(
@@ -505,14 +515,7 @@ export class PaymentsService {
       if (!coupon) {
         throw new BadRequestException('This coupon code is not valid.');
       }
-      if (
-        coupon.assignedUserId &&
-        coupon.assignedUserId !== user.id
-      ) {
-        throw new BadRequestException(
-          'This coupon is assigned to another member.',
-        );
-      }
+      await this.coupons.assertRedeemable(coupon, user.id);
       appliedCoupon = coupon.code;
       discountPaise =
         coupon.discountType === 'percent'

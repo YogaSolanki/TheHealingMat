@@ -46,6 +46,7 @@ export function CouponsPanel() {
   const [discountType, setDiscountType] =
     useState<CouponDiscountType>("fixed");
   const [discountValue, setDiscountValue] = useState("");
+  const [maxUses, setMaxUses] = useState("1");
   const [draft, setDraft] = useState<GeneratedCoupon | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -62,7 +63,9 @@ export function CouponsPanel() {
   const canGenerate =
     userName.trim().length >= 2 &&
     Number(discountValue) > 0 &&
-    Number.isFinite(Number(discountValue));
+    Number.isFinite(Number(discountValue)) &&
+    Number(maxUses) >= 1 &&
+    Number.isInteger(Number(maxUses));
 
   const load = useCallback(
     async (options?: { force?: boolean }) => {
@@ -146,8 +149,13 @@ export function CouponsPanel() {
 
     const name = userName.trim();
     const value = Math.floor(Number(discountValue));
+    const uses = Math.floor(Number(maxUses));
     if (discountType === "percent" && value > 100) {
       setError("Percent off cannot be more than 100.");
+      return;
+    }
+    if (uses < 1) {
+      setError("Usage limit must be at least 1.");
       return;
     }
 
@@ -166,12 +174,16 @@ export function CouponsPanel() {
         userName: name,
         discountType,
         discountValue: value,
+        maxUses: uses,
       });
       setDraft(generated);
       setUserName(generated.userName);
       setDiscountType(generated.discountType);
       setDiscountValue(String(generated.discountValue));
-      setNotice("Coupon generated. Copy it, then save to store it.");
+      setMaxUses(String(generated.maxUses));
+      setNotice(
+        `Coupon generated (${generated.maxUses} use${generated.maxUses === 1 ? "" : "s"}). Copy it, then save.`,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate coupon");
     } finally {
@@ -209,11 +221,14 @@ export function CouponsPanel() {
         discountType: draft.discountType,
         discountValue: draft.discountValue,
         discountLabel: draft.discountLabel,
+        maxUses: draft.maxUses,
+        expiresAt: draft.expiresAt,
       });
-      setNotice(`Saved ${draft.code}`);
+      setNotice(`Saved ${draft.code} · ${draft.maxUses} use limit`);
       setDraft(null);
       setUserName("");
       setDiscountValue("");
+      setMaxUses("1");
       setDiscountType("fixed");
       setCopied(false);
       await load({ force: true });
@@ -285,9 +300,10 @@ export function CouponsPanel() {
     try {
       const updated = await assignAdminCoupon(token, assignTarget.id, {
         referralCode: code,
+        maxUses: 1,
       });
       setNotice(
-        `Assigned ${updated.code} to ${updated.userName} (${updated.assignedReferralCode})`,
+        `Assigned ${updated.code} to ${updated.userName} (1 use only)`,
       );
       setAssignTarget(null);
       setReferralCode("");
@@ -319,19 +335,20 @@ export function CouponsPanel() {
       <div className="shrink-0 rounded-2xl border border-[#e6ebe3] bg-white p-5 shadow-[0_4px_16px_rgba(21,32,25,0.03)]">
         <h2 className="text-sm font-semibold text-[#243028]">Generate coupon</h2>
         <p className="mt-1 text-xs text-[#8a978c]">
-          Fill user name and offer. Code is built from both (e.g. SONUXQU100).
-          Saved only when you click Save. Assign later via referral code.
+          Set a usage limit (e.g. 1 = single use, 10 = ten members). Leave
+          unassigned for a shared code, or assign to one member for a personal
+          single-use coupon.
         </p>
 
         <form onSubmit={onGenerate} className="mt-4 space-y-3">
-          <div className="grid gap-3 sm:grid-cols-[1.4fr_1fr_1fr_auto] sm:items-end">
+          <div className="grid gap-3 sm:grid-cols-[1.2fr_1fr_0.9fr_0.9fr_auto] sm:items-end">
             <label className="min-w-0 text-sm text-[#5f6f64]">
-              User name
+              Label / user name
               <input
                 type="text"
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
-                placeholder="e.g. Sonu"
+                placeholder="e.g. Diwali offer"
                 className="mt-1.5 h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
               />
             </label>
@@ -364,6 +381,19 @@ export function CouponsPanel() {
               />
             </label>
 
+            <label className="min-w-0 text-sm text-[#5f6f64]">
+              Max uses
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={maxUses}
+                onChange={(e) => setMaxUses(e.target.value)}
+                placeholder="1"
+                className="mt-1.5 h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
+              />
+            </label>
+
             <button
               type="submit"
               disabled={!canGenerate || generating}
@@ -377,7 +407,8 @@ export function CouponsPanel() {
         {draft ? (
           <div className="mt-4 rounded-2xl border border-[#d7e5d9] bg-[#f4f8f2] px-4 py-4">
             <p className="text-xs font-medium uppercase tracking-wide text-[#5f6f64]">
-              Generated for {draft.userName} · {draft.discountLabel}
+              Generated for {draft.userName} · {draft.discountLabel} ·{" "}
+              {draft.maxUses} use{draft.maxUses === 1 ? "" : "s"}
             </p>
             <p className="mt-2 break-all font-mono text-xl font-semibold tracking-wide text-[#1f6b3a]">
               {draft.code}
@@ -436,13 +467,15 @@ export function CouponsPanel() {
         </div>
 
         <div className="min-h-0 flex-1 overflow-x-auto pb-28">
-          <table className="w-full min-w-[760px] table-fixed text-left text-sm">
+          <table className="w-full min-w-[920px] table-fixed text-left text-sm">
             <thead className="text-[#5f6f64]">
               <tr>
-                <th className="w-[26%] px-5 py-3 font-medium">Code</th>
-                <th className="w-[28%] px-5 py-3 font-medium">User name</th>
-                <th className="w-[16%] px-5 py-3 font-medium">Offer</th>
-                <th className="w-[16%] px-5 py-3 font-medium">Created</th>
+                <th className="w-[18%] px-5 py-3 font-medium">Code</th>
+                <th className="w-[18%] px-5 py-3 font-medium">Audience</th>
+                <th className="w-[12%] px-5 py-3 font-medium">Offer</th>
+                <th className="w-[12%] px-5 py-3 font-medium">Uses</th>
+                <th className="w-[12%] px-5 py-3 font-medium">Status</th>
+                <th className="w-[14%] px-5 py-3 font-medium">Created</th>
                 <th className="w-[14%] px-5 py-3 font-medium">Actions</th>
               </tr>
             </thead>
@@ -450,7 +483,7 @@ export function CouponsPanel() {
               {filtered.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={7}
                     className="px-5 py-16 text-center text-[#8a978c]"
                   >
                     {coupons.length === 0
@@ -465,16 +498,21 @@ export function CouponsPanel() {
                       <p className="font-mono font-semibold tracking-wide text-[#1f6b3a]">
                         {coupon.code}
                       </p>
+                      <p className="mt-0.5 text-[11px] text-[#8a978c]">
+                        {coupon.userName}
+                      </p>
                     </td>
                     <td className="px-5 py-3 text-[#243028]">
-                      <p>{coupon.userName}</p>
                       {coupon.assignedReferralCode ? (
-                        <p className="mt-0.5 font-mono text-[11px] text-[#8a978c]">
-                          ref: {coupon.assignedReferralCode}
-                        </p>
+                        <>
+                          <p className="text-sm">Assigned member</p>
+                          <p className="mt-0.5 font-mono text-[11px] text-[#8a978c]">
+                            ref: {coupon.assignedReferralCode}
+                          </p>
+                        </>
                       ) : (
-                        <p className="mt-0.5 text-[11px] text-[#8a978c]">
-                          Unassigned
+                        <p className="text-sm text-[#5f6f64]">
+                          Open (anyone with code)
                         </p>
                       )}
                     </td>
@@ -482,6 +520,18 @@ export function CouponsPanel() {
                       <span className="rounded-full bg-[#e8f2ea] px-2.5 py-1 text-[11px] font-semibold text-[#1f6b3a]">
                         {coupon.discountLabel || "—"}
                       </span>
+                    </td>
+                    <td className="px-5 py-3 whitespace-nowrap text-[#243028]">
+                      <span className="font-semibold">
+                        {coupon.usageCount ?? 0}
+                      </span>
+                      <span className="text-[#8a978c]">
+                        {" "}
+                        / {coupon.maxUses ?? 1}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3">
+                      <CouponStatusPill status={coupon.status ?? "active"} />
                     </td>
                     <td className="px-5 py-3 whitespace-nowrap text-[#5f6f64]">
                       {formatDate(coupon.createdAt)}
@@ -521,7 +571,8 @@ export function CouponsPanel() {
                             <button
                               type="button"
                               onClick={() => openAssign(coupon)}
-                              className="block w-full px-3.5 py-2 text-left text-sm font-medium text-[#243028] hover:bg-[#f4f7f4]"
+                              disabled={(coupon.usageCount ?? 0) > 0}
+                              className="block w-full px-3.5 py-2 text-left text-sm font-medium text-[#243028] hover:bg-[#f4f7f4] disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               Assign
                             </button>
@@ -567,7 +618,8 @@ export function CouponsPanel() {
               <span className="font-mono font-semibold text-[#1f6b3a]">
                 {assignTarget.code}
               </span>{" "}
-              to a member using their unique referral code.
+              to one member. After assign it becomes a single-use personal
+              coupon for them only.
             </p>
 
             <form onSubmit={(event) => void onAssign(event)} className="mt-4 space-y-3">
@@ -605,5 +657,26 @@ export function CouponsPanel() {
         </div>
       ) : null}
     </section>
+  );
+}
+
+function CouponStatusPill({
+  status,
+}: {
+  status: import("@/lib/api").CouponLifecycleStatus;
+}) {
+  const styles: Record<string, string> = {
+    active: "bg-[#eef6f0] text-[#1f6b3a]",
+    assigned: "bg-[#EAF2F8] text-[#4A6B8A]",
+    exhausted: "bg-[#f0f0f0] text-[#6b7c6e]",
+    expired: "bg-[#fff5f3] text-[#9b3b32]",
+    inactive: "bg-[#f0f0f0] text-[#6b7c6e]",
+  };
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide uppercase ${styles[status] ?? styles.active}`}
+    >
+      {status}
+    </span>
   );
 }

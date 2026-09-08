@@ -9,6 +9,7 @@ import {
   getMyCoupons,
   quoteMembership,
   verifyRazorpayPayment,
+  type MemberCoupon,
   type MembershipQuote,
   type PublicMembershipPlan,
   type PublicUser,
@@ -108,6 +109,7 @@ export function MembershipCheckoutPanel({
   );
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
+  const [assignedCoupons, setAssignedCoupons] = useState<MemberCoupon[]>([]);
   const [paying, setPaying] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -121,6 +123,7 @@ export function MembershipCheckoutPanel({
     setQuote(quoteFromPlan(resolvePlan(planMonths)));
     setCouponInput("");
     setAppliedCoupon("");
+    setAssignedCoupons([]);
     setError(null);
     setSuccess(false);
     setPaidMembershipId(null);
@@ -155,7 +158,10 @@ export function MembershipCheckoutPanel({
         if (cancelled) return;
         setUser(me);
 
-        const assignedCode = mine.coupons[0]?.code?.trim() ?? "";
+        const assigned = mine.coupons ?? [];
+        setAssignedCoupons(assigned);
+
+        const assignedCode = assigned[0]?.code?.trim() ?? "";
         if (assignedCode) {
           setCouponInput(assignedCode);
           const nextQuote = await quoteMembership(token, {
@@ -184,14 +190,16 @@ export function MembershipCheckoutPanel({
 
   const payableLabel = useMemo(() => formatInr(quote.amountPaise), [quote]);
 
-  async function applyCoupon() {
+  async function applyCoupon(codeOverride?: string) {
     const token = getStoredToken();
     if (!token) return;
+    const code = (codeOverride ?? couponInput).trim();
+    if (codeOverride) setCouponInput(code);
     setError(null);
     try {
       const next = await quoteMembership(token, {
         planMonths,
-        couponCode: couponInput.trim() || undefined,
+        couponCode: code || undefined,
       });
       setQuote(next);
       setAppliedCoupon(next.couponCode ?? "");
@@ -457,6 +465,38 @@ export function MembershipCheckoutPanel({
 
       <label className="mt-5 block text-[13px] font-semibold text-[#243028]">
         Coupon or referral code
+        {assignedCoupons.length > 0 ? (
+          <div className="mt-2 rounded-[14px] border border-[#d7e5d9] bg-[#f4f8f2] px-3.5 py-3">
+            <p className="text-[12px] font-bold text-[#1f6b3a]">
+              Your coupon{assignedCoupons.length === 1 ? "" : "s"}
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              {assignedCoupons.map((coupon) => (
+                <li
+                  key={coupon.id}
+                  className="flex flex-wrap items-center justify-between gap-2"
+                >
+                  <span className="min-w-0">
+                    <span className="font-mono text-[13px] font-bold tracking-wide text-[#243028]">
+                      {coupon.code}
+                    </span>
+                    <span className="ml-2 text-[12px] font-medium text-[#5f6f64]">
+                      {coupon.discountLabel}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    disabled={paying || verifying}
+                    onClick={() => void applyCoupon(coupon.code)}
+                    className="rounded-full border border-[#1f6b3a] px-2.5 py-1 text-[11px] font-bold text-[#1f6b3a] disabled:opacity-60"
+                  >
+                    {appliedCoupon === coupon.code ? "Applied" : "Use"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <span className="mt-1.5 flex gap-2">
           <input
             value={couponInput}

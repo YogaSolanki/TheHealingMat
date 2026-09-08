@@ -239,6 +239,13 @@ export function deleteAdminArticle(token: string, id: string) {
 
 export type CouponDiscountType = "percent" | "fixed";
 
+export type CouponLifecycleStatus =
+  | "active"
+  | "exhausted"
+  | "expired"
+  | "inactive"
+  | "assigned";
+
 export type AdminCoupon = {
   id: string;
   code: string;
@@ -248,6 +255,12 @@ export type AdminCoupon = {
   discountType: CouponDiscountType;
   discountValue: number;
   discountLabel: string;
+  maxUses: number;
+  usageCount: number;
+  remainingUses: number;
+  active: boolean;
+  expiresAt: string | null;
+  status: CouponLifecycleStatus;
   createdAt: string;
   updatedAt: string;
 };
@@ -258,6 +271,8 @@ export type GeneratedCoupon = {
   discountType: CouponDiscountType;
   discountValue: number;
   discountLabel: string;
+  maxUses: number;
+  expiresAt: string | null;
 };
 
 export function listAdminCoupons(token: string) {
@@ -270,6 +285,8 @@ export function generateAdminCoupon(
     userName: string;
     discountType: CouponDiscountType;
     discountValue: number;
+    maxUses?: number;
+    expiresAt?: string | null;
   },
 ) {
   return authJson<GeneratedCoupon>("POST", "/admin/coupons/generate", token, body);
@@ -283,6 +300,8 @@ export function createAdminCoupon(
     discountType: CouponDiscountType;
     discountValue: number;
     discountLabel: string;
+    maxUses?: number;
+    expiresAt?: string | null;
   },
 ) {
   return authJson<AdminCoupon>("POST", "/admin/coupons", token, body);
@@ -291,7 +310,7 @@ export function createAdminCoupon(
 export function assignAdminCoupon(
   token: string,
   id: string,
-  body: { referralCode: string },
+  body: { referralCode: string; maxUses?: number },
 ) {
   return authJson<AdminCoupon>(
     "PATCH",
@@ -299,6 +318,18 @@ export function assignAdminCoupon(
     token,
     body,
   );
+}
+
+export function updateAdminCoupon(
+  token: string,
+  id: string,
+  body: {
+    active?: boolean;
+    maxUses?: number;
+    expiresAt?: string | null;
+  },
+) {
+  return authJson<AdminCoupon>("PATCH", `/admin/coupons/${id}`, token, body);
 }
 
 export function deleteAdminCoupon(token: string, id: string) {

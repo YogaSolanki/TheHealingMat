@@ -578,6 +578,9 @@ export type MemberCoupon = {
   discountType: "percent" | "fixed";
   discountValue: number;
   discountLabel: string;
+  maxUses?: number;
+  usageCount?: number;
+  expiresAt?: string | null;
 };
 
 export type MyCouponsResponse = {

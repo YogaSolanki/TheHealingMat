@@ -15,6 +15,7 @@ import {
   AssignCouponDto,
   CreateCouponDto,
   GenerateCouponDto,
+  UpdateCouponDto,
 } from './dto/coupon.dto';
 
 @Roles(Role.Admin)
@@ -39,13 +40,21 @@ export class CouponsController {
     return this.coupons.create(dto);
   }
 
-  /** Lock a coupon to a member via their unique referral code. */
+  /** Lock a coupon to a member via their unique referral code (single-use by default). */
   @Patch(':id/assign')
   assign(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AssignCouponDto,
   ) {
     return this.coupons.assign(id, dto);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCouponDto,
+  ) {
+    return this.coupons.update(id, dto);
   }
 
   @Delete(':id')
