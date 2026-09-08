@@ -1,4 +1,13 @@
-import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  StreamableFile,
+} from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -15,7 +24,7 @@ export class PaymentsController {
 
   @Public()
   @Get('memberships/plans')
-  listPlans() {
+  async listPlans() {
     return this.payments.listPlans();
   }
 
@@ -30,6 +39,23 @@ export class PaymentsController {
   @Get('memberships/me')
   myMembership(@CurrentUser() user: User) {
     return this.payments.getMyAccess(user);
+  }
+
+  @Roles(Role.User)
+  @Get('memberships/:id/invoice')
+  async membershipInvoice(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const invoice = await this.payments.getInvoice(user, id);
+    if (invoice.type === 'razorpay') {
+      return { url: invoice.url };
+    }
+
+    return new StreamableFile(invoice.pdf, {
+      type: 'application/pdf',
+      disposition: `attachment; filename="${invoice.filename}"`,
+    });
   }
 
   @Roles(Role.User)

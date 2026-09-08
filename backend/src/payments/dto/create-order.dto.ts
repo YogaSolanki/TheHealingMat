@@ -4,10 +4,10 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
 } from 'class-validator';
-import { MEMBERSHIP_PLAN_MONTHS } from '../membership-plans';
 
 export class CreateOrderDto {
   /** Amount in paise. Ignored when planMonths is provided. */
@@ -29,8 +29,10 @@ export class CreateOrderDto {
 
   @IsOptional()
   @Type(() => Number)
-  @IsIn([...MEMBERSHIP_PLAN_MONTHS])
-  planMonths?: 3 | 6 | 12;
+  @IsInt()
+  @Min(1)
+  @Max(60)
+  planMonths?: number;
 
   @IsOptional()
   @IsString()

@@ -4,6 +4,7 @@ export type MemberAccessState = "trial" | "active" | "expired";
 
 export type MemberAccess = {
   state: MemberAccessState;
+  membershipId: string | null;
   planName: string;
   startDateLabel: string | null;
   validUntilLabel: string | null;
@@ -60,6 +61,7 @@ function formatDiscount(listPaise: number, discountPaise: number) {
 export function emptyMemberAccess(state: MemberAccessState = "active"): MemberAccess {
   return {
     state,
+    membershipId: null,
     planName: state === "trial" ? "Your Trial" : "Membership",
     startDateLabel: null,
     validUntilLabel: null,
@@ -92,6 +94,7 @@ export function mapMembershipAccess(data: MembershipAccessResponse): MemberAcces
 
   if (!membership) return access;
 
+  access.membershipId = membership.id;
   access.planName = membership.planName;
   access.startDateLabel = formatLongDate(membership.startsAt);
   access.validUntilLabel = formatLongDate(membership.endsAt);

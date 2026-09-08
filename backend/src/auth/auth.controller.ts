@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  HttpException,
   Param,
   Post,
   Query,
@@ -24,6 +25,20 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UserLoginDto } from './dto/user-login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { Role } from './enums/role.enum';
+
+function redirectErrorMessage(err: unknown, fallback: string) {
+  if (err instanceof HttpException) {
+    const response = err.getResponse();
+    if (typeof response === 'string' && response.trim()) return response;
+    if (typeof response === 'object' && response && 'message' in response) {
+      const message = (response as { message?: string | string[] }).message;
+      if (Array.isArray(message)) return message.filter(Boolean).join(', ');
+      if (typeof message === 'string' && message.trim()) return message;
+    }
+  }
+  if (err instanceof Error && err.message.trim()) return err.message;
+  return fallback;
+}
 
 @Controller()
 export class AuthController {
@@ -105,8 +120,10 @@ export class AuthController {
         this.authService.getGoogleAuthUrl(intent, referralCode),
       );
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Google sign-in is unavailable.';
+      const message = redirectErrorMessage(
+        err,
+        'Google sign-in is unavailable.',
+      );
       return res.redirect(this.authService.googleFrontendErrorRedirect(message));
     }
   }
@@ -127,8 +144,7 @@ export class AuthController {
       });
       return res.redirect(result.redirectUrl);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Google sign-in failed.';
+      const message = redirectErrorMessage(err, 'Google sign-in failed.');
       return res.redirect(this.authService.googleFrontendErrorRedirect(message));
     }
   }

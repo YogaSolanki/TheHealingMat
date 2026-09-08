@@ -1,11 +1,12 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
-import { MEMBERSHIP_PLAN_MONTHS } from '../membership-plans';
+import { IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 export class QuoteMembershipDto {
   @Type(() => Number)
-  @IsIn([...MEMBERSHIP_PLAN_MONTHS])
-  planMonths: 3 | 6 | 12;
+  @IsInt()
+  @Min(1)
+  @Max(60)
+  planMonths: number;
 
   @IsOptional()
   @IsString()

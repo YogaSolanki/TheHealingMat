@@ -1,11 +1,24 @@
 export const CHECKOUT_PLAN_KEY = "thm_membership_plan";
 export const CHECKOUT_START_KEY = "thm_membership_start";
+export const CHECKOUT_RESUME_KEY = "thm_membership_resume";
 
 export type CheckoutStartMode = "now" | "after_current";
 
-export function saveCheckoutIntent(planMonths: number, startMode?: CheckoutStartMode) {
+export function saveCheckoutIntent(
+  planMonths: number,
+  startMode?: CheckoutStartMode,
+) {
   sessionStorage.setItem(CHECKOUT_PLAN_KEY, String(planMonths));
   if (startMode) sessionStorage.setItem(CHECKOUT_START_KEY, startMode);
+}
+
+/** Only resume checkout after auth when the user explicitly chose a plan. */
+export function markCheckoutResumeAfterAuth() {
+  sessionStorage.setItem(CHECKOUT_RESUME_KEY, "1");
+}
+
+export function shouldResumeCheckoutAfterAuth() {
+  return sessionStorage.getItem(CHECKOUT_RESUME_KEY) === "1";
 }
 
 export function readCheckoutIntent(): {
@@ -13,7 +26,9 @@ export function readCheckoutIntent(): {
   startMode: CheckoutStartMode;
 } {
   const raw = sessionStorage.getItem(CHECKOUT_PLAN_KEY);
-  const planMonths = raw === "3" || raw === "6" || raw === "12" ? Number(raw) : null;
+  const parsed = raw ? Number(raw) : NaN;
+  const planMonths =
+    Number.isInteger(parsed) && parsed >= 1 && parsed <= 60 ? parsed : null;
   const start =
     sessionStorage.getItem(CHECKOUT_START_KEY) === "after_current"
       ? "after_current"
@@ -24,6 +39,7 @@ export function readCheckoutIntent(): {
 export function clearCheckoutIntent() {
   sessionStorage.removeItem(CHECKOUT_PLAN_KEY);
   sessionStorage.removeItem(CHECKOUT_START_KEY);
+  sessionStorage.removeItem(CHECKOUT_RESUME_KEY);
 }
 
 export function checkoutPath(planMonths: number, startMode?: CheckoutStartMode) {

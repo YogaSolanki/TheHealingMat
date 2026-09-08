@@ -14,8 +14,10 @@ import { isDashboardPath, shouldShowMemberHeader } from "@/lib/member-routes";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [signedIn, setSignedIn] = useState(false);
+  const isAuthCallback = pathname === "/auth/callback";
   const isMemberDashboard = isDashboardPath(pathname);
-  const showMemberHeader = shouldShowMemberHeader(pathname, signedIn);
+  const showMemberHeader =
+    !isAuthCallback && shouldShowMemberHeader(pathname, signedIn);
 
   useEffect(() => {
     setSignedIn(Boolean(getStoredToken()));
@@ -29,9 +31,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Suspense>
       {showMemberHeader ? <MemberDashboardHeader /> : null}
       {showMemberHeader ? <MemberSiteBreadcrumb /> : null}
-      {!showMemberHeader ? <SiteHeader /> : null}
-      <div className={isMemberDashboard ? "w-full" : "flex-1"}>{children}</div>
-      <SiteFooter />
+      {!showMemberHeader && !isAuthCallback ? <SiteHeader /> : null}
+      <div className={isMemberDashboard || isAuthCallback ? "w-full" : "flex-1"}>
+        {children}
+      </div>
+      {!isAuthCallback ? <SiteFooter /> : null}
     </>
   );
 }

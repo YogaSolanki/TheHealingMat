@@ -20,39 +20,47 @@ import yogaIcon from "@/assets/yoga.png";
 import { ChoosePlanButton } from "@/components/choose-plan-button";
 import { StartTrialButton } from "@/components/start-trial-button";
 import { TrialTrustRow } from "@/components/trial-trust-row";
+import type { PublicMembershipPlan } from "@/lib/api";
 import type { CheckoutStartMode } from "@/lib/checkout-intent";
+import { useMembershipPlans } from "@/lib/membership-plans-store";
 
 const cream = "#FBF9F5";
 
 type MembershipSectionVariant = "public" | "renew";
 
-type Plan = {
-  months: 3 | 6 | 12;
+type PlanCardModel = {
+  months: number;
   price: string;
+  originalPrice?: string | null;
   perDay: string;
   featured?: boolean;
-  perk?: string;
+  perk?: string | null;
+  offerBadge?: string | null;
 };
 
-const plans: Plan[] = [
-  {
-    months: 12,
-    price: "3,650",
-    perDay: "10",
-    featured: true,
-    perk: "Get the Weight Loss Without the Drama eBook FREE",
-  },
-  {
-    months: 6,
-    price: "3,000",
-    perDay: "17",
-  },
-  {
-    months: 3,
-    price: "2,000",
-    perDay: "22",
-  },
-];
+function formatPlanPrice(paise: number) {
+  return Math.round(paise / 100).toLocaleString("en-IN");
+}
+
+function toPlanCard(plan: PublicMembershipPlan): PlanCardModel {
+  const hasOffer =
+    plan.offerPricePaise != null &&
+    plan.offerPricePaise < plan.listPricePaise;
+  const displayPerDay =
+    hasOffer && plan.offerPricePaise != null
+      ? Math.max(1, Math.round(plan.offerPricePaise / 100 / (plan.months * 30)))
+      : plan.perDayRupees;
+
+  return {
+    months: plan.months,
+    price: formatPlanPrice(plan.offerPricePaise ?? plan.listPricePaise),
+    originalPrice: hasOffer ? formatPlanPrice(plan.listPricePaise) : null,
+    perDay: String(displayPerDay),
+    featured: plan.featured,
+    perk: plan.perk,
+    offerBadge: plan.offer?.badge ?? null,
+  };
+}
 
 const morningSlots = ["6:30 AM", "7:30 AM", "8:30 AM"];
 const eveningSlots = ["5:00 PM", "6:00 PM", "7:00 PM"];
@@ -228,6 +236,9 @@ function PlansBlock({
   startMode: CheckoutStartMode;
 }) {
   const isRenew = variant === "renew";
+  const { data, ready, error } = useMembershipPlans();
+  const plans = data.plans.map(toPlanCard);
+  const liveOffer = data.offer;
 
   return (
     <section
@@ -252,12 +263,38 @@ function PlansBlock({
             ? "Pick a plan below. If you already have an active membership, the new plan starts automatically after it ends."
             : "One membership. The same complete experience. Choose the duration that works for you."}
         </p>
+        {liveOffer ? (
+          <p className="mx-auto mt-2 inline-flex rounded-full bg-[#fff4e8] px-3 py-1 text-[12px] font-semibold text-[#c45c16]">
+            {liveOffer.badge || liveOffer.title} is live
+          </p>
+        ) : null}
       </div>
 
-      <div className="mx-auto mt-5 grid w-full max-w-[960px] items-stretch gap-3 sm:mt-6 sm:grid-cols-3 sm:gap-4 lg:mt-7 lg:gap-5">
-        {plans.map((plan) => (
-          <PlanCard key={plan.months} plan={plan} startMode={startMode} isRenew={isRenew} />
-        ))}
+      <div
+        className={`mx-auto mt-5 grid w-full max-w-[960px] items-stretch gap-3 sm:mt-6 sm:gap-4 lg:mt-7 lg:gap-5 ${
+          plans.length === 2
+            ? "sm:grid-cols-2 sm:max-w-[640px]"
+            : "sm:grid-cols-3"
+        }`}
+      >
+        {!ready && plans.length === 0 ? (
+          <p className="col-span-full py-10 text-center text-sm text-[#8a978c]">
+            Loading plans…
+          </p>
+        ) : error && plans.length === 0 ? (
+          <p className="col-span-full py-10 text-center text-sm text-[#8a2f2f]">
+            {error}
+          </p>
+        ) : (
+          plans.map((plan) => (
+            <PlanCard
+              key={plan.months}
+              plan={plan}
+              startMode={startMode}
+              isRenew={isRenew}
+            />
+          ))
+        )}
       </div>
     </section>
   );
@@ -268,21 +305,26 @@ function PlanCard({
   startMode = "now",
   isRenew = false,
 }: {
-  plan: Plan;
+  plan: PlanCardModel;
   startMode?: CheckoutStartMode;
   isRenew?: boolean;
 }) {
   const label = `${plan.months} Months`;
+  const highlighted = Boolean(plan.offerBadge || plan.featured);
 
   return (
     <article
       className={`relative flex h-full flex-col rounded-[22px] border ${
-        plan.featured
+        highlighted
           ? "border-[#c5d9c8] bg-[#F4F8F2] px-4 pt-8 pb-4 shadow-[0_10px_28px_rgba(31,107,58,0.08)] sm:px-5 sm:pt-9 sm:pb-5"
           : "border-[#e5ebe3] bg-white px-4 pt-7 pb-4 sm:px-5 sm:pt-8 sm:pb-5"
       }`}
     >
-      {plan.featured ? (
+      {plan.offerBadge ? (
+        <span className="badge-shine absolute top-0 left-1/2 z-20 -translate-x-1/2 -translate-y-[42%] whitespace-nowrap rounded-[8px] bg-[#c45c16] px-4 py-1.5 text-[10px] font-bold tracking-[0.14em] text-white uppercase shadow-[0_6px_18px_rgba(196,92,22,0.28)] sm:px-5 sm:py-[6px] sm:text-[11px]">
+          {plan.offerBadge}
+        </span>
+      ) : plan.featured ? (
         <span className="badge-shine absolute top-0 left-1/2 z-20 -translate-x-1/2 -translate-y-[42%] whitespace-nowrap rounded-[8px] bg-[#1f6b3a] px-4 py-1.5 text-[10px] font-bold tracking-[0.14em] text-white uppercase shadow-[0_6px_18px_rgba(31,107,58,0.3)] sm:px-5 sm:py-[6px] sm:text-[11px]">
           Best Value
         </span>
@@ -291,7 +333,16 @@ function PlanCard({
       <p className="relative z-10 text-center text-[11px] font-bold tracking-[0.16em] text-black uppercase sm:text-[12px]">
         {label}
       </p>
-      <p className="relative z-10 mt-2 text-center font-serif text-[2.1rem] leading-none font-bold tracking-tight text-[#1f6b3a] sm:text-[2.25rem] lg:text-[2.4rem]">
+      {plan.originalPrice ? (
+        <p className="relative z-10 mt-2 text-center text-[13px] font-medium text-[#8a978c] line-through sm:text-[14px]">
+          ₹{plan.originalPrice}
+        </p>
+      ) : null}
+      <p
+        className={`relative z-10 text-center font-serif text-[2.1rem] leading-none font-bold tracking-tight text-[#1f6b3a] sm:text-[2.25rem] lg:text-[2.4rem] ${
+          plan.originalPrice ? "mt-1" : "mt-2"
+        }`}
+      >
         ₹{plan.price}
       </p>
       <p className="relative z-10 mt-1.5 text-center text-[12px] font-medium text-[#8a978c] sm:text-[13px]">
@@ -301,13 +352,8 @@ function PlanCard({
       {plan.perk ? (
         <div className="relative z-10 mt-4 rounded-[14px] border border-[#d7e5d9] bg-white px-3 py-2.5 text-center sm:mt-5 sm:px-3.5 sm:py-3">
           <p className="text-[12px] font-semibold leading-snug text-[#1f6b3a] sm:text-[13px]">
-            <span aria-hidden="true">🎁</span> Get the
-          </p>
-          <p className="mt-1 font-serif text-[13px] leading-tight font-bold italic text-[#1f6b3a] sm:text-[14px]">
-            Weight Loss Without the Drama
-          </p>
-          <p className="mt-1 text-[12px] font-semibold leading-snug text-[#1f6b3a] sm:text-[13px]">
-            eBook <span className="font-bold">FREE</span>
+            <span aria-hidden="true">🎁 </span>
+            {plan.perk}
           </p>
         </div>
       ) : (
@@ -322,7 +368,7 @@ function PlanCard({
           months={plan.months}
           startMode={startMode}
           className={`inline-flex w-full items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-[13px] font-bold sm:text-[14px] ${
-            plan.featured
+            highlighted
               ? "btn-primary bg-[#1f6b3a] text-white"
               : "btn-outline border-[1.5px] border-[#1f6b3a] text-[#1f6b3a]"
           }`}

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import calendarIcon from "@/assets/calander-icon.png";
 import rsIcon from "@/assets/rs.png";
 import tagIcon from "@/assets/tag.png";
@@ -11,15 +11,23 @@ import {
   memberPrimaryBtnClass,
 } from "@/components/member-dashboard/member-button-styles";
 import { MembershipSection } from "@/components/membership-section";
-import { getMyCoupons, type MemberCoupon } from "@/lib/api";
+import {
+  downloadMembershipInvoice,
+  getMyMembership,
+} from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
 import type { CheckoutStartMode } from "@/lib/checkout-intent";
-import { useMemberAccess, membershipStatusLabel } from "@/lib/member-access";
+import {
+  mapMembershipAccess,
+  useMemberAccess,
+  membershipStatusLabel,
+} from "@/lib/member-access";
+import { sessionStore } from "@/lib/session-store";
 
 export function MemberMembershipPage() {
   const { access } = useMemberAccess();
-  const [assignedCoupons, setAssignedCoupons] = useState<MemberCoupon[]>([]);
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const statusLabel = membershipStatusLabel(access.state);
   const statusMessage =
     access.state === "trial"
@@ -31,35 +39,37 @@ export function MemberMembershipPage() {
   const renewStartMode: CheckoutStartMode =
     access.state === "active" ? "after_current" : "now";
 
-  useEffect(() => {
-    const token = getStoredToken();
-    if (!token) return;
-    let cancelled = false;
-    void getMyCoupons(token)
-      .then((data) => {
-        if (!cancelled) setAssignedCoupons(data.coupons);
-      })
-      .catch(() => {
-        if (!cancelled) setAssignedCoupons([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   function scrollToPlans() {
     document
       .getElementById("membership-plans")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  async function copyCoupon(code: string) {
+  async function onDownloadInvoice() {
+    const token = getStoredToken();
+    if (!token || downloadingInvoice) return;
+    setInvoiceError(null);
+    setDownloadingInvoice(true);
     try {
-      await navigator.clipboard.writeText(code);
-      setCopiedCode(code);
-      window.setTimeout(() => setCopiedCode(null), 2000);
-    } catch {
-      /* ignore */
+      let membershipId = access.membershipId;
+      if (!membershipId) {
+        const data = await getMyMembership(token);
+        membershipId =
+          data.current?.id ?? data.lastExpired?.id ?? null;
+        if (membershipId) {
+          sessionStore.setAccess(mapMembershipAccess(data));
+        }
+      }
+      if (!membershipId) {
+        throw new Error("No paid membership invoice found.");
+      }
+      await downloadMembershipInvoice(token, membershipId);
+    } catch (err: unknown) {
+      setInvoiceError(
+        err instanceof Error ? err.message : "Unable to download invoice.",
+      );
+    } finally {
+      setDownloadingInvoice(false);
     }
   }
 
@@ -138,13 +148,24 @@ export function MemberMembershipPage() {
                   </p>
                 ) : null}
                 {access.state !== "trial" ? (
-                  <button
-                    type="button"
-                    className="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a] decoration-dotted underline-offset-[3px] transition hover:text-[#185830] sm:text-[13px]"
-                  >
-                    Download Invoice / Receipt
-                    <DownloadIcon className="h-4 w-4" />
-                  </button>
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      disabled={downloadingInvoice}
+                      onClick={() => void onDownloadInvoice()}
+                      className="inline-flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a] decoration-dotted underline-offset-[3px] transition hover:text-[#185830] disabled:cursor-wait disabled:opacity-60 sm:text-[13px]"
+                    >
+                      {downloadingInvoice
+                        ? "Downloading…"
+                        : "Download Invoice / Receipt"}
+                      <DownloadIcon className="h-4 w-4" />
+                    </button>
+                    {invoiceError ? (
+                      <p className="mt-1 text-[12px] font-medium text-[#b42318]">
+                        {invoiceError}
+                      </p>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
             </div>
@@ -266,65 +287,6 @@ export function MemberMembershipPage() {
             </div>
           </div>
         </section>
-        ) : null}
-
-        {assignedCoupons.length > 0 ? (
-          <section className="mb-5 overflow-hidden rounded-[22px] border border-[#d7e5d9] bg-[#f4f8f2] px-4 py-5 sm:mb-6 sm:px-6 sm:py-6 lg:px-8 lg:py-7">
-            <div className="flex items-start gap-3">
-              <span className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white">
-                <Image
-                  src={tagIcon}
-                  alt=""
-                  width={20}
-                  height={20}
-                  className="h-5 w-5 object-contain"
-                />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[14px] font-semibold text-[#1f6b3a] sm:text-[15px]">
-                  Your coupon{assignedCoupons.length === 1 ? "" : "s"}
-                </p>
-                <p className="mt-1 text-[13px] text-[#5f6f64] sm:text-[14px]">
-                  Assigned to your account. Apply at checkout when you start or
-                  renew membership.
-                </p>
-
-                <ul className="mt-4 space-y-3">
-                  {assignedCoupons.map((coupon) => (
-                    <li
-                      key={coupon.id}
-                      className="flex flex-col gap-3 rounded-[16px] border border-[#d7e5d9] bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-mono text-[15px] font-bold tracking-wide text-[#1f6b3a] sm:text-[16px]">
-                          {coupon.code}
-                        </p>
-                        <p className="mt-0.5 text-[12px] font-semibold text-[#5f6f64]">
-                          {coupon.discountLabel}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => void copyCoupon(coupon.code)}
-                          className="rounded-full border border-[#d5e0d5] px-3.5 py-2 text-[12px] font-semibold text-[#1f6b3a] hover:bg-[#f4f7f4]"
-                        >
-                          {copiedCode === coupon.code ? "Copied" : "Copy"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={scrollToPlans}
-                          className="rounded-full bg-[#1f6b3a] px-3.5 py-2 text-[12px] font-semibold text-white hover:bg-[#185830]"
-                        >
-                          Use at checkout
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </section>
         ) : null}
 
         {/* Renewal info */}

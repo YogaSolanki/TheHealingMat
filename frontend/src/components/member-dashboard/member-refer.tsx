@@ -10,7 +10,13 @@ import {
 } from "@/components/member-dashboard/member-button-styles";
 import { useMemberDashboard } from "@/components/member-dashboard/member-dashboard-provider";
 import { SiteLoader } from "@/components/site-loader";
-import type { ReferralListItem, ReferralStatus } from "@/lib/api";
+import {
+  getMyMilestones,
+  requestMilestoneRedeem,
+  type MemberMilestone,
+  type ReferralStatus,
+} from "@/lib/api";
+import { getStoredToken } from "@/lib/auth-storage";
 import { useMyReferrals } from "@/lib/session-store";
 import { FaWhatsapp } from "react-icons/fa";
 
@@ -50,8 +56,6 @@ const statusFilterOptions = [
   { label: "Membership Pending", value: "MEMBERSHIP PENDING" },
   { label: "Registered", value: "REGISTERED" },
 ] as const;
-
-const MILESTONE_COUNTS = [5, 10, 15, 20, 30, 40, 50] as const;
 
 const statusToneByStatus: Record<
   ReferralStatus,
@@ -94,27 +98,27 @@ function formatReferredOn(iso: string) {
   });
 }
 
-function nextMilestoneCount(successfulCount: number) {
-  return (
-    MILESTONE_COUNTS.find((count) => count > successfulCount) ??
-    MILESTONE_COUNTS[MILESTONE_COUNTS.length - 1]
-  );
-}
-
-/** Single green row: next redeemable milestone, else the next target. */
-function activeMilestoneCount(
-  successfulCount: number,
-  redeemedCount: number | null,
-) {
-  const redeemable = MILESTONE_COUNTS.find(
-    (count) => successfulCount >= count && redeemedCount !== count,
-  );
-  if (redeemable != null) return redeemable;
-  return nextMilestoneCount(successfulCount);
-}
-
 const REFERRAL_PAGE_SIZE = 10;
 const REFERRAL_SCROLL_THROTTLE_MS = 300;
+
+function nextMilestoneFromList(
+  successfulCount: number,
+  milestones: MemberMilestone[],
+) {
+  const next = milestones.find(
+    (row) => row.referralCount > successfulCount,
+  );
+  return next?.referralCount ?? milestones[milestones.length - 1]?.referralCount ?? 5;
+}
+
+function rowUiStatus(
+  milestone: MemberMilestone,
+): "completed" | "unlocked" | "upcoming" | "requested" {
+  if (milestone.status === "fulfilled") return "completed";
+  if (milestone.status === "pending") return "requested";
+  if (milestone.status === "unlocked") return "unlocked";
+  return "upcoming";
+}
 
 export function MemberReferPage() {
   const { user } = useMemberDashboard();
@@ -130,7 +134,10 @@ export function MemberReferPage() {
   const readyMadeMessage = `Join me on The Healing Mat! Your friend gets 14 days of FREE yoga classes + 20% OFF membership. Use my referral code ${referralCode} or sign up here: ${referralLink}`;
   const [copiedField, setCopiedField] = useState<"code" | "link" | "message" | null>(null);
   const [messageOpen, setMessageOpen] = useState(false);
-  const [redeemedCount, setRedeemedCount] = useState<number | null>(null);
+  const [milestones, setMilestones] = useState<MemberMilestone[]>([]);
+  const [loadingMilestones, setLoadingMilestones] = useState(true);
+  const [redeemingId, setRedeemingId] = useState<string | null>(null);
+  const [redeemError, setRedeemError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] =
     useState<(typeof statusFilterOptions)[number]["value"]>("all");
   const [visibleCount, setVisibleCount] = useState(REFERRAL_PAGE_SIZE);
@@ -138,6 +145,27 @@ export function MemberReferPage() {
   const listScrollRef = useRef<HTMLDivElement>(null);
   const loadMoreLockRef = useRef(false);
   const lastScrollLoadRef = useRef(0);
+
+  const loadMilestones = async () => {
+    const token = getStoredToken();
+    if (!token) {
+      setLoadingMilestones(false);
+      return;
+    }
+    setLoadingMilestones(true);
+    try {
+      const data = await getMyMilestones(token);
+      setMilestones(data.milestones);
+    } catch {
+      setMilestones([]);
+    } finally {
+      setLoadingMilestones(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadMilestones();
+  }, []);
 
   useEffect(() => {
     setVisibleCount(REFERRAL_PAGE_SIZE);
@@ -149,7 +177,7 @@ export function MemberReferPage() {
   );
   const visibleReferrals = filteredReferrals.slice(0, visibleCount);
   const hasMoreReferrals = visibleCount < filteredReferrals.length;
-  const nextMilestone = nextMilestoneCount(successfulCount);
+  const nextMilestone = nextMilestoneFromList(successfulCount, milestones);
   const remainingToMilestone = Math.max(0, nextMilestone - successfulCount);
   const progressPercent =
     nextMilestone > 0
@@ -157,6 +185,29 @@ export function MemberReferPage() {
       : 0;
   const totalReferred = referrals.length;
   const trialReferred = referrals.filter((row) => row.status === "TRIAL").length;
+  const hasPendingRedeem = milestones.some((row) => row.status === "pending");
+  const activeMilestoneId =
+    milestones.find((row) => row.canRedeem)?.id ??
+    milestones.find((row) => row.status === "pending")?.id ??
+    milestones.find((row) => row.referralCount === nextMilestone)?.id ??
+    null;
+
+  async function onRedeem(milestone: MemberMilestone) {
+    const token = getStoredToken();
+    if (!token || !milestone.canRedeem || redeemingId) return;
+    setRedeemError(null);
+    setRedeemingId(milestone.id);
+    try {
+      await requestMilestoneRedeem(token, milestone.id);
+      await loadMilestones();
+    } catch (err: unknown) {
+      setRedeemError(
+        err instanceof Error ? err.message : "Unable to submit redemption request.",
+      );
+    } finally {
+      setRedeemingId(null);
+    }
+  }
 
   useEffect(() => {
     const root = listScrollRef.current;
@@ -488,37 +539,43 @@ export function MemberReferPage() {
           </div>
 
           <div className="divide-y divide-[#eef2ee]">
-            {MILESTONE_COUNTS.map((count) => {
-              const activeCount = activeMilestoneCount(
-                successfulCount,
-                redeemedCount,
-              );
-              const isActive = count === activeCount;
-              const canRedeem = isActive && successfulCount >= count;
-              const status =
-                redeemedCount === count
-                  ? "requested"
-                  : canRedeem
-                    ? "unlocked"
-                    : "upcoming";
-
-              return (
-                <MilestoneRow
-                  key={count}
-                  count={count}
-                  isActive={isActive}
-                  canRedeem={canRedeem}
-                  status={status}
-                  onRedeem={() => {
-                    if (!canRedeem) return;
-                    setRedeemedCount(count);
-                  }}
-                />
-              );
-            })}
+            {loadingMilestones ? (
+              <div className="flex flex-col items-center gap-3 px-4 py-10">
+                <SiteLoader size="md" label="Loading milestones" />
+                <p className="text-[13px] text-[#6b7c6e]">Loading milestones…</p>
+              </div>
+            ) : milestones.length === 0 ? (
+              <p className="px-4 py-8 text-center text-[13px] text-[#6b7c6e] sm:px-6 sm:text-[14px]">
+                Milestone rewards will appear here once Admin configures them.
+              </p>
+            ) : (
+              milestones.map((milestone) => {
+                const status = rowUiStatus(milestone);
+                const isActive = milestone.id === activeMilestoneId;
+                return (
+                  <MilestoneRow
+                    key={milestone.id}
+                    count={milestone.referralCount}
+                    rewardTitle={milestone.rewardTitle}
+                    rewardDescription={milestone.rewardDescription}
+                    isActive={isActive}
+                    canRedeem={milestone.canRedeem}
+                    status={status}
+                    redeeming={redeemingId === milestone.id}
+                    onRedeem={() => void onRedeem(milestone)}
+                  />
+                );
+              })
+            )}
           </div>
 
-          {redeemedCount ? (
+          {redeemError ? (
+            <div className="border-t border-[#f0d2ce] bg-[#fff5f3] px-4 py-3.5 sm:px-6">
+              <p className="text-[13px] font-medium text-[#9b3b32]">{redeemError}</p>
+            </div>
+          ) : null}
+
+          {hasPendingRedeem ? (
             <div className="border-t border-[#eef2ee] bg-[#F4F8F2] px-4 py-3.5 sm:px-6">
               <p className="text-[13px] font-semibold text-[#1f6b3a] sm:text-[14px]">
                 Redemption Requested
@@ -538,7 +595,8 @@ export function MemberReferPage() {
           </div>
         </section>
 
-        {/* My referrals table */}
+        {/* My referrals table — only when the member has at least one referral */}
+        {loadingReferrals || referrals.length > 0 ? (
         <section id="referrals" className="overflow-visible rounded-[22px] border border-[#e6ebe3] bg-white">
           <div className="relative z-30 flex flex-col gap-3 rounded-t-[22px] border-b border-[#eef2ee] bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <h2 className="text-[16px] font-bold text-[#1f6b3a] sm:text-[17px]">
@@ -590,15 +648,8 @@ export function MemberReferPage() {
                   <tr>
                     <td colSpan={4} className="px-4 py-8 text-center sm:px-6">
                       <p className="text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
-                        Start referring your friends. Share The Healing Mat with someone who could
-                        benefit from it.
+                        No referrals match this status filter.
                       </p>
-                      <a
-                        href="#share"
-                        className={`${memberPrimaryBtnClass} mt-4 px-4 py-2.5 text-[13px]`}
-                      >
-                        Refer a Friend
-                      </a>
                     </td>
                   </tr>
                 ) : (
@@ -652,6 +703,7 @@ export function MemberReferPage() {
             ) : null}
           </div>
         </section>
+        ) : null}
       </div>
     </div>
   );
@@ -742,19 +794,26 @@ function ReferralStatusFilter({
 
 function MilestoneRow({
   count,
+  rewardTitle,
+  rewardDescription,
   status,
   isActive,
   canRedeem,
+  redeeming,
   onRedeem,
 }: {
   count: number;
+  rewardTitle: string;
+  rewardDescription: string;
   status: "completed" | "unlocked" | "upcoming" | "requested";
   isActive: boolean;
   canRedeem: boolean;
+  redeeming: boolean;
   onRedeem: () => void;
 }) {
   const isCompleted = status === "completed";
   const isRequested = status === "requested";
+  const rewardLabel = rewardTitle || "Reward configured by Admin";
 
   return (
     <div
@@ -789,14 +848,17 @@ function MilestoneRow({
         </div>
         <p className="mt-1 flex items-center gap-1.5 text-[13px] text-[#6b7c6e]">
           <GiftIcon className="h-4 w-4 shrink-0 text-[#8a968c]" />
-          Reward configured by Admin
+          {rewardLabel}
         </p>
+        {rewardDescription ? (
+          <p className="mt-0.5 text-[12px] text-[#8a968c]">{rewardDescription}</p>
+        ) : null}
       </div>
 
       <div className="sm:hidden">
         <p className="flex items-center gap-1.5 text-[13px] text-[#6b7c6e]">
           <GiftIcon className="h-4 w-4 shrink-0 text-[#8a968c]" />
-          Reward configured by Admin
+          {rewardLabel}
         </p>
       </div>
 
@@ -813,10 +875,11 @@ function MilestoneRow({
         ) : canRedeem ? (
           <button
             type="button"
+            disabled={redeeming}
             onClick={onRedeem}
-            className={`${memberPrimaryBtnClass} px-4 py-2 text-[13px] sm:px-5 sm:py-2.5`}
+            className={`${memberPrimaryBtnClass} px-4 py-2 text-[13px] sm:px-5 sm:py-2.5 disabled:opacity-60`}
           >
-            Redeem Reward
+            {redeeming ? "Submitting…" : "Redeem Reward"}
             <ChevronRightIcon className="h-4 w-4" />
           </button>
         ) : (

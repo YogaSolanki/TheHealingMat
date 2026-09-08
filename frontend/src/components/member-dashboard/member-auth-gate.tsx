@@ -2,13 +2,10 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { SiteLoader } from "@/components/site-loader";
+import { MemberDashboardSkeleton } from "@/components/member-dashboard/member-dashboard-skeleton";
 import type { PublicUser } from "@/lib/api";
 import { clearStoredToken, getStoredToken } from "@/lib/auth-storage";
-import {
-  sessionStore,
-  useSessionUser,
-} from "@/lib/session-store";
+import { sessionStore, useSessionUser } from "@/lib/session-store";
 
 export {
   clearMemberAuthCache,
@@ -21,13 +18,12 @@ type MemberAuthGateProps = {
   loadingLabel?: string;
 };
 
-export function MemberAuthGate({
-  children,
-  loadingLabel = "Loading",
-}: MemberAuthGateProps) {
+export function MemberAuthGate({ children }: MemberAuthGateProps) {
   const router = useRouter();
   const { user, ready } = useSessionUser();
-  const [bootstrapping, setBootstrapping] = useState(() => !sessionStore.getUser());
+  const [bootstrapping, setBootstrapping] = useState(
+    () => !sessionStore.getUser(),
+  );
 
   useEffect(() => {
     const token = getStoredToken();
@@ -73,11 +69,7 @@ export function MemberAuthGate({
   }
 
   if (bootstrapping || !user) {
-    return (
-      <main className="min-h-screen bg-[#FBF9F5]">
-        <SiteLoader variant="page" pageClassName="min-h-screen" label={loadingLabel} />
-      </main>
-    );
+    return <MemberDashboardSkeleton />;
   }
 
   return <>{children({ user, signOut })}</>;

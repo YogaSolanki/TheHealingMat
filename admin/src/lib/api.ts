@@ -239,6 +239,13 @@ export function deleteAdminArticle(token: string, id: string) {
 
 export type CouponDiscountType = "percent" | "fixed";
 
+export type CouponLifecycleStatus =
+  | "active"
+  | "exhausted"
+  | "expired"
+  | "inactive"
+  | "assigned";
+
 export type AdminCoupon = {
   id: string;
   code: string;
@@ -248,6 +255,12 @@ export type AdminCoupon = {
   discountType: CouponDiscountType;
   discountValue: number;
   discountLabel: string;
+  maxUses: number;
+  usageCount: number;
+  remainingUses: number;
+  active: boolean;
+  expiresAt: string | null;
+  status: CouponLifecycleStatus;
   createdAt: string;
   updatedAt: string;
 };
@@ -258,6 +271,8 @@ export type GeneratedCoupon = {
   discountType: CouponDiscountType;
   discountValue: number;
   discountLabel: string;
+  maxUses: number;
+  expiresAt: string | null;
 };
 
 export function listAdminCoupons(token: string) {
@@ -270,6 +285,8 @@ export function generateAdminCoupon(
     userName: string;
     discountType: CouponDiscountType;
     discountValue: number;
+    maxUses?: number;
+    expiresAt?: string | null;
   },
 ) {
   return authJson<GeneratedCoupon>("POST", "/admin/coupons/generate", token, body);
@@ -283,6 +300,8 @@ export function createAdminCoupon(
     discountType: CouponDiscountType;
     discountValue: number;
     discountLabel: string;
+    maxUses?: number;
+    expiresAt?: string | null;
   },
 ) {
   return authJson<AdminCoupon>("POST", "/admin/coupons", token, body);
@@ -291,7 +310,7 @@ export function createAdminCoupon(
 export function assignAdminCoupon(
   token: string,
   id: string,
-  body: { referralCode: string },
+  body: { referralCode: string; maxUses?: number },
 ) {
   return authJson<AdminCoupon>(
     "PATCH",
@@ -301,12 +320,231 @@ export function assignAdminCoupon(
   );
 }
 
+export function updateAdminCoupon(
+  token: string,
+  id: string,
+  body: {
+    active?: boolean;
+    maxUses?: number;
+    expiresAt?: string | null;
+  },
+) {
+  return authJson<AdminCoupon>("PATCH", `/admin/coupons/${id}`, token, body);
+}
+
 export function deleteAdminCoupon(token: string, id: string) {
   return authJson<{ success: boolean }>(
     "DELETE",
     `/admin/coupons/${id}`,
     token,
   ).then(() => undefined);
+}
+
+export type AdminMembershipPlan = {
+  id: string;
+  months: number;
+  name: string;
+  listPricePaise: number;
+  perDayRupees: number;
+  featured: boolean;
+  perk: string | null;
+  active: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminMembershipOfferPrice = {
+  id?: string;
+  months: number;
+  offerPricePaise: number;
+  offerPerDayRupees: number;
+};
+
+export type AdminMembershipOffer = {
+  id: string;
+  title: string;
+  badge: string;
+  active: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  prices: AdminMembershipOfferPrice[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MembershipOfferInput = {
+  title?: string;
+  badge?: string;
+  active?: boolean;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  prices?: {
+    months: number;
+    priceRupees: number;
+    perDayRupees: number;
+  }[];
+};
+
+export function listAdminMembershipPlans(token: string) {
+  return authJson<AdminMembershipPlan[]>(
+    "GET",
+    "/admin/membership-plans",
+    token,
+  );
+}
+
+export function listAdminMembershipOffers(token: string) {
+  return authJson<AdminMembershipOffer[]>(
+    "GET",
+    "/admin/membership-offers",
+    token,
+  );
+}
+
+export function createAdminMembershipOffer(
+  token: string,
+  body: MembershipOfferInput,
+) {
+  return authJson<AdminMembershipOffer>(
+    "POST",
+    "/admin/membership-offers",
+    token,
+    body,
+  );
+}
+
+export function updateAdminMembershipOffer(
+  token: string,
+  id: string,
+  body: MembershipOfferInput,
+) {
+  return authJson<AdminMembershipOffer>(
+    "PATCH",
+    `/admin/membership-offers/${id}`,
+    token,
+    body,
+  );
+}
+
+export function deleteAdminMembershipOffer(token: string, id: string) {
+  return authJson<{ success: boolean }>(
+    "DELETE",
+    `/admin/membership-offers/${id}`,
+    token,
+  ).then(() => undefined);
+}
+
+export type AdminReferralMilestone = {
+  id: string;
+  referralCount: number;
+  rewardTitle: string;
+  rewardDescription: string;
+  active: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MilestoneInput = {
+  referralCount?: number;
+  rewardTitle?: string;
+  rewardDescription?: string;
+  active?: boolean;
+  sortOrder?: number;
+};
+
+export type AdminRedemptionStatus = "pending" | "fulfilled" | "rejected";
+
+export type AdminRewardRedemption = {
+  id: string;
+  status: AdminRedemptionStatus;
+  referralCount: number;
+  adminNote: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+  user: {
+    id: string;
+    fullName: string;
+    email: string | null;
+    mobile: string | null;
+    referralCode: string;
+  } | null;
+  milestone: {
+    id: string;
+    referralCount: number;
+    rewardTitle: string;
+    rewardDescription: string;
+  };
+};
+
+export function listAdminReferralMilestones(token: string) {
+  return authJson<AdminReferralMilestone[]>(
+    "GET",
+    "/admin/referral-milestones",
+    token,
+  );
+}
+
+export function createAdminReferralMilestone(
+  token: string,
+  body: MilestoneInput,
+) {
+  return authJson<AdminReferralMilestone>(
+    "POST",
+    "/admin/referral-milestones",
+    token,
+    body,
+  );
+}
+
+export function updateAdminReferralMilestone(
+  token: string,
+  id: string,
+  body: MilestoneInput,
+) {
+  return authJson<AdminReferralMilestone>(
+    "PATCH",
+    `/admin/referral-milestones/${id}`,
+    token,
+    body,
+  );
+}
+
+export function deleteAdminReferralMilestone(token: string, id: string) {
+  return authJson<{ success: boolean }>(
+    "DELETE",
+    `/admin/referral-milestones/${id}`,
+    token,
+  ).then(() => undefined);
+}
+
+export function listAdminRewardRedemptions(
+  token: string,
+  status?: AdminRedemptionStatus | "all",
+) {
+  const query =
+    status && status !== "all"
+      ? `?status=${encodeURIComponent(status)}`
+      : "";
+  return authJson<AdminRewardRedemption[]>(
+    "GET",
+    `/admin/reward-redemptions${query}`,
+    token,
+  );
+}
+
+export function updateAdminRewardRedemption(
+  token: string,
+  id: string,
+  body: { status: AdminRedemptionStatus; adminNote?: string },
+) {
+  return authJson<AdminRewardRedemption>(
+    "PATCH",
+    `/admin/reward-redemptions/${id}`,
+    token,
+    body,
+  );
 }
 
 export function listAdminVideos(token: string) {

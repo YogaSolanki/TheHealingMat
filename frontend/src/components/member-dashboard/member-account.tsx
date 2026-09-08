@@ -6,7 +6,13 @@ import { memberPrimaryBtnClass } from "@/components/member-dashboard/member-butt
 import { MemberSelect } from "@/components/member-dashboard/member-select";
 import { MemberDatePicker } from "@/components/member-dashboard/member-date-picker";
 import { useMemberDashboard } from "@/components/member-dashboard/member-dashboard-provider";
-import { updateProfile, type UserGender } from "@/lib/api";
+import { SiteLoader } from "@/components/site-loader";
+import {
+  getMyCoupons,
+  updateProfile,
+  type MemberCoupon,
+  type UserGender,
+} from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
 
 const genderOptions: { value: UserGender; label: string }[] = [
@@ -65,6 +71,58 @@ export function MemberAccountPage() {
   const [gender, setGender] = useState<UserGender | "">(user.gender ?? "");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [couponsOpen, setCouponsOpen] = useState(false);
+  const [assignedCoupons, setAssignedCoupons] = useState<MemberCoupon[]>([]);
+  const [couponsLoading, setCouponsLoading] = useState(false);
+  const [couponsLoaded, setCouponsLoaded] = useState(false);
+  const [couponsError, setCouponsError] = useState<string | null>(null);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  async function loadCoupons(force = false) {
+    if (couponsLoading) return;
+    if (couponsLoaded && !force) return;
+
+    const token = getStoredToken();
+    if (!token) {
+      setCouponsError("Your session has expired. Please log in again.");
+      setAssignedCoupons([]);
+      setCouponsLoaded(true);
+      return;
+    }
+
+    setCouponsLoading(true);
+    setCouponsError(null);
+    try {
+      const data = await getMyCoupons(token);
+      setAssignedCoupons(data.coupons);
+      setCouponsLoaded(true);
+    } catch (err) {
+      setAssignedCoupons([]);
+      setCouponsError(
+        err instanceof Error ? err.message : "Could not load your coupons.",
+      );
+    } finally {
+      setCouponsLoading(false);
+    }
+  }
+
+  async function toggleCoupons() {
+    const nextOpen = !couponsOpen;
+    setCouponsOpen(nextOpen);
+    if (nextOpen) {
+      await loadCoupons();
+    }
+  }
+
+  async function copyCoupon(code: string) {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      window.setTimeout(() => setCopiedCode(null), 2000);
+    } catch {
+      /* ignore */
+    }
+  }
 
   function startEditing() {
     setFullName(user.fullName);
@@ -254,6 +312,105 @@ export function MemberAccountPage() {
                 code stay the same if you later update your name.
               </p>
             </div>
+          </section>
+
+          <section className="overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white shadow-[0_10px_32px_rgba(31,107,58,0.05)]">
+            <button
+              type="button"
+              onClick={() => void toggleCoupons()}
+              aria-expanded={couponsOpen}
+              className="flex w-full cursor-pointer items-center gap-4 px-5 py-5 text-left transition hover:bg-[#fafbf9] sm:px-6 sm:py-5"
+            >
+              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-12 sm:w-12">
+                <TagIcon className="h-5 w-5 text-[#1f6b3a]" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-bold text-[#243028] sm:text-[16px]">
+                  View coupon
+                </span>
+              </span>
+              <ChevronRightIcon
+                className={`h-5 w-5 shrink-0 text-[#8a9a8d] transition ${
+                  couponsOpen ? "rotate-90" : ""
+                }`}
+              />
+            </button>
+
+            {couponsOpen ? (
+              <div className="border-t border-[#eef2ee]">
+                {couponsError ? (
+                  <div className="px-5 py-4 sm:px-6">
+                    <p className="rounded-[12px] bg-[#fdecec] px-3 py-2 text-[13px] text-[#8a2f2f]">
+                      {couponsError}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void loadCoupons(true)}
+                      className="mt-3 text-[13px] font-semibold text-[#1f6b3a] hover:underline"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="border-b border-[#eef2ee] bg-[#FBF9F5] text-[11px] font-bold tracking-[0.06em] text-[#6b7c6e] uppercase sm:text-[12px]">
+                          <th className="px-5 py-3 font-bold sm:px-6">Code</th>
+                          <th className="px-4 py-3 font-bold sm:px-6">Discount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {couponsLoading ? (
+                          <tr>
+                            <td colSpan={2} className="px-5 py-10 text-center sm:px-6">
+                              <div className="flex flex-col items-center justify-center gap-3">
+                                <SiteLoader size="md" label="Loading your coupons" />
+                                <p className="text-[13px] text-[#6b7c6e] sm:text-[14px]">
+                                  Loading your coupons…
+                                </p>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : assignedCoupons.length === 0 ? (
+                          <tr>
+                            <td colSpan={2} className="px-5 py-8 text-center sm:px-6">
+                              <p className="text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
+                                No coupons are assigned to your account right now.
+                              </p>
+                            </td>
+                          </tr>
+                        ) : (
+                          assignedCoupons.map((coupon) => (
+                            <tr
+                              key={coupon.id}
+                              className="border-b border-[#eef2ee] last:border-b-0"
+                            >
+                              <td className="px-5 py-3.5 sm:px-6">
+                                <button
+                                  type="button"
+                                  onClick={() => void copyCoupon(coupon.code)}
+                                  title="Click to copy"
+                                  className="inline-flex cursor-pointer items-center gap-2 font-mono text-[13px] font-bold tracking-wide text-[#1f6b3a] transition hover:underline sm:text-[14px]"
+                                >
+                                  {coupon.code}
+                                  <span className="text-[11px] font-semibold tracking-normal text-[#8a9a8d] normal-case">
+                                    {copiedCode === coupon.code ? "Copied" : ""}
+                                  </span>
+                                </button>
+                              </td>
+                              <td className="px-4 py-3.5 text-[13px] font-semibold text-[#243028] sm:px-6">
+                                {coupon.discountLabel}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : null}
           </section>
 
           <section className="overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white shadow-[0_10px_32px_rgba(31,107,58,0.05)]">
@@ -543,6 +700,20 @@ function CheckIcon({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function TagIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path
+        d="M20.5 13.2 12.8 20.9a1.8 1.8 0 0 1-2.5 0L3.1 13.7a1.8 1.8 0 0 1 0-2.5L10.8 3.5c.3-.3.8-.5 1.3-.5H19a1.5 1.5 0 0 1 1.5 1.5v6.9c0 .5-.2 1-.5 1.3Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <circle cx="16.2" cy="7.8" r="1.2" fill="currentColor" />
     </svg>
   );
 }

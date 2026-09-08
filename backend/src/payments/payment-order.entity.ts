@@ -26,6 +26,12 @@ export class PaymentOrder {
   @Column({ type: 'varchar', nullable: true })
   razorpayPaymentId: string | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  razorpayInvoiceId: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  razorpayInvoiceUrl: string | null;
+
   @Column({ type: 'int' })
   amountPaise: number;
 

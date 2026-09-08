@@ -1,7 +1,10 @@
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
+  IsDateString,
   IsIn,
   IsInt,
+  IsOptional,
   IsString,
   Matches,
   Max,
@@ -24,6 +27,18 @@ export class GenerateCouponDto {
   @Min(1)
   @Max(100000)
   discountValue: number;
+
+  /** How many members can redeem this code in total. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100000)
+  maxUses?: number;
+
+  @IsOptional()
+  @IsDateString()
+  expiresAt?: string | null;
 }
 
 export class CreateCouponDto {
@@ -53,6 +68,17 @@ export class CreateCouponDto {
     message: 'code must be uppercase letters and numbers only',
   })
   code: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100000)
+  maxUses?: number;
+
+  @IsOptional()
+  @IsDateString()
+  expiresAt?: string | null;
 }
 
 export class AssignCouponDto {
@@ -61,4 +87,32 @@ export class AssignCouponDto {
   @MinLength(3)
   @MaxLength(40)
   referralCode: string;
+
+  /**
+   * When assigning to one member, default to single-use (1).
+   * Pass a higher value only if that member may redeem more than once.
+   */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100000)
+  maxUses?: number;
+}
+
+export class UpdateCouponDto {
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100000)
+  maxUses?: number;
+
+  @IsOptional()
+  @IsDateString()
+  expiresAt?: string | null;
 }
