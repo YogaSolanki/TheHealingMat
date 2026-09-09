@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import allAgeIcon from "@/assets/all-age.png";
 import calendarIcon from "@/assets/calander-icon.png";
 import heartIcon from "@/assets/dil.png";
-import heroImage from "@/assets/hero-home.jpg";
+import heroImage from "@/assets/hero-home.jpeg";
 import rsIcon from "@/assets/rs.png";
 import { StartTrialButton } from "@/components/start-trial-button";
 
