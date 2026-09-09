@@ -60,7 +60,7 @@ export class AuthController {
 
   @Public()
   @Get('auth/region')
-  detectRegion(
+  async detectRegion(
     @Headers() headers: Record<string, string | string[] | undefined>,
   ) {
     return this.authService.detectVisitorRegion(headers);
@@ -143,6 +143,7 @@ export class AuthController {
     @Query('code') code: string | undefined,
     @Query('state') state: string | undefined,
     @Query('error') error: string | undefined,
+    @Headers() headers: Record<string, string | string[] | undefined>,
     @Res() res: Response,
   ) {
     try {
@@ -150,6 +151,7 @@ export class AuthController {
         code,
         state,
         error,
+        headers,
       });
       return res.redirect(result.redirectUrl);
     } catch (err) {

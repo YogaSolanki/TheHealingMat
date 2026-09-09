@@ -4,12 +4,12 @@ import { FormEvent, useEffect, useRef, useState, type KeyboardEvent } from "reac
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
-  getVisitorRegion,
   requestOtp,
   verifyOtp,
   type PublicUser,
   type Region,
 } from "@/lib/api";
+import { resolveVisitorRegion } from "@/lib/visitor-region";
 import {
   clearStoredToken,
   getStoredToken,
@@ -49,28 +49,6 @@ function formatCountdown(totalSeconds: number) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function resolveClientRegionFallback(): Region {
-  try {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (tz === "Asia/Kolkata" || tz === "Asia/Calcutta") return "india";
-  } catch {
-    /* ignore */
-  }
-  return "india";
-}
-
-async function detectRegion(): Promise<Region> {
-  try {
-    const result = await getVisitorRegion();
-    if (result.region === "india" || result.region === "outside_india") {
-      return result.region;
-    }
-  } catch {
-    /* fall through */
-  }
-  return resolveClientRegionFallback();
-}
-
 type TrialSignupCardProps = {
   initialError?: string | null;
   onClose?: () => void;
@@ -100,7 +78,7 @@ export function TrialSignupCard({
 
   useEffect(() => {
     let cancelled = false;
-    void detectRegion().then((next) => {
+    void resolveVisitorRegion().then((next) => {
       if (!cancelled) setRegion(next);
     });
     return () => {
@@ -170,7 +148,7 @@ export function TrialSignupCard({
     event.preventDefault();
     setError(null);
 
-    const activeRegion = region ?? (await detectRegion());
+    const activeRegion = region ?? (await resolveVisitorRegion());
     if (!region) setRegion(activeRegion);
 
     const name = fullName.trim();

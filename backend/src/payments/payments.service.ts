@@ -11,8 +11,10 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import Razorpay from 'razorpay';
 import { Repository } from 'typeorm';
 import { CouponsService } from '../coupons/coupons.service';
+import { detectVisitorRegion } from '../common/visitor-region';
 import { TrialRegistration } from '../trials/trial-registration.entity';
 import { TrialStatus } from '../users/enums/trial-status.enum';
+import { Region } from '../users/enums/region.enum';
 import { User } from '../users/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { QuoteMembershipDto } from './dto/quote-membership.dto';
@@ -60,8 +62,19 @@ export class PaymentsService {
         : null;
   }
 
-  async listPlans() {
-    return this.membershipPlans.listPublic();
+  async listPlans(
+    headers: Record<string, string | string[] | undefined> = {},
+    regionOverride: Region | null = null,
+  ) {
+    const region =
+      regionOverride ??
+      (
+        await detectVisitorRegion(headers, {
+          forceRegion: this.config.get<string>('FORCE_REGION'),
+          defaultRegion: this.config.get<string>('DEFAULT_REGION'),
+        })
+      ).region;
+    return this.membershipPlans.listPublic(region);
   }
 
   async quote(user: User, dto: QuoteMembershipDto) {
@@ -81,7 +94,7 @@ export class PaymentsService {
           skipCheckout: true as const,
           order_id: null,
           amount: 0,
-          currency: 'INR',
+          currency: quote.currency,
           key_id: this.requireKeyId(),
           membership: this.toPublicMembership(membership),
         };
@@ -89,7 +102,7 @@ export class PaymentsService {
 
       const order = await this.createRazorpayOrder({
         amountPaise: quote.amountPaise,
-        currency: dto.currency ?? 'INR',
+        currency: quote.currency,
         receipt: dto.receipt,
         notes: {
           userId: user.id,
@@ -350,7 +363,7 @@ export class PaymentsService {
         razorpayOrderId: `zero_${receipt}`,
         razorpayPaymentId: null,
         amountPaise: 0,
-        currency: 'INR',
+        currency: quote.currency,
         receipt,
         planMonths: quote.plan.months,
         couponCode: quote.couponCode,
@@ -392,6 +405,7 @@ export class PaymentsService {
         listPricePaise: order.listPricePaise,
         discountPaise: order.discountPaise,
         amountPaidPaise: order.amountPaise,
+        currency: order.currency || 'INR',
         status,
         startsAt,
         endsAt,
@@ -498,13 +512,19 @@ export class PaymentsService {
     couponCode?: string,
   ) {
     const plan = await this.membershipPlans.requireActiveByMonths(planMonths);
-    const offer = await this.membershipOffers.findCurrentOffer();
+    const currency = user.region === Region.OutsideIndia ? ('USD' as const) : ('INR' as const);
+    const offer =
+      currency === 'INR' ? await this.membershipOffers.findCurrentOffer() : null;
     const offerPrice = offer
       ? this.membershipOffers.priceForMonths(offer, planMonths)
       : null;
 
-    const originalPricePaise = plan.listPricePaise;
-    const listPricePaise = offerPrice?.offerPricePaise ?? plan.listPricePaise;
+    const originalPricePaise =
+      currency === 'USD' ? plan.listPriceUsdCents : plan.listPricePaise;
+    const listPricePaise =
+      currency === 'USD'
+        ? plan.listPriceUsdCents
+        : (offerPrice?.offerPricePaise ?? plan.listPricePaise);
     let discountPaise = 0;
     let appliedCoupon: string | null = null;
     let discountLabel = '—';
@@ -517,10 +537,15 @@ export class PaymentsService {
       }
       await this.coupons.assertRedeemable(coupon, user.id);
       appliedCoupon = coupon.code;
-      discountPaise =
-        coupon.discountType === 'percent'
-          ? Math.floor((listPricePaise * coupon.discountValue) / 100)
-          : coupon.discountValue * 100;
+      if (coupon.discountType === 'percent') {
+        discountPaise = Math.floor((listPricePaise * coupon.discountValue) / 100);
+      } else if (currency === 'INR') {
+        discountPaise = coupon.discountValue * 100;
+      } else {
+        throw new BadRequestException(
+          'This fixed-amount coupon is only valid for Indian (INR) pricing.',
+        );
+      }
       discountLabel = coupon.discountLabel || `${coupon.discountValue} off`;
     } else if (user.referredByUserId) {
       discountPaise = Math.floor(
@@ -534,6 +559,7 @@ export class PaymentsService {
 
     return {
       plan,
+      currency,
       originalPricePaise,
       listPricePaise,
       discountPaise,
@@ -560,7 +586,7 @@ export class PaymentsService {
       discountLabel: quote.discountLabel,
       couponCode: quote.couponCode,
       offer: quote.offer,
-      currency: 'INR' as const,
+      currency: quote.currency,
     };
   }
 
@@ -575,6 +601,7 @@ export class PaymentsService {
       listPricePaise: membership.listPricePaise,
       discountPaise: membership.discountPaise,
       amountPaidPaise: membership.amountPaidPaise,
+      currency: (membership.currency === 'USD' ? 'USD' : 'INR') as 'INR' | 'USD',
       razorpayPaymentId: membership.razorpayPaymentId,
       razorpayInvoiceId: membership.razorpayInvoiceId,
       razorpayInvoiceUrl: membership.razorpayInvoiceUrl,

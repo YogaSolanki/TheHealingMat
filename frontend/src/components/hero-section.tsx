@@ -1,13 +1,17 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import allAgeIcon from "@/assets/all-age.png";
 import calendarIcon from "@/assets/calander-icon.png";
 import heartIcon from "@/assets/dil.png";
 import heroImage from "@/assets/hero-home.jpeg";
 import rsIcon from "@/assets/rs.png";
 import { StartTrialButton } from "@/components/start-trial-button";
+import {
+  formatMembershipPerDay,
+  useMembershipPlans,
+} from "@/lib/membership-plans-store";
 
 const INTRO_VIDEO_SRC = "/intro-video.mp4";
 
@@ -59,62 +63,73 @@ function AffordableIcon() {
   );
 }
 
-const highlights: { key: string; icon: ReactNode; label: ReactNode }[] = [
-  {
-    key: "levels",
-    icon: <LevelsIcon />,
-    label: (
-      <>
-        All Levels &
-        <br />
-        All Ages
-      </>
-    ),
-  },
-  {
-    key: "daily",
-    icon: <DailyIcon />,
-    label: (
-      <>
-        Daily
-        <br />
-        Sessions
-      </>
-    ),
-  },
-  {
-    key: "holistic",
-    icon: <HolisticIcon />,
-    label: (
-      <>
-        Holistic
-        <br />
-        Wellbeing
-      </>
-    ),
-  },
-  {
-    key: "affordable",
-    icon: <AffordableIcon />,
-    label: (
-      <>
-        ₹10/Day
-        <br />
-        Annual Plan
-      </>
-    ),
-  },
-];
-
 const trustItems = [
   "No payment details required",
   "Hassle-free registration",
 ];
 
 export function HeroSection() {
+  const { data: plansData } = useMembershipPlans();
   const [playingIntro, setPlayingIntro] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRef = useRef<HTMLDivElement>(null);
+
+  const annualPerDayLabel = useMemo(() => {
+    const annual =
+      plansData.plans.find((plan) => plan.months === 12) ??
+      plansData.plans.find((plan) => plan.featured) ??
+      plansData.plans[0];
+    if (!annual) return "₹10/Day";
+    const currency = annual.currency ?? "INR";
+    return `${formatMembershipPerDay(annual.perDayRupees, currency)}/Day`;
+  }, [plansData.plans]);
+
+  const highlights: { key: string; icon: ReactNode; label: ReactNode }[] = [
+    {
+      key: "levels",
+      icon: <LevelsIcon />,
+      label: (
+        <>
+          All Levels &
+          <br />
+          All Ages
+        </>
+      ),
+    },
+    {
+      key: "daily",
+      icon: <DailyIcon />,
+      label: (
+        <>
+          Daily
+          <br />
+          Sessions
+        </>
+      ),
+    },
+    {
+      key: "holistic",
+      icon: <HolisticIcon />,
+      label: (
+        <>
+          Holistic
+          <br />
+          Wellbeing
+        </>
+      ),
+    },
+    {
+      key: "affordable",
+      icon: <AffordableIcon />,
+      label: (
+        <>
+          {annualPerDayLabel}
+          <br />
+          Annual Plan
+        </>
+      ),
+    },
+  ];
 
   useEffect(() => {
     if (!playingIntro) return;

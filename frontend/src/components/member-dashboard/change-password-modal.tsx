@@ -55,24 +55,22 @@ function normalizeIndiaMobile(value: string) {
 }
 
 function buildPasswordResetOtpPayload(user: PublicUser) {
-  if (user.region === "india") {
-    if (!user.mobile) {
-      throw new Error("No mobile number is linked to your account.");
-    }
+  // Prefer SMS when a mobile is on file; otherwise email OTP (e.g. Google India accounts).
+  if (user.mobile) {
     return {
-      region: user.region as Region,
+      region: "india" as Region,
       mobile: normalizeIndiaMobile(user.mobile),
     };
   }
 
-  if (!user.email) {
-    throw new Error("No email address is linked to your account.");
+  if (user.email) {
+    return {
+      region: "outside_india" as Region,
+      email: user.email.trim(),
+    };
   }
 
-  return {
-    region: user.region as Region,
-    email: user.email.trim(),
-  };
+  throw new Error("No mobile or email is linked to your account.");
 }
 
 export function ChangePasswordModal({

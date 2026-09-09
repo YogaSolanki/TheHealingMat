@@ -23,6 +23,7 @@ import {
 } from '../users/account-identity';
 import { sendResendEmail } from '../mail/resend';
 import { sendMsg91Otp } from '../sms/msg91';
+import { detectVisitorRegion as detectVisitorRegionFromRequest } from '../common/visitor-region';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -597,31 +598,18 @@ export class AuthService {
     return bcrypt.compare(trimmed, codeHash);
   }
 
-  detectVisitorRegion(headers: Record<string, string | string[] | undefined>): {
+  async detectVisitorRegion(
+    headers: Record<string, string | string[] | undefined>,
+  ): Promise<{
     region: Region;
     country: string | null;
-  } {
-    const raw =
-      headers['cf-ipcountry'] ??
-      headers['x-vercel-ip-country'] ??
-      headers['cloudfront-viewer-country'] ??
-      headers['x-country-code'] ??
-      null;
-    const country = Array.isArray(raw)
-      ? raw[0]?.trim().toUpperCase() ?? null
-      : typeof raw === 'string'
-        ? raw.trim().toUpperCase()
-        : null;
-
-    if (country === 'IN') {
-      return { region: Region.India, country };
-    }
-    if (country && country !== 'XX' && country !== 'T1') {
-      return { region: Region.OutsideIndia, country };
-    }
-
-    // Unknown / local / missing geo headers — default to India for this product.
-    return { region: Region.India, country: country || null };
+    detected: boolean;
+    source: string;
+  }> {
+    return detectVisitorRegionFromRequest(headers, {
+      forceRegion: this.config.get<string>('FORCE_REGION'),
+      defaultRegion: this.config.get<string>('DEFAULT_REGION'),
+    });
   }
 
   /**
@@ -841,6 +829,7 @@ export class AuthService {
     code?: string;
     state?: string;
     error?: string;
+    headers?: Record<string, string | string[] | undefined>;
   }) {
     if (input.error) {
       throw new BadRequestException('Google sign-in was cancelled.');
@@ -851,6 +840,7 @@ export class AuthService {
 
     const { clientId, clientSecret } = this.requireGoogleConfig();
     const referralCode = this.parseGoogleStateReferral(input.state);
+    const visitor = await this.detectVisitorRegion(input.headers ?? {});
 
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -906,6 +896,7 @@ export class AuthService {
       email,
       fullName,
       referralCode,
+      region: visitor.region,
     });
 
     const issued = await this.issueUserToken(user, isNewAccount);
@@ -929,6 +920,7 @@ export class AuthService {
     email: string;
     fullName: string;
     referralCode?: string;
+    region: Region;
   }): Promise<{ user: User; isNewAccount: boolean }> {
     const existing = await this.users
       .createQueryBuilder('user')
@@ -946,7 +938,8 @@ export class AuthService {
 
     try {
       const user = await this.createUser({
-        region: Region.OutsideIndia,
+        // Region drives membership currency; Google always verifies via email.
+        region: input.region,
         destination: input.email,
         channel: 'email',
         fullName: input.fullName,

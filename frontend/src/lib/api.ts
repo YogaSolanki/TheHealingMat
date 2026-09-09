@@ -134,9 +134,16 @@ export async function getHealth(): Promise<HealthResponse> {
 export async function getVisitorRegion(): Promise<{
   region: Region;
   country: string | null;
+  detected?: boolean;
+  source?: string;
 }> {
   const response = await fetch(`${API_URL}/auth/region`, { cache: "no-store" });
-  return parseJson<{ region: Region; country: string | null }>(response);
+  return parseJson<{
+    region: Region;
+    country: string | null;
+    detected?: boolean;
+    source?: string;
+  }>(response);
 }
 
 export async function requestOtp(input: {
@@ -318,21 +325,27 @@ export async function submitContact(input: {
 
 export type MembershipPlanMonths = number;
 
+export type MembershipCurrency = "INR" | "USD";
+
 export type PublicMembershipPlan = {
   id: string;
   months: number;
   name: string;
+  /** Minor units: paise for INR, cents for USD. */
   listPricePaise: number;
+  /** Per-day marketing figure: rupees for INR, cents for USD. */
   perDayRupees: number;
   offerPricePaise: number | null;
   featured: boolean;
   perk: string | null;
-  currency: "INR";
+  currency: MembershipCurrency;
   offer: { title: string; badge: string } | null;
 };
 
 export type MembershipPlansResponse = {
   plans: PublicMembershipPlan[];
+  region?: Region;
+  currency?: MembershipCurrency;
   offer: {
     id: string;
     title: string;
@@ -352,7 +365,7 @@ export type MembershipQuote = {
   discountLabel: string;
   couponCode: string | null;
   offer: { title: string; badge: string } | null;
-  currency: "INR";
+  currency: MembershipCurrency;
 };
 
 export type PublicMembership = {
@@ -365,6 +378,7 @@ export type PublicMembership = {
   listPricePaise: number;
   discountPaise: number;
   amountPaidPaise: number;
+  currency?: MembershipCurrency;
   razorpayPaymentId: string | null;
   razorpayInvoiceId?: string | null;
   razorpayInvoiceUrl?: string | null;
@@ -400,8 +414,11 @@ function authHeaders(accessToken: string) {
   };
 }
 
-export async function listMembershipPlans(): Promise<MembershipPlansResponse> {
-  const response = await fetch(`${API_URL}/memberships/plans`, {
+export async function listMembershipPlans(
+  region?: Region,
+): Promise<MembershipPlansResponse> {
+  const query = region ? `?region=${encodeURIComponent(region)}` : "";
+  const response = await fetch(`${API_URL}/memberships/plans${query}`, {
     cache: "no-store",
   });
   return parseJson<MembershipPlansResponse>(response);

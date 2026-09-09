@@ -11,7 +11,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   API_URL,
-  getVisitorRegion,
   requestOtp,
   resetPassword,
   userLogin,
@@ -19,6 +18,7 @@ import {
   type PublicUser,
   type Region,
 } from "@/lib/api";
+import { resolveVisitorRegion } from "@/lib/visitor-region";
 import {
   clearStoredToken,
   getStoredToken,
@@ -292,16 +292,9 @@ export function AuthTrialCard({
 
   useEffect(() => {
     let cancelled = false;
-    void getVisitorRegion()
-      .then((result) => {
-        if (cancelled) return;
-        if (result.region === "india" || result.region === "outside_india") {
-          setRegion(result.region);
-        }
-      })
-      .catch(() => {
-        /* keep default india */
-      });
+    void resolveVisitorRegion().then((next) => {
+      if (!cancelled) setRegion(next);
+    });
     return () => {
       cancelled = true;
     };

@@ -2,16 +2,19 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   StreamableFile,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
+import { parseRegionOverride } from '../common/visitor-region';
 import { User } from '../users/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { QuoteMembershipDto } from './dto/quote-membership.dto';
@@ -24,8 +27,11 @@ export class PaymentsController {
 
   @Public()
   @Get('memberships/plans')
-  async listPlans() {
-    return this.payments.listPlans();
+  async listPlans(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Query('region') region?: string,
+  ) {
+    return this.payments.listPlans(headers, parseRegionOverride(region));
   }
 
   @Roles(Role.User)
