@@ -52,6 +52,8 @@ export type PublicUser = {
   referralCode: string;
   accessLink: string;
   hasUsedFreeTrial: boolean;
+  /** False until the member sets their own password (OTP / Google signup). */
+  hasPassword: boolean;
   role: string;
 };
 
@@ -237,10 +239,13 @@ export class AuthService {
       // did not collect one (users can set a password later via reset).
       const providedPassword = dto.password?.trim();
       let password = providedPassword;
+      let passwordSetByUser = false;
       if (!password) {
         password = `Thm1A-${randomBytes(16).toString('base64url')}`;
       } else if (!isValidPassword(password)) {
         throw new BadRequestException(PASSWORD_MESSAGE);
+      } else {
+        passwordSetByUser = true;
       }
 
       user = await this.createUser({
@@ -249,6 +254,7 @@ export class AuthService {
         channel: challenge.channel,
         fullName,
         password,
+        passwordSetByUser,
         referralCode: dto.referralCode,
       });
       isNewAccount = true;
@@ -298,11 +304,13 @@ export class AuthService {
     await this.otps.save(challenge);
 
     user.passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
+    user.passwordSetByUser = true;
     await this.users.save(user);
 
     return {
       success: true,
       message: 'Password updated. You can log in with your new password.',
+      user: this.toPublicUser(user),
     };
   }
 
@@ -320,10 +328,19 @@ export class AuthService {
       );
     }
 
-    const user = await this.users.findOne({ where: { id: userId } });
+    const user = await this.users
+      .createQueryBuilder('user')
+      .addSelect('user.passwordHash')
+      .where('user.id = :id', { id: userId })
+      .getOne();
     if (!user?.passwordHash) {
       throw new BadRequestException(
-        'No password is set on this account. Use forgot password to create one.',
+        'No password is set on this account. Use OTP verification to create one.',
+      );
+    }
+    if (!user.passwordSetByUser) {
+      throw new BadRequestException(
+        'No password is set on this account. Use OTP verification to create one.',
       );
     }
 
@@ -343,11 +360,13 @@ export class AuthService {
     }
 
     user.passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    user.passwordSetByUser = true;
     await this.users.save(user);
 
     return {
       success: true,
       message: 'Password updated successfully.',
+      user: this.toPublicUser(user),
     };
   }
 
@@ -389,6 +408,7 @@ export class AuthService {
       referralCode: user.referralCode,
       accessLink: this.buildAccessLink(user.accessLinkToken),
       hasUsedFreeTrial: user.hasUsedFreeTrial,
+      hasPassword: Boolean(user.passwordSetByUser),
       role: user.role,
     };
   }
@@ -475,6 +495,7 @@ export class AuthService {
     channel: 'sms' | 'email';
     fullName: string;
     password: string;
+    passwordSetByUser?: boolean;
     referralCode?: string;
   }) {
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
@@ -493,6 +514,7 @@ export class AuthService {
           mobile: input.channel === 'sms' ? input.destination : null,
           email: input.channel === 'email' ? input.destination : null,
           passwordHash,
+          passwordSetByUser: Boolean(input.passwordSetByUser),
           referralCode,
           accessLinkToken,
           referredByUserId,
@@ -929,6 +951,7 @@ export class AuthService {
         channel: 'email',
         fullName: input.fullName,
         password: `Gg-${randomBytes(24).toString('hex')}aA1`,
+        passwordSetByUser: false,
         referralCode: input.referralCode,
       });
       return { user, isNewAccount: true };

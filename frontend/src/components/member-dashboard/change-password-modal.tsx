@@ -23,14 +23,16 @@ type ChangePasswordModalProps = {
   open: boolean;
   user: PublicUser;
   onClose: () => void;
+  onUpdated?: (user: PublicUser) => void;
+  onSuccess?: (message: string) => void;
 };
 
-type ModalStep = "change" | "forgot_sending" | "forgot_otp" | "success";
+type ModalStep = "change" | "forgot_sending" | "forgot_otp";
 
 const CLOSE_MS = 220;
 const OTP_LENGTH = 4;
 
-const fieldClass =
+const fieldClassPlain =
   "w-full rounded-[16px] border border-[#d7e0d6] bg-white px-4 py-3 text-sm text-[#243028] outline-none transition placeholder:text-[#9aa89c] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
 const labelClass = "mb-1.5 block text-sm font-medium text-[#3d4a3c]";
 
@@ -73,7 +75,14 @@ function buildPasswordResetOtpPayload(user: PublicUser) {
   };
 }
 
-export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModalProps) {
+export function ChangePasswordModal({
+  open,
+  user,
+  onClose,
+  onUpdated,
+  onSuccess,
+}: ChangePasswordModalProps) {
+  const needsSetPassword = !user.hasPassword;
   const [mounted, setMounted] = useState(false);
   const [rendered, setRendered] = useState(open);
   const [exiting, setExiting] = useState(false);
@@ -81,12 +90,15 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [otp, setOtp] = useState("");
   const [challengeId, setChallengeId] = useState("");
   const [destinationMasked, setDestinationMasked] = useState<string | null>(null);
+  const [otpSent, setOtpSent] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -100,11 +112,14 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
       setOtp("");
       setChallengeId("");
       setDestinationMasked(null);
+      setOtpSent(false);
+      setSendingOtp(false);
       setError(null);
-      setSuccess(null);
       setLoading(false);
       return;
     }
@@ -137,9 +152,33 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
     };
   }, [rendered, exiting, loading, onClose, step]);
 
+  async function sendOtp(options?: { keepPasswords?: boolean }) {
+    setError(null);
+    setSendingOtp(true);
+
+    try {
+      const payload = buildPasswordResetOtpPayload(user);
+      const result = await requestOtp({
+        ...payload,
+        purpose: "password_reset",
+      });
+      setChallengeId(result.challengeId);
+      setDestinationMasked(result.destinationMasked);
+      setOtp("");
+      setOtpSent(true);
+      if (!options?.keepPasswords) {
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not send verification code.");
+    } finally {
+      setSendingOtp(false);
+    }
+  }
+
   async function startForgotFlow() {
     setError(null);
-    setSuccess(null);
     setStep("forgot_sending");
     setLoading(true);
 
@@ -164,7 +203,11 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
   }
 
   async function handleResendOtp() {
-    if (loading) return;
+    if (loading || sendingOtp) return;
+    if (needsSetPassword) {
+      await sendOtp({ keepPasswords: true });
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
@@ -183,21 +226,65 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
     }
   }
 
-  async function handleChangeSubmit(event: FormEvent) {
-    event.preventDefault();
+  async function handleSendOtpClick() {
+    if (sendingOtp || loading) return;
     setError(null);
-    setSuccess(null);
 
-    if (!currentPassword.trim()) {
-      setError("Please enter your current password.");
-      return;
-    }
     if (!isStrongPassword(newPassword)) {
       setError("New password must meet all security requirements.");
       return;
     }
     if (newPassword !== confirmPassword) {
       setError("New password and retyped password do not match.");
+      return;
+    }
+
+    await sendOtp({ keepPasswords: true });
+  }
+
+  async function handleChangeSubmit(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+
+    if (!isStrongPassword(newPassword)) {
+      setError("New password must meet all security requirements.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("New password and retyped password do not match.");
+      return;
+    }
+
+    if (needsSetPassword) {
+      if (!otpSent || !challengeId) {
+        setError("Please send the OTP first.");
+        return;
+      }
+      if (otp.length < OTP_LENGTH) {
+        setError("Please enter the full verification code.");
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const result = await resetPassword({
+          challengeId,
+          code: otp,
+          password: newPassword,
+        });
+        if (result.user) onUpdated?.(result.user);
+        onSuccess?.(result.message || "Password updated successfully.");
+        onClose();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not set password.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (!currentPassword.trim()) {
+      setError("Please enter your current password.");
       return;
     }
 
@@ -213,11 +300,9 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
         currentPassword,
         newPassword,
       });
-      setSuccess(result.message || "Password updated successfully.");
-      setStep("success");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
+      if (result.user) onUpdated?.(result.user);
+      onSuccess?.(result.message || "Password updated successfully.");
+      onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update password.");
     } finally {
@@ -249,8 +334,9 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
         code: otp,
         password: newPassword,
       });
-      setSuccess(result.message || "Password updated successfully.");
-      setStep("success");
+      if (result.user) onUpdated?.(result.user);
+      onSuccess?.(result.message || "Password updated successfully.");
+      onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not reset password.");
     } finally {
@@ -269,11 +355,17 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
 
   if (!mounted || !rendered) return null;
 
+  const newPasswordValid = isStrongPassword(newPassword);
+  const confirmValid =
+    confirmPassword.length > 0 &&
+    newPassword === confirmPassword &&
+    isStrongPassword(newPassword);
+
   const title =
     step === "forgot_otp"
       ? "Reset Password"
-      : step === "success"
-        ? "Password Updated"
+      : needsSetPassword
+        ? "Set Password"
         : "Change Password";
 
   const subtitle =
@@ -281,8 +373,8 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
       ? destinationMasked
         ? `Enter the ${OTP_LENGTH}-digit code sent to ${destinationMasked} and choose a new password.`
         : `Enter the verification code and choose a new password.`
-      : step === "success"
-        ? "Your password has been updated successfully."
+      : needsSetPassword
+        ? "Create a password and verify with OTP."
         : "Enter your current password and choose a new secure password.";
 
   return createPortal(
@@ -299,11 +391,11 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
         aria-label="Close change password dialog"
         className="auth-modal-backdrop absolute inset-0 bg-black/25 backdrop-blur-[1px]"
         onClick={() => {
-          if (!exiting && !loading && step !== "forgot_sending") onClose();
+          if (!exiting && !loading && !sendingOtp && step !== "forgot_sending") onClose();
         }}
       />
       <div
-        className={`auth-modal-panel relative z-10 w-full max-w-[520px] rounded-[24px] border border-[#e6ebe3] bg-white p-5 shadow-[0_24px_60px_rgba(31,107,58,0.12)] sm:p-6 ${
+        className={`auth-modal-panel relative z-10 w-full max-w-[440px] rounded-[24px] border border-[#e6ebe3] bg-white p-5 shadow-[0_24px_60px_rgba(31,107,58,0.12)] sm:p-6 ${
           exiting ? "is-exiting" : ""
         }`}
       >
@@ -333,7 +425,7 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
                 type="button"
                 aria-label="Close"
                 onClick={() => {
-                  if (!loading) onClose();
+                  if (!loading && !sendingOtp) onClose();
                 }}
                 className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-[#d7e0d6] text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#eef6f0]"
               >
@@ -347,22 +439,7 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
               </p>
             ) : null}
 
-            {step === "success" ? (
-              <div className="space-y-4">
-                {success ? (
-                  <p className="rounded-[14px] bg-[#eef6f0] px-3 py-2.5 text-sm text-[#1f6b3a]">
-                    {success}
-                  </p>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className={`${memberPrimaryBtnClass} w-full px-4 py-3 text-sm`}
-                >
-                  Done
-                </button>
-              </div>
-            ) : step === "forgot_otp" ? (
+            {step === "forgot_otp" ? (
               <form onSubmit={handleForgotSubmit} className="space-y-4">
                 <div>
                   <label className={`${labelClass} text-center`}>Verification Code</label>
@@ -370,7 +447,7 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
                   <div className="mt-3 flex items-center justify-center gap-3 text-[12px]">
                     <button
                       type="button"
-                      onClick={handleResendOtp}
+                      onClick={() => void handleResendOtp()}
                       disabled={loading}
                       className="cursor-pointer font-semibold text-[#1f6b3a] transition hover:text-[#185830] disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -390,40 +467,27 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
                   </div>
                 </div>
 
-                <div>
-                  <label htmlFor="forgot-new-password" className={labelClass}>
-                    New Password
-                  </label>
-                  <input
-                    id="forgot-new-password"
-                    required
-                    type="password"
-                    value={newPassword}
-                    onChange={(event) => setNewPassword(event.target.value)}
-                    className={fieldClass}
-                    placeholder="Enter new password"
-                    autoComplete="new-password"
-                    maxLength={72}
-                  />
-                  <PasswordRules password={newPassword} />
-                </div>
+                <PasswordField
+                  id="forgot-new-password"
+                  label="New Password"
+                  value={newPassword}
+                  onChange={setNewPassword}
+                  show={showNewPassword}
+                  onToggleShow={() => setShowNewPassword((v) => !v)}
+                  valid={newPasswordValid}
+                  placeholder="Enter new password"
+                />
 
-                <div>
-                  <label htmlFor="forgot-confirm-password" className={labelClass}>
-                    Retype New Password
-                  </label>
-                  <input
-                    id="forgot-confirm-password"
-                    required
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(event) => setConfirmPassword(event.target.value)}
-                    className={fieldClass}
-                    placeholder="Re-enter new password"
-                    autoComplete="new-password"
-                    maxLength={72}
-                  />
-                </div>
+                <PasswordField
+                  id="forgot-confirm-password"
+                  label="Retype New Password"
+                  value={confirmPassword}
+                  onChange={setConfirmPassword}
+                  show={showConfirmPassword}
+                  onToggleShow={() => setShowConfirmPassword((v) => !v)}
+                  valid={confirmValid}
+                  placeholder="Re-enter new password"
+                />
 
                 <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
                   <button
@@ -443,6 +507,96 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
                   </button>
                 </div>
               </form>
+            ) : needsSetPassword ? (
+              <form onSubmit={handleChangeSubmit} className="space-y-3.5">
+                <PasswordField
+                  id="new-password"
+                  label="New Password"
+                  value={newPassword}
+                  onChange={setNewPassword}
+                  show={showNewPassword}
+                  onToggleShow={() => setShowNewPassword((v) => !v)}
+                  valid={newPasswordValid}
+                  placeholder="Enter new password"
+                />
+
+                <PasswordField
+                  id="confirm-password"
+                  label="Retype New Password"
+                  value={confirmPassword}
+                  onChange={setConfirmPassword}
+                  show={showConfirmPassword}
+                  onToggleShow={() => setShowConfirmPassword((v) => !v)}
+                  valid={confirmValid}
+                  placeholder="Re-enter new password"
+                />
+
+                <div className="rounded-[16px] border border-[#e6ebe3] bg-[#fafbf9] px-3.5 py-3.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-semibold text-[#243028]">
+                        OTP Verification
+                      </p>
+                      <p className="mt-0.5 truncate text-[12px] text-[#6d8474]">
+                        {otpSent && destinationMasked
+                          ? `Code sent to ${destinationMasked}`
+                          : user.region === "india"
+                            ? "We’ll send a code to your mobile"
+                            : "We’ll send a code to your email"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleSendOtpClick()}
+                      disabled={
+                        sendingOtp ||
+                        loading ||
+                        !newPasswordValid ||
+                        !confirmValid
+                      }
+                      className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-[#1f6b3a] bg-white px-3.5 py-1.5 text-[12px] font-bold text-[#1f6b3a] transition hover:bg-[#eef6f0] disabled:cursor-not-allowed disabled:border-[#d7e0d6] disabled:text-[#8a968c] disabled:hover:bg-white"
+                    >
+                      {sendingOtp ? "Sending…" : otpSent ? "Resend OTP" : "Send OTP"}
+                    </button>
+                  </div>
+
+                  <div className="mt-3.5">
+                    <OtpDigitInputs
+                      value={otp}
+                      onChange={setOtp}
+                      disabled={loading || !otpSent}
+                    />
+                    {!otpSent ? (
+                      <p className="mt-2 text-center text-[11px] text-[#8a968c]">
+                        Enter matching passwords, then tap Send OTP
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={
+                    loading ||
+                    sendingOtp ||
+                    !otpSent ||
+                    otp.length < OTP_LENGTH ||
+                    !newPasswordValid ||
+                    !confirmValid
+                  }
+                  className={`${memberPrimaryBtnClass} w-full px-5 py-3 text-sm`}
+                >
+                  {loading ? <ButtonLoader tone="light" /> : "Update Password"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={loading || sendingOtp}
+                  className="w-full cursor-pointer py-1 text-center text-[13px] font-semibold text-[#6b7c6e] transition hover:text-[#243028] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+              </form>
             ) : (
               <form onSubmit={handleChangeSubmit} className="space-y-4">
                 <div>
@@ -452,7 +606,7 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
                     </label>
                     <button
                       type="button"
-                      onClick={startForgotFlow}
+                      onClick={() => void startForgotFlow()}
                       disabled={loading}
                       className="cursor-pointer text-xs font-semibold text-[#1f6b3a] transition hover:text-[#185830] disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -465,47 +619,34 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
                     type="password"
                     value={currentPassword}
                     onChange={(event) => setCurrentPassword(event.target.value)}
-                    className={fieldClass}
+                    className={fieldClassPlain}
                     placeholder="Enter current password"
                     autoComplete="current-password"
                     maxLength={72}
                   />
                 </div>
 
-                <div>
-                  <label htmlFor="new-password" className={labelClass}>
-                    New Password
-                  </label>
-                  <input
-                    id="new-password"
-                    required
-                    type="password"
-                    value={newPassword}
-                    onChange={(event) => setNewPassword(event.target.value)}
-                    className={fieldClass}
-                    placeholder="Enter new password"
-                    autoComplete="new-password"
-                    maxLength={72}
-                  />
-                  <PasswordRules password={newPassword} />
-                </div>
+                <PasswordField
+                  id="new-password"
+                  label="New Password"
+                  value={newPassword}
+                  onChange={setNewPassword}
+                  show={showNewPassword}
+                  onToggleShow={() => setShowNewPassword((v) => !v)}
+                  valid={newPasswordValid}
+                  placeholder="Enter new password"
+                />
 
-                <div>
-                  <label htmlFor="confirm-password" className={labelClass}>
-                    Retype New Password
-                  </label>
-                  <input
-                    id="confirm-password"
-                    required
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(event) => setConfirmPassword(event.target.value)}
-                    className={fieldClass}
-                    placeholder="Re-enter new password"
-                    autoComplete="new-password"
-                    maxLength={72}
-                  />
-                </div>
+                <PasswordField
+                  id="confirm-password"
+                  label="Retype New Password"
+                  value={confirmPassword}
+                  onChange={setConfirmPassword}
+                  show={showConfirmPassword}
+                  onToggleShow={() => setShowConfirmPassword((v) => !v)}
+                  valid={confirmValid}
+                  placeholder="Re-enter new password"
+                />
 
                 <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
                   <button
@@ -531,6 +672,130 @@ export function ChangePasswordModal({ open, user, onClose }: ChangePasswordModal
       </div>
     </div>,
     document.body,
+  );
+}
+
+function PasswordField({
+  id,
+  label,
+  value,
+  onChange,
+  show,
+  onToggleShow,
+  valid,
+  placeholder,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  show: boolean;
+  onToggleShow: () => void;
+  valid: boolean;
+  placeholder: string;
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className={labelClass}>
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          id={id}
+          required
+          type={show ? "text" : "password"}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="w-full rounded-[16px] border border-[#d7e0d6] bg-white py-3 pr-[4.5rem] pl-4 text-sm text-[#243028] outline-none transition placeholder:text-[#9aa89c] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
+          placeholder={placeholder}
+          autoComplete="new-password"
+          maxLength={72}
+        />
+        <div className="absolute inset-y-0 right-1.5 flex items-center">
+          <PasswordValidityIcon value={value} valid={valid} />
+          <button
+            type="button"
+            onClick={onToggleShow}
+            aria-label={show ? "Hide password" : "Show password"}
+            className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-[#8a968c] transition hover:bg-[#f6f8f5] hover:text-[#1f6b3a]"
+          >
+            {show ? <EyeOffIcon /> : <EyeIcon />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PasswordValidityIcon({
+  value,
+  valid,
+}: {
+  value: string;
+  valid: boolean;
+}) {
+  if (!value) {
+    return <span className="inline-flex h-9 w-9" aria-hidden="true" />;
+  }
+
+  return (
+    <span
+      aria-hidden="true"
+      className={`inline-flex h-9 w-9 items-center justify-center ${
+        valid ? "text-[#1f6b3a]" : "text-[#c45c4a]"
+      }`}
+    >
+      {valid ? (
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" />
+          <path
+            d="m8 12.2 2.6 2.6L16.2 9"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" />
+          <path
+            d="m9 9 6 6M15 9l-6 6"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
+        </svg>
+      )}
+    </span>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M3 3l18 18M10.5 10.6a2.5 2.5 0 0 0 3 3M7 7.3C4.7 8.7 3 12 3 12s3.5 6.5 9.5 6.5c1.5 0 2.9-.3 4.1-.8M17.2 15.4C19.3 14 21.5 12 21.5 12S18 5.5 12 5.5c-.9 0-1.7.1-2.5.3"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -600,57 +865,10 @@ function OtpDigitInputs({
           onChange={(event) => setDigit(index, event.target.value)}
           onKeyDown={(event) => onKeyDown(index, event)}
           onFocus={(event) => event.target.select()}
-          className="h-12 w-10 rounded-xl border border-[#d7e0d6] bg-[#fbfcfb] text-center text-lg font-semibold text-[#1f6b3a] outline-none transition focus:border-[#1f6b3a] focus:bg-white focus:ring-2 focus:ring-[#1f6b3a]/15 sm:h-[52px] sm:w-11"
+          className="h-12 w-10 rounded-xl border border-[#d7e0d6] bg-[#fbfcfb] text-center text-lg font-semibold text-[#1f6b3a] outline-none transition focus:border-[#1f6b3a] focus:bg-white focus:ring-2 focus:ring-[#1f6b3a]/15 disabled:opacity-50 sm:h-[52px] sm:w-11"
         />
       ))}
     </div>
-  );
-}
-
-function PasswordRules({ password }: { password: string }) {
-  const rules = [
-    {
-      ok: password.length >= 8 && password.length <= 72,
-      label: "At least 8 characters",
-    },
-    { ok: /[A-Z]/.test(password), label: "One uppercase letter" },
-    { ok: /[a-z]/.test(password), label: "One lowercase letter" },
-    { ok: /\d/.test(password), label: "One number" },
-  ];
-
-  return (
-    <ul className="mt-2.5 space-y-1.5 text-xs text-[#6d8474]">
-      {rules.map((rule) => (
-        <li
-          key={rule.label}
-          className={`flex items-center gap-2 transition-colors ${
-            rule.ok ? "text-[#1f6b3a]" : "text-[#6d8474]"
-          }`}
-        >
-          <span
-            aria-hidden="true"
-            className={`inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border ${
-              rule.ok
-                ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
-                : "border-[#c5d0c6] bg-white"
-            }`}
-          >
-            {rule.ok ? (
-              <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none">
-                <path
-                  d="M2.5 6.2L4.8 8.5L9.5 3.5"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            ) : null}
-          </span>
-          {rule.label}
-        </li>
-      ))}
-    </ul>
   );
 }
 

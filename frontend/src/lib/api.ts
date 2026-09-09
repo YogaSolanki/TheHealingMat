@@ -39,6 +39,8 @@ export type PublicUser = {
   referralCode: string;
   accessLink: string;
   hasUsedFreeTrial: boolean;
+  /** False until the member chooses their own password. */
+  hasPassword: boolean;
   role: string;
 };
 
@@ -155,13 +157,15 @@ export async function resetPassword(input: {
   challengeId: string;
   code: string;
   password: string;
-}): Promise<{ success: boolean; message: string }> {
+}): Promise<{ success: boolean; message: string; user?: PublicUser }> {
   const response = await fetch(`${API_URL}/auth/password/reset`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  return parseJson<{ success: boolean; message: string }>(response);
+  return parseJson<{ success: boolean; message: string; user?: PublicUser }>(
+    response,
+  );
 }
 
 export async function changePassword(
@@ -170,7 +174,7 @@ export async function changePassword(
     currentPassword: string;
     newPassword: string;
   },
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string; user?: PublicUser }> {
   const response = await fetch(`${API_URL}/auth/password/change`, {
     method: "POST",
     headers: {
@@ -179,7 +183,9 @@ export async function changePassword(
     },
     body: JSON.stringify(input),
   });
-  return parseJson<{ success: boolean; message: string }>(response);
+  return parseJson<{ success: boolean; message: string; user?: PublicUser }>(
+    response,
+  );
 }
 
 export async function updateProfile(

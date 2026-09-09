@@ -39,6 +39,10 @@ export class User {
   @Column({ select: false })
   passwordHash: string;
 
+  /** True once the member has chosen their own password (not auto-generated). */
+  @Column({ default: false })
+  passwordSetByUser: boolean;
+
   @Column({ unique: true })
   referralCode: string;
 
