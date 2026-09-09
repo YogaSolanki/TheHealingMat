@@ -1,11 +1,15 @@
+"use client";
+
 import Image from "next/image";
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import allAgeIcon from "@/assets/all-age.png";
 import calendarIcon from "@/assets/calander-icon.png";
 import heartIcon from "@/assets/dil.png";
 import heroImage from "@/assets/hero-home.jpg";
 import rsIcon from "@/assets/rs.png";
 import { StartTrialButton } from "@/components/start-trial-button";
+
+const INTRO_VIDEO_SRC = "/intro-video.mp4";
 
 function LevelsIcon() {
   return (
@@ -108,6 +112,40 @@ const trustItems = [
 ];
 
 export function HeroSection() {
+  const [playingIntro, setPlayingIntro] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const mediaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!playingIntro) return;
+    const video = videoRef.current;
+    if (!video) return;
+
+    video.currentTime = 0;
+    void video.play().catch(() => {
+      setPlayingIntro(false);
+    });
+  }, [playingIntro]);
+
+  function playIntro() {
+    mediaRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (playingIntro) {
+      const video = videoRef.current;
+      if (video) {
+        video.currentTime = 0;
+        void video.play().catch(() => {
+          setPlayingIntro(false);
+        });
+      }
+      return;
+    }
+    setPlayingIntro(true);
+  }
+
+  function handleIntroEnded() {
+    setPlayingIntro(false);
+  }
+
   return (
     <section className="w-full overflow-hidden bg-white">
       {/* Stack on phone; desktop 50/50 */}
@@ -154,6 +192,8 @@ export function HeroSection() {
               </StartTrialButton>
               <button
                 type="button"
+                onClick={playIntro}
+                aria-pressed={playingIntro}
                 className="btn-outline inline-flex w-full cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[16px] border-[1.5px] border-[#1f6b3a] bg-white px-5 py-3.5 text-[14px] font-semibold text-[#1f6b3a] sm:w-auto sm:px-6 sm:py-3.5 sm:text-[15px] lg:text-[14px] xl:px-7 xl:py-4 xl:text-[16px]"
               >
                 <PlayIcon />
@@ -182,19 +222,36 @@ export function HeroSection() {
           </div>
         </div>
 
-        <div className="relative z-0 order-1 aspect-[5/4] w-full sm:aspect-[16/11] lg:order-2 lg:aspect-auto lg:min-h-[600px] xl:min-h-[640px]">
+        <div
+          ref={mediaRef}
+          className="relative z-0 order-1 aspect-[5/4] w-full overflow-hidden bg-[#efe8da] sm:aspect-[16/11] lg:order-2 lg:aspect-auto lg:min-h-[600px] xl:min-h-[640px]"
+        >
           <div className="absolute inset-0">
-            <Image
-              src={heroImage}
-              alt="Yoga practitioner seated in namaste at The Healing Mat studio"
-              fill
-              priority
-              sizes="(max-width: 1023px) 100vw, 50vw"
-              className="object-cover object-[50%_45%]"
-            />
+            {playingIntro ? (
+              <video
+                ref={videoRef}
+                src={INTRO_VIDEO_SRC}
+                playsInline
+                preload="auto"
+                disablePictureInPicture
+                controlsList="nodownload nofullscreen noremoteplayback"
+                onEnded={handleIntroEnded}
+                className="absolute inset-0 h-full w-full object-cover"
+                aria-label="The Healing Mat intro video"
+              />
+            ) : (
+              <Image
+                src={heroImage}
+                alt="Yoga practitioner seated in namaste at The Healing Mat studio"
+                fill
+                priority
+                sizes="(max-width: 1023px) 100vw, 50vw"
+                className="object-cover object-[50%_45%]"
+              />
+            )}
             <div
               aria-hidden="true"
-              className="absolute inset-y-0 left-0 hidden w-16 bg-gradient-to-r from-white to-transparent lg:block xl:w-20"
+              className="pointer-events-none absolute inset-y-0 left-0 hidden w-16 bg-gradient-to-r from-white to-transparent lg:block xl:w-20"
             />
           </div>
         </div>
