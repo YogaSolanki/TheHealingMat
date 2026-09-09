@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AuthTrialCard } from "@/components/auth-trial-card";
+import { TrialSignupCard } from "@/components/trial-signup-card";
 
 type AuthLoginModalProps = {
   open: boolean;
@@ -66,9 +67,11 @@ export function AuthLoginModal({
 
   if (!mounted || !rendered) return null;
 
+  const isTrialSignup = initialMode === "signup";
+
   return createPortal(
     <div
-      className={`fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto px-4 py-8 sm:items-center sm:py-10 ${
+      className={`fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto px-4 py-6 sm:px-5 sm:py-8 ${
         exiting ? "auth-modal-root is-exiting" : "auth-modal-root"
       }`}
       role="dialog"
@@ -88,16 +91,24 @@ export function AuthLoginModal({
         onClick={handleClose}
       />
       <div
-        className={`auth-modal-panel relative z-10 flex w-full max-w-[600px] justify-center ${
+        className={`auth-modal-panel relative z-10 flex w-full max-w-[420px] justify-center sm:max-w-[440px] ${
           exiting ? "is-exiting" : ""
         }`}
       >
-        <AuthTrialCard
-          key={`${initialMode}-${initialError ?? ""}`}
-          initialMode={initialMode}
-          initialError={initialError}
-          onClose={handleClose}
-        />
+        {isTrialSignup ? (
+          <TrialSignupCard
+            key={`signup-${initialError ?? ""}`}
+            initialError={initialError}
+            onClose={handleClose}
+          />
+        ) : (
+          <AuthTrialCard
+            key={`${initialMode}-${initialError ?? ""}`}
+            initialMode={initialMode}
+            initialError={initialError}
+            onClose={handleClose}
+          />
+        )}
       </div>
     </div>,
     document.body,

@@ -4,14 +4,32 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { IconType } from "react-icons";
-import { FaFacebookF, FaPinterestP, FaWhatsapp, FaYoutube } from "react-icons/fa";
+import {
+  FaFacebookF,
+  FaPinterestP,
+  FaWhatsapp,
+  FaYoutube,
+} from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
-import { HiOutlineMail, HiOutlineLocationMarker, HiOutlinePhone } from "react-icons/hi";
+import {
+  HiOutlineMail,
+  HiOutlineLocationMarker,
+  HiOutlinePhone,
+} from "react-icons/hi";
 import { RiInstagramFill } from "react-icons/ri";
 import omIcon from "@/assets/om.png";
+import { useAuthModal } from "@/components/auth-modal-provider";
 import { SiteLogo } from "@/components/site-logo";
 import { isDashboardPath, isMembershipBrowsePath } from "@/lib/member-routes";
+import {
+  SITE_ADDRESS_LINES,
+  SITE_EMAIL,
+  SITE_PHONE_DISPLAY,
+  SITE_PHONE_TEL,
+  SITE_WHATSAPP_URL,
+} from "@/lib/site-contact";
 
+/** Explore column — no FAQs (those live under Get Started). */
 const exploreLinks = [
   { href: "/", label: "Home" },
   { href: "/membership", label: "Membership" },
@@ -19,19 +37,23 @@ const exploreLinks = [
   { href: "/guides", label: "Health Guides" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
-  { href: "#refer", label: "Refer & Earn" },
-  { href: "/#faq", label: "FAQs" },
 ];
 
+/** Bottom legal bar only — never place these in Explore / Get Started. */
 const legalLinks = [
   { href: "/privacy", label: "Privacy Policy" },
   { href: "/refund", label: "Refund Policy" },
   { href: "/terms", label: "Terms & Conditions" },
   { href: "#cookies", label: "Cookie Policy" },
-  { href: "/health-and-safety", label: "Health & Safety" },
+  { href: "/health-and-safety", label: "Disclaimer" },
 ];
 
-const socialLinks: { key: string; href: string; label: string; icon: IconType }[] = [
+const socialLinks: {
+  key: string;
+  href: string;
+  label: string;
+  icon: IconType;
+}[] = [
   {
     key: "instagram",
     href: "https://www.instagram.com/thehealingmat.official/",
@@ -73,7 +95,9 @@ function FooterLinkColumn({
 }) {
   return (
     <div>
-      <h3 className="text-[14px] font-bold text-[#1f6b3a] sm:text-[15px]">{title}</h3>
+      <h3 className="text-[14px] font-bold text-[#1f6b3a] sm:text-[15px]">
+        {title}
+      </h3>
       <ul className="mt-2 space-y-1.5">
         {links.map((link) => (
           <li key={`${title}-${link.label}`}>
@@ -90,12 +114,69 @@ function FooterLinkColumn({
   );
 }
 
+function GetStartedColumn() {
+  const { openAuth } = useAuthModal();
+
+  return (
+    <div>
+      <h3 className="text-[14px] font-bold text-[#1f6b3a] sm:text-[15px]">
+        Get Started
+      </h3>
+      <ul className="mt-2 space-y-1.5">
+        <li>
+          <button
+            type="button"
+            onClick={() => openAuth("signup")}
+            className="link-underline cursor-pointer text-[13px] font-medium text-[#1f6b3a] hover:text-[#1f6b3a]"
+          >
+            Start 14-Day Free Trial
+          </button>
+        </li>
+        <li>
+          <Link
+            href="/membership"
+            className="link-underline text-[13px] font-medium text-[#1f6b3a] hover:text-[#1f6b3a]"
+          >
+            Membership Plans
+          </Link>
+        </li>
+        <li>
+          <button
+            type="button"
+            onClick={() => openAuth("login")}
+            className="link-underline cursor-pointer text-[13px] font-medium text-[#1f6b3a] hover:text-[#1f6b3a]"
+          >
+            Member Login
+          </button>
+        </li>
+        <li>
+          <Link
+            href="/dashboard/refer"
+            className="link-underline text-[13px] font-medium text-[#1f6b3a] hover:text-[#1f6b3a]"
+          >
+            Refer & Earn
+          </Link>
+        </li>
+        <li>
+          <Link
+            href="/faq"
+            className="link-underline text-[13px] font-medium text-[#1f6b3a] hover:text-[#1f6b3a]"
+          >
+            FAQs
+          </Link>
+        </li>
+      </ul>
+    </div>
+  );
+}
+
 export function SiteFooter() {
   const pathname = usePathname();
   const isMemberDashboard = isDashboardPath(pathname);
   const showTopBorder =
     pathname === "/corporate/enquiry" ||
     pathname === "/contact" ||
+    pathname === "/faq" ||
     pathname === "/membership" ||
     pathname.startsWith("/membership/") ||
     isMembershipBrowsePath(pathname) ||
@@ -107,9 +188,9 @@ export function SiteFooter() {
         showTopBorder ? "border-t border-[#d9e0d4]" : ""
       } ${isMemberDashboard ? "" : "mt-auto"}`}
     >
-      <div className="mx-auto grid w-full max-w-[1140px] grid-cols-2 gap-x-4 gap-y-6 px-5 py-8 sm:gap-x-8 sm:px-6 sm:py-8 lg:grid-cols-[1.3fr_1fr_1.3fr] lg:gap-0 lg:px-8 lg:py-8 xl:px-10">
-        {/* Brand — full width on phone; left column on desktop */}
-        <div className="col-span-2 flex flex-col items-start text-left lg:col-span-1 lg:col-start-1 lg:row-start-1 lg:pr-8">
+      {/* Approved structure: Brand | Explore | Get Started | Contact */}
+      <div className="mx-auto grid w-full max-w-[1200px] grid-cols-2 gap-x-4 gap-y-8 px-5 py-8 sm:gap-x-6 sm:px-6 sm:py-9 md:grid-cols-4 md:gap-0 md:px-6 md:py-9 lg:px-8 xl:px-10">
+        <div className="col-span-2 flex flex-col items-start text-left md:col-span-1 md:pr-4 lg:pr-6 xl:pr-8">
           <div className="flex flex-col items-start">
             <SiteLogo />
             <span className="mt-1 hidden text-[11px] text-[#6b7c6e] sm:block sm:text-[12px]">
@@ -138,38 +219,40 @@ export function SiteFooter() {
           </ul>
         </div>
 
-        {/* Explore — left of 2-col row on phone; middle on desktop */}
-        <div className="min-w-0 lg:col-start-2 lg:border-l lg:border-[#dde3d8] lg:px-10">
+        <div className="min-w-0 md:border-l md:border-[#dde3d8] md:px-4 lg:px-6 xl:px-8">
           <FooterLinkColumn title="Explore" links={exploreLinks} />
         </div>
 
-        {/* Contact Us — right of 2-col row on phone; right on desktop */}
-        <div className="min-w-0 lg:col-start-3 lg:border-l lg:border-[#dde3d8] lg:pl-10">
+        <div className="min-w-0 md:border-l md:border-[#dde3d8] md:px-4 lg:px-6 xl:px-8">
+          <GetStartedColumn />
+        </div>
+
+        <div className="col-span-2 min-w-0 md:col-span-1 md:border-l md:border-[#dde3d8] md:pl-4 lg:pl-6 xl:pl-8">
           <h3 className="text-[14px] font-bold text-[#1f6b3a] sm:text-[15px]">
             Contact Us
           </h3>
           <ul className="mt-2 space-y-2 text-[11px] text-[#1f6b3a] sm:text-[13px]">
             <li>
               <a
-                href="mailto:hello@thehealingmat.yoga"
+                href={`mailto:${SITE_EMAIL}`}
                 className="inline-flex min-w-0 max-w-full cursor-pointer items-start gap-1.5 font-medium transition hover:text-[#1f6b3a] sm:items-center sm:gap-2"
               >
                 <HiOutlineMail className="mt-0.5 h-4 w-4 shrink-0 sm:mt-0" />
-                <span className="min-w-0 break-all">hello@thehealingmat.yoga</span>
+                <span className="min-w-0 break-all">{SITE_EMAIL}</span>
               </a>
             </li>
             <li>
               <a
-                href="tel:+918000045035"
+                href={`tel:${SITE_PHONE_TEL}`}
                 className="inline-flex cursor-pointer items-center gap-1.5 font-medium transition hover:text-[#1f6b3a] sm:gap-2"
               >
                 <HiOutlinePhone className="h-4 w-4 shrink-0" />
-                +91 80000 45035
+                {SITE_PHONE_DISPLAY}
               </a>
             </li>
             <li>
               <a
-                href="https://wa.me/918000045035"
+                href={SITE_WHATSAPP_URL}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex cursor-pointer items-center gap-1.5 font-medium transition hover:text-[#1f6b3a] sm:gap-2"
@@ -181,13 +264,12 @@ export function SiteFooter() {
             <li className="inline-flex items-start gap-1.5 font-medium leading-snug sm:gap-2">
               <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0" />
               <span>
-                51, 5th Floor
-                <br />
-                Aditya Gold Crest
-                <br />
-                Vaibhav Khand, Indirapuram
-                <br />
-                Ghaziabad 201010
+                {SITE_ADDRESS_LINES.map((line, index) => (
+                  <span key={line}>
+                    {line}
+                    {index < SITE_ADDRESS_LINES.length - 1 ? <br /> : null}
+                  </span>
+                ))}
               </span>
             </li>
           </ul>
@@ -195,17 +277,17 @@ export function SiteFooter() {
       </div>
 
       <div className="border-t border-[#d9e0d4] bg-[#1f6b3a]">
-        <div className="mx-auto flex w-full max-w-[1140px] flex-col items-center gap-3 px-5 py-4 text-center sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:px-8 lg:py-3 lg:text-left xl:px-10">
+        <div className="mx-auto flex w-full max-w-[1200px] flex-col items-center gap-3 px-5 py-4 text-center sm:px-6 md:flex-row md:items-center md:justify-between md:gap-4 md:px-6 md:py-3 md:text-left lg:px-8 xl:px-10">
           <p className="text-[12px] text-[#d7e2d8]">
             © {new Date().getFullYear()} The Healing Mat. All Rights Reserved.
           </p>
 
-          <ul className="flex max-w-[340px] flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-[12px] sm:max-w-none lg:gap-x-0">
+          <ul className="flex max-w-[420px] flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-[12px] sm:max-w-none md:gap-x-0">
             {legalLinks.map((link, index) => (
               <li key={link.label} className="inline-flex items-center">
                 {index > 0 ? (
                   <span
-                    className="mx-1.5 hidden text-[#8aa38f] lg:inline"
+                    className="mx-1.5 hidden text-[#8aa38f] md:inline"
                     aria-hidden="true"
                   >
                     |

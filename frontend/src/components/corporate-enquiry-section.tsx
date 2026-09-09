@@ -94,38 +94,49 @@ export function CorporateEnquirySection() {
 function HeroBlock() {
   return (
     <>
-      <section className="w-full overflow-hidden">
-        <div className="grid w-full items-center lg:grid-cols-2">
-          <div className="flex flex-col items-center justify-center px-4 py-10 text-center sm:px-6 sm:py-12 lg:items-start lg:px-8 lg:py-14 lg:text-left xl:px-10">
-            <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
-              Corporate Enquiry
-            </p>
-            <h1 className="mt-3 max-w-[540px] font-serif text-[1.7rem] leading-[1.15] font-bold tracking-tight text-[#1f6b3a] sm:text-[2.15rem] lg:text-[2.45rem]">
-              Let’s Bring Good
-              <br className="hidden sm:block" /> Health to Your Employees.
-            </h1>
-            <p className="mt-3 text-[15px] font-semibold text-[#1f6b3a] sm:text-[16px]">
-              Healthier Employees. Happier Workplaces.
-            </p>
-            <p className="mt-3 max-w-[460px] text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
-              Offer your employees simple, affordable and guided wellness they
-              can practise from wherever they are.
-            </p>
-            <p className="mt-2 max-w-[460px] text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
-              Tell us a little about your organisation and we’ll get back to
-              you.
-            </p>
+      <section className="w-full overflow-hidden" style={{ backgroundColor: cream }}>
+        <div className="grid w-full items-stretch lg:grid-cols-2">
+          <div className="order-2 flex items-center justify-center px-5 py-8 text-center sm:px-8 sm:py-10 lg:order-1 lg:px-8 lg:py-14 lg:text-left xl:px-10">
+            <div className="flex w-full max-w-[560px] flex-col items-center text-center lg:items-start lg:text-left">
+              <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
+                Corporate Enquiry
+              </p>
+              <h1 className="mt-3 w-full font-serif text-[1.7rem] leading-[1.15] font-bold tracking-tight text-[#1f6b3a] sm:text-[2.15rem] lg:text-[2.45rem]">
+                Let’s Bring Good
+                <br className="hidden sm:block" /> Health to Your Employees.
+              </h1>
+              <p className="mt-3 text-[15px] font-semibold text-[#1f6b3a] sm:text-[16px]">
+                Healthier Employees. Happier Workplaces.
+              </p>
+              <p className="mt-3 w-full max-w-[460px] text-[14px] leading-relaxed text-[#5f6f64] sm:mt-4 sm:max-w-none sm:text-[15px]">
+                Offer your employees simple, affordable and guided wellness they
+                can practise from wherever they are.
+              </p>
+              <p className="mt-2 w-full max-w-[460px] text-[14px] leading-relaxed text-[#5f6f64] sm:max-w-none sm:text-[15px]">
+                Tell us a little about your organisation and we’ll get back to
+                you.
+              </p>
+            </div>
           </div>
 
-          <div className="relative min-h-[280px] w-full sm:min-h-[360px] lg:min-h-[440px]">
-            <Image
-              src={studioImage}
-              alt="The Healing Mat studio"
-              fill
-              priority
-              className="object-cover object-[0%_50%]"
-              sizes="(max-width: 1024px) 100vw, 50vw"
-            />
+          <div className="relative order-1 aspect-[5/4] w-full sm:aspect-[16/11] lg:order-2 lg:aspect-auto lg:min-h-[560px] xl:min-h-[600px]">
+            <div className="absolute inset-0">
+              <Image
+                src={studioImage}
+                alt="The Healing Mat studio"
+                fill
+                priority
+                className="object-cover object-[0%_50%]"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+              />
+              <div
+                aria-hidden="true"
+                className="absolute inset-y-0 left-0 hidden w-16 lg:block xl:w-20"
+                style={{
+                  background: "linear-gradient(to right, #FBF9F5, transparent)",
+                }}
+              />
+            </div>
           </div>
         </div>
       </section>

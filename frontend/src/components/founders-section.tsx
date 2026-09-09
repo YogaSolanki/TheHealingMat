@@ -6,7 +6,7 @@ import buildingIcon from "@/assets/building.png";
 import pokhriyalPhoto from "@/assets/Dr K P Pokhriyal.jpg";
 import locationIcon from "@/assets/location.png";
 import poornimaPhoto from "@/assets/poornima.jpg";
-import pradeepPhoto from "@/assets/pradeep.jpg";
+import pradeepPhoto from "@/assets/Pradeep_home-Founder.jpg";
 import savitaPhoto from "@/assets/Savita.png";
 import { AnimatedStatValue } from "@/components/animated-stat-value";
 
@@ -183,7 +183,7 @@ export function FoundersSection() {
                 src={pradeepPhoto}
                 alt="Pradeep Solanki, Founder of The Healing Mat"
                 fill
-                className="object-cover object-[50%_78%]"
+                className="object-cover object-[30%_100%]"
                 sizes="(max-width: 640px) 260px, (max-width: 1024px) 240px, 320px"
                 priority={false}
               />

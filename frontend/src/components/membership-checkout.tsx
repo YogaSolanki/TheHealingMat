@@ -27,7 +27,9 @@ import {
   type CheckoutStartMode,
 } from "@/lib/checkout-intent";
 import {
-  BASE_MEMBERSHIP_PLANS,
+  BASE_MEMBERSHIP_PLANS_INR,
+  BASE_MEMBERSHIP_PLANS_USD,
+  formatMembershipMoney,
   membershipPlansStore,
 } from "@/lib/membership-plans-store";
 import { sessionStore } from "@/lib/session-store";
@@ -55,19 +57,18 @@ declare global {
   }
 }
 
-function formatInr(paise: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(paise / 100);
+function formatMoney(minorUnits: number, currency: MembershipQuote["currency"]) {
+  return formatMembershipMoney(minorUnits, currency);
 }
 
 function resolvePlan(planMonths: number): PublicMembershipPlan {
   return (
     membershipPlansStore.getPlanByMonths(planMonths) ??
-    BASE_MEMBERSHIP_PLANS.find((plan) => plan.months === planMonths) ??
-    BASE_MEMBERSHIP_PLANS[0]
+    (membershipPlansStore.getCurrency() === "USD"
+      ? BASE_MEMBERSHIP_PLANS_USD
+      : BASE_MEMBERSHIP_PLANS_INR
+    ).find((plan) => plan.months === planMonths) ??
+    BASE_MEMBERSHIP_PLANS_INR[0]
   );
 }
 
@@ -85,7 +86,7 @@ function quoteFromPlan(plan: PublicMembershipPlan): MembershipQuote {
     discountLabel: "—",
     couponCode: null,
     offer: plan.offer,
-    currency: "INR",
+    currency: plan.currency ?? "INR",
   };
 }
 
@@ -188,7 +189,10 @@ export function MembershipCheckoutPanel({
     };
   }, [openAuth, planMonths, startMode]);
 
-  const payableLabel = useMemo(() => formatInr(quote.amountPaise), [quote]);
+  const payableLabel = useMemo(
+    () => formatMoney(quote.amountPaise, quote.currency),
+    [quote],
+  );
 
   async function applyCoupon(codeOverride?: string) {
     const token = getStoredToken();
@@ -437,7 +441,7 @@ export function MembershipCheckoutPanel({
           <div className="flex justify-between gap-4">
             <dt className="text-[#5f6f64]">Regular price</dt>
             <dd className="font-semibold text-[#8a978c] line-through">
-              {formatInr(quote.originalPricePaise)}
+              {formatMoney(quote.originalPricePaise, quote.currency)}
             </dd>
           </div>
         ) : null}
@@ -446,14 +450,14 @@ export function MembershipCheckoutPanel({
             {quote.offer ? "Offer price" : "Plan price"}
           </dt>
           <dd className="font-semibold text-[#243028]">
-            {formatInr(quote.listPricePaise)}
+            {formatMoney(quote.listPricePaise, quote.currency)}
           </dd>
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-[#5f6f64]">Discount</dt>
           <dd className="font-semibold text-[#1f6b3a]">
             {quote.discountPaise > 0
-              ? `− ${formatInr(quote.discountPaise)} (${quote.discountLabel})`
+              ? `− ${formatMoney(quote.discountPaise, quote.currency)} (${quote.discountLabel})`
               : "—"}
           </dd>
         </div>

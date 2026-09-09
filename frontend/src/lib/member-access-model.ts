@@ -1,4 +1,4 @@
-import type { MembershipAccessResponse } from "@/lib/api";
+import type { MembershipAccessResponse, MembershipCurrency } from "@/lib/api";
 
 export type MemberAccessState = "trial" | "active" | "expired";
 
@@ -42,20 +42,35 @@ function formatLongDate(iso: string | null | undefined) {
   });
 }
 
-function formatInr(paise: number) {
+function formatMoney(
+  minorUnits: number,
+  currency: MembershipCurrency = "INR",
+) {
+  if (currency === "USD") {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: minorUnits % 100 === 0 ? 0 : 2,
+      maximumFractionDigits: 2,
+    }).format(minorUnits / 100);
+  }
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 0,
-  }).format(paise / 100);
+  }).format(minorUnits / 100);
 }
 
-function formatDiscount(listPaise: number, discountPaise: number) {
+function formatDiscount(
+  listPaise: number,
+  discountPaise: number,
+  currency: MembershipCurrency = "INR",
+) {
   if (discountPaise <= 0) return "—";
   const percent = listPaise > 0 ? Math.round((discountPaise / listPaise) * 100) : 0;
   return percent > 0
-    ? `${formatInr(discountPaise)} (${percent}%)`
-    : formatInr(discountPaise);
+    ? `${formatMoney(discountPaise, currency)} (${percent}%)`
+    : formatMoney(discountPaise, currency);
 }
 
 export function emptyMemberAccess(state: MemberAccessState = "active"): MemberAccess {
@@ -100,8 +115,15 @@ export function mapMembershipAccess(data: MembershipAccessResponse): MemberAcces
   access.validUntilLabel = formatLongDate(membership.endsAt);
   access.expiredOnLabel =
     data.state === "expired" ? formatLongDate(membership.endsAt) : null;
-  access.amountPaid = formatInr(membership.amountPaidPaise);
-  access.discount = formatDiscount(membership.listPricePaise, membership.discountPaise);
+  access.amountPaid = formatMoney(
+    membership.amountPaidPaise,
+    membership.currency ?? "INR",
+  );
+  access.discount = formatDiscount(
+    membership.listPricePaise,
+    membership.discountPaise,
+    membership.currency ?? "INR",
+  );
   access.paymentDateLabel = formatLongDate(membership.paidAt);
   access.transactionRef = membership.razorpayPaymentId;
   return access;

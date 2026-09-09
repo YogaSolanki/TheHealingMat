@@ -33,6 +33,9 @@ export class Membership {
   @Column({ type: 'int' })
   amountPaidPaise: number;
 
+  @Column({ type: 'varchar', default: 'INR' })
+  currency: string;
+
   @Column({ type: 'varchar' })
   status: MembershipStatus;
 

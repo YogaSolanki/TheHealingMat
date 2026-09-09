@@ -28,6 +28,14 @@ export class MembershipPlan {
   @Column({ type: 'int' })
   perDayRupees: number;
 
+  /** International list price in USD cents ($1 = 100). */
+  @Column({ type: 'int', default: 0 })
+  listPriceUsdCents: number;
+
+  /** Marketing “≈ $X.XX/day” in USD cents. */
+  @Column({ type: 'int', default: 0 })
+  perDayUsdCents: number;
+
   @Column({ type: 'boolean', default: false })
   featured: boolean;
 

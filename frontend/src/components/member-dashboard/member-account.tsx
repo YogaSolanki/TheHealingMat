@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { ChangePasswordModal } from "@/components/member-dashboard/change-password-modal";
 import { memberPrimaryBtnClass } from "@/components/member-dashboard/member-button-styles";
 import { MemberSelect } from "@/components/member-dashboard/member-select";
@@ -65,6 +66,7 @@ function isValidDob(value: string) {
 export function MemberAccountPage() {
   const { user, signOut, updateUser } = useMemberDashboard();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [passwordToast, setPasswordToast] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState(user.fullName);
   const [dateOfBirth, setDateOfBirth] = useState(user.dateOfBirth ?? "");
@@ -77,6 +79,12 @@ export function MemberAccountPage() {
   const [couponsLoaded, setCouponsLoaded] = useState(false);
   const [couponsError, setCouponsError] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!passwordToast) return;
+    const id = window.setTimeout(() => setPasswordToast(null), 3200);
+    return () => window.clearTimeout(id);
+  }, [passwordToast]);
 
   async function loadCoupons(force = false) {
     if (couponsLoading) return;
@@ -431,10 +439,12 @@ export function MemberAccountPage() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[15px] font-bold text-[#243028] sm:text-[16px]">
-                  Change Password
+                  {user.hasPassword ? "Change Password" : "Set Password"}
                 </span>
                 <span className="mt-1 block text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
-                  Update your account password regularly for better security.
+                  {user.hasPassword
+                    ? "Update your account password regularly for better security."
+                    : "Create a password for your account, verified with OTP."}
                 </span>
               </span>
               <ChevronRightIcon className="h-5 w-5 shrink-0 text-[#8a9a8d]" />
@@ -470,7 +480,27 @@ export function MemberAccountPage() {
         open={changePasswordOpen}
         user={user}
         onClose={() => setChangePasswordOpen(false)}
+        onUpdated={updateUser}
+        onSuccess={(message) => setPasswordToast(message)}
       />
+
+      {passwordToast
+        ? createPortal(
+            <div
+              className="pointer-events-none fixed inset-x-0 top-4 z-[220] flex justify-center px-4 sm:top-6"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="pointer-events-auto inline-flex max-w-[min(92vw,420px)] items-center gap-2.5 rounded-[14px] border border-[#cfe3d4] bg-white px-4 py-3 text-[13px] font-semibold text-[#1f6b3a] shadow-[0_12px_36px_rgba(31,107,58,0.18)] sm:text-[14px]">
+                <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef6f0]">
+                  <CheckIcon className="h-3.5 w-3.5" />
+                </span>
+                <span className="min-w-0 leading-snug">{passwordToast}</span>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

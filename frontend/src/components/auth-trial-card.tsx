@@ -3,7 +3,6 @@
 import {
   FormEvent,
   useEffect,
-  useId,
   useRef,
   useState,
   type KeyboardEvent,
@@ -19,6 +18,7 @@ import {
   type PublicUser,
   type Region,
 } from "@/lib/api";
+import { resolveVisitorRegion } from "@/lib/visitor-region";
 import {
   clearStoredToken,
   getStoredToken,
@@ -101,16 +101,16 @@ function FieldShieldIcon() {
   );
 }
 
-const OTP_LENGTH = 6;
+const OTP_LENGTH = 4;
 
 function TrialBrandMark() {
   return (
-    <div className="mx-auto flex h-[68px] w-[68px] items-center justify-center rounded-full bg-[#E8F0E4]">
+    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#E8F0E4] sm:h-[52px] sm:w-[52px]">
       <Image
         src={trialIcon}
         alt=""
         aria-hidden="true"
-        className="h-10 w-10 object-contain"
+        className="h-7 w-7 object-contain sm:h-8 sm:w-8"
         priority
       />
     </div>
@@ -191,39 +191,6 @@ function OtpDigitInputs({
   );
 }
 
-function IndiaFlag() {
-  return (
-    <svg
-      viewBox="0 0 21 15"
-      className="h-4 w-[21px] shrink-0 overflow-hidden rounded-[2px] border border-[#e5e8e3]"
-      aria-hidden="true"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect width="21" height="5" y="0" fill="#FF9933" />
-      <rect width="21" height="5" y="5" fill="#FFFFFF" />
-      <rect width="21" height="5" y="10" fill="#138808" />
-      <circle cx="10.5" cy="7.5" r="2.15" fill="none" stroke="#000080" strokeWidth="0.55" />
-      <circle cx="10.5" cy="7.5" r="0.28" fill="#000080" />
-      {Array.from({ length: 24 }, (_, i) => {
-        const angle = (i * 15 * Math.PI) / 180;
-        const x2 = 10.5 + Math.cos(angle) * 2;
-        const y2 = 7.5 + Math.sin(angle) * 2;
-        return (
-          <line
-            key={i}
-            x1="10.5"
-            y1="7.5"
-            x2={x2}
-            y2={y2}
-            stroke="#000080"
-            strokeWidth="0.28"
-          />
-        );
-      })}
-    </svg>
-  );
-}
-
 function isValidSignupPassword(password: string) {
   return (
     password.length >= 8 &&
@@ -276,151 +243,6 @@ function PasswordValidityIcon({
   );
 }
 
-const TRIAL_COUNTRY_OPTIONS: {
-  value: Region;
-  label: string;
-  hint: string;
-}[] = [
-  {
-    value: "india",
-    label: "India",
-    hint: "+91 mobile",
-  },
-  {
-    value: "outside_india",
-    label: "Other countries",
-    hint: "Email OTP",
-  },
-];
-
-function TrialCountrySelect({
-  value,
-  onChange,
-}: {
-  value: Region;
-  onChange: (value: Region) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const listId = useId();
-
-  useEffect(() => {
-    if (!open) return;
-
-    function onPointerDown(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-
-    function onKeyDown(event: globalThis.KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-
-    document.addEventListener("mousedown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-
-  return (
-    <div ref={rootRef} className="relative shrink-0">
-      <button
-        type="button"
-        aria-label="Choose country"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-controls={listId}
-        onClick={() => setOpen((current) => !current)}
-        className="flex h-full cursor-pointer items-center gap-1.5 rounded-l-[16px] border-r border-[#e5ebe4] bg-[#fafcfb] py-3 pr-2.5 pl-3.5 text-[#1f6b3a] transition hover:bg-[#f3f7f3] sm:pl-4"
-      >
-        {value === "india" ? (
-          <>
-            <IndiaFlag />
-            <span className="text-sm font-semibold">+91</span>
-          </>
-        ) : (
-          <span className="text-sm font-semibold">Other</span>
-        )}
-        <svg
-          viewBox="0 0 20 20"
-          className={`h-3.5 w-3.5 text-[#8a968c] transition-transform duration-200 ${
-            open ? "rotate-180" : ""
-          }`}
-          fill="none"
-          aria-hidden="true"
-        >
-          <path
-            d="M5 7.5 10 12.5 15 7.5"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-
-      {open ? (
-        <ul
-          id={listId}
-          role="listbox"
-          className="auth-select-menu absolute top-[calc(100%+8px)] left-0 z-40 min-w-[220px] overflow-hidden rounded-[16px] border border-[#d9e2d8] bg-white py-1.5 shadow-[0_16px_40px_rgba(31,107,58,0.14)]"
-        >
-          {TRIAL_COUNTRY_OPTIONS.map((option) => {
-            const active = option.value === value;
-            return (
-              <li key={option.value} role="presentation">
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={active}
-                  onClick={() => {
-                    onChange(option.value);
-                    setOpen(false);
-                  }}
-                  className={`flex w-full cursor-pointer items-center gap-2.5 px-3.5 py-2.5 text-left text-sm transition ${
-                    active
-                      ? "bg-[#e8f2ea] text-[#1f6b3a]"
-                      : "text-[#1f6b3a] hover:bg-[#eef3ee]"
-                  }`}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`inline-flex h-4 w-4 shrink-0 items-center justify-center ${
-                      active ? "opacity-100" : "opacity-0"
-                    }`}
-                  >
-                    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none">
-                      <path
-                        d="M3.5 8.2L6.4 11.1L12.5 4.5"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                  <span className="min-w-0">
-                    <span className="font-medium">{option.label}</span>
-                    <span
-                      className={active ? "text-[#1f6b3a]" : "text-[#6d8474]"}
-                    >
-                      {" "}
-                      — {option.hint}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
-    </div>
-  );
-}
-
 type AuthTrialCardProps = {
   initialMode?: Mode;
   initialError?: string | null;
@@ -466,6 +288,16 @@ export function AuthTrialCard({
 
     window.addEventListener("pageshow", resetGoogleLeaving);
     return () => window.removeEventListener("pageshow", resetGoogleLeaving);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void resolveVisitorRegion().then((next) => {
+      if (!cancelled) setRegion(next);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -537,13 +369,6 @@ export function AuthTrialCard({
 
     if (mode === "signup" && !termsAccepted) {
       setError("Please agree to the Terms & Conditions to continue.");
-      return;
-    }
-
-    if (mode === "signup" && !isValidSignupPassword(password)) {
-      setError(
-        "Password must be 8–72 characters and include uppercase, lowercase, and a number.",
-      );
       return;
     }
 
@@ -639,7 +464,6 @@ export function AuthTrialCard({
         ...(mode === "signup"
           ? {
               fullName,
-              password,
               ...(referralCode ? { referralCode } : {}),
             }
           : {}),
@@ -717,16 +541,20 @@ export function AuthTrialCard({
   const showOtpHeader =
     step === "otp" && (mode === "signup" || mode === "forgot");
   const fieldClass =
-    "w-full rounded-[16px] border border-[#d7e0d6] bg-white px-4 py-3 text-sm text-[#1f6b3a] outline-none transition focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
-  const labelClass = "mb-1.5 block text-sm font-medium text-[#3d4a3c]";
+    "w-full rounded-[14px] border border-[#d7e0d6] bg-white px-3.5 py-2.5 text-sm text-[#1f6b3a] outline-none transition focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
+  const labelClass = "mb-1 block text-[13px] font-medium text-[#3d4a3c]";
   const primaryBtnClass =
-    "btn-primary inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-3.5 text-[15px] font-bold text-white shadow-[0_10px_24px_rgba(31,107,58,0.22)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-[0_10px_24px_rgba(31,107,58,0.22)] disabled:hover:filter-none";
+    "btn-primary inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[14px] bg-[#1f6b3a] px-4 py-2.5 text-[14px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.2)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-[0_8px_20px_rgba(31,107,58,0.2)] disabled:hover:filter-none";
   const textBtnClass =
-    "w-full cursor-pointer text-sm font-medium text-[#6d8474] transition hover:text-[#1f6b3a]";
-  const headerOffsetClass = "mt-1";
+    "w-full cursor-pointer text-[13px] font-medium text-[#6d8474] transition hover:text-[#1f6b3a]";
+  const headerOffsetClass = "mt-0.5";
+  const titleClass =
+    "mt-2 font-serif text-[1.35rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.45rem]";
+  const subtitleClass =
+    "mx-auto mt-1.5 max-w-[280px] text-[12px] leading-snug text-[#6d8474] sm:text-[13px]";
 
   return (
-    <div className="relative w-full max-w-[600px] rounded-[28px] border border-[#e6ebe3] bg-white px-5 pt-4 pb-5 shadow-[0_24px_60px_rgba(31,107,58,0.16)] sm:px-8 sm:pt-5 sm:pb-6">
+    <div className="relative w-full max-w-[440px] rounded-[22px] border border-[#e6ebe3] bg-white px-4 pt-3.5 pb-4 shadow-[0_20px_48px_rgba(31,107,58,0.14)] sm:px-6 sm:pt-4 sm:pb-5">
       {step === "otp" ? (
         <button
           type="button"
@@ -734,7 +562,7 @@ export function AuthTrialCard({
             mode === "forgot" ? resetFlow("login") : setStep("identity")
           }
           aria-label="Back"
-          className="absolute top-2.5 left-2.5 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-[#6d8474] transition hover:bg-[#eef2ee] hover:text-[#1f6b3a]"
+          className="absolute top-2 left-2 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-[#6d8474] transition hover:bg-[#eef2ee] hover:text-[#1f6b3a]"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
             <path
@@ -753,7 +581,7 @@ export function AuthTrialCard({
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute top-2.5 right-2.5 z-20 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-[#6d8474] transition hover:bg-[#eef2ee] hover:text-[#1f6b3a]"
+          className="absolute top-2 right-2 z-20 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-[#6d8474] transition hover:bg-[#eef2ee] hover:text-[#1f6b3a]"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
             <path
@@ -767,83 +595,68 @@ export function AuthTrialCard({
       ) : null}
 
       {error ? (
-        <p className={`${headerOffsetClass} rounded-[16px] bg-[#fdecec] px-3 py-2.5 text-sm text-[#8a2f2f]`}>
+        <p className={`${headerOffsetClass} rounded-[12px] bg-[#fdecec] px-3 py-2 text-[13px] text-[#8a2f2f]`}>
           {error}
         </p>
       ) : null}
 
       <div key={`${mode}-${step}`} className="auth-mode-content">
       {step === "identity" && isSignupFlow ? (
-        <div className={`${error ? "mt-3" : headerOffsetClass} text-center`}>
+        <div className={`${error ? "mt-2.5" : headerOffsetClass} text-center`}>
           <TrialBrandMark />
-          <h2 className="mt-3 font-serif text-[1.55rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.7rem]">
-            14 Days of
-            <br />
-            Free Yoga Classes
+          <h2 className={titleClass}>
+            14 Days of Free Yoga Classes
           </h2>
-          <p className="mx-auto mt-2 max-w-[280px] text-[13px] leading-relaxed text-[#6d8474]">
+          <p className={subtitleClass}>
             Start your journey to better health and well-being.
           </p>
         </div>
       ) : null}
 
       {step === "identity" && mode === "login" ? (
-        <div className={`${error ? "mt-3" : headerOffsetClass} text-center`}>
+        <div className={`${error ? "mt-2.5" : headerOffsetClass} text-center`}>
           <TrialBrandMark />
-          <h2 className="mt-3 font-serif text-[1.55rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.7rem]">
+          <h2 className={titleClass}>
             Welcome back
           </h2>
-          <p className="mx-auto mt-2 max-w-[280px] text-[13px] leading-relaxed text-[#6d8474]">
+          <p className={subtitleClass}>
             Sign in to continue your wellness practice.
           </p>
         </div>
       ) : null}
 
       {step === "identity" && mode === "forgot" ? (
-        <div className={`${error ? "mt-3" : headerOffsetClass} text-center`}>
+        <div className={`${error ? "mt-2.5" : headerOffsetClass} text-center`}>
           <TrialBrandMark />
-          <h2 className="mt-3 font-serif text-[1.55rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.7rem]">
+          <h2 className={titleClass}>
             Forgot password
           </h2>
-          <p className="mx-auto mt-2 max-w-[280px] text-[13px] leading-relaxed text-[#6d8474]">
+          <p className={subtitleClass}>
             Enter your account details and we&apos;ll send a reset code.
           </p>
         </div>
       ) : null}
 
       {step === "reset_done" ? (
-        <div className={`${error ? "mt-3" : headerOffsetClass} text-center`}>
+        <div className={`${error ? "mt-2.5" : headerOffsetClass} text-center`}>
           <TrialBrandMark />
-          <h2 className="mt-3 font-serif text-[1.55rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.7rem]">
+          <h2 className={titleClass}>
             Password updated
           </h2>
-          <p className="mx-auto mt-2 max-w-[280px] text-[13px] leading-relaxed text-[#6d8474]">
+          <p className={subtitleClass}>
             You can now log in with your new password.
           </p>
         </div>
       ) : null}
 
       {showOtpHeader ? (
-        <div className={`${error ? "mt-3" : headerOffsetClass} text-center`}>
+        <div className={`${error ? "mt-2.5" : headerOffsetClass} text-center`}>
           <TrialBrandMark />
-          <h2 className="mt-3 font-serif text-[1.55rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.7rem]">
-            {region === "india" ? (
-              <>
-                Verify Your
-                <br />
-                Mobile Number
-              </>
-            ) : (
-              <>
-                Verify Your
-                <br />
-                Email Address
-              </>
-            )}
+          <h2 className={titleClass}>
+            {region === "india" ? "Verify Your Mobile Number" : "Verify Your Email Address"}
           </h2>
-          <p className="mx-auto mt-2 max-w-[280px] text-[13px] leading-relaxed text-[#6d8474]">
-            We&apos;ve sent a {OTP_LENGTH}-digit OTP to
-            <br />
+          <p className={subtitleClass}>
+            We&apos;ve sent a {OTP_LENGTH}-digit OTP to{" "}
             <span className="font-semibold text-[#1f6b3a]">
               {displayMobileForOtp()}
             </span>
@@ -852,19 +665,19 @@ export function AuthTrialCard({
       ) : null}
 
       {step === "identity" ? (
-        <form onSubmit={onRequestOtp} className="mt-5 space-y-4">
+        <form onSubmit={onRequestOtp} className="mt-3.5 space-y-2.5">
           {mode === "signup" ? (
             <div>
               <label className={labelClass}>Full Name</label>
               <div className="relative">
-                <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-[#8a968c]">
+                <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[#8a968c]">
                   <FieldUserIcon />
                 </span>
                 <input
                   required
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className={`${fieldClass} pl-10`}
+                  className={`${fieldClass} pl-9`}
                   placeholder="Enter your full name"
                   autoComplete="name"
                 />
@@ -876,12 +689,11 @@ export function AuthTrialCard({
             <label className={labelClass}>
               {region === "india" ? "Mobile Number" : "Email address"}
             </label>
-            <div className="flex rounded-[16px] border border-[#d7e0d6] bg-white focus-within:border-[#1f6b3a] focus-within:ring-2 focus-within:ring-[#1f6b3a]/15">
-              <TrialCountrySelect
-                value={region}
-                onChange={(next) => setRegion(next)}
-              />
-              {region === "india" ? (
+            {region === "india" ? (
+              <div className="flex rounded-[14px] border border-[#d7e0d6] bg-white focus-within:border-[#1f6b3a] focus-within:ring-2 focus-within:ring-[#1f6b3a]/15">
+                <span className="inline-flex shrink-0 items-center rounded-l-[14px] border-r border-[#e5ebe4] bg-[#fafcfb] px-3 py-2.5 text-sm font-semibold text-[#1f6b3a]">
+                  +91
+                </span>
                 <input
                   required
                   value={mobile
@@ -894,31 +706,31 @@ export function AuthTrialCard({
                       .slice(0, 10);
                     setMobile(digits);
                   }}
-                  className="w-full min-w-0 rounded-r-[16px] border-0 bg-transparent px-3.5 py-3 text-sm text-[#1f6b3a] outline-none"
+                  className="w-full min-w-0 rounded-r-[14px] border-0 bg-transparent px-3 py-2.5 text-sm text-[#1f6b3a] outline-none"
                   placeholder="Enter your mobile number"
                   inputMode="numeric"
                   autoComplete="tel-national"
                   minLength={10}
                   maxLength={10}
                 />
-              ) : (
-                <input
-                  required
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full min-w-0 rounded-r-[16px] border-0 bg-transparent px-3.5 py-3 text-sm text-[#1f6b3a] outline-none"
-                  placeholder="Enter your email address"
-                  autoComplete="email"
-                />
-              )}
-            </div>
+              </div>
+            ) : (
+              <input
+                required
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={fieldClass}
+                placeholder="Enter your email address"
+                autoComplete="email"
+              />
+            )}
           </div>
 
           {mode === "login" ? (
             <div>
-              <div className="mb-1.5 flex items-center justify-between gap-3">
-                <label className="text-sm font-medium text-[#3d4a3c]">
+              <div className="mb-1 flex items-center justify-between gap-3">
+                <label className="text-[13px] font-medium text-[#3d4a3c]">
                   Password
                 </label>
                 <button
@@ -1013,10 +825,10 @@ export function AuthTrialCard({
           </button>
 
           {mode === "login" || mode === "signup" ? (
-            <div className="space-y-3 pt-1">
+            <div className="space-y-2 pt-0.5">
               <div className="flex items-center gap-3">
                 <span className="h-px flex-1 bg-[#e2e8e1]" />
-                <span className="text-xs font-medium tracking-wide text-[#8a968c] uppercase">
+                <span className="text-[11px] font-medium tracking-wide text-[#8a968c] uppercase">
                   or
                 </span>
                 <span className="h-px flex-1 bg-[#e2e8e1]" />
@@ -1025,12 +837,12 @@ export function AuthTrialCard({
                 type="button"
                 onClick={continueWithGoogle}
                 disabled={googleLeaving || loading}
-                className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-[16px] border border-[#d7e0d6] bg-white px-3 py-3 text-sm font-semibold text-[#1f6b3a] transition hover:border-[#b7cbb8] hover:bg-[#f7faf7] disabled:cursor-wait disabled:opacity-70"
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[14px] border border-[#d7e0d6] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#1f6b3a] transition hover:border-[#b7cbb8] hover:bg-[#f7faf7] disabled:cursor-wait disabled:opacity-70"
               >
                 {googleLeaving ? (
                   <ButtonLoader tone="brand" />
                 ) : (
-                  <GoogleMark />
+                  <GoogleMark className="h-4 w-4" />
                 )}
                 Continue with Google
               </button>
@@ -1038,7 +850,7 @@ export function AuthTrialCard({
           ) : null}
 
           {mode === "signup" ? (
-            <p className="flex items-center justify-center gap-1.5 pt-0.5 text-[12px] text-[#8a968c]">
+            <p className="flex items-center justify-center gap-1.5 text-[11px] text-[#8a968c]">
               <FieldShieldIcon />
               No payment details required
             </p>
@@ -1057,7 +869,7 @@ export function AuthTrialCard({
       ) : null}
 
       {step === "otp" ? (
-        <form onSubmit={onVerifyOtp} className="mt-5 space-y-4">
+        <form onSubmit={onVerifyOtp} className="mt-3.5 space-y-2.5">
           <OtpDigitInputs value={otp} onChange={setOtp} disabled={loading} />
 
           {mode === "forgot" ? (
@@ -1134,7 +946,7 @@ export function AuthTrialCard({
             type="button"
             onClick={onResendOtp}
             disabled={loading}
-            className="w-full cursor-pointer text-sm font-semibold text-[#1f6b3a] transition hover:text-[#185830] disabled:cursor-not-allowed disabled:opacity-45"
+            className="w-full cursor-pointer text-[13px] font-semibold text-[#1f6b3a] transition hover:text-[#185830] disabled:cursor-not-allowed disabled:opacity-45"
           >
             Resend OTP
           </button>
@@ -1142,8 +954,8 @@ export function AuthTrialCard({
       ) : null}
 
       {step === "reset_done" ? (
-        <div className="mt-5 space-y-4">
-          <p className="rounded-[16px] bg-[#eef6ea] px-3.5 py-3 text-sm text-[#1f6b3a]">
+        <div className="mt-3.5 space-y-2.5">
+          <p className="rounded-[12px] bg-[#eef6ea] px-3 py-2.5 text-[13px] text-[#1f6b3a]">
             {resetMessage ?? "Password updated successfully."}
           </p>
           <button

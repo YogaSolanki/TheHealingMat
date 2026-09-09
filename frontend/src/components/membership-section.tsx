@@ -22,7 +22,11 @@ import { StartTrialButton } from "@/components/start-trial-button";
 import { TrialTrustRow } from "@/components/trial-trust-row";
 import type { PublicMembershipPlan } from "@/lib/api";
 import type { CheckoutStartMode } from "@/lib/checkout-intent";
-import { useMembershipPlans } from "@/lib/membership-plans-store";
+import {
+  formatMembershipMoney,
+  formatMembershipPerDay,
+  useMembershipPlans,
+} from "@/lib/membership-plans-store";
 
 const cream = "#FBF9F5";
 
@@ -38,12 +42,10 @@ type PlanCardModel = {
   offerBadge?: string | null;
 };
 
-function formatPlanPrice(paise: number) {
-  return Math.round(paise / 100).toLocaleString("en-IN");
-}
-
 function toPlanCard(plan: PublicMembershipPlan): PlanCardModel {
+  const currency = plan.currency ?? "INR";
   const hasOffer =
+    currency === "INR" &&
     plan.offerPricePaise != null &&
     plan.offerPricePaise < plan.listPricePaise;
   const displayPerDay =
@@ -53,9 +55,14 @@ function toPlanCard(plan: PublicMembershipPlan): PlanCardModel {
 
   return {
     months: plan.months,
-    price: formatPlanPrice(plan.offerPricePaise ?? plan.listPricePaise),
-    originalPrice: hasOffer ? formatPlanPrice(plan.listPricePaise) : null,
-    perDay: String(displayPerDay),
+    price: formatMembershipMoney(
+      plan.offerPricePaise ?? plan.listPricePaise,
+      currency,
+    ).replace(/\.00$/, ""),
+    originalPrice: hasOffer
+      ? formatMembershipMoney(plan.listPricePaise, currency).replace(/\.00$/, "")
+      : null,
+    perDay: formatMembershipPerDay(displayPerDay, currency),
     featured: plan.featured,
     perk: plan.perk,
     offerBadge: plan.offer?.badge ?? null,
@@ -335,7 +342,7 @@ function PlanCard({
       </p>
       {plan.originalPrice ? (
         <p className="relative z-10 mt-2 text-center text-[13px] font-medium text-[#8a978c] line-through sm:text-[14px]">
-          ₹{plan.originalPrice}
+          {plan.originalPrice}
         </p>
       ) : null}
       <p
@@ -343,10 +350,10 @@ function PlanCard({
           plan.originalPrice ? "mt-1" : "mt-2"
         }`}
       >
-        ₹{plan.price}
+        {plan.price}
       </p>
       <p className="relative z-10 mt-1.5 text-center text-[12px] font-medium text-[#8a978c] sm:text-[13px]">
-        ≈ ₹{plan.perDay}/day
+        ≈ {plan.perDay}/day
       </p>
 
       {plan.perk ? (

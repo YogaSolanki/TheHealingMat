@@ -23,6 +23,7 @@ import {
 } from '../users/account-identity';
 import { sendResendEmail } from '../mail/resend';
 import { sendMsg91Otp } from '../sms/msg91';
+import { detectVisitorRegion as detectVisitorRegionFromRequest } from '../common/visitor-region';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -52,6 +53,8 @@ export type PublicUser = {
   referralCode: string;
   accessLink: string;
   hasUsedFreeTrial: boolean;
+  /** False until the member sets their own password (OTP / Google signup). */
+  hasPassword: boolean;
   role: string;
 };
 
@@ -167,11 +170,8 @@ export class AuthService {
       });
       delivered = true;
     } else {
-      delivered = await this.sendOtpSms({
-        destination,
-        code,
-        purpose: dto.purpose,
-      });
+      // Mobile OTP is fixed as 1111 for now — do not SMS or expose the code.
+      delivered = true;
     }
 
     return {
@@ -180,8 +180,8 @@ export class AuthService {
       channel,
       destinationMasked: this.maskDestination(destination, channel),
       accountExists: Boolean(existing),
-      // Never expose OTP once a real provider delivered it (or in production).
-      ...(isProd || delivered ? {} : { devOtp: code }),
+      // Never expose OTP for SMS. For email, only in non-prod when undelivered.
+      ...(channel === 'sms' || isProd || delivered ? {} : { devOtp: code }),
     };
   }
 
@@ -203,7 +203,7 @@ export class AuthService {
       throw new BadRequestException('Too many attempts. Request a new code.');
     }
 
-    const matches = await bcrypt.compare(dto.code.trim(), challenge.codeHash);
+    const matches = await this.otpCodeMatches(challenge.channel, dto.code, challenge.codeHash);
     challenge.attempts += 1;
 
     if (!matches) {
@@ -236,12 +236,17 @@ export class AuthService {
         throw new BadRequestException('fullName is required for signup.');
       }
 
-      const password = dto.password?.trim();
+      // Trial signup is OTP-only; generate a strong password if the client
+      // did not collect one (users can set a password later via reset).
+      const providedPassword = dto.password?.trim();
+      let password = providedPassword;
+      let passwordSetByUser = false;
       if (!password) {
-        throw new BadRequestException('password is required for signup.');
-      }
-      if (!isValidPassword(password)) {
+        password = `Thm1A-${randomBytes(16).toString('base64url')}`;
+      } else if (!isValidPassword(password)) {
         throw new BadRequestException(PASSWORD_MESSAGE);
+      } else {
+        passwordSetByUser = true;
       }
 
       user = await this.createUser({
@@ -250,6 +255,7 @@ export class AuthService {
         channel: challenge.channel,
         fullName,
         password,
+        passwordSetByUser,
         referralCode: dto.referralCode,
       });
       isNewAccount = true;
@@ -279,7 +285,7 @@ export class AuthService {
       throw new BadRequestException('Too many attempts. Request a new code.');
     }
 
-    const matches = await bcrypt.compare(dto.code.trim(), challenge.codeHash);
+    const matches = await this.otpCodeMatches(challenge.channel, dto.code, challenge.codeHash);
     challenge.attempts += 1;
 
     if (!matches) {
@@ -299,11 +305,13 @@ export class AuthService {
     await this.otps.save(challenge);
 
     user.passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
+    user.passwordSetByUser = true;
     await this.users.save(user);
 
     return {
       success: true,
       message: 'Password updated. You can log in with your new password.',
+      user: this.toPublicUser(user),
     };
   }
 
@@ -321,10 +329,19 @@ export class AuthService {
       );
     }
 
-    const user = await this.users.findOne({ where: { id: userId } });
+    const user = await this.users
+      .createQueryBuilder('user')
+      .addSelect('user.passwordHash')
+      .where('user.id = :id', { id: userId })
+      .getOne();
     if (!user?.passwordHash) {
       throw new BadRequestException(
-        'No password is set on this account. Use forgot password to create one.',
+        'No password is set on this account. Use OTP verification to create one.',
+      );
+    }
+    if (!user.passwordSetByUser) {
+      throw new BadRequestException(
+        'No password is set on this account. Use OTP verification to create one.',
       );
     }
 
@@ -344,11 +361,13 @@ export class AuthService {
     }
 
     user.passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    user.passwordSetByUser = true;
     await this.users.save(user);
 
     return {
       success: true,
       message: 'Password updated successfully.',
+      user: this.toPublicUser(user),
     };
   }
 
@@ -390,6 +409,7 @@ export class AuthService {
       referralCode: user.referralCode,
       accessLink: this.buildAccessLink(user.accessLinkToken),
       hasUsedFreeTrial: user.hasUsedFreeTrial,
+      hasPassword: Boolean(user.passwordSetByUser),
       role: user.role,
     };
   }
@@ -476,6 +496,7 @@ export class AuthService {
     channel: 'sms' | 'email';
     fullName: string;
     password: string;
+    passwordSetByUser?: boolean;
     referralCode?: string;
   }) {
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
@@ -494,6 +515,7 @@ export class AuthService {
           mobile: input.channel === 'sms' ? input.destination : null,
           email: input.channel === 'email' ? input.destination : null,
           passwordHash,
+          passwordSetByUser: Boolean(input.passwordSetByUser),
           referralCode,
           accessLinkToken,
           referredByUserId,
@@ -560,7 +582,34 @@ export class AuthService {
   }
 
   private generateOtpCode(): string {
-    return String(randomInt(100000, 999999));
+    return String(randomInt(1000, 9999));
+  }
+
+  /** Mobile SMS OTP is fixed to 1111 (not delivered via SMS / not returned to client). */
+  private async otpCodeMatches(
+    channel: string,
+    code: string,
+    codeHash: string,
+  ): Promise<boolean> {
+    const trimmed = code.trim();
+    if (channel === 'sms' && trimmed === '1111') {
+      return true;
+    }
+    return bcrypt.compare(trimmed, codeHash);
+  }
+
+  async detectVisitorRegion(
+    headers: Record<string, string | string[] | undefined>,
+  ): Promise<{
+    region: Region;
+    country: string | null;
+    detected: boolean;
+    source: string;
+  }> {
+    return detectVisitorRegionFromRequest(headers, {
+      forceRegion: this.config.get<string>('FORCE_REGION'),
+      defaultRegion: this.config.get<string>('DEFAULT_REGION'),
+    });
   }
 
   /**
@@ -780,6 +829,7 @@ export class AuthService {
     code?: string;
     state?: string;
     error?: string;
+    headers?: Record<string, string | string[] | undefined>;
   }) {
     if (input.error) {
       throw new BadRequestException('Google sign-in was cancelled.');
@@ -790,6 +840,7 @@ export class AuthService {
 
     const { clientId, clientSecret } = this.requireGoogleConfig();
     const referralCode = this.parseGoogleStateReferral(input.state);
+    const visitor = await this.detectVisitorRegion(input.headers ?? {});
 
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -845,6 +896,7 @@ export class AuthService {
       email,
       fullName,
       referralCode,
+      region: visitor.region,
     });
 
     const issued = await this.issueUserToken(user, isNewAccount);
@@ -868,6 +920,7 @@ export class AuthService {
     email: string;
     fullName: string;
     referralCode?: string;
+    region: Region;
   }): Promise<{ user: User; isNewAccount: boolean }> {
     const existing = await this.users
       .createQueryBuilder('user')
@@ -885,11 +938,13 @@ export class AuthService {
 
     try {
       const user = await this.createUser({
-        region: Region.OutsideIndia,
+        // Region drives membership currency; Google always verifies via email.
+        region: input.region,
         destination: input.email,
         channel: 'email',
         fullName: input.fullName,
         password: `Gg-${randomBytes(24).toString('hex')}aA1`,
+        passwordSetByUser: false,
         referralCode: input.referralCode,
       });
       return { user, isNewAccount: true };

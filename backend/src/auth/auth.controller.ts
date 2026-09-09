@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpException,
   Param,
@@ -55,6 +56,14 @@ export class AuthController {
   @Get('admin/auth/me')
   adminMe(@CurrentAdmin() admin: Admin) {
     return this.authService.toPublicAdmin(admin);
+  }
+
+  @Public()
+  @Get('auth/region')
+  async detectRegion(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    return this.authService.detectVisitorRegion(headers);
   }
 
   @Public()
@@ -134,6 +143,7 @@ export class AuthController {
     @Query('code') code: string | undefined,
     @Query('state') state: string | undefined,
     @Query('error') error: string | undefined,
+    @Headers() headers: Record<string, string | string[] | undefined>,
     @Res() res: Response,
   ) {
     try {
@@ -141,6 +151,7 @@ export class AuthController {
         code,
         state,
         error,
+        headers,
       });
       return res.redirect(result.redirectUrl);
     } catch (err) {

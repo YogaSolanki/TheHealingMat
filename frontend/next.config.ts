@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
   devIndicators: {
     position: "bottom-left",
   },
+  images: {
+    qualities: [70, 75, 92],
+  },
   async redirects() {
     return [
       {

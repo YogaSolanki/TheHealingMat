@@ -39,6 +39,8 @@ export type PublicUser = {
   referralCode: string;
   accessLink: string;
   hasUsedFreeTrial: boolean;
+  /** False until the member chooses their own password. */
+  hasPassword: boolean;
   role: string;
 };
 
@@ -129,6 +131,21 @@ export async function getHealth(): Promise<HealthResponse> {
   return parseJson<HealthResponse>(response);
 }
 
+export async function getVisitorRegion(): Promise<{
+  region: Region;
+  country: string | null;
+  detected?: boolean;
+  source?: string;
+}> {
+  const response = await fetch(`${API_URL}/auth/region`, { cache: "no-store" });
+  return parseJson<{
+    region: Region;
+    country: string | null;
+    detected?: boolean;
+    source?: string;
+  }>(response);
+}
+
 export async function requestOtp(input: {
   region: Region;
   purpose: "login" | "signup" | "password_reset";
@@ -147,13 +164,15 @@ export async function resetPassword(input: {
   challengeId: string;
   code: string;
   password: string;
-}): Promise<{ success: boolean; message: string }> {
+}): Promise<{ success: boolean; message: string; user?: PublicUser }> {
   const response = await fetch(`${API_URL}/auth/password/reset`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  return parseJson<{ success: boolean; message: string }>(response);
+  return parseJson<{ success: boolean; message: string; user?: PublicUser }>(
+    response,
+  );
 }
 
 export async function changePassword(
@@ -162,7 +181,7 @@ export async function changePassword(
     currentPassword: string;
     newPassword: string;
   },
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string; user?: PublicUser }> {
   const response = await fetch(`${API_URL}/auth/password/change`, {
     method: "POST",
     headers: {
@@ -171,7 +190,9 @@ export async function changePassword(
     },
     body: JSON.stringify(input),
   });
-  return parseJson<{ success: boolean; message: string }>(response);
+  return parseJson<{ success: boolean; message: string; user?: PublicUser }>(
+    response,
+  );
 }
 
 export async function updateProfile(
@@ -200,10 +221,20 @@ export async function verifyOtp(input: {
   password?: string;
   referralCode?: string;
 }): Promise<OtpVerifyResponse> {
+  const password = input.password?.trim();
+  const body = {
+    challengeId: input.challengeId,
+    code: input.code,
+    ...(input.fullName?.trim() ? { fullName: input.fullName.trim() } : {}),
+    ...(password ? { password } : {}),
+    ...(input.referralCode?.trim()
+      ? { referralCode: input.referralCode.trim() }
+      : {}),
+  };
   const response = await fetch(`${API_URL}/auth/otp/verify`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify(body),
   });
   return parseJson<OtpVerifyResponse>(response);
 }
@@ -292,23 +323,45 @@ export async function submitContact(input: {
   return parseJson<ContactSubmitResponse>(response);
 }
 
+export async function submitCorporateEnquiry(input: {
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  employees: string;
+  message: string;
+}): Promise<ContactSubmitResponse> {
+  const response = await fetch(`${API_URL}/contact/corporate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return parseJson<ContactSubmitResponse>(response);
+}
+
 export type MembershipPlanMonths = number;
+
+export type MembershipCurrency = "INR" | "USD";
 
 export type PublicMembershipPlan = {
   id: string;
   months: number;
   name: string;
+  /** Minor units: paise for INR, cents for USD. */
   listPricePaise: number;
+  /** Per-day marketing figure: rupees for INR, cents for USD. */
   perDayRupees: number;
   offerPricePaise: number | null;
   featured: boolean;
   perk: string | null;
-  currency: "INR";
+  currency: MembershipCurrency;
   offer: { title: string; badge: string } | null;
 };
 
 export type MembershipPlansResponse = {
   plans: PublicMembershipPlan[];
+  region?: Region;
+  currency?: MembershipCurrency;
   offer: {
     id: string;
     title: string;
@@ -328,7 +381,7 @@ export type MembershipQuote = {
   discountLabel: string;
   couponCode: string | null;
   offer: { title: string; badge: string } | null;
-  currency: "INR";
+  currency: MembershipCurrency;
 };
 
 export type PublicMembership = {
@@ -341,6 +394,7 @@ export type PublicMembership = {
   listPricePaise: number;
   discountPaise: number;
   amountPaidPaise: number;
+  currency?: MembershipCurrency;
   razorpayPaymentId: string | null;
   razorpayInvoiceId?: string | null;
   razorpayInvoiceUrl?: string | null;
@@ -376,8 +430,11 @@ function authHeaders(accessToken: string) {
   };
 }
 
-export async function listMembershipPlans(): Promise<MembershipPlansResponse> {
-  const response = await fetch(`${API_URL}/memberships/plans`, {
+export async function listMembershipPlans(
+  region?: Region,
+): Promise<MembershipPlansResponse> {
+  const query = region ? `?region=${encodeURIComponent(region)}` : "";
+  const response = await fetch(`${API_URL}/memberships/plans${query}`, {
     cache: "no-store",
   });
   return parseJson<MembershipPlansResponse>(response);
