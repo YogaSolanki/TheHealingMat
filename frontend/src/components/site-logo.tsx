@@ -45,8 +45,8 @@ export function SiteLogo({
         width={400}
         height={100}
         priority={priority}
-        className="hidden h-12 w-auto max-w-[280px] object-contain object-left sm:block sm:h-[52px] sm:max-w-[320px] lg:h-14 lg:max-w-[360px]"
-        sizes="(max-width: 1024px) 320px, 360px"
+        className="hidden h-12 w-auto max-w-[300px] object-contain object-left sm:block sm:h-[60px] sm:max-w-[400px] lg:h-[66px] lg:max-w-[440px]"
+        sizes="(max-width: 1024px) 400px, 440px"
       />
     </Link>
   );

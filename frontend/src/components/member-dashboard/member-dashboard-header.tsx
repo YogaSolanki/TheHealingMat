@@ -76,7 +76,7 @@ export function MemberDashboardHeader() {
 
   return (
     <header className="relative z-50 bg-white header-shell">
-      <div className="flex h-[68px] w-full items-center justify-between gap-2 pr-4 pl-5 sm:h-[76px] sm:gap-3 sm:pr-6 sm:pl-7 lg:pr-6 lg:pl-8 xl:pr-10 xl:pl-12">
+      <div className="flex h-[72px] w-full items-center justify-between gap-2 pr-4 pl-5 sm:h-[84px] sm:gap-3 sm:pr-6 sm:pl-7 lg:pr-6 lg:pl-8 xl:pr-10 xl:pl-12">
         <SiteLogo
           priority
           href="/dashboard"
