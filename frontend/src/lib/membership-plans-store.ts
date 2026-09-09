@@ -118,6 +118,14 @@ type PlansSnapshot = {
   region: Region | null;
 };
 
+/** Stable SSR snapshot — must be referentially equal across calls. */
+const SERVER_SNAPSHOT: PlansSnapshot = {
+  data: baseResponseFor("india"),
+  ready: false,
+  error: null,
+  region: null,
+};
+
 function readStored(): MembershipPlansResponse | null {
   if (typeof window === "undefined") return null;
   try {
@@ -250,12 +258,7 @@ class MembershipPlansStore {
     return this.cachedSnapshot;
   };
 
-  getServerSnapshot = (): PlansSnapshot => ({
-    data: baseResponseFor("india"),
-    ready: false,
-    error: null,
-    region: null,
-  });
+  getServerSnapshot = (): PlansSnapshot => SERVER_SNAPSHOT;
 
   /**
    * Resolve visitor region, then load matching catalog (INR or USD).

@@ -323,6 +323,22 @@ export async function submitContact(input: {
   return parseJson<ContactSubmitResponse>(response);
 }
 
+export async function submitCorporateEnquiry(input: {
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  employees: string;
+  message: string;
+}): Promise<ContactSubmitResponse> {
+  const response = await fetch(`${API_URL}/contact/corporate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return parseJson<ContactSubmitResponse>(response);
+}
+
 export type MembershipPlanMonths = number;
 
 export type MembershipCurrency = "INR" | "USD";
