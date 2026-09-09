@@ -28,7 +28,7 @@ type ChangePasswordModalProps = {
 type ModalStep = "change" | "forgot_sending" | "forgot_otp" | "success";
 
 const CLOSE_MS = 220;
-const OTP_LENGTH = 6;
+const OTP_LENGTH = 4;
 
 const fieldClass =
   "w-full rounded-[16px] border border-[#d7e0d6] bg-white px-4 py-3 text-sm text-[#243028] outline-none transition placeholder:text-[#9aa89c] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";

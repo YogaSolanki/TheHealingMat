@@ -129,6 +129,14 @@ export async function getHealth(): Promise<HealthResponse> {
   return parseJson<HealthResponse>(response);
 }
 
+export async function getVisitorRegion(): Promise<{
+  region: Region;
+  country: string | null;
+}> {
+  const response = await fetch(`${API_URL}/auth/region`, { cache: "no-store" });
+  return parseJson<{ region: Region; country: string | null }>(response);
+}
+
 export async function requestOtp(input: {
   region: Region;
   purpose: "login" | "signup" | "password_reset";
@@ -200,10 +208,20 @@ export async function verifyOtp(input: {
   password?: string;
   referralCode?: string;
 }): Promise<OtpVerifyResponse> {
+  const password = input.password?.trim();
+  const body = {
+    challengeId: input.challengeId,
+    code: input.code,
+    ...(input.fullName?.trim() ? { fullName: input.fullName.trim() } : {}),
+    ...(password ? { password } : {}),
+    ...(input.referralCode?.trim()
+      ? { referralCode: input.referralCode.trim() }
+      : {}),
+  };
   const response = await fetch(`${API_URL}/auth/otp/verify`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify(body),
   });
   return parseJson<OtpVerifyResponse>(response);
 }

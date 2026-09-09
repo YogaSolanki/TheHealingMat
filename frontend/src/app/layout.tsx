@@ -18,7 +18,7 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: "The Healing Mat | Everyday Health For Every Body",
   description:
-    "Simple yoga. Consistent guidance. Real results. Daily yoga sessions for all age groups and experience levels.",
+    "Simple yoga. Consistent guidance. Real Results Daily yoga sessions for all age groups and experience levels.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

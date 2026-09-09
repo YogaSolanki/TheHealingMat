@@ -167,11 +167,8 @@ export class AuthService {
       });
       delivered = true;
     } else {
-      delivered = await this.sendOtpSms({
-        destination,
-        code,
-        purpose: dto.purpose,
-      });
+      // Mobile OTP is fixed as 1111 for now — do not SMS or expose the code.
+      delivered = true;
     }
 
     return {
@@ -180,8 +177,8 @@ export class AuthService {
       channel,
       destinationMasked: this.maskDestination(destination, channel),
       accountExists: Boolean(existing),
-      // Never expose OTP once a real provider delivered it (or in production).
-      ...(isProd || delivered ? {} : { devOtp: code }),
+      // Never expose OTP for SMS. For email, only in non-prod when undelivered.
+      ...(channel === 'sms' || isProd || delivered ? {} : { devOtp: code }),
     };
   }
 
@@ -203,7 +200,7 @@ export class AuthService {
       throw new BadRequestException('Too many attempts. Request a new code.');
     }
 
-    const matches = await bcrypt.compare(dto.code.trim(), challenge.codeHash);
+    const matches = await this.otpCodeMatches(challenge.channel, dto.code, challenge.codeHash);
     challenge.attempts += 1;
 
     if (!matches) {
@@ -236,11 +233,13 @@ export class AuthService {
         throw new BadRequestException('fullName is required for signup.');
       }
 
-      const password = dto.password?.trim();
+      // Trial signup is OTP-only; generate a strong password if the client
+      // did not collect one (users can set a password later via reset).
+      const providedPassword = dto.password?.trim();
+      let password = providedPassword;
       if (!password) {
-        throw new BadRequestException('password is required for signup.');
-      }
-      if (!isValidPassword(password)) {
+        password = `Thm1A-${randomBytes(16).toString('base64url')}`;
+      } else if (!isValidPassword(password)) {
         throw new BadRequestException(PASSWORD_MESSAGE);
       }
 
@@ -279,7 +278,7 @@ export class AuthService {
       throw new BadRequestException('Too many attempts. Request a new code.');
     }
 
-    const matches = await bcrypt.compare(dto.code.trim(), challenge.codeHash);
+    const matches = await this.otpCodeMatches(challenge.channel, dto.code, challenge.codeHash);
     challenge.attempts += 1;
 
     if (!matches) {
@@ -560,7 +559,47 @@ export class AuthService {
   }
 
   private generateOtpCode(): string {
-    return String(randomInt(100000, 999999));
+    return String(randomInt(1000, 9999));
+  }
+
+  /** Mobile SMS OTP is fixed to 1111 (not delivered via SMS / not returned to client). */
+  private async otpCodeMatches(
+    channel: string,
+    code: string,
+    codeHash: string,
+  ): Promise<boolean> {
+    const trimmed = code.trim();
+    if (channel === 'sms' && trimmed === '1111') {
+      return true;
+    }
+    return bcrypt.compare(trimmed, codeHash);
+  }
+
+  detectVisitorRegion(headers: Record<string, string | string[] | undefined>): {
+    region: Region;
+    country: string | null;
+  } {
+    const raw =
+      headers['cf-ipcountry'] ??
+      headers['x-vercel-ip-country'] ??
+      headers['cloudfront-viewer-country'] ??
+      headers['x-country-code'] ??
+      null;
+    const country = Array.isArray(raw)
+      ? raw[0]?.trim().toUpperCase() ?? null
+      : typeof raw === 'string'
+        ? raw.trim().toUpperCase()
+        : null;
+
+    if (country === 'IN') {
+      return { region: Region.India, country };
+    }
+    if (country && country !== 'XX' && country !== 'T1') {
+      return { region: Region.OutsideIndia, country };
+    }
+
+    // Unknown / local / missing geo headers — default to India for this product.
+    return { region: Region.India, country: country || null };
   }
 
   /**

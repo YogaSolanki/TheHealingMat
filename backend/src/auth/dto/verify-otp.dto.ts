@@ -1,18 +1,11 @@
+import { Transform } from 'class-transformer';
 import {
   IsOptional,
   IsString,
   IsUUID,
-  Matches,
   MaxLength,
   MinLength,
-  ValidateIf,
 } from 'class-validator';
-import {
-  PASSWORD_MAX_LENGTH,
-  PASSWORD_MESSAGE,
-  PASSWORD_MIN_LENGTH,
-  PASSWORD_PATTERN,
-} from './password.rules';
 
 export class VerifyOtpDto {
   @IsUUID()
@@ -30,12 +23,17 @@ export class VerifyOtpDto {
   @MaxLength(120)
   fullName?: string;
 
-  /** Required when creating a new account (signup). Stored as a bcrypt hash. */
-  @ValidateIf((dto: VerifyOtpDto) => Boolean(dto.fullName?.trim()))
+  /**
+   * Optional for trial signup — when omitted/blank the server generates one.
+   * Strength is enforced in AuthService only when a password is provided.
+   */
+  @Transform(({ value }) => {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  })
+  @IsOptional()
   @IsString()
-  @MinLength(PASSWORD_MIN_LENGTH)
-  @MaxLength(PASSWORD_MAX_LENGTH)
-  @Matches(PASSWORD_PATTERN, { message: PASSWORD_MESSAGE })
   password?: string;
 
   /** Optional. Stored permanently as Referring User → Referred User. */

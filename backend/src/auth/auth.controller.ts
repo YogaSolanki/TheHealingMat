@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpException,
   Param,
@@ -55,6 +56,14 @@ export class AuthController {
   @Get('admin/auth/me')
   adminMe(@CurrentAdmin() admin: Admin) {
     return this.authService.toPublicAdmin(admin);
+  }
+
+  @Public()
+  @Get('auth/region')
+  detectRegion(
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    return this.authService.detectVisitorRegion(headers);
   }
 
   @Public()
