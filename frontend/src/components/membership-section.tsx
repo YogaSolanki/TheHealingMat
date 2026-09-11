@@ -278,9 +278,9 @@ function PlansBlock({
       </div>
 
       <div
-        className={`mx-auto mt-5 grid w-full max-w-[960px] items-stretch gap-3 sm:mt-6 sm:gap-4 lg:mt-7 lg:gap-5 ${
+        className={`mx-auto mt-5 grid w-full max-w-[820px] items-stretch gap-3 sm:mt-6 sm:gap-3.5 lg:mt-7 lg:gap-4 ${
           plans.length === 2
-            ? "sm:grid-cols-2 sm:max-w-[640px]"
+            ? "sm:grid-cols-2 sm:max-w-[560px]"
             : "sm:grid-cols-3"
         }`}
       >
@@ -321,60 +321,60 @@ function PlanCard({
 
   return (
     <article
-      className={`relative flex h-full flex-col rounded-[22px] border ${
+      className={`relative flex h-full flex-col rounded-[18px] border ${
         highlighted
-          ? "border-[#c5d9c8] bg-[#F4F8F2] px-4 pt-8 pb-4 shadow-[0_10px_28px_rgba(31,107,58,0.08)] sm:px-5 sm:pt-9 sm:pb-5"
-          : "border-[#e5ebe3] bg-white px-4 pt-7 pb-4 sm:px-5 sm:pt-8 sm:pb-5"
+          ? "border-[#c5d9c8] bg-[#F4F8F2] px-3.5 pt-7 pb-3.5 shadow-[0_8px_22px_rgba(31,107,58,0.08)] sm:px-4 sm:pt-8 sm:pb-4"
+          : "border-[#e5ebe3] bg-white px-3.5 pt-6 pb-3.5 sm:px-4 sm:pt-7 sm:pb-4"
       }`}
     >
       {plan.offerBadge ? (
-        <span className="badge-shine absolute top-0 left-1/2 z-20 -translate-x-1/2 -translate-y-[42%] whitespace-nowrap rounded-[8px] bg-[#c45c16] px-4 py-1.5 text-[10px] font-bold tracking-[0.14em] text-white uppercase shadow-[0_6px_18px_rgba(196,92,22,0.28)] sm:px-5 sm:py-[6px] sm:text-[11px]">
+        <span className="badge-shine absolute top-0 left-1/2 z-20 -translate-x-1/2 -translate-y-[42%] whitespace-nowrap rounded-[8px] bg-[#c45c16] px-3.5 py-1 text-[9px] font-bold tracking-[0.14em] text-white uppercase shadow-[0_6px_18px_rgba(196,92,22,0.28)] sm:px-4 sm:py-1.5 sm:text-[10px]">
           {plan.offerBadge}
         </span>
       ) : plan.featured ? (
-        <span className="badge-shine absolute top-0 left-1/2 z-20 -translate-x-1/2 -translate-y-[42%] whitespace-nowrap rounded-[8px] bg-[#1f6b3a] px-4 py-1.5 text-[10px] font-bold tracking-[0.14em] text-white uppercase shadow-[0_6px_18px_rgba(31,107,58,0.3)] sm:px-5 sm:py-[6px] sm:text-[11px]">
+        <span className="badge-shine absolute top-0 left-1/2 z-20 -translate-x-1/2 -translate-y-[42%] whitespace-nowrap rounded-[8px] bg-[#1f6b3a] px-3.5 py-1 text-[9px] font-bold tracking-[0.14em] text-white uppercase shadow-[0_6px_18px_rgba(31,107,58,0.3)] sm:px-4 sm:py-1.5 sm:text-[10px]">
           Best Value
         </span>
       ) : null}
 
-      <p className="relative z-10 text-center text-[11px] font-bold tracking-[0.16em] text-black uppercase sm:text-[12px]">
+      <p className="relative z-10 text-center text-[10px] font-bold tracking-[0.16em] text-black uppercase sm:text-[11px]">
         {label}
       </p>
       {plan.originalPrice ? (
-        <p className="relative z-10 mt-2 text-center text-[13px] font-medium text-[#8a978c] line-through sm:text-[14px]">
+        <p className="relative z-10 mt-1.5 text-center text-[12px] font-medium text-[#8a978c] line-through sm:text-[13px]">
           {plan.originalPrice}
         </p>
       ) : null}
       <p
-        className={`relative z-10 text-center font-serif text-[2.1rem] leading-none font-bold tracking-tight text-[#1f6b3a] sm:text-[2.25rem] lg:text-[2.4rem] ${
-          plan.originalPrice ? "mt-1" : "mt-2"
+        className={`relative z-10 text-center font-serif text-[1.75rem] leading-none font-bold tracking-tight text-[#1f6b3a] sm:text-[1.9rem] lg:text-[2rem] ${
+          plan.originalPrice ? "mt-1" : "mt-1.5"
         }`}
       >
         {plan.price}
       </p>
-      <p className="relative z-10 mt-1.5 text-center text-[12px] font-medium text-[#8a978c] sm:text-[13px]">
+      <p className="relative z-10 mt-1 text-center text-[11px] font-medium text-[#8a978c] sm:text-[12px]">
         ≈ {plan.perDay}/day
       </p>
 
       {plan.perk ? (
-        <div className="relative z-10 mt-4 rounded-[14px] border border-[#d7e5d9] bg-white px-3 py-2.5 text-center sm:mt-5 sm:px-3.5 sm:py-3">
-          <p className="text-[12px] font-semibold leading-snug text-[#1f6b3a] sm:text-[13px]">
+        <div className="relative z-10 mt-3 rounded-[12px] border border-[#d7e5d9] bg-white px-2.5 py-2 text-center sm:mt-3.5 sm:px-3 sm:py-2.5">
+          <p className="text-[11px] font-semibold leading-snug text-[#1f6b3a] sm:text-[12px]">
             <span aria-hidden="true">🎁 </span>
             {plan.perk}
           </p>
         </div>
       ) : (
         <div
-          className="relative z-10 mx-auto mt-5 w-[42%] border-t border-[#e2e8e0] sm:mt-6"
+          className="relative z-10 mx-auto mt-4 w-[42%] border-t border-[#e2e8e0] sm:mt-4.5"
           aria-hidden="true"
         />
       )}
 
-      <div className="relative z-10 mt-auto pt-4 sm:pt-5">
+      <div className="relative z-10 mt-auto pt-3 sm:pt-3.5">
         <ChoosePlanButton
           months={plan.months}
           startMode={startMode}
-          className={`inline-flex w-full items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-[13px] font-bold sm:text-[14px] ${
+          className={`inline-flex w-full items-center justify-center gap-1.5 whitespace-nowrap px-3 py-2.5 text-[12px] font-bold sm:text-[13px] ${
             highlighted
               ? "btn-primary bg-[#1f6b3a] text-white"
               : "btn-outline border-[1.5px] border-[#1f6b3a] text-[#1f6b3a]"
