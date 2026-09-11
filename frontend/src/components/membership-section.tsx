@@ -27,6 +27,12 @@ import {
   formatMembershipPerDay,
   useMembershipPlans,
 } from "@/lib/membership-plans-store";
+import {
+  specialSessionLabel,
+  weekdayEveningSlots,
+  weekdayMorningSlots,
+  sundayQaSlots,
+} from "@/lib/member-session-schedule";
 
 const cream = "#FBF9F5";
 
@@ -69,9 +75,10 @@ function toPlanCard(plan: PublicMembershipPlan): PlanCardModel {
   };
 }
 
-const morningSlots = ["6:30 AM", "7:30 AM", "8:30 AM"];
-const eveningSlots = ["5:00 PM", "6:00 PM", "7:00 PM"];
-const sundaySlots = ["8:00 AM", "7:00 PM"];
+const morningSlots = [...weekdayMorningSlots];
+const eveningSlots = [...weekdayEveningSlots];
+const sundaySlots = [...sundayQaSlots];
+const specialSlot = specialSessionLabel;
 
 const membershipBenefits: {
   key: string;
@@ -429,15 +436,15 @@ function CouponStrip() {
 
 function WeekBlock() {
   return (
-    <section className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 sm:py-6 lg:px-6 xl:px-8">
-      <h2 className="text-center font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-black sm:text-[1.85rem]">
+    <section className="mx-auto w-full max-w-[1440px] px-4 py-4 sm:px-6 sm:py-5 lg:px-6 xl:px-8">
+      <h2 className="text-center font-serif text-[1.45rem] leading-tight font-bold tracking-tight text-black sm:text-[1.7rem]">
         Your Week at The Healing Mat
       </h2>
 
-      <div className="mt-5 grid items-stretch gap-4 sm:mt-6 lg:grid-cols-2 lg:gap-5 xl:gap-6">
-        <div className="flex h-full flex-col rounded-[26px] border border-[#eef2ee] bg-[rgba(31,107,58,0.02)] px-5 py-5 sm:px-6 sm:py-6 lg:px-7 lg:py-6">
-          <div className="flex items-start gap-3.5">
-            <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center sm:h-10 sm:w-10">
+      <div className="mt-4 grid items-stretch gap-3 sm:mt-5 lg:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] lg:gap-4">
+        <div className="flex h-full flex-col rounded-[20px] border border-[#eef2ee] bg-[rgba(31,107,58,0.02)] px-4 py-3.5 sm:px-5 sm:py-4">
+          <div className="flex items-start gap-2.5">
+            <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center sm:h-8 sm:w-8">
               <span
                 aria-hidden="true"
                 className="block h-full w-full"
@@ -455,36 +462,36 @@ function WeekBlock() {
               />
             </span>
             <div className="min-w-0">
-              <p className="text-[17px] font-bold text-[#1f6b3a] sm:text-[18px]">
+              <p className="text-[15px] font-bold text-[#1f6b3a] sm:text-[16px]">
                 Monday – Saturday
               </p>
-              <p className="mt-0.5 text-[15px] font-bold text-black sm:text-[16px]">
+              <p className="text-[13px] font-bold text-black sm:text-[14px]">
                 Daily Yoga & Wellness Sessions
               </p>
-              <p className="mt-1.5 text-[15px] leading-snug text-black sm:text-[16px]">
-                Six sessions every day — choose the timing that suits you.
+              <p className="mt-0.5 text-[12px] leading-snug text-[#5f6f64] sm:text-[13px]">
+                Multiple sessions every day — choose the timing that suits you.
               </p>
             </div>
           </div>
 
-          <div className="mt-4 rounded-[18px] border border-[#e8ebe4] bg-white px-3 py-3.5 sm:mt-5 sm:px-4 sm:py-4 lg:px-5">
-            <div className="grid gap-5 sm:grid-cols-2 sm:gap-0">
-              <div className="min-w-0 sm:pr-4 lg:pr-5">
-                <div className="mb-2.5 flex items-center gap-2.5 text-[15px] font-bold text-black sm:gap-3 sm:text-[16px]">
+          <div className="mt-3 rounded-[14px] border border-[#e8ebe4] bg-white px-3 py-2.5 sm:px-3.5 sm:py-3">
+            <div className="grid gap-3 md:grid-cols-3 md:gap-0">
+              <div className="min-w-0 md:pr-3 lg:pr-4">
+                <div className="mb-1.5 flex items-center gap-2 text-[13px] font-bold text-black sm:text-[14px]">
                   <Image
                     src={sunIcon}
                     alt=""
                     aria-hidden="true"
-                    className="h-9 w-9 object-contain sm:h-10 sm:w-10"
-                    sizes="40px"
+                    className="h-6 w-6 object-contain sm:h-7 sm:w-7"
+                    sizes="28px"
                   />
                   Morning
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {morningSlots.map((slot) => (
                     <span
                       key={slot}
-                      className="rounded-[16px] bg-[#E8F0E4] px-2.5 py-1.5 text-[12px] font-bold whitespace-nowrap text-[#1f6b3a] sm:px-3 sm:py-2 sm:text-[13px]"
+                      className="rounded-[12px] bg-[#E8F0E4] px-2 py-1 text-[11px] font-bold whitespace-nowrap text-[#1f6b3a] sm:text-[12px]"
                     >
                       {slot}
                     </span>
@@ -492,22 +499,42 @@ function WeekBlock() {
                 </div>
               </div>
 
-              <div className="min-w-0 border-[#e6ebe3] sm:border-l sm:pl-4 lg:pl-5">
-                <div className="mb-2.5 flex items-center gap-2.5 text-[15px] font-bold text-black sm:gap-3 sm:text-[16px]">
+              <div className="min-w-0 border-[#e6ebe3] md:border-x md:px-3 lg:px-4">
+                <div className="mb-1.5 flex items-center gap-1.5 text-[13px] font-bold text-black sm:text-[14px]">
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center text-[#C58A1A] sm:h-7 sm:w-7"
+                  >
+                    <SpecialStarIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+                  </span>
+                  Special Session
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <span className="rounded-[12px] bg-[#FFF4DC] px-2 py-1 text-[11px] font-bold whitespace-nowrap text-[#9A6B12] sm:text-[12px]">
+                    {specialSlot} – 12:00 PM
+                  </span>
+                  <span className="rounded-[12px] bg-[#FFF8EB] px-2 py-1 text-[11px] font-bold whitespace-nowrap text-[#9A6B12] sm:text-[12px]">
+                    30 minutes
+                  </span>
+                </div>
+              </div>
+
+              <div className="min-w-0 md:pl-3 lg:pl-4">
+                <div className="mb-1.5 flex items-center gap-2 text-[13px] font-bold text-black sm:text-[14px]">
                   <Image
                     src={moonIcon}
                     alt=""
                     aria-hidden="true"
-                    className="h-9 w-9 object-contain sm:h-10 sm:w-10"
-                    sizes="40px"
+                    className="h-6 w-6 object-contain sm:h-7 sm:w-7"
+                    sizes="28px"
                   />
                   Evening
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {eveningSlots.map((slot) => (
                     <span
                       key={slot}
-                      className="rounded-[16px] bg-[#E8F0E4] px-2.5 py-1.5 text-[12px] font-bold whitespace-nowrap text-[#1f6b3a] sm:px-3 sm:py-2 sm:text-[13px]"
+                      className="rounded-[12px] bg-[#E8F0E4] px-2 py-1 text-[11px] font-bold whitespace-nowrap text-[#1f6b3a] sm:text-[12px]"
                     >
                       {slot}
                     </span>
@@ -517,48 +544,48 @@ function WeekBlock() {
             </div>
           </div>
 
-          <p className="mt-3 text-left text-[13px] leading-snug text-[#5f6f64] sm:mt-4 sm:text-[14px]">
+          <p className="mt-2 text-left text-[11px] leading-snug text-[#5f6f64] sm:text-[12px]">
             You can attend another available session if you miss your usual
             timing.
           </p>
         </div>
 
-        <div className="flex h-full flex-col rounded-[26px] border border-[#f5f0e8] bg-[rgba(224,122,47,0.025)] px-5 py-5 sm:px-6 sm:py-6 lg:px-7 lg:py-6">
-          <div className="flex items-start gap-3.5">
-            <span className="mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center sm:h-12 sm:w-12">
+        <div className="flex h-full flex-col rounded-[20px] border border-[#f5f0e8] bg-[rgba(224,122,47,0.025)] px-4 py-3.5 sm:px-5 sm:py-4">
+          <div className="flex items-start gap-2.5">
+            <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center sm:h-9 sm:w-9">
               <Image
                 src={questionIcon}
                 alt=""
                 aria-hidden="true"
-                className="h-[120%] w-[120%] max-w-none scale-125 object-contain"
-                sizes="56px"
+                className="h-full w-full object-contain"
+                sizes="36px"
               />
             </span>
             <div className="min-w-0">
-              <p className="text-[17px] font-bold text-[#1f6b3a] sm:text-[18px]">
+              <p className="text-[15px] font-bold text-[#1f6b3a] sm:text-[16px]">
                 Sunday
               </p>
-              <p className="mt-0.5 text-[15px] font-bold text-black sm:text-[16px]">
+              <p className="text-[13px] font-bold text-black sm:text-[14px]">
                 Q&amp;A & Guidance
               </p>
-              <p className="mt-1.5 text-[15px] leading-snug text-black sm:text-[16px]">
+              <p className="mt-0.5 text-[12px] leading-snug text-[#5f6f64] sm:text-[13px]">
                 A weekly opportunity to ask questions and get guidance from our
                 team.
               </p>
             </div>
           </div>
 
-          <div className="mt-4 rounded-[18px] border border-[#e8ebe4] bg-white px-3 py-3.5 sm:mt-5 sm:px-4 sm:py-4 lg:px-5">
+          <div className="mt-3 flex flex-1 flex-col justify-center rounded-[14px] border border-[#e8ebe4] bg-white px-3 py-2.5 sm:px-3.5 sm:py-3">
             <div className="min-w-0">
-              <div className="mb-2.5 flex items-center gap-2.5 text-[15px] font-bold text-black sm:gap-3 sm:text-[16px]">
-                <ChatBubbleIcon className="h-9 w-9 shrink-0 text-[#1f6b3a] sm:h-10 sm:w-10" />
+              <div className="mb-1.5 flex items-center gap-2 text-[13px] font-bold text-black sm:text-[14px]">
+                <ChatBubbleIcon className="h-6 w-6 shrink-0 text-[#1f6b3a] sm:h-7 sm:w-7" />
                 Sunday Sessions
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {sundaySlots.map((slot) => (
                   <span
                     key={slot}
-                    className="rounded-[16px] bg-[#E8F0E4] px-2.5 py-1.5 text-[12px] font-bold whitespace-nowrap text-[#1f6b3a] sm:px-3 sm:py-2 sm:text-[13px]"
+                    className="rounded-[12px] bg-[#E8F0E4] px-2 py-1 text-[11px] font-bold whitespace-nowrap text-[#1f6b3a] sm:text-[12px]"
                   >
                     {slot}
                   </span>
@@ -650,11 +677,10 @@ function DailySessionsBlock() {
           ★
         </span>
         <span>
-          Special sessions on specific health and wellness topics are also
-          offered from time to time.
+          Special sessions run Monday–Saturday from {specialSlot} to 12:00 PM
+          (30 minutes), with a different health and wellness topic each day.
           <br className="hidden sm:block" />
-          Topics and schedules may vary and are announced on your member
-          dashboard.
+          Current and upcoming topics are announced in your Member Area.
         </span>
       </p>
     </section>
@@ -725,6 +751,14 @@ function ChatBubbleIcon({ className = "h-6 w-6" }: { className?: string }) {
       <circle cx="9" cy="10" r="0.9" fill="currentColor" />
       <circle cx="12" cy="10" r="0.9" fill="currentColor" />
       <circle cx="15" cy="10" r="0.9" fill="currentColor" />
+    </svg>
+  );
+}
+
+function SpecialStarIcon({ className = "h-6 w-6" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+      <path d="M12 2.6 14.4 9.2l7 .5-5.3 4.4 1.7 6.8L12 17.6l-5.8 3.3 1.7-6.8-5.3-4.4 7-.5L12 2.6Z" />
     </svg>
   );
 }
