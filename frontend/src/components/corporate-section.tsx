@@ -202,20 +202,20 @@ function HeroBlock() {
   return (
     <section className="w-full overflow-hidden" style={{ backgroundColor: cream }}>
       <div className="grid w-full items-stretch lg:grid-cols-2">
-        <div className="order-2 flex items-center justify-center px-5 py-8 sm:px-8 sm:py-10 lg:order-1 lg:px-8 lg:py-14 xl:px-10">
+        <div className="order-2 flex items-center justify-center px-5 py-6 sm:px-8 sm:py-7 lg:order-1 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
           <div className="flex w-full max-w-[560px] flex-col items-center text-center lg:items-start lg:text-left">
             <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[12px]">
               Corporate Plans
             </p>
-            <h1 className="mt-3 w-full font-serif text-[1.5rem] leading-[1.2] font-bold tracking-tight sm:text-[2.05rem] md:text-[2.25rem] lg:text-[2.45rem]">
+            <h1 className="mt-2 w-full font-serif text-[1.45rem] leading-[1.15] font-bold tracking-tight sm:mt-2.5 sm:text-[1.9rem] md:text-[2.05rem] lg:text-[2.15rem] xl:text-[2.3rem]">
               <span className="block text-black">
                 Corporate Wellness,
               </span>
-              <span className="mt-1 block text-[#1f6b3a]">
+              <span className="mt-0.5 block text-[#1f6b3a]">
                 Designed Around Your Organization
               </span>
             </h1>
-            <div className="mt-4 w-full max-w-[420px] space-y-1.5 text-[14px] leading-relaxed sm:mt-6 sm:max-w-none sm:text-[16px] lg:text-[15px] xl:text-[18px]">
+            <div className="mt-3 w-full max-w-[420px] space-y-1 text-[13px] leading-snug sm:mt-3.5 sm:max-w-none sm:text-[14px] lg:text-[14px] xl:text-[15px]">
               <p className="font-semibold text-[#2c3a30]">
                 Give your employees access to simple, expert-led wellness through
                 The Healing Mat.
@@ -226,11 +226,11 @@ function HeroBlock() {
               </p>
             </div>
 
-            <ul className="mt-6 grid w-full grid-cols-4 gap-x-2 gap-y-4 sm:mt-9 sm:gap-x-0 sm:gap-y-6">
+            <ul className="mt-4 grid w-full grid-cols-4 gap-x-2 gap-y-3 sm:mt-5 sm:gap-x-0 sm:gap-y-4">
               {heroHighlights.map((item, index) => (
                 <li
                   key={item.key}
-                  className={`flex flex-col items-center gap-2 text-center lg:items-start lg:text-left ${
+                  className={`flex flex-col items-center gap-1.5 text-center lg:items-start lg:text-left ${
                     index > 0
                       ? "sm:border-l sm:border-[#e5e8e3] sm:pl-3 lg:pl-2.5 xl:pl-4"
                       : ""
@@ -239,7 +239,7 @@ function HeroBlock() {
                   <span className="text-[#E07A2F]" aria-hidden="true">
                     {item.icon}
                   </span>
-                  <span className="text-[11px] leading-snug font-bold text-[#3d4a40] sm:text-[13px] lg:text-[12px] xl:text-[14px]">
+                  <span className="text-[11px] leading-snug font-bold text-[#3d4a40] sm:text-[12px] lg:text-[12px] xl:text-[13px]">
                     {item.label}
                   </span>
                 </li>
@@ -248,11 +248,11 @@ function HeroBlock() {
 
             <Link
               href="/corporate/enquiry"
-              className="btn-primary mt-6 inline-flex w-full max-w-[400px] items-center justify-center gap-2.5 rounded-full bg-[#1f6b3a] px-5 py-3.5 text-[13px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.22)] sm:mt-9 sm:w-auto sm:max-w-none sm:gap-3 sm:px-7 sm:py-4 sm:text-[14px]"
+              className="btn-primary mt-4 inline-flex w-full max-w-[400px] items-center justify-center gap-2 rounded-full bg-[#1f6b3a] px-5 py-3 text-[13px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.22)] sm:mt-5 sm:w-auto sm:max-w-none sm:gap-2.5 sm:px-6 sm:py-3 sm:text-[14px]"
             >
               <AssetIcon
                 src={requirementIcon}
-                className="h-5 w-5 shrink-0 sm:h-6 sm:w-6"
+                className="h-5 w-5 shrink-0"
                 color="#ffffff"
               />
               Discuss Your Corporate Wellness Requirements
@@ -261,21 +261,19 @@ function HeroBlock() {
           </div>
         </div>
 
-        <div className="relative order-1 aspect-[5/4] w-full sm:aspect-[16/11] lg:order-2 lg:aspect-auto lg:min-h-full">
-          <div className="absolute inset-0">
-            <Image
-              src={corporateImage}
-              alt="Corporate wellness handshake meeting"
-              fill
-              priority
-              className="object-cover object-center"
-              sizes="(max-width: 1024px) 100vw, 50vw"
-            />
-            <div
-              aria-hidden="true"
-              className="absolute inset-y-0 left-0 hidden w-16 bg-gradient-to-r from-white to-transparent lg:block xl:w-20"
-            />
-          </div>
+        <div className="relative order-1 aspect-[16/9] w-full lg:order-2 lg:aspect-auto lg:h-full lg:min-h-[480px]">
+          <Image
+            src={corporateImage}
+            alt="Corporate wellness handshake meeting"
+            fill
+            priority
+            className="object-cover object-center"
+            sizes="(max-width: 1024px) 100vw, 50vw"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-y-0 left-0 hidden w-16 bg-gradient-to-r from-[#FBF9F5] to-transparent lg:block xl:w-20"
+          />
         </div>
       </div>
     </section>
