@@ -9,9 +9,9 @@ import dilIcon from "@/assets/dil.png";
 import founderPhoto from "@/assets/hero2.png";
 import groupPhoto from "@/assets/group.png";
 import helthIcon from "@/assets/helth.png";
-import pokhriyalPhoto from "@/assets/Dr K P Pokhriyal.jpg";
-import poornimaPhoto from "@/assets/poornima.jpg";
-import pradeepPhoto from "@/assets/pradeep.jpg";
+import pokhriyalPhoto from "@/assets/Dr K P Pokhriyal.png";
+import poornimaPhoto from "@/assets/poornima.png";
+import pradeepPhoto from "@/assets/pradeep.png";
 import savitaPhoto from "@/assets/Savita.png";
 import yogaOnCallLogo from "@/assets/yogaonca.png";
 import ic3Icon from "@/assets/ic3.png";
@@ -539,6 +539,8 @@ function PradeepCard() {
           src={pradeepPhoto}
           objectPosition="50% 100%"
           large
+          fit="contain"
+          frameBg="transparent"
         />
       }
     >
@@ -807,10 +809,10 @@ function PoornimaCard() {
         <FounderPhoto
           alt="Dr. Poornima Ramamurthy"
           src={poornimaPhoto}
-          objectPosition="50% 58%"
+          objectPosition="50% 100%"
           large
-          scale={1}
-          frameBg="#b8b8bc"
+          fit="contain"
+          frameBg="transparent"
         />
       }
     >
@@ -890,10 +892,11 @@ function PokhriyalCard() {
         <FounderPhoto
           alt="Dr. K. P. Pokhriyal"
           src={pokhriyalPhoto}
-          objectPosition="50% 72%"
+          objectPosition="50% 100%"
           large
-          scale={1}
-          frameBg="#f2f2f2"
+          fit="contain"
+          frameBg="transparent"
+          scale={1.2}
         />
       }
     >
