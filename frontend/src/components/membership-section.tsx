@@ -81,7 +81,7 @@ const membershipBenefits: {
 }[] = [
   {
     key: "daily",
-    title: "Daily Sessions",
+    title: "Multiple Sessions",
     body: "Yoga and wellness sessions throughout the week.",
     icon: (
       <Image
@@ -611,7 +611,7 @@ function DailySessionsBlock() {
   return (
     <section className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 sm:py-6 lg:px-6 xl:px-8">
       <h2 className="text-center font-serif text-[1.45rem] font-bold tracking-tight text-black sm:text-[1.7rem]">
-        What Happens in Your Daily Sessions?
+        What Happens in Your Multiple Sessions?
       </h2>
 
       <div className="mt-6 grid items-stretch gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4 lg:gap-5">

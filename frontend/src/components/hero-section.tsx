@@ -224,7 +224,7 @@ export function HeroSection() {
       icon: <DailyIcon />,
       label: (
         <>
-          Daily
+          Multiple
           <br />
           Sessions
         </>

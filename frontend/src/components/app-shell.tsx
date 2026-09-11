@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { FreeTrialPromoPopup } from "@/components/free-trial-promo-popup";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { LoggedInRedirect } from "@/components/logged-in-redirect";
@@ -36,6 +37,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </div>
       {!isAuthCallback ? <SiteFooter /> : null}
+      {!signedIn && !isAuthCallback ? <FreeTrialPromoPopup /> : null}
     </>
   );
 }

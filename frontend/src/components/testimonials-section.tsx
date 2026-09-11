@@ -70,7 +70,7 @@ const testimonials: {
     key: "meera",
     quote: (
       <>
-        A wonderful platform for the whole family. Daily sessions keep us
+        A wonderful platform for the whole family. Multiple Sessions keep us
         consistent and motivated.
       </>
     ),
