@@ -328,7 +328,6 @@ export async function submitCorporateEnquiry(input: {
   company: string;
   email: string;
   phone: string;
-  employees: string;
   message: string;
 }): Promise<ContactSubmitResponse> {
   const response = await fetch(`${API_URL}/contact/corporate`, {

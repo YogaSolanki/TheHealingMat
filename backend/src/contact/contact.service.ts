@@ -65,7 +65,6 @@ export class ContactService {
     const company = dto.company.trim();
     const email = dto.email.trim().toLowerCase();
     const phone = dto.phone.trim();
-    const employees = dto.employees.trim();
     const message = dto.message.trim();
 
     const saved = await this.corporateEnquiries.save(
@@ -74,7 +73,7 @@ export class ContactService {
         company,
         email,
         phone,
-        employees,
+        employees: '',
         message,
         emailed: false,
       }),
@@ -87,7 +86,6 @@ export class ContactService {
         company,
         email,
         phone,
-        employees,
         message,
       });
       saved.emailed = true;
@@ -180,7 +178,6 @@ export class ContactService {
     company: string;
     email: string;
     phone: string;
-    employees: string;
     message: string;
   }) {
     const { apiKey, to, from } = this.resolveMailConfig();
@@ -192,7 +189,6 @@ export class ContactService {
       `Company / Organisation: ${input.company}`,
       `Work Email: ${input.email}`,
       `Phone: ${input.phone}`,
-      `Approximate Number of Employees: ${input.employees}`,
       '',
       'How can we help you?',
       input.message,
@@ -206,8 +202,7 @@ export class ContactService {
         <p style="margin: 0 0 8px;"><strong>Name:</strong> ${escapeHtml(input.name)}</p>
         <p style="margin: 0 0 8px;"><strong>Company / Organisation:</strong> ${escapeHtml(input.company)}</p>
         <p style="margin: 0 0 8px;"><strong>Work Email:</strong> ${escapeHtml(input.email)}</p>
-        <p style="margin: 0 0 8px;"><strong>Phone:</strong> ${escapeHtml(input.phone)}</p>
-        <p style="margin: 0 0 16px;"><strong>Approximate Number of Employees:</strong> ${escapeHtml(input.employees)}</p>
+        <p style="margin: 0 0 16px;"><strong>Phone:</strong> ${escapeHtml(input.phone)}</p>
         <p style="margin: 0 0 6px;"><strong>How can we help you?</strong></p>
         <p style="white-space: pre-wrap; margin: 0 0 16px;">${escapeHtml(input.message)}</p>
         <p style="font-size: 12px; color: #6b7c6e; margin: 0;">Reference: ${escapeHtml(input.id)}</p>
