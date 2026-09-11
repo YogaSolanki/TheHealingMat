@@ -3,10 +3,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import allAgeIcon from "@/assets/all-age.png";
 import buildingIcon from "@/assets/building.png";
-import pokhriyalPhoto from "@/assets/Dr K P Pokhriyal.jpg";
+import pokhriyalPhoto from "@/assets/Dr K P Pokhriyal.png";
 import locationIcon from "@/assets/location.png";
-import poornimaPhoto from "@/assets/poornima.jpg";
-import pradeepPhoto from "@/assets/Pradeep_home-Founder.jpg";
+import poornimaPhoto from "@/assets/poornima.png";
+import pradeepPhoto from "@/assets/Pradeep_home-Founder.png";
 import savitaPhoto from "@/assets/Savita.png";
 import { AnimatedStatValue } from "@/components/animated-stat-value";
 
@@ -60,6 +60,8 @@ const teamMembers: {
   href: string;
   photo: StaticImageData;
   objectPosition: string;
+  fit?: "cover" | "contain";
+  scale?: number;
   titles: ReactNode;
 }[] = [
   {
@@ -81,7 +83,8 @@ const teamMembers: {
     name: "Dr. Poornima Ramamurthy",
     href: "/about#poornima",
     photo: poornimaPhoto,
-    objectPosition: "50% 72%",
+    objectPosition: "50% 8%",
+    fit: "cover",
     titles: (
       <>
         Ph.D. in Yoga
@@ -95,7 +98,9 @@ const teamMembers: {
     name: "Dr. K. P. Pokhriyal",
     href: "/about#pokhriyal",
     photo: pokhriyalPhoto,
-    objectPosition: "50% 75%",
+    objectPosition: "50% 100%",
+    fit: "contain",
+    scale: 1.25,
     titles: (
       <>
         Ph.D. in Yoga
@@ -177,13 +182,13 @@ export function FoundersSection() {
           Laptop (lg+): photo left; bio+stats+link in one right column, vertically centered
         */}
         <div className="mt-8 grid items-center gap-5 sm:mt-9 sm:grid-cols-[200px_1fr] sm:gap-6 md:grid-cols-[240px_1fr] md:gap-8 lg:grid-cols-[300px_1fr] lg:gap-10 xl:grid-cols-[320px_1fr] xl:gap-12">
-          <div className="relative mx-auto w-full max-w-[260px] overflow-hidden rounded-[18px] bg-[#efe8da] sm:mx-0 sm:max-w-none">
+          <div className="relative mx-auto w-full max-w-[260px] overflow-hidden sm:mx-0 sm:max-w-none">
             <div className="relative h-[280px] w-full sm:h-[260px] md:h-[300px] lg:h-[340px]">
               <Image
                 src={pradeepPhoto}
                 alt="Pradeep Solanki, Founder of The Healing Mat"
                 fill
-                className="object-cover object-[30%_100%]"
+                className="origin-bottom scale-[1.2] object-contain object-bottom"
                 sizes="(max-width: 640px) 260px, (max-width: 1024px) 240px, 320px"
                 priority={false}
               />
@@ -258,13 +263,22 @@ export function FoundersSection() {
                 index === 2 ? "founders-team-solo" : ""
               }`}
             >
-              <div className="relative h-[88px] w-[88px] shrink-0 overflow-hidden rounded-full bg-[#efe8da] sm:h-[96px] sm:w-[96px]">
+              <div className="relative h-[88px] w-[88px] shrink-0 overflow-hidden rounded-full sm:h-[96px] sm:w-[96px]">
                 <Image
                   src={member.photo}
                   alt={member.name}
                   fill
-                  className="object-cover"
-                  style={{ objectPosition: member.objectPosition }}
+                  className={
+                    member.fit === "contain" ? "object-contain" : "object-cover"
+                  }
+                  style={{
+                    objectPosition: member.objectPosition,
+                    transform:
+                      member.scale && member.scale !== 1
+                        ? `scale(${member.scale})`
+                        : undefined,
+                    transformOrigin: "center bottom",
+                  }}
                   sizes="96px"
                 />
               </div>

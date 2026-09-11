@@ -3,23 +3,14 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import book1Cover from "@/assets/book1.png";
 import book2Cover from "@/assets/book2.jpg";
-import buildingIcon from "@/assets/building.png";
-import calendarIcon from "@/assets/calander-icon.png";
 import dilIcon from "@/assets/dil.png";
 import founderPhoto from "@/assets/hero2.png";
-import groupPhoto from "@/assets/group.png";
-import helthIcon from "@/assets/helth.png";
-import pokhriyalPhoto from "@/assets/Dr K P Pokhriyal.jpg";
-import poornimaPhoto from "@/assets/poornima.jpg";
-import pradeepPhoto from "@/assets/pradeep.jpg";
+import groupPhoto from "@/assets/group.jpeg";
+import pokhriyalPhoto from "@/assets/Dr K P Pokhriyal.png";
+import poornimaPhoto from "@/assets/poornima.png";
+import pradeepPhoto from "@/assets/pradeep.png";
 import savitaPhoto from "@/assets/Savita.png";
-import yogaOnCallLogo from "@/assets/yogaonca.png";
-import ic3Icon from "@/assets/ic3.png";
 import leafRight from "@/assets/leaf-right.png";
-import locationIcon from "@/assets/location.png";
-import trustIcon from "@/assets/trust.png";
-import yogaMenIcon from "@/assets/yoga-men.png";
-import { AnimatedStatValue } from "@/components/animated-stat-value";
 import { StartTrialButton } from "@/components/start-trial-button";
 import { TrialTrustRow } from "@/components/trial-trust-row";
 
@@ -55,105 +46,10 @@ function AssetIcon({
   );
 }
 
-const experienceStats: {
-  key: string;
-  target: number;
-  label: ReactNode;
-  icon: StaticImageData | string;
-}[] = [
-  {
-    key: "sessions",
-    target: 10000,
-    label: (
-      <>
-        Corporate
-        <br />
-        Wellness Sessions
-      </>
-    ),
-    icon: yogaMenIcon,
-  },
-  {
-    key: "orgs",
-    target: 10000,
-    label: (
-      <>
-        Organisations
-        <br />
-        Served
-      </>
-    ),
-    icon: buildingIcon,
-  },
-  {
-    key: "cities",
-    target: 100,
-    label: (
-      <>
-        Cities
-        <br />
-        Across India
-      </>
-    ),
-    icon: locationIcon,
-  },
-  {
-    key: "years",
-    target: 16,
-    label: (
-      <>
-        Years of
-        <br />
-        Experience
-      </>
-    ),
-    icon: calendarIcon,
-  },
-];
-
-const philosophyPillars: {
-  key: string;
-  title: string;
-  body: string;
-  icon: StaticImageData;
-  color: string;
-}[] = [
-  {
-    key: "integrate",
-    title: "Integrate Health",
-    body: "Make healthy practices part of everyday life.",
-    icon: helthIcon,
-    color: "#1f6b3a",
-  },
-  {
-    key: "consistent",
-    title: "Stay Consistent",
-    body: "Small, regular steps can create lasting change.",
-    icon: trustIcon,
-    color: "#1f6b3a",
-  },
-  {
-    key: "child",
-    title: "Be a Child",
-    body: "Move. Laugh. Explore. Enjoy.",
-    icon: ic3Icon,
-    color: "#1f6b3a",
-  },
-  {
-    key: "drama",
-    title: "Health Without Drama",
-    body: "Simple practices. Practical guidance. No unnecessary complexity.",
-    icon: dilIcon,
-    color: "#1f6b3a",
-  },
-];
-
 export function AboutSection() {
   return (
     <div className="w-full bg-white">
       <HeroBlock />
-      <ExperienceBlock />
-      <PhilosophyBlock />
       <FoundersBlock />
       <TeamPurposeCta />
     </div>
@@ -164,49 +60,45 @@ function HeroBlock() {
   return (
     <section className="w-full overflow-hidden" style={{ backgroundColor: cream }}>
       <div className="grid w-full items-stretch lg:grid-cols-2">
-        <div className="order-2 flex items-center justify-center px-5 py-8 sm:px-8 sm:py-12 lg:order-1 lg:px-6 lg:py-14 xl:px-12">
+        <div className="order-2 flex items-center justify-center px-5 py-6 sm:px-8 sm:py-7 lg:order-1 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
           <div className="flex w-full max-w-[560px] flex-col items-center text-center lg:items-start lg:text-left">
             <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[12px]">
               About The Healing Mat
             </p>
-            <h1 className="mt-3 w-full font-serif text-[1.55rem] leading-[1.15] font-bold tracking-tight text-[#1f6b3a] sm:text-[2.2rem] lg:text-[2.55rem]">
-              More Than Yoga.
+            <h1 className="mt-2 w-full font-serif text-[1.45rem] leading-[1.15] font-bold tracking-tight break-words sm:mt-2.5 sm:text-[1.9rem] md:text-[2.05rem] lg:text-[2.15rem] xl:text-[2.3rem]">
+              <span className="text-black">More Than Yoga.</span>
               <br />
-              A Simpler Approach to
+              <span className="text-black">A Simpler Approach to</span>
               <br />
-              Everyday Health.
+              <span className="text-[#1f6b3a]">Everyday Health.</span>
             </h1>
 
-            <div className="mt-5 w-full max-w-[420px] sm:max-w-none">
-              <p className="text-[15px] font-bold text-black sm:text-[16px]">
-                Health Without Drama
+            <div className="mt-3 w-full max-w-[420px] space-y-1 text-[13px] leading-snug sm:mt-3.5 sm:max-w-none sm:text-[14px] lg:text-[14px] xl:text-[15px]">
+              <p className="font-bold text-black">Health Without Drama</p>
+              <p className="font-semibold text-[#2c3a30]">
+                The Healing Mat was created with a simple belief: better health
+                should fit naturally into everyday life.
               </p>
-              <div className="mt-1.5 space-y-1.5 text-[14px] leading-relaxed sm:text-[16px] lg:text-[15px] xl:text-[18px]">
-                <p className="font-semibold text-[#2c3a30]">
-                  The Healing Mat was created with a simple belief: better health
-                  should fit naturally into everyday life.
-                </p>
-                <p className="font-semibold text-[#2c3a30]">
-                  We bring together experienced wellness professionals with one
-                  simple purpose — to help people build healthier habits through
-                  simple, practical and consistent wellness.
-                </p>
-              </div>
+              <p className="font-semibold text-[#2c3a30]">
+                We bring together experienced wellness professionals with one
+                simple purpose — to help people build healthier habits through
+                simple, practical and consistent wellness.
+              </p>
             </div>
 
-            <p className="mt-5 text-[14px] font-semibold text-[#1f6b3a] sm:text-[15px]">
+            <p className="mt-4 text-[13px] leading-snug font-semibold text-[#1f6b3a] sm:mt-5 sm:text-[14px] lg:text-[14px] xl:text-[15px]">
               Simple. Practical. Consistent.
             </p>
           </div>
         </div>
 
-        <div className="relative order-1 aspect-[4/3] w-full sm:aspect-[16/11] lg:order-2 lg:aspect-auto lg:min-h-[560px] xl:min-h-[620px]">
+        <div className="relative order-1 aspect-[16/9] w-full overflow-hidden lg:order-2 lg:aspect-auto lg:h-full lg:min-h-[480px]">
           <Image
             src={groupPhoto}
             alt="The Healing Mat founding team"
             fill
             priority
-            className="object-cover object-[50%_30%]"
+            className="object-cover object-center"
             sizes="(max-width: 1024px) 100vw, 50vw"
           />
         </div>
@@ -215,132 +107,9 @@ function HeroBlock() {
   );
 }
 
-function ExperienceBlock() {
-  return (
-    <section className="w-full bg-white px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-      <div
-        className="mx-auto max-w-[1440px] overflow-hidden rounded-[20px] border border-[#e6ebe3] px-5 py-7 sm:px-8 sm:py-8 lg:px-10 lg:py-9"
-        style={{ backgroundColor: cream }}
-      >
-        <div className="flex flex-col gap-7 xl:flex-row xl:items-center xl:justify-between xl:gap-10">
-          <div className="flex min-w-0 flex-col items-center gap-4 text-center sm:flex-row sm:items-center sm:text-left xl:max-w-[480px] xl:shrink-0">
-            <a
-              href="https://www.yogaoncall.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Yoga On Call — visit www.yogaoncall.com"
-              className="flex shrink-0 flex-col items-center transition-opacity hover:opacity-85"
-            >
-              <Image
-                src={yogaOnCallLogo}
-                alt=""
-                width={120}
-                height={120}
-                className="h-[96px] w-[96px] rounded-full object-cover shadow-sm sm:h-[112px] sm:w-[112px]"
-              />
-              <p className="mt-2.5 text-[12px] font-bold text-[#1f6b3a] sm:text-[13px]">
-                Yoga On Call
-              </p>
-            </a>
-            <div className="min-w-0 flex-1">
-              <h2 className="font-serif text-[1.35rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.55rem]">
-                Built on Years of Real-World Experience
-              </h2>
-              <p className="mt-2.5 text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
-                The Healing Mat is founded by the team behind Yoga On Call, a
-                wellness organisation that delivered 10,000+ corporate wellness
-                sessions to 10,000+ organisations across 100+ cities in India.
-              </p>
-            </div>
-          </div>
-
-          <ul className="grid w-full min-w-0 grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4 sm:gap-x-0 sm:gap-y-0 xl:max-w-[720px] xl:shrink-0">
-            {experienceStats.map((stat, index) => (
-              <li
-                key={stat.key}
-                className={`flex flex-col items-center px-2 text-center sm:px-4 lg:px-5 ${
-                  index < experienceStats.length - 1
-                    ? "sm:border-r sm:border-[#e6ebe3]"
-                    : ""
-                }`}
-              >
-                <span className="inline-flex h-11 w-11 items-center justify-center sm:h-12 sm:w-12">
-                  <AssetIcon
-                    src={stat.icon}
-                    className="h-full w-full"
-                    color={green}
-                  />
-                </span>
-                <AnimatedStatValue
-                  value={stat.target}
-                  className="mt-1.5 font-serif text-[1.45rem] leading-none font-bold text-[#1f6b3a] sm:text-[1.65rem]"
-                />
-                <p className="mt-1.5 text-[11px] leading-snug font-semibold text-[#5f6f64] sm:text-[12px]">
-                  {stat.label}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function PhilosophyBlock() {
-  return (
-    <section className="w-full bg-white px-4 pb-8 sm:px-6 sm:pb-10 lg:px-8 lg:pb-12">
-      <div className="mx-auto max-w-[960px] text-center">
-        <p className="text-[11px] font-bold tracking-[0.2em] text-[#1f6b3a] uppercase sm:text-[12px]">
-          Our Philosophy
-        </p>
-        <h2 className="mt-2 font-serif text-[1.55rem] leading-tight font-bold tracking-tight text-black sm:text-[1.85rem] lg:text-[2rem]">
-          Health Without Drama
-        </h2>
-        <p className="mx-auto mt-2.5 max-w-[640px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
-          Better health comes from simple habits that naturally become part of
-          everyday life.
-        </p>
-      </div>
-
-      <ul className="mx-auto mt-8 grid max-w-[1100px] grid-cols-2 gap-x-0 gap-y-7 sm:mt-10 lg:grid-cols-4 lg:gap-x-0">
-        {philosophyPillars.map((pillar, index) => (
-          <li
-            key={pillar.key}
-            className={`flex flex-col items-center px-4 text-center sm:px-6 lg:px-7 ${
-              index < philosophyPillars.length - 1
-                ? "lg:border-r lg:border-[#e6ebe3]"
-                : ""
-            } ${
-              index % 2 === 0 ? "max-lg:border-r max-lg:border-[#e6ebe3]" : ""
-            }`}
-          >
-            <span
-              className="inline-flex h-14 w-14 items-center justify-center rounded-full sm:h-16 sm:w-16"
-              style={{ backgroundColor: `${pillar.color}18` }}
-            >
-              <AssetIcon
-                src={pillar.icon}
-                className="h-8 w-8 sm:h-9 sm:w-9"
-                color={pillar.color}
-              />
-            </span>
-            <h3 className="mt-3 text-[14px] font-bold text-[#1f6b3a] sm:text-[15px]">
-              {pillar.title}
-            </h3>
-            <p className="mt-1.5 max-w-[200px] text-[12px] leading-snug text-[#5f6f64] sm:text-[13px]">
-              {pillar.body}
-            </p>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 function FoundersBlock() {
   return (
-    <section className="w-full bg-white px-4 pb-8 sm:px-6 sm:pb-10 lg:px-8 lg:pb-12">
+    <section className="w-full bg-white px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
       <div className="mx-auto max-w-[1100px] text-center">
         <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[12px]">
           Meet The Founders
@@ -539,6 +308,8 @@ function PradeepCard() {
           src={pradeepPhoto}
           objectPosition="50% 100%"
           large
+          fit="contain"
+          frameBg="transparent"
         />
       }
     >
@@ -605,6 +376,7 @@ function PradeepCard() {
                 cover: book2Cover,
                 alt: "Mastering Corporate Yoga book cover",
                 title: "Mastering Corporate Yoga",
+                href: "https://www.amazon.in/Mastering-Corporate-Yoga-Trainers-Workplace/dp/B0GDGPWSMB",
                 blurb: (
                   <>
                     Practical handbook for yoga trainers
@@ -617,6 +389,7 @@ function PradeepCard() {
                 cover: book1Cover,
                 alt: "Weight Loss Without the Drama book cover",
                 title: "Weight Loss Without the Drama",
+                href: "#",
                 blurb: (
                   <>
                     A simple approach through food, movement,
@@ -647,7 +420,10 @@ function PradeepCard() {
                     {book.blurb}
                   </p>
                   <a
-                    href="#"
+                    href={book.href}
+                    {...(book.href.startsWith("http")
+                      ? { target: "_blank", rel: "noopener noreferrer" }
+                      : {})}
                     className="link-underline mt-1 inline-flex text-[11px] font-bold text-[#1f6b3a]"
                   >
                     Read on Amazon →
@@ -807,10 +583,10 @@ function PoornimaCard() {
         <FounderPhoto
           alt="Dr. Poornima Ramamurthy"
           src={poornimaPhoto}
-          objectPosition="50% 58%"
+          objectPosition="50% 100%"
           large
-          scale={1}
-          frameBg="#b8b8bc"
+          fit="contain"
+          frameBg="transparent"
         />
       }
     >
@@ -890,10 +666,11 @@ function PokhriyalCard() {
         <FounderPhoto
           alt="Dr. K. P. Pokhriyal"
           src={pokhriyalPhoto}
-          objectPosition="50% 72%"
+          objectPosition="50% 100%"
           large
-          scale={1}
-          frameBg="#f2f2f2"
+          fit="contain"
+          frameBg="transparent"
+          scale={1.2}
         />
       }
     >

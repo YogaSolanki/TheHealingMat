@@ -22,7 +22,7 @@ export class CorporateEnquiry {
   @Column()
   phone: string;
 
-  @Column()
+  @Column({ default: '' })
   employees: string;
 
   @Column({ type: 'text' })

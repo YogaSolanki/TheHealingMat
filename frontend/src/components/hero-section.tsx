@@ -1,7 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 import allAgeIcon from "@/assets/all-age.png";
 import calendarIcon from "@/assets/calander-icon.png";
 import heartIcon from "@/assets/dil.png";
@@ -14,6 +22,7 @@ import {
 } from "@/lib/membership-plans-store";
 
 const INTRO_VIDEO_SRC = "/intro-video.mp4";
+const INTRO_CLOSE_MS = 220;
 
 function LevelsIcon() {
   return (
@@ -68,11 +77,125 @@ const trustItems = [
   "Hassle-free registration",
 ];
 
+function IntroVideoModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const [rendered, setRendered] = useState(open);
+  const [exiting, setExiting] = useState(false);
+
+  const handleClose = useCallback(() => {
+    if (exiting) return;
+    const video = videoRef.current;
+    if (video) {
+      video.pause();
+    }
+    onClose();
+  }, [exiting, onClose]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      setRendered(true);
+      setExiting(false);
+      return;
+    }
+
+    if (!rendered) return;
+    setExiting(true);
+    const id = window.setTimeout(() => {
+      setRendered(false);
+      setExiting(false);
+    }, INTRO_CLOSE_MS);
+    return () => window.clearTimeout(id);
+  }, [open, rendered]);
+
+  useEffect(() => {
+    if (!rendered || exiting) return;
+    const video = videoRef.current;
+    if (!video) return;
+
+    video.currentTime = 0;
+    void video.play().catch(() => {});
+  }, [rendered, exiting]);
+
+  useEffect(() => {
+    if (!rendered) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") handleClose();
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [rendered, handleClose]);
+
+  if (!mounted || !rendered) return null;
+
+  return createPortal(
+    <div
+      className={`fixed inset-0 z-[200] flex items-center justify-center px-4 py-6 sm:px-6 sm:py-8 ${
+        exiting ? "auth-modal-root is-exiting" : "auth-modal-root"
+      }`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Intro video"
+    >
+      <button
+        type="button"
+        aria-label="Close intro video"
+        className="auth-modal-backdrop absolute inset-0 bg-black/45 backdrop-blur-md transition-[backdrop-filter,background-color] duration-300"
+        onClick={handleClose}
+      />
+
+      <div
+        className={`auth-modal-panel relative z-10 w-full max-w-[920px] overflow-hidden rounded-[18px] border border-white/20 bg-black shadow-[0_28px_80px_rgba(0,0,0,0.45)] ${
+          exiting ? "is-exiting" : ""
+        }`}
+      >
+        <button
+          type="button"
+          onClick={handleClose}
+          className="absolute top-3 right-3 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm transition hover:bg-black/70 sm:top-4 sm:right-4 sm:h-11 sm:w-11"
+          aria-label="Cancel and close video"
+        >
+          <CloseGlyph />
+        </button>
+
+        <video
+          ref={videoRef}
+          src={INTRO_VIDEO_SRC}
+          playsInline
+          preload="auto"
+          controls
+          controlsList="nodownload noremoteplayback"
+          onEnded={handleClose}
+          className="aspect-video w-full bg-black"
+          aria-label="The Healing Mat intro video"
+        />
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export function HeroSection() {
   const { data: plansData } = useMembershipPlans();
-  const [playingIntro, setPlayingIntro] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const mediaRef = useRef<HTMLDivElement>(null);
+  const [introOpen, setIntroOpen] = useState(false);
 
   const annualPerDayLabel = useMemo(() => {
     const annual =
@@ -101,7 +224,7 @@ export function HeroSection() {
       icon: <DailyIcon />,
       label: (
         <>
-          Daily
+          Multiple
           <br />
           Sessions
         </>
@@ -130,36 +253,6 @@ export function HeroSection() {
       ),
     },
   ];
-
-  useEffect(() => {
-    if (!playingIntro) return;
-    const video = videoRef.current;
-    if (!video) return;
-
-    video.currentTime = 0;
-    void video.play().catch(() => {
-      setPlayingIntro(false);
-    });
-  }, [playingIntro]);
-
-  function playIntro() {
-    mediaRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    if (playingIntro) {
-      const video = videoRef.current;
-      if (video) {
-        video.currentTime = 0;
-        void video.play().catch(() => {
-          setPlayingIntro(false);
-        });
-      }
-      return;
-    }
-    setPlayingIntro(true);
-  }
-
-  function handleIntroEnded() {
-    setPlayingIntro(false);
-  }
 
   return (
     <section className="w-full overflow-hidden bg-white">
@@ -207,8 +300,7 @@ export function HeroSection() {
               </StartTrialButton>
               <button
                 type="button"
-                onClick={playIntro}
-                aria-pressed={playingIntro}
+                onClick={() => setIntroOpen(true)}
                 className="btn-outline inline-flex w-full cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[16px] border-[1.5px] border-[#1f6b3a] bg-white px-5 py-3.5 text-[14px] font-semibold text-[#1f6b3a] sm:w-auto sm:px-6 sm:py-3.5 sm:text-[15px] lg:text-[14px] xl:px-7 xl:py-4 xl:text-[16px]"
               >
                 <PlayIcon />
@@ -237,34 +329,17 @@ export function HeroSection() {
           </div>
         </div>
 
-        <div
-          ref={mediaRef}
-          className="relative z-0 order-1 w-full bg-white lg:order-2 lg:self-stretch lg:pt-4 xl:pt-6"
-        >
+        <div className="relative z-0 order-1 w-full bg-white lg:order-2 lg:self-stretch lg:pt-4 xl:pt-6">
           <div className="relative aspect-[5/4] w-full overflow-hidden sm:aspect-[16/11] lg:aspect-auto lg:h-[min(460px,58vh)] xl:h-[min(500px,56vh)]">
-            {playingIntro ? (
-              <video
-                ref={videoRef}
-                src={INTRO_VIDEO_SRC}
-                playsInline
-                preload="auto"
-                disablePictureInPicture
-                controlsList="nodownload nofullscreen noremoteplayback"
-                onEnded={handleIntroEnded}
-                className="absolute inset-0 h-full w-full object-cover object-center"
-                aria-label="The Healing Mat intro video"
-              />
-            ) : (
-              <Image
-                src={heroImage}
-                alt="Yoga practitioner seated in namaste at The Healing Mat studio"
-                fill
-                priority
-                quality={92}
-                sizes="(max-width: 1023px) 100vw, 48vw"
-                className="object-cover object-[50%_40%]"
-              />
-            )}
+            <Image
+              src={heroImage}
+              alt="Yoga practitioner seated in namaste at The Healing Mat studio"
+              fill
+              priority
+              quality={92}
+              sizes="(max-width: 1023px) 100vw, 48vw"
+              className="object-cover object-[50%_40%]"
+            />
             {/* Soft white fade only on the left edge */}
             <div
               aria-hidden="true"
@@ -273,6 +348,8 @@ export function HeroSection() {
           </div>
         </div>
       </div>
+
+      <IntroVideoModal open={introOpen} onClose={() => setIntroOpen(false)} />
     </section>
   );
 }
@@ -282,6 +359,19 @@ function PlayIcon() {
     <svg viewBox="0 0 20 20" className="h-4 w-4 xl:h-5 xl:w-5" fill="none" aria-hidden="true">
       <circle cx="10" cy="10" r="8.2" stroke="currentColor" strokeWidth="1.6" />
       <path d="M8.2 7.2v5.6L13.2 10 8.2 7.2Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function CloseGlyph() {
+  return (
+    <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M4 4l8 8M12 4l-8 8"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

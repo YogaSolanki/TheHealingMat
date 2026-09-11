@@ -130,30 +130,30 @@ export function GuidesSection() {
 
 function HeroBlock() {
   return (
-    <section className="relative w-full overflow-hidden bg-white">
-      <div className="relative grid w-full items-stretch lg:grid-cols-2">
-        <div className="relative z-10 order-2 flex min-w-0 items-center justify-center px-4 py-8 text-center sm:px-8 sm:py-10 lg:order-1 lg:justify-center lg:px-8 lg:py-14 lg:text-left xl:px-12">
-          <div className="mx-auto flex w-full min-w-0 max-w-[560px] flex-col items-center text-center lg:mx-0 lg:items-start lg:text-left">
+    <section className="w-full overflow-hidden bg-white">
+      <div className="grid w-full items-stretch lg:grid-cols-2">
+        <div className="order-2 flex items-center justify-center px-5 py-6 sm:px-8 sm:py-7 lg:order-1 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
+          <div className="flex w-full max-w-[560px] flex-col items-center text-center lg:items-start lg:text-left">
             <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[12px]">
               Health Guides
             </p>
-            <h1 className="mt-3 w-full font-serif text-[1.75rem] leading-[1.15] font-bold tracking-tight break-words sm:text-[2.6rem] sm:leading-[1.12] lg:text-[2.9rem] xl:text-[3.25rem]">
+            <h1 className="mt-2 w-full font-serif text-[1.45rem] leading-[1.15] font-bold tracking-tight break-words sm:mt-2.5 sm:text-[1.9rem] md:text-[2.05rem] lg:text-[2.15rem] xl:text-[2.3rem]">
               <span className="text-black">Practical Help for</span>{" "}
               <span className="text-[#1f6b3a] sm:whitespace-nowrap">
                 Your Everyday Health
               </span>
             </h1>
-            <p className="mt-4 w-full max-w-[420px] text-[14px] leading-relaxed font-semibold text-[#2c3a30] sm:mt-6 sm:max-w-none sm:text-[16px] lg:text-[15px] xl:text-[18px]">
+            <p className="mt-3 w-full max-w-[420px] text-[13px] leading-snug font-semibold text-[#2c3a30] sm:mt-3.5 sm:max-w-none sm:text-[14px] lg:text-[14px] xl:text-[15px]">
               Simple resources, useful information and guided practices to help
               you understand your health, build better habits and take care of
               yourself every day.
             </p>
 
-            <ul className="mt-6 grid w-full grid-cols-4 gap-x-2 gap-y-4 sm:mt-9 sm:gap-x-0 sm:gap-y-6">
+            <ul className="mt-4 grid w-full grid-cols-4 gap-x-2 gap-y-3 sm:mt-5 sm:gap-x-0 sm:gap-y-4">
               {trustItems.map((item, index) => (
                 <li
                   key={item.key}
-                  className={`flex flex-col items-center gap-2 text-center lg:items-start lg:text-left ${
+                  className={`flex flex-col items-center gap-1.5 text-center lg:items-start lg:text-left ${
                     index > 0
                       ? "sm:border-l sm:border-[#e5e8e3] sm:pl-3 lg:pl-2.5 xl:pl-4"
                       : ""
@@ -162,7 +162,7 @@ function HeroBlock() {
                   <span className="text-[#E07A2F]" aria-hidden="true">
                     {item.icon}
                   </span>
-                  <span className="text-[11px] leading-snug font-bold text-[#3d4a40] sm:text-[13px] lg:text-[12px] xl:text-[14px]">
+                  <span className="text-[11px] leading-snug font-bold text-[#3d4a40] sm:text-[12px] lg:text-[12px] xl:text-[13px]">
                     {item.label}
                   </span>
                 </li>
@@ -171,21 +171,19 @@ function HeroBlock() {
           </div>
         </div>
 
-        <div className="relative order-1 aspect-[5/4] w-full sm:aspect-[16/11] lg:order-2 lg:aspect-auto lg:min-h-[560px] xl:min-h-[600px]">
-          <div className="absolute inset-0">
-            <Image
-              src={guidesHero}
-              alt="Woman reading a health guide at The Healing Mat"
-              fill
-              priority
-              className="object-cover object-[50%_35%]"
-              sizes="(max-width: 1024px) 100vw, 50vw"
-            />
-            <div
-              aria-hidden="true"
-              className="absolute inset-y-0 left-0 hidden w-16 bg-gradient-to-r from-white to-transparent lg:block"
-            />
-          </div>
+        <div className="relative order-1 aspect-[16/9] w-full lg:order-2 lg:aspect-auto lg:h-full lg:min-h-[480px]">
+          <Image
+            src={guidesHero}
+            alt="Woman reading a health guide at The Healing Mat"
+            fill
+            priority
+            className="object-cover object-[50%_35%]"
+            sizes="(max-width: 1024px) 100vw, 50vw"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-y-0 left-0 hidden w-16 bg-gradient-to-r from-white to-transparent lg:block xl:w-20"
+          />
         </div>
       </div>
     </section>
