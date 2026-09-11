@@ -163,8 +163,8 @@ export function AboutSection() {
 function HeroBlock() {
   return (
     <section className="w-full overflow-hidden" style={{ backgroundColor: cream }}>
-      <div className="grid w-full items-stretch lg:grid-cols-2">
-        <div className="order-2 flex items-center justify-center px-5 py-8 sm:px-8 sm:py-12 lg:order-1 lg:px-6 lg:py-14 xl:px-12">
+      <div className="grid w-full items-center lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)]">
+        <div className="order-2 flex items-center justify-center px-5 py-8 sm:px-8 sm:py-12 lg:order-1 lg:px-6 lg:py-12 xl:px-12">
           <div className="flex w-full max-w-[560px] flex-col items-center text-center lg:items-start lg:text-left">
             <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[12px]">
               About The Healing Mat
@@ -200,14 +200,14 @@ function HeroBlock() {
           </div>
         </div>
 
-        <div className="relative order-1 aspect-[4/3] w-full sm:aspect-[16/11] lg:order-2 lg:aspect-auto lg:min-h-[560px] xl:min-h-[620px]">
+        <div className="relative order-1 aspect-[16/9] w-full sm:aspect-[16/9] lg:order-2 lg:aspect-[16/9] lg:min-h-0">
           <Image
             src={groupPhoto}
             alt="The Healing Mat founding team"
             fill
             priority
-            className="object-cover object-[50%_30%]"
-            sizes="(max-width: 1024px) 100vw, 50vw"
+            className="object-cover object-center"
+            sizes="(max-width: 1024px) 100vw, 60vw"
           />
         </div>
       </div>
