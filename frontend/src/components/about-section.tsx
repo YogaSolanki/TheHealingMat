@@ -7,7 +7,7 @@ import buildingIcon from "@/assets/building.png";
 import calendarIcon from "@/assets/calander-icon.png";
 import dilIcon from "@/assets/dil.png";
 import founderPhoto from "@/assets/hero2.png";
-import groupPhoto from "@/assets/group.png";
+import groupPhoto from "@/assets/group.jpeg";
 import helthIcon from "@/assets/helth.png";
 import pokhriyalPhoto from "@/assets/Dr K P Pokhriyal.png";
 import poornimaPhoto from "@/assets/poornima.png";
