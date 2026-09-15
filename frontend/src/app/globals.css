@@ -341,15 +341,98 @@ body {
   }
 }
 
+/* Hero media: soft left-edge blend into the copy column */
+.hero-media-frame {
+  overflow: hidden;
+}
+
+.hero-media-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 1;
+  width: clamp(28px, 5%, 48px);
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    var(--hero-blend, #ffffff) 0%,
+    color-mix(in srgb, var(--hero-blend, #ffffff) 40%, transparent) 45%,
+    transparent 100%
+  );
+}
+
+@media (max-width: 1023px) {
+  .hero-media-frame::after {
+    display: none;
+  }
+}
+
+/* Sticky Free Trial CTA — slides in after scroll */
+.sticky-trial-cta {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  visibility: hidden;
+}
+
+.sticky-trial-cta.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+/* Shine loops continuously; hover still uses normal btn-primary lift */
+.sticky-trial-cta-btn::after {
+  animation: sticky-trial-btn-shine 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+@keyframes sticky-trial-btn-shine {
+  0%,
+  15% {
+    transform: translateX(-130%);
+  }
+  55%,
+  100% {
+    transform: translateX(130%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sticky-trial-cta,
+  .sticky-trial-cta.is-visible {
+    transition: none;
+    transform: none;
+  }
+
+  .sticky-trial-cta-btn::after {
+    animation: none !important;
+  }
+}
+
 /* Testimonials: full-bleed infinite review-card marquee */
 .testimonials-marquee {
   overflow: hidden;
   width: 100%;
   padding-block: 4px;
+  /* Soft fade so cards don't end in a hard block cut against the CTA */
+  -webkit-mask-image: linear-gradient(
+    to right,
+    #000 0%,
+    #000 calc(100% - 72px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    #000 0%,
+    #000 calc(100% - 72px),
+    transparent 100%
+  );
 }
 
 .testimonials-marquee-track {
-  animation: testimonials-marquee 40s linear infinite;
+  animation: testimonials-marquee 90s linear infinite;
   will-change: transform;
   padding-bottom: 1px;
 }

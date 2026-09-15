@@ -273,9 +273,7 @@ function PlansBlock({
           </h1>
         )}
         <p className="mx-auto mt-2 max-w-[520px] text-[13px] leading-snug text-[#5f6f64] sm:text-[14px]">
-          {isRenew
-            ? "Pick a plan below. If you already have an active membership, the new plan starts automatically after it ends."
-            : "One membership. The same complete experience. Choose the duration that works for you."}
+          Same experience with every membership - choose your duration.
         </p>
         {liveOffer ? (
           <p className="mx-auto mt-2 inline-flex rounded-full bg-[#fff4e8] px-3 py-1 text-[12px] font-semibold text-[#c45c16]">
@@ -311,6 +309,36 @@ function PlansBlock({
         )}
       </div>
     </section>
+  );
+}
+
+function FreeEbookPerkText({ perk }: { perk: string }) {
+  const bookTitle = "Weight Loss Without the Drama";
+  const titleIndex = perk.indexOf(bookTitle);
+
+  if (titleIndex === -1) {
+    return (
+      <p className="text-[11px] leading-snug font-semibold text-[#1f6b3a] sm:text-[12px]">
+        <span aria-hidden="true">🎁 </span>
+        {perk}
+      </p>
+    );
+  }
+
+  const before = perk.slice(0, titleIndex).trimEnd();
+  const after = perk.slice(titleIndex + bookTitle.length).trimStart();
+
+  return (
+    <p className="text-[11px] leading-snug font-semibold text-[#1f6b3a] sm:text-[12px]">
+      <span className="block">
+        <span aria-hidden="true">🎁 </span>
+        {before || "Get the"}
+      </span>
+      <span className="mt-0.5 block font-serif text-[12px] leading-snug font-bold italic text-[#1f6b3a] sm:text-[13px]">
+        {bookTitle}
+      </span>
+      {after ? <span className="mt-0.5 block">{after}</span> : null}
+    </p>
   );
 }
 
@@ -365,10 +393,7 @@ function PlanCard({
 
       {plan.perk ? (
         <div className="relative z-10 mt-3 rounded-[12px] border border-[#d7e5d9] bg-white px-2.5 py-2 text-center sm:mt-3.5 sm:px-3 sm:py-2.5">
-          <p className="text-[11px] font-semibold leading-snug text-[#1f6b3a] sm:text-[12px]">
-            <span aria-hidden="true">🎁 </span>
-            {plan.perk}
-          </p>
+          <FreeEbookPerkText perk={plan.perk} />
         </div>
       ) : (
         <div
@@ -708,7 +733,7 @@ function StillNotSureCta() {
               src={matBanner}
               alt="Yoga mat and props"
               fill
-              className="object-cover object-left"
+              className="h-full w-full object-cover object-left"
               sizes="210px"
             />
           </div>

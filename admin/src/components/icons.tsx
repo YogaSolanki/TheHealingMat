@@ -24,6 +24,8 @@ export function NavGlyph({ name, className = iconClass }: { name: NavIcon; class
       return <FolderIcon className={className} />;
     case "videos":
       return <PlayIcon className={className} />;
+    case "settings":
+      return <SettingsIcon className={className} />;
   }
 }
 
@@ -99,6 +101,15 @@ function PlayIcon({ className = iconClass }: IconProps) {
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
       <rect x="3.5" y="5" width="17" height="14" rx="2.5" />
       <path d="M10.5 9.5v5l4.5-2.5Z" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function SettingsIcon({ className = iconClass }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3.5v2.2M12 18.3v2.2M4.9 6.5l1.6 1.6M17.5 15.9l1.6 1.6M3.5 12h2.2M18.3 12h2.2M4.9 17.5l1.6-1.6M17.5 8.1l1.6-1.6" strokeLinecap="round" />
     </svg>
   );
 }

@@ -1,5 +1,7 @@
+"use client";
+
 import Image from "next/image";
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import allAgeIcon from "@/assets/all-age.png";
 import calendarIcon from "@/assets/calander-icon.png";
 import matBanner from "@/assets/home-banner-bg.png";
@@ -7,6 +9,10 @@ import leafRight from "@/assets/leaf-right.png";
 import rsIcon from "@/assets/rs.png";
 import { StartTrialButton } from "@/components/start-trial-button";
 import { TrialTrustRow } from "@/components/trial-trust-row";
+import {
+  getAnnualPerDayLabel,
+  useMembershipPlans,
+} from "@/lib/membership-plans-store";
 
 const cream = "#FBF9F5";
 
@@ -61,64 +67,70 @@ function ChatIcon() {
   );
 }
 
-const features: { key: string; icon: ReactNode; label: ReactNode }[] = [
-  {
-    key: "daily",
-    icon: <GreenMaskedIcon src={allAgeIcon.src} className="h-full w-full" />,
-    label: (
-      <>
-        Daily
-        <br />
-        yoga classes
-      </>
-    ),
-  },
-  {
-    key: "timings",
-    icon: (
-      <GreenMaskedIcon
-        src={calendarIcon.src}
-        className="h-full w-full origin-center scale-[1.12]"
-      />
-    ),
-    label: (
-      <>
-        Flexible timings
-        <br />
-        6 batches every day
-      </>
-    ),
-  },
-  {
-    key: "qa",
-    icon: <ChatIcon />,
-    label: (
-      <>
-        Sunday
-        <br />
-        Q&amp;A Sessions
-      </>
-    ),
-  },
-  {
-    key: "price",
-    icon: (
-      <GreenMaskedIcon
-        src={rsIcon.src}
-        className="h-full w-full origin-center scale-[1.22]"
-      />
-    ),
-    label: (
-      <>
-        Just ₹10 per day
-        <br />
-        with Annual Membership
-      </>
-    ),
-  },
-];
-
 export function CtaBannerSection() {
+  const { data: plansData } = useMembershipPlans();
+  const annualPerDay = useMemo(
+    () => getAnnualPerDayLabel(plansData.plans),
+    [plansData.plans],
+  );
+
+  const features: { key: string; icon: ReactNode; label: ReactNode }[] = [
+    {
+      key: "daily",
+      icon: <GreenMaskedIcon src={allAgeIcon.src} className="h-full w-full" />,
+      label: (
+        <>
+          Daily
+          <br />
+          yoga classes
+        </>
+      ),
+    },
+    {
+      key: "timings",
+      icon: (
+        <GreenMaskedIcon
+          src={calendarIcon.src}
+          className="h-full w-full origin-center scale-[1.12]"
+        />
+      ),
+      label: (
+        <>
+          Flexible timings
+          <br />
+          6 batches every day
+        </>
+      ),
+    },
+    {
+      key: "qa",
+      icon: <ChatIcon />,
+      label: (
+        <>
+          Sunday
+          <br />
+          Q&amp;A Sessions
+        </>
+      ),
+    },
+    {
+      key: "price",
+      icon: (
+        <GreenMaskedIcon
+          src={rsIcon.src}
+          className="h-full w-full origin-center scale-[1.22]"
+        />
+      ),
+      label: (
+        <>
+          Just {annualPerDay} per day
+          <br />
+          with Annual Membership
+        </>
+      ),
+    },
+  ];
+
   return (
     <section className="w-full bg-white px-4 pt-1.5 pb-0 sm:px-6 lg:px-8 lg:pb-1">
       <div
@@ -140,7 +152,7 @@ export function CtaBannerSection() {
               src={matBanner}
               alt="Yoga mat and props"
               fill
-              className="object-cover object-left"
+              className="h-full w-full object-cover object-left"
               sizes="210px"
               priority={false}
             />

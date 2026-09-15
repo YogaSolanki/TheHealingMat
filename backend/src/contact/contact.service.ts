@@ -116,7 +116,7 @@ export class ContactService {
 
     const to =
       this.config.get<string>('CONTACT_TO_EMAIL')?.trim() ||
-      'shagun.thakur0107@gmail.com';
+      'solankipr@gmail.com';
     const from =
       this.config.get<string>('RESEND_FROM_EMAIL')?.trim() ||
       'The Healing Mat <onboarding@resend.dev>';

@@ -110,6 +110,7 @@ export function MembershipCheckoutPanel({
   );
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
+  const [applyReferralDiscount, setApplyReferralDiscount] = useState(false);
   const [assignedCoupons, setAssignedCoupons] = useState<MemberCoupon[]>([]);
   const [paying, setPaying] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -124,6 +125,7 @@ export function MembershipCheckoutPanel({
     setQuote(quoteFromPlan(resolvePlan(planMonths)));
     setCouponInput("");
     setAppliedCoupon("");
+    setApplyReferralDiscount(false);
     setAssignedCoupons([]);
     setError(null);
     setSuccess(false);
@@ -175,10 +177,14 @@ export function MembershipCheckoutPanel({
           return;
         }
 
-        // Referral / server-side discounts without blocking first paint
-        const nextQuote = await quoteMembership(token, { planMonths });
+        // Base quote without referral — user must opt in below
+        const nextQuote = await quoteMembership(token, {
+          planMonths,
+          applyReferralDiscount: false,
+        });
         if (cancelled) return;
         setQuote(nextQuote);
+        setApplyReferralDiscount(false);
       })
       .catch(() => {
         // Keep catalog quote on screen if soft sync fails.
@@ -204,11 +210,38 @@ export function MembershipCheckoutPanel({
       const next = await quoteMembership(token, {
         planMonths,
         couponCode: code || undefined,
+        applyReferralDiscount: false,
       });
       setQuote(next);
       setAppliedCoupon(next.couponCode ?? "");
+      setApplyReferralDiscount(false);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "This coupon code is not valid.");
+    }
+  }
+
+  async function setReferralDiscountOptIn(nextValue: boolean) {
+    const token = getStoredToken();
+    if (!token) return;
+    setError(null);
+    setApplyReferralDiscount(nextValue);
+    if (nextValue) {
+      setCouponInput("");
+      setAppliedCoupon("");
+    }
+    try {
+      const next = await quoteMembership(token, {
+        planMonths,
+        couponCode: nextValue ? undefined : appliedCoupon || undefined,
+        applyReferralDiscount: nextValue,
+      });
+      setQuote(next);
+      if (nextValue) setAppliedCoupon("");
+    } catch (err: unknown) {
+      setApplyReferralDiscount(false);
+      setError(
+        err instanceof Error ? err.message : "Unable to update referral discount.",
+      );
     }
   }
 
@@ -274,6 +307,8 @@ export function MembershipCheckoutPanel({
         planMonths,
         couponCode: appliedCoupon || couponInput.trim() || undefined,
         startMode,
+        applyReferralDiscount:
+          applyReferralDiscount && !appliedCoupon && !couponInput.trim(),
       });
 
       if (order.skipCheckout) {
@@ -468,7 +503,7 @@ export function MembershipCheckoutPanel({
       </dl>
 
       <label className="mt-5 block text-[13px] font-semibold text-[#243028]">
-        Coupon or referral code
+        Coupon code
         {assignedCoupons.length > 0 ? (
           <div className="mt-2 rounded-[14px] border border-[#d7e5d9] bg-[#f4f8f2] px-3.5 py-3">
             <p className="text-[12px] font-bold text-[#1f6b3a]">
@@ -505,7 +540,7 @@ export function MembershipCheckoutPanel({
           <input
             value={couponInput}
             onChange={(event) => setCouponInput(event.target.value)}
-            disabled={paying || verifying}
+            disabled={paying || verifying || applyReferralDiscount}
             className="min-w-0 flex-1 rounded-[12px] border border-[#d7e5d9] bg-white px-3 py-2.5 text-[14px] font-medium text-[#243028] outline-none focus:border-[#1f6b3a] disabled:opacity-60"
             placeholder="Enter code"
             autoComplete="off"
@@ -513,7 +548,7 @@ export function MembershipCheckoutPanel({
           <button
             type="button"
             onClick={() => void applyCoupon()}
-            disabled={paying || verifying}
+            disabled={paying || verifying || applyReferralDiscount}
             className="rounded-[12px] border border-[#1f6b3a] px-3 py-2.5 text-[13px] font-bold text-[#1f6b3a] disabled:opacity-60"
           >
             Apply
@@ -524,6 +559,27 @@ export function MembershipCheckoutPanel({
         <p className="mt-2 text-[12px] font-medium text-[#1f6b3a]">
           Applied: {appliedCoupon}
         </p>
+      ) : null}
+
+      {(user?.wasReferred || quote.referralDiscountAvailable) && !appliedCoupon ? (
+        <label className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-[14px] border border-[#dce8dd] bg-[#F4F8F2] px-3.5 py-3 text-left">
+          <input
+            type="checkbox"
+            checked={applyReferralDiscount}
+            disabled={paying || verifying}
+            onChange={(event) => void setReferralDiscountOptIn(event.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-[#b7cbb8] text-[#1f6b3a] focus:ring-[#1f6b3a]/20"
+          />
+          <span className="text-[13px] leading-snug text-[#3d4a3c]">
+            <span className="font-semibold text-[#1f6b3a]">
+              Apply {quote.referralDiscountPercent ?? 20}% referral discount
+            </span>
+            <span className="mt-0.5 block text-[12px] text-[#6b7c6e]">
+              Optional. If you leave this unchecked, you pay the full membership price.
+              Your referrer still earns their reward when you purchase.
+            </span>
+          </span>
+        </label>
       ) : null}
 
       {error ? (

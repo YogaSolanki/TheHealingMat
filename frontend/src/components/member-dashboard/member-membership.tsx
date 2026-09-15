@@ -30,14 +30,18 @@ export function MemberMembershipPage() {
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const statusLabel = membershipStatusLabel(access.state);
   const statusMessage =
-    access.state === "trial"
-      ? `Your trial is active. Trial ends on ${access.trialEndsOnLabel ?? "—"}.`
-      : access.state === "expired"
-        ? `Your membership has ended. Renew to continue daily yoga sessions.`
-        : `Your membership is active. Valid until ${access.validUntilLabel ?? "—"}.`;
+    access.state === "scheduled"
+      ? `Your 14-Day Free Trial starts on ${access.trialStartsOnLabel ?? "—"}. Session links activate on that day.`
+      : access.state === "trial"
+        ? `Your trial is active. Trial ends on ${access.trialEndsOnLabel ?? "—"}.`
+        : access.state === "expired"
+          ? `Your membership has ended. Renew to continue daily yoga sessions.`
+          : `Your membership is active. Valid until ${access.validUntilLabel ?? "—"}.`;
 
   const renewStartMode: CheckoutStartMode =
     access.state === "active" ? "after_current" : "now";
+  const isTrialLike =
+    access.state === "trial" || access.state === "scheduled";
 
   function scrollToPlans() {
     document
@@ -106,7 +110,7 @@ export function MemberMembershipPage() {
                 <div className="hidden h-[22px] lg:block" aria-hidden="true" />
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <h2 className="text-[16px] font-bold text-[#243028] sm:text-[17px]">
-                    {access.state === "trial" ? "Your Trial" : access.planName}
+                    {isTrialLike ? "Your Trial" : access.planName}
                   </h2>
                   <span className="inline-flex rounded-[6px] bg-[#eef6f0] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#1f6b3a] uppercase">
                     {statusLabel}
@@ -147,7 +151,7 @@ export function MemberMembershipPage() {
                     {access.transactionRef ? ` · Ref ${access.transactionRef}` : ""}
                   </p>
                 ) : null}
-                {access.state !== "trial" ? (
+                {isTrialLike ? null : (
                   <div className="mt-2">
                     <button
                       type="button"
@@ -166,7 +170,7 @@ export function MemberMembershipPage() {
                       </p>
                     ) : null}
                   </div>
-                ) : null}
+                )}
               </div>
             </div>
 
@@ -179,7 +183,7 @@ export function MemberMembershipPage() {
                 value={
                   access.state === "expired"
                     ? access.expiredOnLabel ?? "—"
-                    : access.state === "trial"
+                    : isTrialLike
                       ? access.trialEndsOnLabel ?? "—"
                       : access.validUntilLabel ?? "—"
                 }
@@ -218,7 +222,7 @@ export function MemberMembershipPage() {
                   onClick={scrollToPlans}
                   className={`${memberPrimaryBtnClass} w-full px-5 py-3 text-[14px] sm:w-auto sm:min-w-[190px] sm:text-[15px]`}
                 >
-                  {access.state === "trial" ? "Start Membership" : "Renew Membership"}
+                  {isTrialLike ? "Start Membership" : "Renew Membership"}
                   <ChevronRightIcon className="h-4 w-4" />
                 </button>
               </div>

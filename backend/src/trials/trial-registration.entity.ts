@@ -49,6 +49,14 @@ export class TrialRegistration {
   @Column({ type: 'timestamptz' })
   trialEndsAt: Date;
 
+  /** WhatsApp/email welcome confirming cohort dates (sent after registration). */
+  @Column({ type: 'timestamptz', nullable: true })
+  welcomeMessageSentAt: Date | null;
+
+  /** Pre-start reminder with session join info. */
+  @Column({ type: 'timestamptz', nullable: true })
+  reminderSentAt: Date | null;
+
   @CreateDateColumn()
   registeredAt: Date;
 

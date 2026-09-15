@@ -74,24 +74,18 @@ export function FaqPageContent() {
             </div>
           </div>
 
-          <div className="relative order-1 aspect-[5/4] w-full sm:aspect-[16/11] lg:order-2 lg:aspect-auto lg:min-h-[560px] xl:min-h-[600px]">
-            <div className="absolute inset-0">
-              <Image
-                src={faqHero}
-                alt="Yoga mat, cork block, and plant — Health Without Drama"
-                fill
-                priority
-                className="object-cover object-[50%_45%]"
-                sizes="(max-width: 1024px) 100vw, 50vw"
-              />
-              <div
-                aria-hidden="true"
-                className="absolute inset-y-0 left-0 hidden w-16 lg:block xl:w-20"
-                style={{
-                  background: "linear-gradient(to right, #FBF9F5, transparent)",
-                }}
-              />
-            </div>
+          <div
+            className="hero-media-frame relative order-1 aspect-[5/4] w-full overflow-hidden sm:aspect-[16/11] lg:order-2 lg:aspect-auto lg:min-h-[560px] xl:min-h-[600px]"
+            style={{ ["--hero-blend" as string]: cream }}
+          >
+            <Image
+              src={faqHero}
+              alt="Yoga mat, cork block, and plant — Health Without Drama"
+              fill
+              priority
+              className="object-cover object-[50%_45%]"
+              sizes="(max-width: 1024px) 100vw, 50vw"
+            />
           </div>
         </div>
       </section>

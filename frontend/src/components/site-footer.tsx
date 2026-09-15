@@ -19,6 +19,7 @@ import {
 import { RiInstagramFill } from "react-icons/ri";
 import omIcon from "@/assets/om.png";
 import { useAuthModal } from "@/components/auth-modal-provider";
+import { useReferEarnPopup } from "@/components/refer-earn-popup";
 import { SiteLogo } from "@/components/site-logo";
 import { isDashboardPath, isMembershipBrowsePath } from "@/lib/member-routes";
 import {
@@ -116,6 +117,7 @@ function FooterLinkColumn({
 
 function GetStartedColumn() {
   const { openAuth } = useAuthModal();
+  const { openReferEarn } = useReferEarnPopup();
 
   return (
     <div>
@@ -150,12 +152,13 @@ function GetStartedColumn() {
           </button>
         </li>
         <li>
-          <Link
-            href="/dashboard/refer"
-            className="link-underline text-[13px] font-medium text-[#1f6b3a] hover:text-[#1f6b3a]"
+          <button
+            type="button"
+            onClick={openReferEarn}
+            className="link-underline cursor-pointer text-[13px] font-medium text-[#1f6b3a] hover:text-[#1f6b3a]"
           >
             Refer & Earn
-          </Link>
+          </button>
         </li>
         <li>
           <Link

@@ -188,14 +188,16 @@ function withLiveOffer(
     region,
     currency,
     offer: null,
-    plans: data.plans.map((plan) => {
+      plans: data.plans.map((plan) => {
       const fallback = base.find((row) => row.months === plan.months);
       return {
         ...plan,
-        currency: "INR",
+        currency: "INR" as const,
         offerPricePaise: null,
         offer: null,
-        perDayRupees: fallback?.perDayRupees ?? plan.perDayRupees,
+        // Prefer admin/API rates; static catalog is only a last-resort fallback.
+        perDayRupees: plan.perDayRupees || fallback?.perDayRupees || 0,
+        listPricePaise: plan.listPricePaise || fallback?.listPricePaise || 0,
       };
     }),
   };
@@ -384,4 +386,26 @@ export function formatMembershipPerDay(
     }).format(perDayMinor / 100);
   }
   return `₹${perDayMinor}`;
+}
+
+/** Annual (12-month) per-day rate for homepage CTAs — from admin membership plans. */
+export function getAnnualPerDayLabel(
+  plans: PublicMembershipPlan[],
+  fallback = "₹10",
+) {
+  const annual =
+    plans.find((plan) => plan.months === 12) ??
+    plans.find((plan) => plan.featured) ??
+    plans[0];
+  if (!annual) return fallback;
+  const currency = annual.currency ?? "INR";
+  const hasOffer =
+    currency === "INR" &&
+    annual.offerPricePaise != null &&
+    annual.offerPricePaise < annual.listPricePaise;
+  const perDay =
+    hasOffer && annual.offerPricePaise != null
+      ? Math.max(1, Math.round(annual.offerPricePaise / 100 / (annual.months * 30)))
+      : annual.perDayRupees;
+  return formatMembershipPerDay(perDay, currency);
 }

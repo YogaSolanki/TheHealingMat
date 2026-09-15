@@ -1,4 +1,6 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
+import { SITE_MAPS_URL } from "@/lib/site-contact";
 
 function StarIcon() {
   return (
@@ -117,7 +119,7 @@ export function TestimonialsSection() {
 
   return (
     <section className="w-full bg-white pt-8 pb-8 sm:pt-10 sm:pb-10 lg:pt-11 lg:pb-11">
-      <div className="mx-auto max-w-[720px] px-4 text-center sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[720px] px-4 text-center sm:px-6">
         <h2 className="font-serif text-[1.75rem] leading-tight font-bold tracking-tight text-black sm:text-[2rem] lg:text-[2.15rem]">
           What People Say
         </h2>
@@ -126,16 +128,36 @@ export function TestimonialsSection() {
         </p>
       </div>
 
-      <div className="testimonials-marquee mt-8 w-full sm:mt-10 lg:mt-11">
-        <div className="testimonials-marquee-track flex w-max gap-4">
-          {loop.map((item, index) => (
-            <ReviewCard
-              key={`${item.key}-${index}`}
-              quote={item.quote}
-              author={item.author}
-            />
-          ))}
+      <div className="mt-8 flex w-full flex-col gap-2 sm:mt-10 lg:mt-11 lg:flex-row lg:items-stretch lg:gap-0">
+        <div className="testimonials-marquee min-w-0 flex-1">
+          <div className="testimonials-marquee-track flex w-max gap-4">
+            {loop.map((item, index) => (
+              <ReviewCard
+                key={`${item.key}-${index}`}
+                quote={item.quote}
+                author={item.author}
+              />
+            ))}
+          </div>
         </div>
+
+        <aside className="relative z-10 mr-4 flex shrink-0 flex-col items-center justify-center bg-white px-3 py-3 text-center sm:mr-6 sm:px-4 lg:mr-8 lg:w-[132px] xl:w-[140px]">
+          <GoogleMark className="h-7 w-7 sm:h-8 sm:w-8" />
+          <p className="mt-2 font-serif text-[1rem] leading-snug font-bold text-[#1f6b3a] sm:text-[1.1rem]">
+            Read all reviews
+            <br />
+            on Google
+          </p>
+          <Link
+            href={SITE_MAPS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-primary mt-2.5 inline-flex items-center gap-1 rounded-full bg-[#1f6b3a] px-3 py-1.5 text-[11px] font-semibold text-white sm:text-[12px]"
+          >
+            Read More
+            <span aria-hidden="true">→</span>
+          </Link>
+        </aside>
       </div>
     </section>
   );

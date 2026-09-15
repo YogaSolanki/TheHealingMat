@@ -32,10 +32,20 @@ export function TermsAcceptanceField({
           href="/terms"
           target="_blank"
           rel="noopener noreferrer"
-          className="font-semibold text-[#1f6b3a] underline"
+          className="font-semibold text-[#1f6b3a] underline underline-offset-2"
           onClick={(event) => event.stopPropagation()}
         >
           Terms &amp; Conditions
+        </Link>{" "}
+        and{" "}
+        <Link
+          href="/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold text-[#1f6b3a] underline underline-offset-2"
+          onClick={(event) => event.stopPropagation()}
+        >
+          Privacy Policy
         </Link>
         .
       </span>

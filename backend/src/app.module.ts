@@ -14,6 +14,7 @@ import { ContentModule } from './content/content.module';
 import { CouponsModule } from './coupons/coupons.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ReferralsModule } from './referrals/referrals.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { ReferralsModule } from './referrals/referrals.module';
     CouponsModule,
     PaymentsModule,
     ReferralsModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

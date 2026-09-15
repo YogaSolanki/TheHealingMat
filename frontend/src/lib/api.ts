@@ -41,6 +41,8 @@ export type PublicUser = {
   hasUsedFreeTrial: boolean;
   /** False until the member chooses their own password. */
   hasPassword: boolean;
+  /** True when this account was created via a referral link. */
+  wasReferred?: boolean;
   role: string;
 };
 
@@ -381,6 +383,9 @@ export type MembershipQuote = {
   couponCode: string | null;
   offer: { title: string; badge: string } | null;
   currency: MembershipCurrency;
+  referralDiscountAvailable?: boolean;
+  referralDiscountApplied?: boolean;
+  referralDiscountPercent?: number;
 };
 
 export type PublicMembership = {
@@ -401,11 +406,15 @@ export type PublicMembership = {
 };
 
 export type MembershipAccessResponse = {
-  state: "trial" | "active" | "expired";
+  state: "trial" | "active" | "expired" | "scheduled";
   current: PublicMembership | null;
   scheduled: PublicMembership | null;
   lastExpired: PublicMembership | null;
-  trial: { startsAt: string; endsAt: string } | null;
+  trial: {
+    status?: string;
+    startsAt: string;
+    endsAt: string;
+  } | null;
 };
 
 export type CreateOrderResponse = {
@@ -441,7 +450,11 @@ export async function listMembershipPlans(
 
 export async function quoteMembership(
   accessToken: string,
-  input: { planMonths: number; couponCode?: string },
+  input: {
+    planMonths: number;
+    couponCode?: string;
+    applyReferralDiscount?: boolean;
+  },
 ): Promise<MembershipQuote> {
   const response = await fetch(`${API_URL}/memberships/quote`, {
     method: "POST",
@@ -461,6 +474,16 @@ export async function getMyMembership(
   return parseJson<MembershipAccessResponse>(response);
 }
 
+export async function getLiveSessionUrl(
+  accessToken: string,
+): Promise<{ url: string | null }> {
+  const response = await fetch(`${API_URL}/sessions/live`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  return parseJson<{ url: string | null }>(response);
+}
+
 export async function createRazorpayOrder(
   accessToken: string,
   input: {
@@ -470,6 +493,7 @@ export async function createRazorpayOrder(
     receipt?: string;
     couponCode?: string;
     startMode?: "now" | "after_current";
+    applyReferralDiscount?: boolean;
   },
 ): Promise<CreateOrderResponse> {
   const response = await fetch(`${API_URL}/create-order`, {

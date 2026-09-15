@@ -547,6 +547,22 @@ export function updateAdminRewardRedemption(
   );
 }
 
+export type AdminSiteSettings = {
+  liveSessionUrl: string | null;
+  updatedAt: string;
+};
+
+export function getAdminSettings(token: string) {
+  return authJson<AdminSiteSettings>("GET", "/admin/settings", token);
+}
+
+export function updateAdminSettings(
+  token: string,
+  body: { liveSessionUrl?: string | null },
+) {
+  return authJson<AdminSiteSettings>("PATCH", "/admin/settings", token, body);
+}
+
 export function listAdminVideos(token: string) {
   return authJson<AdminContentItem[]>("GET", "/admin/videos", token);
 }

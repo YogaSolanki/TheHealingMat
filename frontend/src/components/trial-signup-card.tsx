@@ -22,6 +22,7 @@ import {
 } from "@/lib/session-store";
 import trialIcon from "@/assets/trail.png";
 import { ButtonLoader } from "@/components/site-loader";
+import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
 import { getCapturedReferralCode } from "@/lib/referral-storage";
 import { clearCheckoutIntent } from "@/lib/checkout-intent";
 
@@ -73,6 +74,7 @@ export function TrialSignupCard({
   const [otpSecondsLeft, setOtpSecondsLeft] = useState(DEFAULT_OTP_TTL);
   const [error, setError] = useState<string | null>(initialError);
   const [loading, setLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -154,6 +156,10 @@ export function TrialSignupCard({
     const name = fullName.trim();
     if (name.length < 2) {
       setError("Please enter your full name.");
+      return;
+    }
+    if (!termsAccepted) {
+      setError("Please accept the Terms & Conditions and Privacy Policy to continue.");
       return;
     }
 
@@ -246,9 +252,11 @@ export function TrialSignupCard({
   const isIndia = (region ?? "india") === "india";
   const regionReady = region !== null;
   const mobileDigits = mobile.replace(/\D/g, "").slice(0, 10);
-  const canSubmitIdentity = isIndia
-    ? mobileDigits.length === 10 && fullName.trim().length >= 2
-    : email.trim().includes("@") && fullName.trim().length >= 2;
+  const canSubmitIdentity =
+    termsAccepted &&
+    (isIndia
+      ? mobileDigits.length === 10 && fullName.trim().length >= 2
+      : email.trim().includes("@") && fullName.trim().length >= 2);
   const otpDestination =
     destinationMasked ??
     (isIndia ? formatIndiaMobileDisplay(mobile) : email.trim());
@@ -370,7 +378,7 @@ export function TrialSignupCard({
 
           <div>
             <label className={labelClass}>
-              {isIndia ? "Mobile Number" : "Email address"}
+              {isIndia ? "WhatsApp Number" : "Email address"}
             </label>
             {isIndia ? (
               <div className="flex overflow-hidden rounded-[16px] border border-[#d7e0d6] bg-white focus-within:border-[#1f6b3a] focus-within:ring-2 focus-within:ring-[#1f6b3a]/15">
@@ -385,7 +393,7 @@ export function TrialSignupCard({
                     setMobile(e.target.value.replace(/\D/g, "").slice(0, 10));
                   }}
                   className="w-full min-w-0 border-0 bg-transparent px-3.5 py-3.5 text-[14px] text-[#1f6b3a] outline-none placeholder:text-[#9aa89c]"
-                  placeholder="Enter your mobile number"
+                  placeholder="Enter your WhatsApp number"
                   inputMode="numeric"
                   autoComplete="tel-national"
                   minLength={10}
@@ -403,7 +411,40 @@ export function TrialSignupCard({
                 autoComplete="email"
               />
             )}
+
+            {isIndia ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setRegion("outside_india");
+                  setError(null);
+                }}
+                disabled={loading}
+                className="mt-3.5 block w-full cursor-pointer text-center text-[12.5px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                From outside India? Start here →
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setRegion("india");
+                  setError(null);
+                }}
+                disabled={loading}
+                className="mt-3.5 block w-full cursor-pointer text-center text-[12.5px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                From India? Start here →
+              </button>
+            )}
           </div>
+
+          <TermsAcceptanceField
+            id="trial-signup-terms"
+            checked={termsAccepted}
+            onChange={setTermsAccepted}
+            disabled={loading}
+          />
 
           <button
             type="submit"

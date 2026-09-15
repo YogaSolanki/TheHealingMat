@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -9,16 +10,24 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../users/user.entity';
 import { TrialStatus } from '../users/enums/trial-status.enum';
+import {
+  FREE_TRIAL_DAYS,
+  cohortLabelForStart,
+  nextFirstOrThirdMonday,
+  trialEndsAtFromStart,
+} from './cohort-schedule';
 import { RegisterTrialDto } from './dto/register-trial.dto';
 import { OrientationSlot } from './orientation-slot.entity';
 import { TrialCohort } from './trial-cohort.entity';
+import { TrialMessagingService } from './trial-messaging.service';
 import { TrialRegistration } from './trial-registration.entity';
 
-/** Free trial length granted automatically on signup. */
-export const FREE_TRIAL_DAYS = 14;
+export { FREE_TRIAL_DAYS };
 
 @Injectable()
 export class TrialsService {
+  private readonly logger = new Logger(TrialsService.name);
+
   constructor(
     @InjectRepository(TrialCohort)
     private readonly cohorts: Repository<TrialCohort>,
@@ -29,10 +38,11 @@ export class TrialsService {
     @InjectRepository(User)
     private readonly users: Repository<User>,
     private readonly config: ConfigService,
+    private readonly messaging: TrialMessagingService,
   ) {}
 
   /**
-   * Ensures the member has a signup-day 14-day trial.
+   * Ensures the member has a 14-day trial on the next 1st/3rd Monday cohort.
    * Idempotent: existing registrations are only status-refreshed.
    */
   async ensureFreeTrial(user: User): Promise<User> {
@@ -57,27 +67,44 @@ export class TrialsService {
     }
 
     const now = new Date();
-    const trialEndsAt = new Date(now);
-    trialEndsAt.setUTCDate(trialEndsAt.getUTCDate() + FREE_TRIAL_DAYS);
+    const trialStartsAt = nextFirstOrThirdMonday(now);
+    const trialEndsAt = trialEndsAtFromStart(trialStartsAt);
+    const cohort = await this.findOrCreateCohort(trialStartsAt, trialEndsAt);
+    const status =
+      trialStartsAt.getTime() > now.getTime()
+        ? TrialStatus.Scheduled
+        : TrialStatus.Active;
 
-    await this.registrations.save(
+    const registration = await this.registrations.save(
       this.registrations.create({
         userId: user.id,
-        cohortId: null,
+        cohortId: cohort.id,
         orientationSlotId: null,
-        status: TrialStatus.Active,
-        trialStartsAt: now,
+        status,
+        trialStartsAt,
         trialEndsAt,
+        welcomeMessageSentAt: null,
+        reminderSentAt: null,
       }),
     );
 
     user.hasUsedFreeTrial = true;
-    return this.users.save(user);
+    const saved = await this.users.save(user);
+
+    void this.messaging.sendWelcome(saved, registration).catch((err) => {
+      this.logger.warn(
+        `Welcome message failed for ${saved.id}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    });
+
+    return saved;
   }
 
   async getNextCohort() {
     const now = new Date();
-    const cohort = await this.cohorts
+    let cohort = await this.cohorts
       .createQueryBuilder('cohort')
       .leftJoinAndSelect('cohort.orientationSlots', 'slot')
       .where('cohort.isOpen = :isOpen', { isOpen: true })
@@ -86,6 +113,16 @@ export class TrialsService {
       .orderBy('cohort.startsAt', 'ASC')
       .addOrderBy('slot.startsAt', 'ASC')
       .getOne();
+
+    if (!cohort) {
+      const startsAt = nextFirstOrThirdMonday(now);
+      const endsAt = trialEndsAtFromStart(startsAt);
+      cohort = await this.findOrCreateCohort(startsAt, endsAt);
+      cohort = await this.cohorts.findOne({
+        where: { id: cohort.id },
+        relations: { orientationSlots: true },
+      });
+    }
 
     if (!cohort) {
       throw new NotFoundException('No upcoming trial cohort is available.');
@@ -170,6 +207,14 @@ export class TrialsService {
     user.hasUsedFreeTrial = true;
     await this.users.save(user);
 
+    void this.messaging.sendWelcome(user, registration).catch((err) => {
+      this.logger.warn(
+        `Welcome message failed for ${user.id}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    });
+
     return {
       hasTrial: true as const,
       ...this.toTrialAccount(user, registration, cohort, slot),
@@ -203,6 +248,33 @@ export class TrialsService {
         registration.orientationSlot,
       ),
     };
+  }
+
+  private async findOrCreateCohort(
+    startsAt: Date,
+    endsAt: Date,
+  ): Promise<TrialCohort> {
+    const existing = await this.cohorts
+      .createQueryBuilder('cohort')
+      .where('cohort.startsAt = :startsAt', { startsAt })
+      .getOne();
+    if (existing) {
+      if (!existing.isOpen) {
+        existing.isOpen = true;
+        return this.cohorts.save(existing);
+      }
+      return existing;
+    }
+
+    return this.cohorts.save(
+      this.cohorts.create({
+        label: cohortLabelForStart(startsAt),
+        startsAt,
+        endsAt,
+        registrationOpensAt: new Date(0),
+        isOpen: true,
+      }),
+    );
   }
 
   private refreshStatus(registration: TrialRegistration): TrialRegistration {

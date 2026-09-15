@@ -1,5 +1,6 @@
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import {
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -42,4 +43,10 @@ export class CreateOrderDto {
   @IsOptional()
   @IsIn(['now', 'after_current'])
   startMode?: 'now' | 'after_current';
+
+  /** Opt-in: apply the 20% referral benefit (only if account has a referrer). */
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  applyReferralDiscount?: boolean;
 }

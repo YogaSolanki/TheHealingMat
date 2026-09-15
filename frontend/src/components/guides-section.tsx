@@ -171,7 +171,10 @@ function HeroBlock() {
           </div>
         </div>
 
-        <div className="relative order-1 aspect-[16/9] w-full lg:order-2 lg:aspect-auto lg:h-full lg:min-h-[480px]">
+        <div
+          className="hero-media-frame relative order-1 aspect-[16/9] w-full lg:order-2 lg:aspect-auto lg:h-full lg:min-h-[480px]"
+          style={{ ["--hero-blend" as string]: "#ffffff" }}
+        >
           <Image
             src={guidesHero}
             alt="Woman reading a health guide at The Healing Mat"
@@ -179,10 +182,6 @@ function HeroBlock() {
             priority
             className="object-cover object-[50%_35%]"
             sizes="(max-width: 1024px) 100vw, 50vw"
-          />
-          <div
-            aria-hidden="true"
-            className="absolute inset-y-0 left-0 hidden w-16 bg-gradient-to-r from-white to-transparent lg:block xl:w-20"
           />
         </div>
       </div>
@@ -388,7 +387,7 @@ function GuidanceCta() {
               src={matBanner}
               alt="Yoga mat and props"
               fill
-              className="object-cover object-left"
+              className="h-full w-full object-cover object-left"
               sizes="300px"
             />
           </div>

@@ -55,6 +55,8 @@ export type PublicUser = {
   hasUsedFreeTrial: boolean;
   /** False until the member sets their own password (OTP / Google signup). */
   hasPassword: boolean;
+  /** True when this account was created via a referral link. */
+  wasReferred: boolean;
   role: string;
 };
 
@@ -410,6 +412,7 @@ export class AuthService {
       accessLink: this.buildAccessLink(user.accessLinkToken),
       hasUsedFreeTrial: user.hasUsedFreeTrial,
       hasPassword: Boolean(user.passwordSetByUser),
+      wasReferred: Boolean(user.referredByUserId),
       role: user.role,
     };
   }

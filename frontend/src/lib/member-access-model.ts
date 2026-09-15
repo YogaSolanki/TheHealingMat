@@ -1,6 +1,6 @@
 import type { MembershipAccessResponse, MembershipCurrency } from "@/lib/api";
 
-export type MemberAccessState = "trial" | "active" | "expired";
+export type MemberAccessState = "trial" | "active" | "expired" | "scheduled";
 
 export type MemberAccess = {
   state: MemberAccessState;
@@ -8,6 +8,7 @@ export type MemberAccess = {
   planName: string;
   startDateLabel: string | null;
   validUntilLabel: string | null;
+  trialStartsOnLabel: string | null;
   trialEndsOnLabel: string | null;
   expiredOnLabel: string | null;
   amountPaid: string;
@@ -21,6 +22,7 @@ export type MemberAccess = {
 
 export function membershipStatusLabel(state: MemberAccessState) {
   if (state === "trial") return "Trial";
+  if (state === "scheduled") return "Trial scheduled";
   if (state === "expired") return "Expired";
   return "Active";
 }
@@ -77,9 +79,11 @@ export function emptyMemberAccess(state: MemberAccessState = "active"): MemberAc
   return {
     state,
     membershipId: null,
-    planName: state === "trial" ? "Your Trial" : "Membership",
+    planName:
+      state === "trial" || state === "scheduled" ? "Your Trial" : "Membership",
     startDateLabel: null,
     validUntilLabel: null,
+    trialStartsOnLabel: null,
     trialEndsOnLabel: null,
     expiredOnLabel: null,
     amountPaid: "—",
@@ -95,12 +99,13 @@ export function emptyMemberAccess(state: MemberAccessState = "active"): MemberAc
 export function mapMembershipAccess(data: MembershipAccessResponse): MemberAccess {
   const membership = data.current ?? data.lastExpired;
   const access = emptyMemberAccess(data.state);
+  access.trialStartsOnLabel = formatLongDate(data.trial?.startsAt);
   access.trialEndsOnLabel = formatLongDate(data.trial?.endsAt);
   access.hasScheduledMembership = Boolean(data.scheduled);
   access.scheduledPlanName = data.scheduled?.planName ?? null;
   access.scheduledStartsOnLabel = formatLongDate(data.scheduled?.startsAt);
 
-  if (data.state === "trial") {
+  if (data.state === "trial" || data.state === "scheduled") {
     access.planName = "Your Trial";
     access.startDateLabel = formatLongDate(data.trial?.startsAt);
     access.validUntilLabel = formatLongDate(data.trial?.endsAt);

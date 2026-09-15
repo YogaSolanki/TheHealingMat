@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { FreeTrialPromoPopup } from "@/components/free-trial-promo-popup";
+import { StickyFreeTrialCta } from "@/components/sticky-free-trial-cta";
+import { ReferEarnPopupProvider } from "@/components/refer-earn-popup";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { LoggedInRedirect } from "@/components/logged-in-redirect";
@@ -25,7 +27,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   return (
-    <>
+    <ReferEarnPopupProvider>
       <Suspense fallback={null}>
         <LoggedInRedirect />
         <ReferralCapture />
@@ -38,6 +40,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
       {!isAuthCallback ? <SiteFooter /> : null}
       {!signedIn && !isAuthCallback ? <FreeTrialPromoPopup /> : null}
-    </>
+      {!signedIn && !isAuthCallback ? <StickyFreeTrialCta /> : null}
+    </ReferEarnPopupProvider>
   );
 }
