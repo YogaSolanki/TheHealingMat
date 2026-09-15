@@ -383,11 +383,31 @@ body {
   visibility: visible;
 }
 
+/* Shine loops continuously; hover still uses normal btn-primary lift */
+.sticky-trial-cta-btn::after {
+  animation: sticky-trial-btn-shine 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+@keyframes sticky-trial-btn-shine {
+  0%,
+  15% {
+    transform: translateX(-130%);
+  }
+  55%,
+  100% {
+    transform: translateX(130%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sticky-trial-cta,
   .sticky-trial-cta.is-visible {
     transition: none;
     transform: none;
+  }
+
+  .sticky-trial-cta-btn::after {
+    animation: none !important;
   }
 }
 

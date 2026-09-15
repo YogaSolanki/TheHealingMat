@@ -76,7 +76,7 @@ export function StickyFreeTrialCta() {
           type="button"
           tabIndex={visible ? 0 : -1}
           onClick={() => openAuth("signup")}
-          className="btn-primary inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#1f6b3a] px-3.5 py-2.5 text-[12px] font-bold whitespace-nowrap text-white sm:px-4 sm:text-[13px]"
+          className="btn-primary sticky-trial-cta-btn inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#1f6b3a] px-3.5 py-2.5 text-[12px] font-bold whitespace-nowrap text-white sm:px-4 sm:text-[13px]"
         >
           Start Free Trial
           <span aria-hidden="true">→</span>
