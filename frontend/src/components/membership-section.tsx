@@ -273,9 +273,7 @@ function PlansBlock({
           </h1>
         )}
         <p className="mx-auto mt-2 max-w-[520px] text-[13px] leading-snug text-[#5f6f64] sm:text-[14px]">
-          {isRenew
-            ? "Pick a plan below. If you already have an active membership, the new plan starts automatically after it ends."
-            : "One membership. The same complete experience. Choose the duration that works for you."}
+          Same experience with every membership - choose your duration.
         </p>
         {liveOffer ? (
           <p className="mx-auto mt-2 inline-flex rounded-full bg-[#fff4e8] px-3 py-1 text-[12px] font-semibold text-[#c45c16]">
