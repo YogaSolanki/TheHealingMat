@@ -17,7 +17,7 @@ import heroImage from "@/assets/hero-home.jpeg";
 import rsIcon from "@/assets/rs.png";
 import { StartTrialButton } from "@/components/start-trial-button";
 import {
-  formatMembershipPerDay,
+  getAnnualPerDayLabel,
   useMembershipPlans,
 } from "@/lib/membership-plans-store";
 
@@ -198,13 +198,7 @@ export function HeroSection() {
   const [introOpen, setIntroOpen] = useState(false);
 
   const annualPerDayLabel = useMemo(() => {
-    const annual =
-      plansData.plans.find((plan) => plan.months === 12) ??
-      plansData.plans.find((plan) => plan.featured) ??
-      plansData.plans[0];
-    if (!annual) return "₹10/Day";
-    const currency = annual.currency ?? "INR";
-    return `${formatMembershipPerDay(annual.perDayRupees, currency)}/Day`;
+    return `${getAnnualPerDayLabel(plansData.plans)}/Day`;
   }, [plansData.plans]);
 
   const highlights: { key: string; icon: ReactNode; label: ReactNode }[] = [
