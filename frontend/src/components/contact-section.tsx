@@ -22,9 +22,6 @@ import {
 } from "@/lib/site-contact";
 
 const cream = "#FBF9F5";
-const MAPS_QUERY =
-  "51, 5th Floor, Aditya Gold Crest, Vaibhav Khand, Indirapuram, Ghaziabad, Uttar Pradesh 201010";
-const MAPS_EMBED = `https://www.google.com/maps?q=${encodeURIComponent(MAPS_QUERY)}&output=embed`;
 
 const fieldClass =
   "w-full rounded-xl border border-[#e2e8df] bg-white px-3 py-2 text-[13px] text-[#1f6b3a] outline-none transition placeholder:text-[#9aa89e] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
@@ -86,45 +83,32 @@ export function ContactSection() {
 
       <section className="w-full px-4 pb-6 sm:px-6 sm:pb-8 lg:px-8 lg:pb-10">
         <div className="mx-auto grid w-full max-w-[1240px] gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)] lg:items-stretch">
-          <article className="grid overflow-hidden rounded-[20px] border border-[#e8ebe4] bg-white sm:rounded-[22px] md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.15fr)]">
-            <div className="flex flex-col items-center justify-center px-5 py-6 text-center sm:px-6 sm:py-7 lg:px-6 lg:py-7">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#E8F0E4] text-[#1f6b3a] sm:h-12 sm:w-12">
-                <HiOutlineLocationMarker className="h-5 w-5 sm:h-6 sm:w-6" />
-              </span>
-              <h2 className="mt-4 text-[16px] font-bold text-black sm:text-[17px]">
-                Visit Us
-              </h2>
-              <p className="mt-2 text-[14px] font-bold text-[#1f6b3a]">
-                The Healing Mat
-              </p>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
-                51, 5th Floor, Aditya Gold Crest
-                <br />
-                Vaibhav Khand, Indirapuram
-                <br />
-                Ghaziabad, Uttar Pradesh – 201010
-              </p>
-              <a
-                href={SITE_MAPS_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-outline mt-5 inline-flex cursor-pointer items-center gap-1.5 rounded-full border-[1.5px] border-[#1f6b3a] px-5 py-2.5 text-[13px] font-bold text-[#1f6b3a] sm:text-[14px]"
-              >
-                View on Google Maps
-                <span aria-hidden="true">→</span>
-              </a>
-            </div>
-
-            <div className="relative min-h-[220px] border-t border-[#e8ebe4] sm:min-h-[240px] md:min-h-full md:border-t-0 md:border-l">
-              <iframe
-                title="The Healing Mat location on Google Maps"
-                src={MAPS_EMBED}
-                className="absolute inset-0 h-full w-full border-0"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                allowFullScreen
-              />
-            </div>
+          <article className="flex flex-col items-center justify-center overflow-hidden rounded-[20px] border border-[#e8ebe4] bg-white px-5 py-6 text-center sm:rounded-[22px] sm:px-6 sm:py-7 lg:px-6 lg:py-8">
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#E8F0E4] text-[#1f6b3a] sm:h-12 sm:w-12">
+              <HiOutlineLocationMarker className="h-5 w-5 sm:h-6 sm:w-6" />
+            </span>
+            <h2 className="mt-4 text-[16px] font-bold text-black sm:text-[17px]">
+              Visit Us
+            </h2>
+            <p className="mt-2 text-[14px] font-bold text-[#1f6b3a]">
+              The Healing Mat
+            </p>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
+              51, 5th Floor, Aditya Gold Crest
+              <br />
+              Vaibhav Khand, Indirapuram
+              <br />
+              Ghaziabad, Uttar Pradesh – 201010
+            </p>
+            <a
+              href={SITE_MAPS_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-outline mt-5 inline-flex cursor-pointer items-center gap-1.5 rounded-full border-[1.5px] border-[#1f6b3a] px-5 py-2.5 text-[13px] font-bold text-[#1f6b3a] sm:text-[14px]"
+            >
+              View on Google Maps
+              <span aria-hidden="true">→</span>
+            </a>
           </article>
 
           <article
