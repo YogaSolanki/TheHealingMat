@@ -346,10 +346,23 @@ body {
   overflow: hidden;
   width: 100%;
   padding-block: 4px;
+  /* Soft fade so cards don't end in a hard block cut against the CTA */
+  -webkit-mask-image: linear-gradient(
+    to right,
+    #000 0%,
+    #000 calc(100% - 72px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    #000 0%,
+    #000 calc(100% - 72px),
+    transparent 100%
+  );
 }
 
 .testimonials-marquee-track {
-  animation: testimonials-marquee 40s linear infinite;
+  animation: testimonials-marquee 90s linear infinite;
   will-change: transform;
   padding-bottom: 1px;
 }
