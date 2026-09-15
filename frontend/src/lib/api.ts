@@ -474,6 +474,16 @@ export async function getMyMembership(
   return parseJson<MembershipAccessResponse>(response);
 }
 
+export async function getLiveSessionUrl(
+  accessToken: string,
+): Promise<{ url: string | null }> {
+  const response = await fetch(`${API_URL}/sessions/live`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  return parseJson<{ url: string | null }>(response);
+}
+
 export async function createRazorpayOrder(
   accessToken: string,
   input: {

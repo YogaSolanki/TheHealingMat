@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { memberPrimaryBtnClass } from "@/components/member-dashboard/member-button-styles";
+import { getLiveSessionUrl } from "@/lib/api";
+import { getStoredToken } from "@/lib/auth-storage";
 import { useMemberAccess } from "@/lib/member-access";
 import {
   findRunningSession,
@@ -10,25 +12,60 @@ import {
   type SessionAccessKind,
 } from "@/lib/member-session-schedule";
 
-const LIVE_SESSION_URL = process.env.NEXT_PUBLIC_LIVE_SESSION_URL;
-
 export function MemberJoinPage() {
-  const { access, loading } = useMemberAccess();
+  const { access, loading: accessLoading } = useMemberAccess();
+  const [liveUrl, setLiveUrl] = useState<string | null>(null);
+  const [urlLoading, setUrlLoading] = useState(true);
+  const [urlError, setUrlError] = useState<string | null>(null);
+
   const kind: SessionAccessKind =
     access.state === "trial" || access.state === "scheduled" ? "trial" : "member";
-  const canJoin =
-    !loading &&
-    (access.state === "trial" || access.state === "active") &&
-    Boolean(LIVE_SESSION_URL);
+  const accessOk =
+    !accessLoading &&
+    (access.state === "trial" || access.state === "active");
   const running = useMemo(
-    () => (canJoin ? findRunningSession(new Date(), kind) : null),
-    [canJoin, kind],
+    () => (accessOk ? findRunningSession(new Date(), kind) : null),
+    [accessOk, kind],
   );
 
   useEffect(() => {
-    if (!canJoin || !running || !LIVE_SESSION_URL) return;
-    window.location.assign(LIVE_SESSION_URL);
-  }, [canJoin, running]);
+    const token = getStoredToken();
+    if (!token) {
+      setUrlLoading(false);
+      setUrlError("Please sign in to join the session.");
+      return;
+    }
+
+    let cancelled = false;
+    setUrlLoading(true);
+    setUrlError(null);
+    void getLiveSessionUrl(token)
+      .then((result) => {
+        if (cancelled) return;
+        setLiveUrl(result.url);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setUrlError(
+          err instanceof Error ? err.message : "Unable to load the live session link.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setUrlLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const loading = accessLoading || urlLoading;
+  const canRedirect = accessOk && Boolean(running) && Boolean(liveUrl);
+
+  useEffect(() => {
+    if (!canRedirect || !liveUrl) return;
+    window.location.assign(liveUrl);
+  }, [canRedirect, liveUrl]);
 
   if (loading) {
     return (
@@ -57,6 +94,28 @@ export function MemberJoinPage() {
       <StateCard
         title={`Your 14-Day Free Trial starts on ${access.trialStartsOnLabel ?? "the upcoming cohort Monday"}`}
         body="Your session link will become active when your trial starts. You can join 7:00 AM or 7:00 PM sessions from the Member Area once it begins."
+        actionHref="/dashboard"
+        actionLabel="Back to Home"
+      />
+    );
+  }
+
+  if (urlError) {
+    return (
+      <StateCard
+        title="Unable to open session"
+        body={urlError}
+        actionHref="/dashboard"
+        actionLabel="Back to Home"
+      />
+    );
+  }
+
+  if (!liveUrl) {
+    return (
+      <StateCard
+        title="Live session link is not set yet"
+        body="The class join link has not been published. Please try again shortly, or contact support if this continues."
         actionHref="/dashboard"
         actionLabel="Back to Home"
       />
