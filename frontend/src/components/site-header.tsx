@@ -49,6 +49,11 @@ export function SiteHeader() {
     openAuth("login");
   }
 
+  function openSignup() {
+    setOpen(false);
+    openAuth("signup");
+  }
+
   return (
     <header className="relative z-50 bg-white header-shell">
       <div className="flex h-[72px] w-full items-center justify-between gap-2 pr-4 pl-5 sm:h-[84px] sm:gap-3 sm:pr-6 sm:pl-7 lg:pr-6 lg:pl-8 xl:pr-10 xl:pl-12">
@@ -81,14 +86,24 @@ export function SiteHeader() {
               Dashboard
             </Link>
           ) : (
-            <button
-              type="button"
-              onClick={openLogin}
-              className="btn-primary hidden cursor-pointer items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-3 py-2 text-[12px] font-semibold text-white lg:inline-flex xl:gap-2 xl:px-4 xl:py-2.5 xl:text-sm"
-            >
-              <UserIcon className="h-3.5 w-3.5 xl:h-4 xl:w-4" />
-              Member Login
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={openLogin}
+                className="btn-outline hidden cursor-pointer items-center gap-1.5 rounded-[16px] border-[1.5px] border-[#1f6b3a] bg-white px-3 py-2 text-[12px] font-semibold text-[#1f6b3a] lg:inline-flex xl:gap-2 xl:px-4 xl:py-2.5 xl:text-sm"
+              >
+                <UserIcon className="h-3.5 w-3.5 xl:h-4 xl:w-4" />
+                Member Login
+              </button>
+              <button
+                type="button"
+                onClick={openSignup}
+                className="btn-primary hidden cursor-pointer items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-3 py-2 text-[12px] font-semibold text-white lg:inline-flex xl:gap-2 xl:px-4 xl:py-2.5 xl:text-sm"
+              >
+                Free Trial
+                <span aria-hidden="true">→</span>
+              </button>
+            </>
           )}
 
           <button
@@ -182,24 +197,44 @@ export function SiteHeader() {
                   Dashboard
                 </Link>
               ) : (
-                <button
-                  type="button"
-                  tabIndex={open ? 0 : -1}
-                  onClick={openLogin}
-                  className={`btn-primary mt-1 inline-flex cursor-pointer items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-2.5 text-sm font-semibold text-white transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                    open
-                      ? "translate-y-0 opacity-100"
-                      : "translate-y-1 opacity-0"
-                  }`}
-                  style={{
-                    transitionDelay: open
-                      ? `${60 + navLinks.length * 35}ms`
-                      : "0ms",
-                  }}
-                >
-                  <UserIcon className="h-4 w-4" />
-                  Member Login
-                </button>
+                <>
+                  <button
+                    type="button"
+                    tabIndex={open ? 0 : -1}
+                    onClick={openSignup}
+                    className={`btn-primary mt-1 inline-flex cursor-pointer items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-2.5 text-sm font-semibold text-white transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                      open
+                        ? "translate-y-0 opacity-100"
+                        : "translate-y-1 opacity-0"
+                    }`}
+                    style={{
+                      transitionDelay: open
+                        ? `${60 + navLinks.length * 35}ms`
+                        : "0ms",
+                    }}
+                  >
+                    Start Free Trial
+                    <span aria-hidden="true">→</span>
+                  </button>
+                  <button
+                    type="button"
+                    tabIndex={open ? 0 : -1}
+                    onClick={openLogin}
+                    className={`btn-outline mt-1 inline-flex cursor-pointer items-center justify-center gap-2 rounded-[16px] border-[1.5px] border-[#1f6b3a] bg-white px-4 py-2.5 text-sm font-semibold text-[#1f6b3a] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                      open
+                        ? "translate-y-0 opacity-100"
+                        : "translate-y-1 opacity-0"
+                    }`}
+                    style={{
+                      transitionDelay: open
+                        ? `${95 + navLinks.length * 35}ms`
+                        : "0ms",
+                    }}
+                  >
+                    <UserIcon className="h-4 w-4" />
+                    Member Login
+                  </button>
+                </>
               )}
             </nav>
           </div>

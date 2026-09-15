@@ -367,6 +367,30 @@ body {
   }
 }
 
+/* Sticky Free Trial CTA — slides in after scroll */
+.sticky-trial-cta {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  visibility: hidden;
+}
+
+.sticky-trial-cta.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sticky-trial-cta,
+  .sticky-trial-cta.is-visible {
+    transition: none;
+    transform: none;
+  }
+}
+
 /* Testimonials: full-bleed infinite review-card marquee */
 .testimonials-marquee {
   overflow: hidden;
