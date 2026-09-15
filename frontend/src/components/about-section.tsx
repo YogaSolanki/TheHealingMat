@@ -92,7 +92,10 @@ function HeroBlock() {
           </div>
         </div>
 
-        <div className="relative order-1 aspect-[16/9] w-full overflow-hidden lg:order-2 lg:aspect-auto lg:h-full lg:min-h-[480px]">
+        <div
+          className="hero-media-frame relative order-1 aspect-[16/9] w-full overflow-hidden lg:order-2 lg:aspect-auto lg:h-full lg:min-h-[480px]"
+          style={{ ["--hero-blend" as string]: cream }}
+        >
           <Image
             src={groupPhoto}
             alt="The Healing Mat founding team"

@@ -261,7 +261,10 @@ function HeroBlock() {
           </div>
         </div>
 
-        <div className="relative order-1 aspect-[16/9] w-full lg:order-2 lg:aspect-auto lg:h-full lg:min-h-[480px]">
+        <div
+          className="hero-media-frame relative order-1 aspect-[16/9] w-full lg:order-2 lg:aspect-auto lg:h-full lg:min-h-[480px]"
+          style={{ ["--hero-blend" as string]: cream }}
+        >
           <Image
             src={corporateImage}
             alt="Corporate wellness handshake meeting"
@@ -269,10 +272,6 @@ function HeroBlock() {
             priority
             className="object-cover object-center"
             sizes="(max-width: 1024px) 100vw, 50vw"
-          />
-          <div
-            aria-hidden="true"
-            className="absolute inset-y-0 left-0 hidden w-16 bg-gradient-to-r from-[#FBF9F5] to-transparent lg:block xl:w-20"
           />
         </div>
       </div>
