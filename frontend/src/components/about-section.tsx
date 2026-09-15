@@ -712,7 +712,7 @@ function PokhriyalCard() {
                 "M.A. in Yoga",
                 "YCB Level 6",
                 "PG Diploma in Yoga",
-                "200 Hours RYT – Yoga Alliance",
+                "E-RYT 500 — Yoga Alliance",
                 "Meditation & Yoga Nidra – Rishikesh",
                 "Corporate Yoga Trainer",
               ]}
