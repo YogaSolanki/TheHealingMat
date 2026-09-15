@@ -152,7 +152,7 @@ export function CtaBannerSection() {
               src={matBanner}
               alt="Yoga mat and props"
               fill
-              className="object-cover object-left"
+              className="h-full w-full object-cover object-left"
               sizes="210px"
               priority={false}
             />

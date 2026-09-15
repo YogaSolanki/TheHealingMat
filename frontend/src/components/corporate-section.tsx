@@ -453,7 +453,7 @@ function ContactCta() {
               src={matBanner}
               alt="Wellness props"
               fill
-              className="object-cover object-left"
+              className="h-full w-full object-cover object-left"
               sizes="300px"
             />
           </div>
