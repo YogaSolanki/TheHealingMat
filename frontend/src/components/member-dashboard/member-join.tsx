@@ -14,19 +14,21 @@ const LIVE_SESSION_URL = process.env.NEXT_PUBLIC_LIVE_SESSION_URL;
 
 export function MemberJoinPage() {
   const { access, loading } = useMemberAccess();
-  const kind: SessionAccessKind = access.state === "trial" ? "trial" : "member";
+  const kind: SessionAccessKind =
+    access.state === "trial" || access.state === "scheduled" ? "trial" : "member";
+  const canJoin =
+    !loading &&
+    (access.state === "trial" || access.state === "active") &&
+    Boolean(LIVE_SESSION_URL);
   const running = useMemo(
-    () =>
-      loading || access.state === "expired"
-        ? null
-        : findRunningSession(new Date(), kind),
-    [access.state, kind, loading],
+    () => (canJoin ? findRunningSession(new Date(), kind) : null),
+    [canJoin, kind],
   );
 
   useEffect(() => {
-    if (loading || access.state === "expired" || !running || !LIVE_SESSION_URL) return;
+    if (!canJoin || !running || !LIVE_SESSION_URL) return;
     window.location.assign(LIVE_SESSION_URL);
-  }, [access.state, loading, running]);
+  }, [canJoin, running]);
 
   if (loading) {
     return (
@@ -46,6 +48,17 @@ export function MemberJoinPage() {
         body="Renew your membership to continue your daily yoga sessions."
         actionHref="/dashboard/membership"
         actionLabel="Renew Membership"
+      />
+    );
+  }
+
+  if (access.state === "scheduled") {
+    return (
+      <StateCard
+        title={`Your 14-Day Free Trial starts on ${access.trialStartsOnLabel ?? "the upcoming cohort Monday"}`}
+        body="Your session link will become active when your trial starts. You can join 7:00 AM or 7:00 PM sessions from the Member Area once it begins."
+        actionHref="/dashboard"
+        actionLabel="Back to Home"
       />
     );
   }
@@ -83,18 +96,16 @@ function StateCard({
   actionLabel: string;
 }) {
   return (
-    <div className="w-full bg-[#FBF9F5]">
-      <div className="mx-auto w-full max-w-[640px] px-4 py-10 sm:px-6 sm:py-14">
-        <section className="rounded-[22px] border border-[#e6ebe3] bg-white px-5 py-7 shadow-[0_10px_32px_rgba(31,107,58,0.05)] sm:px-8 sm:py-8">
-          <h1 className="font-serif text-[1.6rem] font-bold text-[#243028] sm:text-[1.85rem]">
-            {title}
-          </h1>
-          <p className="mt-3 text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px]">{body}</p>
-          <Link href={actionHref} className={`${memberPrimaryBtnClass} mt-6 px-5 py-3 text-[14px]`}>
-            {actionLabel}
-          </Link>
-        </section>
-      </div>
+    <div className="mx-auto flex min-h-[50vh] w-full max-w-[560px] flex-col items-center justify-center px-4 py-12 text-center">
+      <h1 className="font-serif text-[1.6rem] font-bold text-[#1f6b3a] sm:text-[1.85rem]">
+        {title}
+      </h1>
+      <p className="mt-3 max-w-[420px] text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
+        {body}
+      </p>
+      <Link href={actionHref} className={`${memberPrimaryBtnClass} mt-6 px-5 py-3 text-[14px]`}>
+        {actionLabel}
+      </Link>
     </div>
   );
 }

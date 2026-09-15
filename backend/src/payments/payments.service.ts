@@ -78,7 +78,12 @@ export class PaymentsService {
   }
 
   async quote(user: User, dto: QuoteMembershipDto) {
-    const quote = await this.buildQuote(user, dto.planMonths, dto.couponCode);
+    const quote = await this.buildQuote(
+      user,
+      dto.planMonths,
+      dto.couponCode,
+      dto.applyReferralDiscount === true,
+    );
     return this.toQuoteResponse(quote);
   }
 
@@ -87,7 +92,12 @@ export class PaymentsService {
     await this.assertCanPurchase(user.id);
 
     if (dto.planMonths != null) {
-      const quote = await this.buildQuote(user, dto.planMonths, dto.couponCode);
+      const quote = await this.buildQuote(
+        user,
+        dto.planMonths,
+        dto.couponCode,
+        dto.applyReferralDiscount === true,
+      );
       if (quote.amountPaise === 0) {
         const membership = await this.fulfillZeroAmount(user, quote, startMode);
         return {
@@ -254,6 +264,9 @@ export class PaymentsService {
           trial.status = TrialStatus.Active;
           await this.trials.save(trial);
         }
+      } else if (trial.status !== TrialStatus.Scheduled) {
+        trial.status = TrialStatus.Scheduled;
+        await this.trials.save(trial);
       }
     }
 
@@ -261,13 +274,16 @@ export class PaymentsService {
       trial && now >= trial.trialStartsAt && now <= trial.trialEndsAt
         ? trial
         : null;
+    const trialScheduled =
+      trial && now < trial.trialStartsAt ? trial : null;
 
     const lastExpired =
       rows.find((row) => row.status === 'expired') ?? null;
 
-    let state: 'trial' | 'active' | 'expired' = 'expired';
+    let state: 'trial' | 'active' | 'expired' | 'scheduled' = 'expired';
     if (current) state = 'active';
     else if (trialActive) state = 'trial';
+    else if (trialScheduled) state = 'scheduled';
 
     return {
       state,
@@ -276,6 +292,7 @@ export class PaymentsService {
       lastExpired: lastExpired ? this.toPublicMembership(lastExpired) : null,
       trial: trial
         ? {
+            status: trial.status,
             startsAt: trial.trialStartsAt.toISOString(),
             endsAt: trial.trialEndsAt.toISOString(),
           }
@@ -510,6 +527,7 @@ export class PaymentsService {
     user: User,
     planMonths: number,
     couponCode?: string,
+    applyReferralDiscount = false,
   ) {
     const plan = await this.membershipPlans.requireActiveByMonths(planMonths);
     const currency = user.region === Region.OutsideIndia ? ('USD' as const) : ('INR' as const);
@@ -528,6 +546,8 @@ export class PaymentsService {
     let discountPaise = 0;
     let appliedCoupon: string | null = null;
     let discountLabel = '—';
+    const referralDiscountAvailable = Boolean(user.referredByUserId);
+    let referralDiscountApplied = false;
 
     const trimmed = couponCode?.trim();
     if (trimmed) {
@@ -547,11 +567,12 @@ export class PaymentsService {
         );
       }
       discountLabel = coupon.discountLabel || `${coupon.discountValue} off`;
-    } else if (user.referredByUserId) {
+    } else if (applyReferralDiscount && referralDiscountAvailable) {
       discountPaise = Math.floor(
         (listPricePaise * REFERRAL_DISCOUNT_PERCENT) / 100,
       );
       discountLabel = `${REFERRAL_DISCOUNT_PERCENT}% referral`;
+      referralDiscountApplied = true;
     }
 
     if (discountPaise > listPricePaise) discountPaise = listPricePaise;
@@ -566,6 +587,9 @@ export class PaymentsService {
       amountPaise,
       couponCode: appliedCoupon,
       discountLabel,
+      referralDiscountAvailable,
+      referralDiscountApplied,
+      referralDiscountPercent: REFERRAL_DISCOUNT_PERCENT,
       offer: offerPrice
         ? {
             title: offer!.title,
@@ -585,6 +609,9 @@ export class PaymentsService {
       amountPaise: quote.amountPaise,
       discountLabel: quote.discountLabel,
       couponCode: quote.couponCode,
+      referralDiscountAvailable: quote.referralDiscountAvailable,
+      referralDiscountApplied: quote.referralDiscountApplied,
+      referralDiscountPercent: quote.referralDiscountPercent,
       offer: quote.offer,
       currency: quote.currency,
     };

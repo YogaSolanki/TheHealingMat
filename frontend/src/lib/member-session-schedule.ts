@@ -98,6 +98,15 @@ export function findRunningSession(
   );
 }
 
+export function isSessionSlotRunning(
+  slotLabel: string,
+  now = new Date(),
+  kind: SessionAccessKind = "member",
+) {
+  const running = findRunningSession(now, kind);
+  return running?.label === slotLabel;
+}
+
 export function findNextSession(
   now = new Date(),
   kind: SessionAccessKind = "member",

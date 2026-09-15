@@ -110,7 +110,9 @@ class SessionStore {
       this.access = access;
       // Paid memberships without an id are from a stale cache — refetch.
       const stalePaid =
-        access.state !== "trial" && !access.membershipId;
+        access.state !== "trial" &&
+        access.state !== "scheduled" &&
+        !access.membershipId;
       this.accessReady = !stalePaid;
       changed = true;
     }

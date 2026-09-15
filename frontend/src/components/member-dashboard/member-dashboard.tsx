@@ -9,6 +9,7 @@ import moonIcon from "@/assets/moon.png";
 import sunIcon from "@/assets/sun.png";
 import yogaMenIcon from "@/assets/yoga-men.png";
 import { memberPrimaryBtnClass, memberPrimaryBtnSmClass } from "@/components/member-dashboard/member-button-styles";
+import { TrialWelcomePopup } from "@/components/member-dashboard/trial-welcome-popup";
 import type { PublicUser } from "@/lib/api";
 import {
   greetingForName,
@@ -18,6 +19,7 @@ import {
 import {
   findRunningSession,
   isSunday,
+  isSessionSlotRunning,
   sessionUnavailableMessage,
   sundayQaSlots,
   trialSessionSlots,
@@ -77,9 +79,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const sunday = isSunday(now);
   const membershipKnown = !loading;
   const isExpired = membershipKnown && access.state === "expired";
+  const isScheduledTrial = membershipKnown && access.state === "scheduled";
   const isTrial = membershipKnown && access.state === "trial";
-  const sessionKind = isTrial ? "trial" : "member";
-  const running = isExpired ? null : findRunningSession(now, sessionKind);
+  const sessionKind = isTrial || isScheduledTrial ? "trial" : "member";
+  const running =
+    isExpired || isScheduledTrial ? null : findRunningSession(now, sessionKind);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const { successfulCount: successfulReferrals } = useMyReferrals();
 
@@ -91,7 +95,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
       : 0;
 
   function handleJoin() {
-    if (isExpired) return;
+    if (isExpired || isScheduledTrial) return;
     const current = findRunningSession(new Date(), sessionKind);
     if (!current) {
       setSessionNotice(sessionUnavailableMessage(new Date(), sessionKind));
@@ -100,14 +104,40 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     window.location.assign("/dashboard/join");
   }
 
-  const supportingMessage = isTrial
-    ? `Your trial is active until ${access.trialEndsOnLabel ?? "its end date"}.`
+  function handleTrialSlotJoin(slotLabel: string) {
+    if (isScheduledTrial) {
+      setSessionNotice(
+        `Your session link will become active when your trial starts on ${access.trialStartsOnLabel ?? "the cohort date"}.`,
+      );
+      return;
+    }
+    if (!isTrial) return;
+    if (!isSessionSlotRunning(slotLabel, new Date(), "trial")) {
+      setSessionNotice(
+        `The ${slotLabel} session is not running right now. ${sessionUnavailableMessage(new Date(), "trial")}`,
+      );
+      return;
+    }
+    window.location.assign("/dashboard/join");
+  }
+
+  const supportingMessage = isScheduledTrial || isTrial
+    ? `Your trial starts on ${access.trialStartsOnLabel ?? "the upcoming cohort Monday"}.`
     : isExpired
       ? "Renew your membership to continue your daily yoga sessions."
       : "Let’s begin your day with yoga.";
 
   return (
     <div className="w-full bg-[#FBF9F5]">
+      {isScheduledTrial &&
+      access.trialStartsOnLabel &&
+      access.trialEndsOnLabel ? (
+        <TrialWelcomePopup
+          userId={user.id}
+          trialStartsOnLabel={access.trialStartsOnLabel}
+          trialEndsOnLabel={access.trialEndsOnLabel}
+        />
+      ) : null}
       <div className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-8 sm:px-6 sm:pt-8 sm:pb-10 lg:px-6 lg:pb-10 xl:px-8">
         {/* Greeting row */}
         <section className="mb-6 sm:mb-8">
@@ -179,8 +209,41 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 Renew Membership
               </Link>
             </div>
+          ) : isScheduledTrial ? (
+            <div className="px-4 py-6 sm:px-6 sm:py-8">
+              <p className="text-[16px] font-bold text-[#1f6b3a] sm:text-[18px]">
+                Your trial starts on{" "}
+                {access.trialStartsOnLabel ?? "the upcoming cohort Monday"}
+              </p>
+              <p className="mt-2 text-[14px] leading-relaxed text-[#3d4a3c] sm:text-[15px]">
+                Your session link will become active when your trial starts.
+              </p>
+              <div className="mt-5">
+                <SectionHeading
+                  icon={
+                    <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-7 sm:w-7">
+                      <CalendarMaskIcon />
+                    </span>
+                  }
+                  title="Trial Sessions"
+                  subtitle="Join opens on your start date"
+                />
+                {trialSessionSlots.map((slot) => (
+                  <TrialSessionJoinRow
+                    key={slot}
+                    icon={sunIcon}
+                    label={`${slot} Session`}
+                    joinDisabled
+                  />
+                ))}
+              </div>
+            </div>
           ) : isTrial ? (
             <div className="px-4 py-4 sm:px-6 sm:py-5">
+              <p className="mb-4 text-[15px] font-bold text-[#1f6b3a] sm:text-[16px]">
+                Your trial starts on{" "}
+                {access.trialStartsOnLabel ?? "your cohort start date"}
+              </p>
               <SectionHeading
                 icon={
                   <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-7 sm:w-7">
@@ -190,14 +253,15 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 title="Trial Sessions"
                 subtitle="7:00 AM and 7:00 PM"
               />
-              <SessionRow
-                icon={sunIcon}
-                label="Today's Trial Sessions"
-                slots={[...trialSessionSlots]}
-                tint="bg-[#F4F8F2]"
-                liveSlot={running?.label}
-                onJoin={handleJoin}
-              />
+              {trialSessionSlots.map((slot) => (
+                <TrialSessionJoinRow
+                  key={slot}
+                  icon={sunIcon}
+                  label={`${slot} Session`}
+                  live={running?.label === slot}
+                  onJoin={() => handleTrialSlotJoin(slot)}
+                />
+              ))}
               <p className="mt-4 text-[13px] leading-relaxed text-[#6b7c6e]">
                 Trial access includes these two session times. Regular membership sessions
                 become available when your membership starts.
@@ -368,11 +432,13 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
               <>
                 <p className="font-semibold text-[#3d4a3c]">{access.planName}</p>
                 <p className="mt-0.5 text-[13px] text-[#6b7c6e]">
-                  {isTrial
-                    ? `Trial ends ${access.trialEndsOnLabel ?? "—"}`
-                    : isExpired
-                      ? `Expired on ${access.expiredOnLabel ?? "—"}`
-                      : `Valid until ${access.validUntilLabel ?? "—"}`}
+                  {isScheduledTrial
+                    ? `Starts ${access.trialStartsOnLabel ?? "—"}`
+                    : isTrial
+                      ? `Trial ends ${access.trialEndsOnLabel ?? "—"}`
+                      : isExpired
+                        ? `Expired on ${access.expiredOnLabel ?? "—"}`
+                        : `Valid until ${access.validUntilLabel ?? "—"}`}
                 </p>
               </>
             }
@@ -499,6 +565,54 @@ function SpecialTopicRow({
   );
 }
 
+function TrialSessionJoinRow({
+  icon,
+  label,
+  onJoin,
+  joinDisabled = false,
+  live = false,
+}: {
+  icon: typeof sunIcon;
+  label: string;
+  onJoin?: () => void;
+  joinDisabled?: boolean;
+  live?: boolean;
+}) {
+  return (
+    <div
+      className={`mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[14px] px-3 py-3 sm:px-4 sm:py-3.5 ${
+        live ? "bg-[#eef6f0]" : "bg-[#F4F8F2]"
+      }`}
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        <Image
+          src={icon}
+          alt=""
+          width={32}
+          height={32}
+          className="h-8 w-8 shrink-0 object-contain sm:h-9 sm:w-9"
+        />
+        <span className="min-w-0 text-[14px] font-bold leading-snug text-[#3d4a3c] sm:text-[15px]">
+          {label}
+          {live ? (
+            <span className="ml-2 text-[11px] font-bold tracking-wide text-[#1f6b3a] uppercase">
+              Live
+            </span>
+          ) : null}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={onJoin}
+        disabled={joinDisabled || !onJoin}
+        className={`${memberPrimaryBtnSmClass} w-full justify-center px-4 py-2 text-[12px] whitespace-nowrap sm:w-auto sm:min-w-[88px] sm:px-5 sm:py-1.5 sm:text-[13px] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none disabled:hover:filter-none`}
+      >
+        Join
+      </button>
+    </div>
+  );
+}
+
 function SessionRow({
   icon,
   label,
@@ -506,13 +620,17 @@ function SessionRow({
   tint,
   onJoin,
   liveSlot,
+  joinDisabled = false,
+  joinLabel = "Join",
 }: {
   icon: typeof sunIcon;
   label: string;
   slots: string[];
   tint: string;
-  onJoin: () => void;
+  onJoin?: () => void;
   liveSlot?: string;
+  joinDisabled?: boolean;
+  joinLabel?: string;
 }) {
   return (
     <div
@@ -551,9 +669,10 @@ function SessionRow({
         <button
           type="button"
           onClick={onJoin}
-          className={`${memberPrimaryBtnSmClass} w-full justify-center px-4 py-2 text-[12px] whitespace-nowrap sm:w-auto sm:px-5 sm:py-1.5 sm:text-[13px]`}
+          disabled={joinDisabled || !onJoin}
+          className={`${memberPrimaryBtnSmClass} w-full justify-center px-4 py-2 text-[12px] whitespace-nowrap sm:w-auto sm:px-5 sm:py-1.5 sm:text-[13px] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none disabled:hover:filter-none`}
         >
-          Join
+          {joinLabel}
         </button>
       </div>
     </div>
