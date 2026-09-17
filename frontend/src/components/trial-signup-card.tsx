@@ -513,7 +513,7 @@ export function TrialSignupCard({
               <ButtonLoader />
             ) : (
               <>
-                Verify & Start My Trial
+                Verify & Continue
                 <span aria-hidden="true">→</span>
               </>
             )}

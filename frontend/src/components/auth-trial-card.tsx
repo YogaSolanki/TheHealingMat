@@ -937,7 +937,7 @@ export function AuthTrialCard({
               "Reset password"
             ) : (
               <>
-                Verify & Start My Trial
+                Verify & Continue
                 <span aria-hidden="true">→</span>
               </>
             )}
