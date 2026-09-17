@@ -10,7 +10,6 @@ import {
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
-  API_URL,
   requestOtp,
   resetPassword,
   userLogin,
@@ -34,7 +33,6 @@ import { ButtonLoader } from "@/components/site-loader";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
 import { captureReferralCode, getCapturedReferralCode } from "@/lib/referral-storage";
 import { openCheckoutModal } from "@/components/checkout-modal-provider";
-import { markGoogleAuthPending, clearGoogleAuthPending } from "@/components/google-auth-bridge";
 import {
   clearCheckoutIntent,
   markCheckoutResumeAfterAuth,
@@ -44,29 +42,6 @@ import {
 
 type Mode = "login" | "signup" | "forgot";
 type Step = "identity" | "otp" | "reset_done";
-
-function GoogleMark({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
-      <path
-        fill="#EA4335"
-        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
-      />
-      <path
-        fill="#4285F4"
-        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
-      />
-      <path
-        fill="#34A853"
-        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
-      />
-    </svg>
-  );
-}
 
 function FieldUserIcon() {
   return (
@@ -275,20 +250,8 @@ export function AuthTrialCard({
   const [error, setError] = useState<string | null>(initialError);
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [googleLeaving, setGoogleLeaving] = useState(false);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
-
-  // Back from Google restores this page (often via bfcache) with the button still spinning.
-  useEffect(() => {
-    function resetGoogleLeaving() {
-      setGoogleLeaving(false);
-      clearGoogleAuthPending();
-    }
-
-    window.addEventListener("pageshow", resetGoogleLeaving);
-    return () => window.removeEventListener("pageshow", resetGoogleLeaving);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -516,25 +479,6 @@ export function AuthTrialCard({
     if (destinationMasked) return destinationMasked;
     if (region === "india") return normalizeIndiaMobile(mobile);
     return email;
-  }
-
-  function continueWithGoogle() {
-    if (googleLeaving) return;
-    setError(null);
-    const intent = mode === "signup" ? "signup" : "login";
-    const params = new URLSearchParams({ intent });
-    const referralCode =
-      referralCodeInput.trim() || getCapturedReferralCode() || "";
-    if (referralCode) {
-      captureReferralCode(referralCode);
-      params.set("ref", referralCode);
-    }
-
-    markGoogleAuthPending(intent);
-    setGoogleLeaving(true);
-    // If navigation is cancelled / Back returns quickly, don't leave spinner stuck.
-    window.setTimeout(() => setGoogleLeaving(false), 12000);
-    window.location.assign(`${API_URL}/auth/google?${params.toString()}`);
   }
 
   const isSignupFlow = mode === "signup";
@@ -823,31 +767,6 @@ export function AuthTrialCard({
               </>
             )}
           </button>
-
-          {mode === "login" || mode === "signup" ? (
-            <div className="space-y-2 pt-0.5">
-              <div className="flex items-center gap-3">
-                <span className="h-px flex-1 bg-[#e2e8e1]" />
-                <span className="text-[11px] font-medium tracking-wide text-[#8a968c] uppercase">
-                  or
-                </span>
-                <span className="h-px flex-1 bg-[#e2e8e1]" />
-              </div>
-              <button
-                type="button"
-                onClick={continueWithGoogle}
-                disabled={googleLeaving || loading}
-                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[14px] border border-[#d7e0d6] bg-white px-3 py-2.5 text-[13px] font-semibold text-[#1f6b3a] transition hover:border-[#b7cbb8] hover:bg-[#f7faf7] disabled:cursor-wait disabled:opacity-70"
-              >
-                {googleLeaving ? (
-                  <ButtonLoader tone="brand" />
-                ) : (
-                  <GoogleMark className="h-4 w-4" />
-                )}
-                Continue with Google
-              </button>
-            </div>
-          ) : null}
 
           {mode === "signup" ? (
             <p className="flex items-center justify-center gap-1.5 text-[11px] text-[#8a968c]">
