@@ -25,6 +25,7 @@ import { ButtonLoader } from "@/components/site-loader";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
 import { getCapturedReferralCode } from "@/lib/referral-storage";
 import { clearCheckoutIntent } from "@/lib/checkout-intent";
+import { formatFullNameInput, isValidFullName, validateFullName } from "@/lib/full-name";
 
 const OTP_LENGTH = 4;
 const DEFAULT_OTP_TTL = 10 * 60;
@@ -63,6 +64,7 @@ export function TrialSignupCard({
   const [step, setStep] = useState<"identity" | "otp">("identity");
   const [region, setRegion] = useState<Region | null>(null);
   const [fullName, setFullName] = useState("");
+  const [fullNameTouched, setFullNameTouched] = useState(false);
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -154,8 +156,9 @@ export function TrialSignupCard({
     if (!region) setRegion(activeRegion);
 
     const name = fullName.trim();
-    if (name.length < 2) {
-      setError("Please enter your full name.");
+    const nameError = validateFullName(name);
+    if (nameError) {
+      setError(nameError);
       return;
     }
     if (!termsAccepted) {
@@ -254,9 +257,14 @@ export function TrialSignupCard({
   const mobileDigits = mobile.replace(/\D/g, "").slice(0, 10);
   const canSubmitIdentity =
     termsAccepted &&
+    isValidFullName(fullName) &&
     (isIndia
-      ? mobileDigits.length === 10 && fullName.trim().length >= 2
-      : email.trim().includes("@") && fullName.trim().length >= 2);
+      ? mobileDigits.length === 10
+      : email.trim().includes("@"));
+  const fullNameError =
+    fullNameTouched && fullName.trim().length > 0
+      ? validateFullName(fullName)
+      : null;
   const otpDestination =
     destinationMasked ??
     (isIndia ? formatIndiaMobileDisplay(mobile) : email.trim());
@@ -368,12 +376,29 @@ export function TrialSignupCard({
               <input
                 required
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className={`${fieldClass} pr-3.5 pl-10`}
+                onChange={(e) => {
+                  setFullName(formatFullNameInput(e.target.value));
+                  if (error?.includes("surname") || error?.includes("full name")) {
+                    setError(null);
+                  }
+                }}
+                onBlur={() => setFullNameTouched(true)}
+                onFocus={() => setFullNameTouched(false)}
+                className={`${fieldClass} pr-3.5 pl-10 ${
+                  fullNameError
+                    ? "border-[#e8b4b4] focus:border-[#c45c5c] focus:ring-[#c45c5c]/15"
+                    : ""
+                }`}
                 placeholder="Enter your full name"
                 autoComplete="name"
+                aria-invalid={Boolean(fullNameError)}
               />
             </div>
+            {fullNameError ? (
+              <p className="field-error-message mt-1.5 rounded-[12px] bg-[#fdecec] px-3 py-2 text-[12px] leading-snug text-[#8a2f2f]">
+                {fullNameError}
+              </p>
+            ) : null}
           </div>
 
           <div>

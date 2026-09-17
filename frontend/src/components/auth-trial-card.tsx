@@ -33,6 +33,7 @@ import { ButtonLoader } from "@/components/site-loader";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
 import { captureReferralCode, getCapturedReferralCode } from "@/lib/referral-storage";
 import { openCheckoutModal } from "@/components/checkout-modal-provider";
+import { formatFullNameInput, isValidFullName, validateFullName } from "@/lib/full-name";
 import {
   clearCheckoutIntent,
   markCheckoutResumeAfterAuth,
@@ -234,6 +235,7 @@ export function AuthTrialCard({
   const [step, setStep] = useState<Step>("identity");
   const [region, setRegion] = useState<Region>("india");
   const [fullName, setFullName] = useState("");
+  const [fullNameTouched, setFullNameTouched] = useState(false);
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -330,12 +332,16 @@ export function AuthTrialCard({
     event.preventDefault();
     setError(null);
 
-    if (mode === "signup" && !termsAccepted) {
-      setError("Please agree to the Terms & Conditions to continue.");
-      return;
-    }
-
     if (mode === "signup") {
+      const nameError = validateFullName(fullName);
+      if (nameError) {
+        setError(nameError);
+        return;
+      }
+      if (!termsAccepted) {
+        setError("Please agree to the Terms & Conditions to continue.");
+        return;
+      }
       const trimmedReferral = referralCodeInput.trim();
       if (trimmedReferral) captureReferralCode(trimmedReferral);
     }
@@ -496,6 +502,12 @@ export function AuthTrialCard({
     "mt-2 font-serif text-[1.35rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.45rem]";
   const subtitleClass =
     "mx-auto mt-1.5 max-w-[280px] text-[12px] leading-snug text-[#6d8474] sm:text-[13px]";
+  const fullNameError =
+    mode === "signup" &&
+    fullNameTouched &&
+    fullName.trim().length > 0
+      ? validateFullName(fullName)
+      : null;
 
   return (
     <div className="relative w-full max-w-[440px] rounded-[22px] border border-[#e6ebe3] bg-white px-4 pt-3.5 pb-4 shadow-[0_20px_48px_rgba(31,107,58,0.14)] sm:px-6 sm:pt-4 sm:pb-5">
@@ -620,12 +632,24 @@ export function AuthTrialCard({
                 <input
                   required
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className={`${fieldClass} pl-9`}
+                  onChange={(e) => setFullName(formatFullNameInput(e.target.value))}
+                  onBlur={() => setFullNameTouched(true)}
+                  onFocus={() => setFullNameTouched(false)}
+                  className={`${fieldClass} pl-9 ${
+                    fullNameError
+                      ? "border-[#e8b4b4] focus:border-[#c45c5c] focus:ring-[#c45c5c]/15"
+                      : ""
+                  }`}
                   placeholder="Enter your full name"
                   autoComplete="name"
+                  aria-invalid={Boolean(fullNameError)}
                 />
               </div>
+              {fullNameError ? (
+                <p className="field-error-message mt-1.5 rounded-[12px] bg-[#fdecec] px-3 py-2 text-[12px] leading-snug text-[#8a2f2f]">
+                  {fullNameError}
+                </p>
+              ) : null}
             </div>
           ) : null}
 
@@ -751,7 +775,11 @@ export function AuthTrialCard({
 
           <button
             type="submit"
-            disabled={loading || (mode === "signup" && !termsAccepted)}
+            disabled={
+              loading ||
+              (mode === "signup" &&
+                (!termsAccepted || !isValidFullName(fullName)))
+            }
             className={primaryBtnClass}
           >
             {loading ? (

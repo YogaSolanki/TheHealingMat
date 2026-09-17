@@ -485,6 +485,21 @@ body {
   }
 }
 
+@keyframes field-error-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.field-error-message {
+  animation: field-error-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @keyframes auth-backdrop-in {
   from {
     opacity: 0;
