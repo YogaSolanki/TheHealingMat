@@ -3,7 +3,18 @@
  * Server Components: relative URLs fail in Node fetch — call the backend absolute URL.
  */
 function resolveApiUrl() {
-  const configured = (process.env.NEXT_PUBLIC_API_URL ?? "/api").replace(/\/$/, "") || "/api";
+  let configured = (process.env.NEXT_PUBLIC_API_URL ?? "/api").replace(/\/$/, "") || "/api";
+
+  // Common misconfig: "localhost:4000/api" without a scheme.
+  if (
+    configured &&
+    !configured.startsWith("/") &&
+    !configured.startsWith("http://") &&
+    !configured.startsWith("https://")
+  ) {
+    configured = `http://${configured}`;
+  }
+
   if (configured.startsWith("http://") || configured.startsWith("https://")) {
     return configured;
   }
