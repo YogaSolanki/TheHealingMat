@@ -3,10 +3,13 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent,
 } from "react";
+import { createPortal } from "react-dom";
 
 type MemberSelectOption = {
   value: string;
@@ -23,6 +26,14 @@ type MemberSelectProps = {
   size?: "md" | "sm";
 };
 
+type MenuPosition = {
+  top?: number;
+  bottom?: number;
+  left: number;
+  width: number;
+  maxHeight: number;
+};
+
 export function MemberSelect({
   value,
   onChange,
@@ -33,19 +44,73 @@ export function MemberSelect({
 }: MemberSelectProps) {
   const compact = size === "sm";
   const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<MenuPosition | null>(null);
+  const [mounted, setMounted] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLUListElement>(null);
   const listId = useId();
   const selected = options.find((option) => option.value === value);
   const displayLabel = selected?.label ?? placeholder;
   const isPlaceholder = !selected?.value;
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setMenuPos(null);
+      return;
+    }
+
+    function updatePosition() {
+      const trigger = rootRef.current;
+      if (!trigger) return;
+
+      const rect = trigger.getBoundingClientRect();
+      const gap = 6;
+      const preferredMax = compact ? 168 : Math.min(240, window.innerHeight * 0.42);
+      const spaceBelow = window.innerHeight - rect.bottom - gap - 8;
+      const spaceAbove = rect.top - gap - 8;
+      const placeAbove =
+        spaceBelow < preferredMax && spaceAbove > spaceBelow;
+      const available = placeAbove ? spaceAbove : spaceBelow;
+      const maxHeight = Math.max(120, Math.min(preferredMax, available));
+
+      setMenuPos(
+        placeAbove
+          ? {
+              bottom: window.innerHeight - rect.top + gap,
+              left: rect.left,
+              width: rect.width,
+              maxHeight,
+            }
+          : {
+              top: rect.bottom + gap,
+              left: rect.left,
+              width: rect.width,
+              maxHeight,
+            },
+      );
+    }
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open, compact]);
+
+  useEffect(() => {
     if (!open) return;
 
     function onPointerDown(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      setOpen(false);
     }
 
     function onKeyDown(event: globalThis.KeyboardEvent) {
@@ -71,6 +136,77 @@ export function MemberSelect({
       setOpen(true);
     }
   }
+
+  const menuStyle: CSSProperties | undefined = menuPos
+    ? {
+        top: menuPos.top,
+        bottom: menuPos.bottom,
+        left: menuPos.left,
+        width: menuPos.width,
+        maxHeight: menuPos.maxHeight,
+      }
+    : undefined;
+
+  const menu =
+    open && mounted && menuPos
+      ? createPortal(
+          <ul
+            ref={menuRef}
+            id={listId}
+            role="listbox"
+            style={menuStyle}
+            className={`auth-select-menu fixed z-[240] overflow-y-auto overscroll-contain border border-[#d9e2d8] bg-white shadow-[0_16px_40px_rgba(31,107,58,0.14)] ${
+              compact ? "rounded-[10px] py-1" : "rounded-[12px] py-1.5"
+            }`}
+          >
+            {options.map((option) => {
+              const active = option.value === value;
+              return (
+                <li key={option.value || "placeholder"} role="presentation">
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    onClick={() => choose(option.value)}
+                    className={`flex w-full cursor-pointer items-center text-left transition ${
+                      compact
+                        ? "gap-2 px-2.5 py-1.5 text-[12px]"
+                        : "gap-2.5 px-3.5 py-2.5 text-[14px]"
+                    } ${
+                      active
+                        ? "bg-[#eef6f0] font-semibold text-[#1f6b3a]"
+                        : "bg-white font-medium text-[#243028] hover:bg-[#f6f8f5]"
+                    }`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`inline-flex shrink-0 items-center justify-center ${
+                        compact ? "h-3.5 w-3.5" : "h-4 w-4"
+                      } ${active ? "opacity-100" : "opacity-0"}`}
+                    >
+                      <svg
+                        viewBox="0 0 16 16"
+                        className={compact ? "h-3 w-3" : "h-3.5 w-3.5"}
+                        fill="none"
+                      >
+                        <path
+                          d="M3.5 8.2L6.4 11.1L12.5 4.5"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                    <span className="min-w-0 truncate">{option.label}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>,
+          document.body,
+        )
+      : null;
 
   return (
     <div
@@ -99,63 +235,7 @@ export function MemberSelect({
         </span>
         <SelectChevron open={open} compact={compact} />
       </button>
-
-      {open ? (
-        <ul
-          id={listId}
-          role="listbox"
-          className={`auth-select-menu absolute top-[calc(100%+6px)] z-30 overflow-y-auto overscroll-contain border border-[#d9e2d8] bg-white shadow-[0_16px_40px_rgba(31,107,58,0.14)] ${
-            compact
-              ? "right-0 left-0 max-h-[168px] rounded-[10px] py-1"
-              : "right-0 left-0 max-h-[min(240px,42vh)] rounded-[12px] py-1.5"
-          }`}
-        >
-          {options.map((option) => {
-            const active = option.value === value;
-            return (
-              <li key={option.value || "placeholder"} role="presentation">
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={active}
-                  onClick={() => choose(option.value)}
-                  className={`flex w-full cursor-pointer items-center text-left transition ${
-                    compact
-                      ? "gap-2 px-2.5 py-1.5 text-[12px]"
-                      : "gap-2.5 px-3.5 py-2.5 text-[14px]"
-                  } ${
-                    active
-                      ? "bg-[#eef6f0] font-semibold text-[#1f6b3a]"
-                      : "font-medium text-[#243028] hover:bg-[#f6f8f5]"
-                  }`}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`inline-flex shrink-0 items-center justify-center ${
-                      compact ? "h-3.5 w-3.5" : "h-4 w-4"
-                    } ${active ? "opacity-100" : "opacity-0"}`}
-                  >
-                    <svg
-                      viewBox="0 0 16 16"
-                      className={compact ? "h-3 w-3" : "h-3.5 w-3.5"}
-                      fill="none"
-                    >
-                      <path
-                        d="M3.5 8.2L6.4 11.1L12.5 4.5"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                  <span className="min-w-0 truncate">{option.label}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
+      {menu}
     </div>
   );
 }
