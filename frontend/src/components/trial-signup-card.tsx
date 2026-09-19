@@ -25,7 +25,10 @@ import { useAuthModal } from "@/components/auth-modal-provider";
 import { ButtonLoader } from "@/components/site-loader";
 import { SiteToast } from "@/components/site-toast";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
-import { getCapturedReferralCode } from "@/lib/referral-storage";
+import {
+  captureReferralCode,
+  getCapturedReferralCode,
+} from "@/lib/referral-storage";
 import { clearCheckoutIntent } from "@/lib/checkout-intent";
 import { formatFullNameInput, isValidFullName, validateFullName } from "@/lib/full-name";
 
@@ -81,8 +84,17 @@ export function TrialSignupCard({
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [referralCodeInput, setReferralCodeInput] = useState(
+    () => getCapturedReferralCode() ?? "",
+  );
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+
+  useEffect(() => {
+    const captured = getCapturedReferralCode();
+    if (!captured) return;
+    setReferralCodeInput((current) => current.trim() || captured);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -238,7 +250,9 @@ export function TrialSignupCard({
 
     setLoading(true);
     try {
-      const referralCode = getCapturedReferralCode() || "";
+      const referralCode =
+        referralCodeInput.trim() || getCapturedReferralCode() || "";
+      if (referralCode) captureReferralCode(referralCode);
       const result = await verifyOtp({
         challengeId,
         code: otp,
@@ -254,10 +268,10 @@ export function TrialSignupCard({
   }
 
   const fieldClass =
-    "w-full rounded-[16px] border border-[#d7e0d6] bg-white py-3.5 text-[14px] text-[#1f6b3a] outline-none transition placeholder:text-[#9aa89c] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
-  const labelClass = "mb-1.5 block text-[13px] font-medium text-[#3d4a3c]";
+    "w-full rounded-[14px] border border-[#d7e0d6] bg-white py-2.5 text-[14px] text-[#1f6b3a] outline-none transition placeholder:text-[#9aa89c] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
+  const labelClass = "mb-1 block text-[12.5px] font-medium text-[#3d4a3c]";
   const primaryBtnClass =
-    "btn-primary inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-4 py-3.5 text-[15px] font-bold text-white shadow-[0_10px_24px_rgba(31,107,58,0.22)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-[0_10px_24px_rgba(31,107,58,0.22)] disabled:hover:filter-none";
+    "btn-primary inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[14px] bg-[#1f6b3a] px-4 py-2.5 text-[14px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.2)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-[0_8px_20px_rgba(31,107,58,0.2)] disabled:hover:filter-none";
   const isIndia = (region ?? "india") === "india";
   const regionReady = region !== null;
   const mobileDigits = mobile.replace(/\D/g, "").slice(0, 10);
@@ -276,7 +290,7 @@ export function TrialSignupCard({
     (isIndia ? formatIndiaMobileDisplay(mobile) : email.trim());
 
   return (
-    <div className="relative w-full max-w-[420px] rounded-[28px] border border-[#e6ebe3] bg-white px-5 pt-5 pb-6 shadow-[0_24px_60px_rgba(31,107,58,0.16)] sm:px-7 sm:pt-6 sm:pb-7">
+    <div className="relative w-full max-w-[420px] rounded-[22px] border border-[#e6ebe3] bg-white px-4 pt-3.5 pb-4 shadow-[0_20px_48px_rgba(31,107,58,0.14)] sm:px-6 sm:pt-4 sm:pb-5">
       <SiteToast message={toast} onDismiss={() => setToast(null)} />
 
       {step === "otp" ? (
@@ -289,7 +303,7 @@ export function TrialSignupCard({
             setOtp("");
           }}
           aria-label="Back"
-          className="absolute top-3.5 left-3.5 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-[#8a968c] transition hover:bg-[#eef2ee] hover:text-[#1f6b3a]"
+          className="absolute top-2 left-2 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-[#8a968c] transition hover:bg-[#eef2ee] hover:text-[#1f6b3a]"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
             <path
@@ -308,7 +322,7 @@ export function TrialSignupCard({
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute top-3.5 right-3.5 z-20 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-[#8a968c] transition hover:bg-[#eef2ee] hover:text-[#1f6b3a]"
+          className="absolute top-2 right-2 z-20 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-[#8a968c] transition hover:bg-[#eef2ee] hover:text-[#1f6b3a]"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
             <path
@@ -322,52 +336,37 @@ export function TrialSignupCard({
       ) : null}
 
       {error ? (
-        <p className="mb-3 rounded-[14px] bg-[#fdecec] px-3 py-2.5 text-[13px] text-[#8a2f2f]">
+        <p className="mb-2 rounded-[12px] bg-[#fdecec] px-3 py-2 text-[13px] text-[#8a2f2f]">
           {error}
         </p>
       ) : null}
 
       <div className="text-center">
-        <div className="mx-auto flex h-[68px] w-[68px] items-center justify-center rounded-full bg-[#E8F0E4]">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#E8F0E4]">
           <Image
             src={trialIcon}
             alt=""
             aria-hidden="true"
-            className="h-10 w-10 object-contain"
+            className="h-7 w-7 object-contain"
             priority
           />
         </div>
         {step === "identity" ? (
           <>
-            <h2 className="mt-3 font-serif text-[1.55rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.7rem]">
-              14 Days of
-              <br />
-              Free Yoga Classes
+            <h2 className="mt-2 font-serif text-[1.35rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.45rem]">
+              14 Days of Free Yoga Classes
             </h2>
-            <p className="mx-auto mt-2 max-w-[280px] text-[13px] leading-relaxed text-[#6d8474]">
+            <p className="mx-auto mt-1 max-w-[280px] text-[12px] leading-snug text-[#6d8474]">
               Start your journey to better health and well-being.
             </p>
           </>
         ) : (
           <>
-            <h2 className="mt-3 font-serif text-[1.55rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.7rem]">
-              {isIndia ? (
-                <>
-                  Verify Your
-                  <br />
-                  Mobile Number
-                </>
-              ) : (
-                <>
-                  Verify Your
-                  <br />
-                  Email Address
-                </>
-              )}
+            <h2 className="mt-2 font-serif text-[1.35rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.45rem]">
+              {isIndia ? "Verify Your Mobile Number" : "Verify Your Email Address"}
             </h2>
-            <p className="mx-auto mt-2 max-w-[300px] text-[13px] leading-relaxed text-[#6d8474]">
-              We&apos;ve sent a {OTP_LENGTH}-digit OTP to
-              <br />
+            <p className="mx-auto mt-1 max-w-[300px] text-[12px] leading-snug text-[#6d8474]">
+              We&apos;ve sent a {OTP_LENGTH}-digit OTP to{" "}
               <span className="font-semibold text-[#1f6b3a]">{otpDestination}</span>
             </p>
           </>
@@ -375,11 +374,11 @@ export function TrialSignupCard({
       </div>
 
       {step === "identity" ? (
-        <form onSubmit={onRequestOtp} className="mt-5 space-y-4">
+        <form onSubmit={onRequestOtp} className="mt-3.5 space-y-2.5">
           <div>
             <label className={labelClass}>Full Name</label>
             <div className="relative">
-              <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-[#8a968c]">
+              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[#8a968c]">
                 <UserFieldIcon />
               </span>
               <input
@@ -393,7 +392,7 @@ export function TrialSignupCard({
                 }}
                 onBlur={() => setFullNameTouched(true)}
                 onFocus={() => setFullNameTouched(false)}
-                className={`${fieldClass} pr-3.5 pl-10 ${
+                className={`${fieldClass} pr-3.5 pl-9 ${
                   fullNameError
                     ? "border-[#e8b4b4] focus:border-[#c45c5c] focus:ring-[#c45c5c]/15"
                     : ""
@@ -404,7 +403,7 @@ export function TrialSignupCard({
               />
             </div>
             {fullNameError ? (
-              <p className="field-error-message mt-1.5 rounded-[12px] bg-[#fdecec] px-3 py-2 text-[12px] leading-snug text-[#8a2f2f]">
+              <p className="field-error-message mt-1 rounded-[12px] bg-[#fdecec] px-3 py-1.5 text-[12px] leading-snug text-[#8a2f2f]">
                 {fullNameError}
               </p>
             ) : null}
@@ -415,8 +414,8 @@ export function TrialSignupCard({
               {isIndia ? "WhatsApp Number" : "Email address"}
             </label>
             {isIndia ? (
-              <div className="flex overflow-hidden rounded-[16px] border border-[#d7e0d6] bg-white focus-within:border-[#1f6b3a] focus-within:ring-2 focus-within:ring-[#1f6b3a]/15">
-                <span className="inline-flex shrink-0 items-center gap-1.5 border-r border-[#e5ebe4] bg-[#fafcfb] py-3.5 pr-3 pl-3.5 text-[#1f6b3a]">
+              <div className="flex overflow-hidden rounded-[14px] border border-[#d7e0d6] bg-white focus-within:border-[#1f6b3a] focus-within:ring-2 focus-within:ring-[#1f6b3a]/15">
+                <span className="inline-flex shrink-0 items-center gap-1.5 border-r border-[#e5ebe4] bg-[#fafcfb] px-3 py-2.5 text-[#1f6b3a]">
                   <IndiaFlag />
                   <span className="text-sm font-semibold">+91</span>
                 </span>
@@ -426,7 +425,7 @@ export function TrialSignupCard({
                   onChange={(e) => {
                     setMobile(e.target.value.replace(/\D/g, "").slice(0, 10));
                   }}
-                  className="w-full min-w-0 border-0 bg-transparent px-3.5 py-3.5 text-[14px] text-[#1f6b3a] outline-none placeholder:text-[#9aa89c]"
+                  className="w-full min-w-0 border-0 bg-transparent px-3 py-2.5 text-[14px] text-[#1f6b3a] outline-none placeholder:text-[#9aa89c]"
                   placeholder="Enter your WhatsApp number"
                   inputMode="numeric"
                   autoComplete="tel-national"
@@ -445,7 +444,23 @@ export function TrialSignupCard({
                 autoComplete="email"
               />
             )}
+          </div>
 
+          <div>
+            <label className={labelClass} htmlFor="trial-referral-code">
+              Have a referral code?
+            </label>
+            <input
+              id="trial-referral-code"
+              value={referralCodeInput}
+              onChange={(e) => setReferralCodeInput(e.target.value)}
+              className={`${fieldClass} px-3.5`}
+              placeholder="Enter code (optional)"
+              autoComplete="off"
+              maxLength={64}
+              spellCheck={false}
+              disabled={loading}
+            />
             {isIndia ? (
               <button
                 type="button"
@@ -454,7 +469,7 @@ export function TrialSignupCard({
                   setError(null);
                 }}
                 disabled={loading}
-                className="mt-3.5 block w-full cursor-pointer text-center text-[12.5px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-1.5 block w-full cursor-pointer text-center text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 From outside India? Start here →
               </button>
@@ -466,7 +481,7 @@ export function TrialSignupCard({
                   setError(null);
                 }}
                 disabled={loading}
-                className="mt-3.5 block w-full cursor-pointer text-center text-[12.5px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-1.5 block w-full cursor-pointer text-center text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 From India? Start here →
               </button>
@@ -495,13 +510,13 @@ export function TrialSignupCard({
             )}
           </button>
 
-          <p className="flex items-center justify-center gap-1.5 pt-0.5 text-[12px] text-[#8a968c]">
+          <p className="flex items-center justify-center gap-1.5 text-[11px] text-[#8a968c]">
             <ShieldCheckIcon />
             No payment details required
           </p>
         </form>
       ) : (
-        <form onSubmit={onVerifyOtp} className="mt-5 space-y-4">
+        <form onSubmit={onVerifyOtp} className="mt-3.5 space-y-2.5">
           <OtpDigitInputs value={otp} onChange={setOtp} disabled={loading} />
 
           <p className="flex items-center justify-center gap-1.5 text-[12px] text-[#8a968c]">

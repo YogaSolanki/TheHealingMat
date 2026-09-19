@@ -239,7 +239,7 @@ function ModalShell({
 
   return createPortal(
     <div
-      className={`fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto px-4 py-8 sm:items-center sm:py-10 ${
+      className={`fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto px-4 py-4 sm:py-6 ${
         exiting ? "auth-modal-root is-exiting" : "auth-modal-root"
       }`}
       role="dialog"

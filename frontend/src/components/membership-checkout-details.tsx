@@ -4,10 +4,18 @@ import { FormEvent, useMemo, useState } from "react";
 import { MemberDatePicker } from "@/components/member-dashboard/member-date-picker";
 import { MemberSelect } from "@/components/member-dashboard/member-select";
 import { ButtonLoader } from "@/components/site-loader";
-import { updateProfile, type PublicUser } from "@/lib/api";
+import {
+  applyReferralCode,
+  updateProfile,
+  type PublicUser,
+} from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
 import { INDIA_STATES } from "@/lib/india-states";
 import { preferredClassTimeOptions } from "@/lib/member-session-schedule";
+import {
+  captureReferralCode,
+  getCapturedReferralCode,
+} from "@/lib/referral-storage";
 import { updateMemberAuthCache } from "@/lib/session-store";
 
 export type MembershipCheckoutDetailsValue = {
@@ -44,11 +52,15 @@ export function MembershipCheckoutDetails({
   onClose,
 }: MembershipCheckoutDetailsProps) {
   const needsState = !user.state?.trim();
+  const canEnterReferral = !user.wasReferred;
   const [state, setState] = useState(user.state?.trim() ?? "");
   const [preferredClassTime, setPreferredClassTime] = useState(
     user.preferredClassTime?.trim() ?? "",
   );
   const [startsOn, setStartsOn] = useState(todayIso());
+  const [referralCodeInput, setReferralCodeInput] = useState(
+    () => (canEnterReferral ? getCapturedReferralCode() ?? "" : ""),
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -97,10 +109,19 @@ export function MembershipCheckoutDetails({
 
     setSaving(true);
     try {
+      let nextUser = user;
+      const trimmedReferral = referralCodeInput.trim();
+      if (canEnterReferral && trimmedReferral) {
+        captureReferralCode(trimmedReferral);
+        const referralResult = await applyReferralCode(token, trimmedReferral);
+        nextUser = referralResult.user;
+        updateMemberAuthCache(nextUser);
+      }
+
       const result = await updateProfile(token, {
-        fullName: user.fullName,
-        dateOfBirth: user.dateOfBirth,
-        gender: user.gender,
+        fullName: nextUser.fullName,
+        dateOfBirth: nextUser.dateOfBirth,
+        gender: nextUser.gender,
         ...(needsState ? { state: state.trim() } : {}),
         preferredClassTime: preferredClassTime.trim(),
       });
@@ -121,18 +142,18 @@ export function MembershipCheckoutDetails({
   }
 
   return (
-    <section className="rounded-[22px] border border-[#e6ebe3] bg-white px-5 py-7 shadow-[0_18px_48px_rgba(15,28,20,0.16)] sm:px-8 sm:py-8">
-      <h1 className="font-serif text-[1.7rem] font-bold text-[#1f6b3a] sm:text-[1.9rem]">
+    <section className="rounded-[22px] border border-[#e6ebe3] bg-white px-5 py-5 shadow-[0_18px_48px_rgba(15,28,20,0.16)] sm:px-8 sm:py-6">
+      <h1 className="font-serif text-[1.55rem] font-bold text-[#1f6b3a] sm:text-[1.75rem]">
         Membership details
       </h1>
-      <p className="mt-2 text-[14px] text-[#5f6f64] sm:text-[15px]">
+      <p className="mt-1.5 text-[13px] text-[#5f6f64] sm:text-[14px]">
         Tell us a few preferences for {planName}, then continue to payment.
       </p>
 
-      <form onSubmit={(event) => void onSubmit(event)} className="mt-6 space-y-5">
+      <form onSubmit={(event) => void onSubmit(event)} className="mt-4 space-y-3.5">
         {needsState ? (
           <div>
-            <label className="mb-1.5 block text-[13px] font-semibold text-[#243028]">
+            <label className="mb-1 block text-[13px] font-semibold text-[#243028]">
               State
             </label>
             {user.region === "india" ? (
@@ -157,7 +178,7 @@ export function MembershipCheckoutDetails({
         ) : null}
 
         <div>
-          <label className="mb-1.5 block text-[13px] font-semibold text-[#243028]">
+          <label className="mb-1 block text-[13px] font-semibold text-[#243028]">
             Preferred class time
           </label>
           <MemberSelect
@@ -168,13 +189,10 @@ export function MembershipCheckoutDetails({
             size="sm"
             className="!max-w-none"
           />
-          <p className="mt-1.5 text-[12px] text-[#6d8474]">
-            You can still join other sessions; this helps us prepare for you.
-          </p>
         </div>
 
         <div>
-          <label className="mb-1.5 block text-[13px] font-semibold text-[#243028]">
+          <label className="mb-1 block text-[13px] font-semibold text-[#243028]">
             Date of starting
           </label>
           <MemberDatePicker
@@ -189,14 +207,32 @@ export function MembershipCheckoutDetails({
             size="sm"
             className="!max-w-none"
           />
-          <p className="mt-1.5 text-[12px] text-[#6d8474]">
-            If you renew while a membership is already active, your new plan begins
-            after the current one ends.
-          </p>
         </div>
 
+        {canEnterReferral ? (
+          <div>
+            <label
+              className="mb-1 block text-[13px] font-semibold text-[#243028]"
+              htmlFor="checkout-referral-code"
+            >
+              Have a referral code?
+            </label>
+            <input
+              id="checkout-referral-code"
+              type="text"
+              value={referralCodeInput}
+              onChange={(event) => setReferralCodeInput(event.target.value)}
+              placeholder="Enter code (optional)"
+              autoComplete="off"
+              maxLength={64}
+              spellCheck={false}
+              className="w-full rounded-[12px] border border-[#d7e0d6] bg-white px-3.5 py-2.5 text-[14px] font-semibold text-[#243028] outline-none transition placeholder:font-medium placeholder:text-[#9aa89c] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
+            />
+          </div>
+        ) : null}
+
         {error ? (
-          <p className="rounded-[12px] bg-[#fdecec] px-3 py-2.5 text-[13px] text-[#8a2f2f]">
+          <p className="rounded-[12px] bg-[#fdecec] px-3 py-2 text-[13px] text-[#8a2f2f]">
             {error}
           </p>
         ) : null}
@@ -204,7 +240,7 @@ export function MembershipCheckoutDetails({
         <button
           type="submit"
           disabled={saving || !canContinue}
-          className="btn-primary inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className="btn-primary inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-5 py-2.5 text-[14px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
           {saving ? (
             <>
@@ -220,7 +256,7 @@ export function MembershipCheckoutDetails({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex w-full cursor-pointer items-center justify-center text-[13px] font-semibold text-[#5f6f64] underline-offset-2 hover:underline"
+            className="inline-flex w-full cursor-pointer items-center justify-center pt-0.5 text-[13px] font-semibold text-[#5f6f64] underline-offset-2 hover:underline"
           >
             Cancel
           </button>

@@ -231,6 +231,23 @@ export async function updateProfile(
   return parseJson<{ success: boolean; message: string; user: PublicUser }>(response);
 }
 
+export async function applyReferralCode(
+  accessToken: string,
+  referralCode: string,
+): Promise<{ success: boolean; message: string; user: PublicUser }> {
+  const response = await fetch(`${API_URL}/auth/referral`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ referralCode: referralCode.trim() }),
+  });
+  return parseJson<{ success: boolean; message: string; user: PublicUser }>(
+    response,
+  );
+}
+
 export async function verifyOtp(input: {
   challengeId: string;
   code: string;

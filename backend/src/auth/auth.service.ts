@@ -406,6 +406,36 @@ export class AuthService {
     };
   }
 
+  /** Link a referral code to an existing member who is not already referred. */
+  async applyReferralCode(userId: string, referralCode: string) {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new BadRequestException('Account not found.');
+    }
+    if (user.referredByUserId) {
+      throw new BadRequestException(
+        'A referral code is already linked to your account.',
+      );
+    }
+
+    const referrerId = await this.findReferrerId(referralCode);
+    if (!referrerId) {
+      throw new BadRequestException('This referral code is not valid.');
+    }
+    if (referrerId === user.id) {
+      throw new BadRequestException('You cannot use your own referral code.');
+    }
+
+    user.referredByUserId = referrerId;
+    const saved = await this.users.save(user);
+
+    return {
+      success: true,
+      message: 'Referral code applied successfully.',
+      user: this.toPublicUser(saved),
+    };
+  }
+
   toPublicAdmin(admin: Admin): PublicAdmin {
     return {
       email: admin.email,
@@ -558,7 +588,10 @@ export class AuthService {
     const code = referralCode?.trim().toLowerCase();
     if (!code) return null;
     const referrer = await this.users.findOne({ where: { referralCode: code } });
-    return referrer?.id ?? null;
+    if (!referrer) {
+      throw new BadRequestException('This referral code is not valid.');
+    }
+    return referrer.id;
   }
 
   private async allocateUniqueReferralCode(fullName: string) {
