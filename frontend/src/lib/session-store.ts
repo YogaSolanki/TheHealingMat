@@ -22,6 +22,7 @@ const REFERRALS_STORAGE_KEY = "thm_my_referrals";
 const EMPTY_REFERRALS: MyReferralsResponse = {
   successfulCount: 0,
   referrals: [],
+  referralDiscountPercent: 20,
 };
 
 type SessionSnapshot = {
@@ -124,6 +125,8 @@ class SessionStore {
         referrals: Array.isArray(storedReferrals.referrals)
           ? storedReferrals.referrals
           : [],
+        referralDiscountPercent:
+          storedReferrals.referralDiscountPercent ?? 20,
       };
       this.referralsReady = true;
       changed = true;
@@ -313,6 +316,7 @@ class SessionStore {
         const normalized: MyReferralsResponse = {
           successfulCount: data.successfulCount ?? 0,
           referrals: Array.isArray(data.referrals) ? data.referrals : [],
+          referralDiscountPercent: data.referralDiscountPercent ?? 20,
         };
         this.setReferrals(normalized);
         return normalized;
@@ -420,6 +424,7 @@ export function useMyReferrals() {
   return {
     referrals: referrals.referrals,
     successfulCount: referrals.successfulCount,
+    referralDiscountPercent: referrals.referralDiscountPercent ?? 20,
     loading: loading && !ready,
     refreshing,
     refresh,

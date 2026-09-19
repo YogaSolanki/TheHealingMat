@@ -38,4 +38,7 @@ export const DEFAULT_MEMBERSHIP_PLANS = [
   },
 ] as const;
 
-export const REFERRAL_DISCOUNT_PERCENT = 20;
+export const DEFAULT_REFERRAL_DISCOUNT_PERCENT = 20;
+
+/** @deprecated Prefer SettingsService.getReferralDiscountPercent() */
+export const REFERRAL_DISCOUNT_PERCENT = DEFAULT_REFERRAL_DISCOUNT_PERCENT;

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Membership } from '../payments/membership.entity';
+import { SettingsService } from '../settings/settings.service';
 import { TrialRegistration } from '../trials/trial-registration.entity';
 import { User } from '../users/user.entity';
 
@@ -35,16 +36,24 @@ export class ReferralsService {
     private readonly memberships: Repository<Membership>,
     @InjectRepository(TrialRegistration)
     private readonly trials: Repository<TrialRegistration>,
+    private readonly settings: SettingsService,
   ) {}
 
   async listMine(referrer: User) {
+    const referralDiscountPercent =
+      await this.settings.getReferralDiscountPercent();
+
     const referred = await this.users.find({
       where: { referredByUserId: referrer.id },
       order: { createdAt: 'DESC' },
     });
 
     if (referred.length === 0) {
-      return { successfulCount: 0, referrals: [] as ReferralListItem[] };
+      return {
+        successfulCount: 0,
+        referrals: [] as ReferralListItem[],
+        referralDiscountPercent,
+      };
     }
 
     const ids = referred.map((user) => user.id);
@@ -84,7 +93,7 @@ export class ReferralsService {
       (row) => row.status === 'SUCCESSFUL',
     ).length;
 
-    return { successfulCount, referrals };
+    return { successfulCount, referrals, referralDiscountPercent };
   }
 
   private resolveStatus(

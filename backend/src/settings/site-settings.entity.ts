@@ -16,6 +16,13 @@ export class SiteSettings {
   @Column({ type: 'text', nullable: true })
   liveSessionUrl: string | null;
 
+  /**
+   * Site-wide referral discount for referred members at checkout.
+   * Same percent applies to every referral code.
+   */
+  @Column({ type: 'int', default: 20 })
+  referralDiscountPercent: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

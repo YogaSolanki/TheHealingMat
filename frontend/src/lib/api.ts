@@ -617,6 +617,8 @@ export type ReferralListItem = {
 export type MyReferralsResponse = {
   successfulCount: number;
   referrals: ReferralListItem[];
+  /** Site-wide discount % for referred friends at checkout. */
+  referralDiscountPercent?: number;
 };
 
 export async function getMyReferrals(

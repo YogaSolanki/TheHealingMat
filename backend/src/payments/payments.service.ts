@@ -14,6 +14,7 @@ import { Repository } from 'typeorm';
 import { CouponsService } from '../coupons/coupons.service';
 import { detectVisitorRegion } from '../common/visitor-region';
 import { sendResendEmail } from '../mail/resend';
+import { SettingsService } from '../settings/settings.service';
 import { TrialRegistration } from '../trials/trial-registration.entity';
 import { TrialStatus } from '../users/enums/trial-status.enum';
 import { Region } from '../users/enums/region.enum';
@@ -24,7 +25,7 @@ import { VerifyPaymentDto } from './dto/verify-payment.dto';
 import { buildMembershipInvoicePdf } from './invoice-pdf';
 import { Membership } from './membership.entity';
 import { MembershipPlan } from './membership-plan.entity';
-import { REFERRAL_DISCOUNT_PERCENT } from './membership-plans';
+import { DEFAULT_REFERRAL_DISCOUNT_PERCENT } from './membership-plans';
 import { MembershipOffersService } from './membership-offers.service';
 import { MembershipPlansService } from './membership-plans.service';
 import { PaymentOrder } from './payment-order.entity';
@@ -50,6 +51,7 @@ export class PaymentsService {
     private readonly coupons: CouponsService,
     private readonly membershipPlans: MembershipPlansService,
     private readonly membershipOffers: MembershipOffersService,
+    private readonly settings: SettingsService,
     @InjectRepository(PaymentOrder)
     private readonly orders: Repository<PaymentOrder>,
     @InjectRepository(Membership)
@@ -752,11 +754,22 @@ export class PaymentsService {
     let discountPaise = 0;
     let appliedCoupon: string | null = null;
     let discountLabel = '—';
+    const referralDiscountPercent =
+      await this.settings.getReferralDiscountPercent();
     const referralDiscountAvailable = Boolean(user.referredByUserId);
     let referralDiscountApplied = false;
 
-    const trimmed = couponCode?.trim();
-    if (trimmed) {
+    const trimmed = couponCode?.trim() || '';
+    const wantsCoupon = Boolean(trimmed);
+    const wantsReferral = applyReferralDiscount === true;
+
+    if (wantsCoupon && wantsReferral) {
+      throw new BadRequestException(
+        'You can apply either a coupon or a referral discount, not both.',
+      );
+    }
+
+    if (wantsCoupon) {
       const coupon = await this.coupons.findByCode(trimmed);
       if (!coupon) {
         throw new BadRequestException('This coupon code is not valid.');
@@ -773,12 +786,24 @@ export class PaymentsService {
         );
       }
       discountLabel = coupon.discountLabel || `${coupon.discountValue} off`;
-    } else if (applyReferralDiscount && referralDiscountAvailable) {
+    } else if (
+      wantsReferral &&
+      referralDiscountAvailable &&
+      referralDiscountPercent > 0
+    ) {
       discountPaise = Math.floor(
-        (listPricePaise * REFERRAL_DISCOUNT_PERCENT) / 100,
+        (listPricePaise * referralDiscountPercent) / 100,
       );
-      discountLabel = `${REFERRAL_DISCOUNT_PERCENT}% referral`;
+      discountLabel = `${referralDiscountPercent}% referral`;
       referralDiscountApplied = true;
+    } else if (wantsReferral && !referralDiscountAvailable) {
+      throw new BadRequestException(
+        'Referral discount is not available on this account.',
+      );
+    } else if (wantsReferral && referralDiscountPercent <= 0) {
+      throw new BadRequestException(
+        'Referral discount is currently unavailable.',
+      );
     }
 
     if (discountPaise > listPricePaise) discountPaise = listPricePaise;
@@ -795,7 +820,8 @@ export class PaymentsService {
       discountLabel,
       referralDiscountAvailable,
       referralDiscountApplied,
-      referralDiscountPercent: REFERRAL_DISCOUNT_PERCENT,
+      referralDiscountPercent:
+        referralDiscountPercent || DEFAULT_REFERRAL_DISCOUNT_PERCENT,
       offer: offerPrice
         ? {
             title: offer!.title,

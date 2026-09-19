@@ -125,13 +125,14 @@ export function MemberReferPage() {
   const {
     referrals,
     successfulCount,
+    referralDiscountPercent,
     loading: loadingReferrals,
     refreshing,
     refresh,
   } = useMyReferrals();
   const referralCode = user.referralCode;
   const referralLink = referralShareLink(user.accessLink, referralCode);
-  const readyMadeMessage = `Join me on The Healing Mat! Your friend gets 14 days of FREE yoga classes + 20% OFF membership. Use my referral code ${referralCode} or sign up here: ${referralLink}`;
+  const readyMadeMessage = `Join me on The Healing Mat! Your friend gets 14 days of FREE yoga classes + ${referralDiscountPercent}% OFF membership. Use my referral code ${referralCode} or sign up here: ${referralLink}`;
   const [copiedField, setCopiedField] = useState<"code" | "link" | "message" | null>(null);
   const [messageOpen, setMessageOpen] = useState(false);
   const [milestones, setMilestones] = useState<MemberMilestone[]>([]);
@@ -305,7 +306,11 @@ export function MemberReferPage() {
                   <p className="mt-2.5 text-[13px] leading-[1.6] text-[#5f6f64] sm:text-[14px]">
                     Give a friend the gift of better health. They get{" "}
                     <span className="font-bold text-[#243028]">14 days of FREE</span> yoga
-                    classes + <span className="font-bold text-[#243028]">20% OFF</span> on
+                    classes +{" "}
+                    <span className="font-bold text-[#243028]">
+                      {referralDiscountPercent}% OFF
+                    </span>{" "}
+                    on
                     membership, and{" "}
                     <span className="font-bold text-[#1f6b3a]">you get rewarded</span> when
                     they join!

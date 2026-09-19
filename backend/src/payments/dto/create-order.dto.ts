@@ -50,7 +50,7 @@ export class CreateOrderDto {
   @IsDateString({}, { message: 'startsOn must be a valid date (YYYY-MM-DD).' })
   startsOn?: string;
 
-  /** Opt-in: apply the 20% referral benefit (only if account has a referrer). */
+  /** Opt-in: apply referral discount. Cannot be combined with couponCode. */
   @IsOptional()
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()

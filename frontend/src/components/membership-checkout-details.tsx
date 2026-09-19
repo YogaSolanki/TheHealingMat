@@ -142,7 +142,7 @@ export function MembershipCheckoutDetails({
   }
 
   return (
-    <section className="rounded-[22px] border border-[#e6ebe3] bg-white px-5 py-5 shadow-[0_18px_48px_rgba(15,28,20,0.16)] sm:px-8 sm:py-6">
+    <section className="thm-scroll max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain rounded-[22px] border border-[#e6ebe3] bg-white px-5 py-5 shadow-[0_18px_48px_rgba(15,28,20,0.16)] sm:max-h-[calc(100dvh-2.5rem)] sm:px-8 sm:py-6">
       <h1 className="font-serif text-[1.55rem] font-bold text-[#1f6b3a] sm:text-[1.75rem]">
         Membership details
       </h1>
