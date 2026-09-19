@@ -50,6 +50,10 @@ export class PaymentOrder {
   @Column({ type: 'varchar', default: 'now' })
   startMode: MembershipStartMode;
 
+  /** Optional member-chosen membership start date (YYYY-MM-DD). */
+  @Column({ type: 'date', nullable: true })
+  startsOn: string | null;
+
   @Column({ type: 'int', default: 0 })
   listPricePaise: number;
 

@@ -44,6 +44,8 @@ export type PublicUser = {
   fullName: string;
   dateOfBirth: string | null;
   gender: UserGender | null;
+  state: string | null;
+  preferredClassTime: string | null;
   region: Region;
   mobile: string | null;
   email: string | null;
@@ -214,6 +216,8 @@ export async function updateProfile(
     fullName: string;
     dateOfBirth?: string | null;
     gender?: UserGender | null;
+    state?: string | null;
+    preferredClassTime?: string | null;
   },
 ): Promise<{ success: boolean; message: string; user: PublicUser }> {
   const response = await fetch(`${API_URL}/auth/profile`, {
@@ -504,6 +508,7 @@ export async function createRazorpayOrder(
     receipt?: string;
     couponCode?: string;
     startMode?: "now" | "after_current";
+    startsOn?: string;
     applyReferralDiscount?: boolean;
   },
 ): Promise<CreateOrderResponse> {

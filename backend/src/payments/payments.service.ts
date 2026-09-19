@@ -89,6 +89,7 @@ export class PaymentsService {
 
   async createOrder(user: User, dto: CreateOrderDto) {
     const startMode = dto.startMode ?? 'now';
+    const startsOn = this.normalizeStartsOn(dto.startsOn);
     await this.assertCanPurchase(user.id);
 
     if (dto.planMonths != null) {
@@ -99,7 +100,12 @@ export class PaymentsService {
         dto.applyReferralDiscount === true,
       );
       if (quote.amountPaise === 0) {
-        const membership = await this.fulfillZeroAmount(user, quote, startMode);
+        const membership = await this.fulfillZeroAmount(
+          user,
+          quote,
+          startMode,
+          startsOn,
+        );
         return {
           skipCheckout: true as const,
           order_id: null,
@@ -131,6 +137,7 @@ export class PaymentsService {
           planMonths: quote.plan.months,
           couponCode: quote.couponCode,
           startMode,
+          startsOn,
           listPricePaise: quote.listPricePaise,
           discountPaise: quote.discountPaise,
           status: 'created',
@@ -173,6 +180,7 @@ export class PaymentsService {
         planMonths: null,
         couponCode: null,
         startMode,
+        startsOn,
         listPricePaise: amountPaise,
         discountPaise: 0,
         status: 'created',
@@ -372,6 +380,7 @@ export class PaymentsService {
     user: User,
     quote: Awaited<ReturnType<PaymentsService['buildQuote']>>,
     startMode: PaymentOrder['startMode'],
+    startsOn: string | null,
   ) {
     const receipt = this.makeReceipt();
     const order = await this.orders.save(
@@ -385,6 +394,7 @@ export class PaymentsService {
         planMonths: quote.plan.months,
         couponCode: quote.couponCode,
         startMode,
+        startsOn,
         listPricePaise: quote.listPricePaise,
         discountPaise: quote.discountPaise,
         status: 'paid',
@@ -412,6 +422,7 @@ export class PaymentsService {
       user.id,
       order.startMode,
       plan.months,
+      order.startsOn,
     );
 
     const membership = await this.memberships.save(
@@ -448,6 +459,7 @@ export class PaymentsService {
     userId: string,
     startMode: PaymentOrder['startMode'],
     months: number,
+    startsOn?: string | null,
   ) {
     const now = new Date();
     const active = await this.findActive(userId);
@@ -465,11 +477,23 @@ export class PaymentsService {
     }
 
     if (startMode === 'after_current' && trialStillRunning) {
-      const startsAt = trialStillRunning.trialEndsAt;
+      const startsAt = this.laterDate(
+        trialStillRunning.trialEndsAt,
+        this.parseStartsOn(startsOn),
+      );
       return {
         status: 'scheduled' as const,
         startsAt,
         endsAt: this.addMonths(startsAt, months),
+      };
+    }
+
+    const chosenStart = this.parseStartsOn(startsOn);
+    if (chosenStart && chosenStart > now) {
+      return {
+        status: 'scheduled' as const,
+        startsAt: chosenStart,
+        endsAt: this.addMonths(chosenStart, months),
       };
     }
 
@@ -478,6 +502,28 @@ export class PaymentsService {
       startsAt: now,
       endsAt: this.addMonths(now, months),
     };
+  }
+
+  private normalizeStartsOn(value?: string | null): string | null {
+    if (!value?.trim()) return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+      throw new BadRequestException('startsOn must be YYYY-MM-DD.');
+    }
+    return value.trim();
+  }
+
+  private parseStartsOn(value?: string | null): Date | null {
+    if (!value) return null;
+    const date = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException('startsOn must be a valid date.');
+    }
+    return date;
+  }
+
+  private laterDate(a: Date, b: Date | null) {
+    if (!b) return a;
+    return b > a ? b : a;
   }
 
   private async assertCanPurchase(userId: string) {

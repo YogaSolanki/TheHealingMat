@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthModal } from "@/components/auth-modal-provider";
 import {
+  MembershipCheckoutDetails,
+  type MembershipCheckoutDetailsValue,
+} from "@/components/membership-checkout-details";
+import {
   createRazorpayOrder,
   downloadMembershipInvoice,
   getMyCoupons,
@@ -105,6 +109,8 @@ export function MembershipCheckoutPanel({
   const { openAuth } = useAuthModal();
 
   const [user, setUser] = useState<PublicUser | null>(null);
+  const [step, setStep] = useState<"details" | "payment">("details");
+  const [startsOn, setStartsOn] = useState<string | null>(null);
   const [quote, setQuote] = useState<MembershipQuote>(() =>
     quoteFromPlan(resolvePlan(planMonths)),
   );
@@ -130,6 +136,8 @@ export function MembershipCheckoutPanel({
     setError(null);
     setSuccess(false);
     setPaidMembershipId(null);
+    setStep("details");
+    setStartsOn(null);
   }, [planMonths]);
 
   useEffect(() => {
@@ -199,6 +207,16 @@ export function MembershipCheckoutPanel({
     () => formatMoney(quote.amountPaise, quote.currency),
     [quote],
   );
+
+  async function onDetailsContinue(value: MembershipCheckoutDetailsValue) {
+    setStartsOn(value.startsOn);
+    const token = getStoredToken();
+    if (token) {
+      const me = await sessionStore.ensureUser({ force: true }).catch(() => null);
+      if (me) setUser(me);
+    }
+    setStep("payment");
+  }
 
   async function applyCoupon(codeOverride?: string) {
     const token = getStoredToken();
@@ -307,6 +325,7 @@ export function MembershipCheckoutPanel({
         planMonths,
         couponCode: appliedCoupon || couponInput.trim() || undefined,
         startMode,
+        ...(startsOn ? { startsOn } : {}),
         applyReferralDiscount:
           applyReferralDiscount && !appliedCoupon && !couponInput.trim(),
       });
@@ -436,6 +455,33 @@ export function MembershipCheckoutPanel({
     );
   }
 
+  if (!user || step === "details") {
+    if (!user) {
+      return (
+        <CheckoutCard>
+          <div className="flex flex-col items-center justify-center gap-3 py-10">
+            <ButtonLoader tone="brand" size="md" label="Loading checkout" />
+            <p className="text-[13px] font-semibold text-[#1f6b3a]">
+              Preparing membership checkout…
+            </p>
+          </div>
+        </CheckoutCard>
+      );
+    }
+
+    return (
+      <MembershipCheckoutDetails
+        user={user}
+        planName={quote.planName}
+        onContinue={(value) => void onDetailsContinue(value)}
+        onClose={() => {
+          closeCheckoutModal();
+          onClose?.();
+        }}
+      />
+    );
+  }
+
   return (
     <CheckoutCard className="relative overflow-hidden">
       {verifying ? (
@@ -453,6 +499,14 @@ export function MembershipCheckoutPanel({
           </p>
         </div>
       ) : null}
+
+      <button
+        type="button"
+        onClick={() => setStep("details")}
+        className="mb-3 inline-flex cursor-pointer items-center gap-1 text-[13px] font-semibold text-[#5f6f64] transition hover:text-[#1f6b3a]"
+      >
+        ← Back to details
+      </button>
 
       <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase">
         Checkout

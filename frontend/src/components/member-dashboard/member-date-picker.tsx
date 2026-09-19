@@ -104,6 +104,16 @@ type MemberDatePickerProps = {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  /** Inclusive lower bound as YYYY-MM-DD. Defaults to 100 years ago. */
+  minDate?: string;
+  /** Inclusive upper bound as YYYY-MM-DD. Defaults to today. */
+  maxDate?: string;
+  allowClear?: boolean;
+  dialogLabel?: string;
+  /** Force panel side, or auto-flip based on available space. */
+  placement?: "auto" | "above" | "below";
+  /** Compact panel for tight layouts like checkout. */
+  size?: "md" | "sm";
 };
 
 export function MemberDatePicker({
@@ -111,16 +121,32 @@ export function MemberDatePicker({
   onChange,
   placeholder = "Select date of birth",
   className = "",
+  minDate: minDateProp,
+  maxDate: maxDateProp,
+  allowClear = true,
+  dialogLabel = "Choose date",
+  placement = "auto",
+  size = "md",
 }: MemberDatePickerProps) {
+  const compact = size === "sm";
   const today = useMemo(() => startOfDay(new Date()), []);
-  const minDate = useMemo(
-    () => new Date(today.getFullYear() - 100, today.getMonth(), today.getDate()),
-    [today],
-  );
+  const minDate = useMemo(() => {
+    const parsed = minDateProp ? parseIso(minDateProp) : null;
+    if (parsed) return startOfDay(parsed);
+    return new Date(today.getFullYear() - 100, today.getMonth(), today.getDate());
+  }, [minDateProp, today]);
+  const maxDate = useMemo(() => {
+    const parsed = maxDateProp ? parseIso(maxDateProp) : null;
+    if (parsed) return startOfDay(parsed);
+    return today;
+  }, [maxDateProp, today]);
   const selected = parseIso(value);
   const [open, setOpen] = useState(false);
+  const [panelSide, setPanelSide] = useState<"above" | "below">(
+    placement === "above" ? "above" : "below",
+  );
   const [viewMonth, setViewMonth] = useState(() =>
-    startOfMonth(selected ?? today),
+    startOfMonth(selected ?? (maxDate < today ? maxDate : today)),
   );
   const rootRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
@@ -134,6 +160,24 @@ export function MemberDatePicker({
   useEffect(() => {
     if (!open) return;
 
+    function resolvePlacement() {
+      if (placement === "above" || placement === "below") {
+        setPanelSide(placement);
+        return;
+      }
+      const root = rootRef.current;
+      if (!root) return;
+      const rect = root.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const panelHeight = compact ? 260 : 340;
+      setPanelSide(
+        spaceBelow < panelHeight && spaceAbove > spaceBelow ? "above" : "below",
+      );
+    }
+
+    resolvePlacement();
+
     function onPointerDown(event: MouseEvent) {
       if (!rootRef.current?.contains(event.target as Node)) {
         setOpen(false);
@@ -144,26 +188,42 @@ export function MemberDatePicker({
       if (event.key === "Escape") setOpen(false);
     }
 
+    function onViewportChange() {
+      resolvePlacement();
+    }
+
     document.addEventListener("mousedown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", onViewportChange);
+    window.addEventListener("scroll", onViewportChange, true);
     return () => {
       document.removeEventListener("mousedown", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", onViewportChange);
+      window.removeEventListener("scroll", onViewportChange, true);
     };
-  }, [open]);
+  }, [open, placement, compact]);
 
   const cells = useMemo(() => buildCalendarDays(viewMonth), [viewMonth]);
   const years = useMemo(() => {
     const options: number[] = [];
-    for (let year = today.getFullYear(); year >= minDate.getFullYear(); year -= 1) {
-      options.push(year);
+    const startYear = minDate.getFullYear();
+    const endYear = maxDate.getFullYear();
+    if (endYear >= startYear) {
+      for (let year = endYear; year >= startYear; year -= 1) {
+        options.push(year);
+      }
+    } else {
+      for (let year = startYear; year >= endYear; year -= 1) {
+        options.push(year);
+      }
     }
     return options;
-  }, [minDate, today]);
+  }, [minDate, maxDate]);
 
   function isDisabled(date: Date) {
     const day = startOfDay(date);
-    return day > today || day < minDate;
+    return day > maxDate || day < minDate;
   }
 
   function selectDate(date: Date) {
@@ -173,9 +233,15 @@ export function MemberDatePicker({
   }
 
   function shiftMonth(delta: number) {
-    setViewMonth((current) =>
-      startOfMonth(new Date(current.getFullYear(), current.getMonth() + delta, 1)),
-    );
+    setViewMonth((current) => {
+      const next = startOfMonth(
+        new Date(current.getFullYear(), current.getMonth() + delta, 1),
+      );
+      if (next < startOfMonth(minDate) || next > startOfMonth(maxDate)) {
+        return current;
+      }
+      return next;
+    });
   }
 
   const displayLabel = selected
@@ -186,8 +252,21 @@ export function MemberDatePicker({
       })
     : placeholder;
 
+  const canGoNext =
+    startOfMonth(
+      new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1),
+    ) <= startOfMonth(maxDate);
+  const canGoPrev =
+    startOfMonth(
+      new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1),
+    ) >= startOfMonth(minDate);
+  const showCompactBack = compact && canGoPrev;
+
   return (
-    <div ref={rootRef} className={`relative w-full max-w-[300px] ${className}`}>
+    <div
+      ref={rootRef}
+      className={`relative w-full ${compact ? "max-w-[260px]" : "max-w-[300px]"} ${className}`}
+    >
       <button
         type="button"
         aria-haspopup="dialog"
@@ -210,80 +289,125 @@ export function MemberDatePicker({
         <div
           id={panelId}
           role="dialog"
-          aria-label="Choose date of birth"
-          className="absolute top-[calc(100%+6px)] right-0 left-0 z-40 overflow-hidden rounded-[16px] border border-[#d9e2d8] bg-white p-3 shadow-[0_16px_40px_rgba(31,107,58,0.14)] sm:p-4"
+          aria-label={dialogLabel}
+          className={`absolute z-40 overflow-hidden rounded-[14px] border border-[#d9e2d8] bg-white shadow-[0_16px_40px_rgba(31,107,58,0.14)] ${
+            compact
+              ? "right-0 left-auto w-[236px] p-2.5"
+              : "right-0 left-0 max-h-[min(340px,70vh)] overflow-y-auto overscroll-contain p-3 sm:p-4"
+          } ${
+            panelSide === "above"
+              ? "bottom-[calc(100%+6px)]"
+              : "top-[calc(100%+6px)]"
+          }`}
         >
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <button
-              type="button"
-              aria-label="Previous month"
-              onClick={() => shiftMonth(-1)}
-              className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border border-[#e3ebe3] text-[#1f6b3a] transition hover:bg-[#f6f8f5]"
-            >
-              <ChevronLeftIcon className="h-4 w-4" />
-            </button>
-
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <select
-                aria-label="Month"
-                value={viewMonth.getMonth()}
-                onChange={(event) =>
-                  setViewMonth(
-                    startOfMonth(
-                      new Date(viewMonth.getFullYear(), Number(event.target.value), 1),
-                    ),
-                  )
-                }
-                className="min-w-0 flex-1 cursor-pointer rounded-[10px] border border-[#d7e0d6] bg-white px-2 py-1.5 text-[13px] font-semibold text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
+          {compact ? (
+            <div className="relative mb-2 flex h-7 items-center justify-center">
+              {showCompactBack ? (
+                <button
+                  type="button"
+                  aria-label="Previous month"
+                  onClick={() => shiftMonth(-1)}
+                  className="absolute left-0 inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-[8px] border border-[#e3ebe3] text-[#1f6b3a] transition hover:bg-[#f6f8f5]"
+                >
+                  <ChevronLeftIcon className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+              <p className="px-8 text-center text-[12px] font-semibold text-[#243028]">
+                {MONTHS[viewMonth.getMonth()].slice(0, 3)} {viewMonth.getFullYear()}
+              </p>
+              <button
+                type="button"
+                aria-label="Next month"
+                disabled={!canGoNext}
+                onClick={() => shiftMonth(1)}
+                className="absolute right-0 inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-[8px] border border-[#e3ebe3] text-[#1f6b3a] transition hover:bg-[#f6f8f5] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {MONTHS.map((month, index) => (
-                  <option key={month} value={index}>
-                    {month}
-                  </option>
-                ))}
-              </select>
-              <select
-                aria-label="Year"
-                value={viewMonth.getFullYear()}
-                onChange={(event) =>
-                  setViewMonth(
-                    startOfMonth(
-                      new Date(Number(event.target.value), viewMonth.getMonth(), 1),
-                    ),
-                  )
-                }
-                className="w-[88px] shrink-0 cursor-pointer rounded-[10px] border border-[#d7e0d6] bg-white px-2 py-1.5 text-[13px] font-semibold text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
-              >
-                {years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
+                <ChevronRightIcon className="h-3.5 w-3.5" />
+              </button>
             </div>
+          ) : (
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                aria-label="Previous month"
+                onClick={() => shiftMonth(-1)}
+                className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border border-[#e3ebe3] text-[#1f6b3a] transition hover:bg-[#f6f8f5]"
+              >
+                <ChevronLeftIcon className="h-4 w-4" />
+              </button>
 
-            <button
-              type="button"
-              aria-label="Next month"
-              onClick={() => shiftMonth(1)}
-              className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border border-[#e3ebe3] text-[#1f6b3a] transition hover:bg-[#f6f8f5]"
-            >
-              <ChevronRightIcon className="h-4 w-4" />
-            </button>
-          </div>
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <select
+                  aria-label="Month"
+                  value={viewMonth.getMonth()}
+                  onChange={(event) =>
+                    setViewMonth(
+                      startOfMonth(
+                        new Date(
+                          viewMonth.getFullYear(),
+                          Number(event.target.value),
+                          1,
+                        ),
+                      ),
+                    )
+                  }
+                  className="min-w-0 flex-1 cursor-pointer rounded-[10px] border border-[#d7e0d6] bg-white px-2 py-1.5 text-[13px] font-semibold text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
+                >
+                  {MONTHS.map((month, index) => (
+                    <option key={month} value={index}>
+                      {month}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Year"
+                  value={viewMonth.getFullYear()}
+                  onChange={(event) =>
+                    setViewMonth(
+                      startOfMonth(
+                        new Date(
+                          Number(event.target.value),
+                          viewMonth.getMonth(),
+                          1,
+                        ),
+                      ),
+                    )
+                  }
+                  className="w-[88px] shrink-0 cursor-pointer rounded-[10px] border border-[#d7e0d6] bg-white px-2 py-1.5 text-[13px] font-semibold text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
+                >
+                  {years.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <div className="mb-1 grid grid-cols-7 gap-1">
+              <button
+                type="button"
+                aria-label="Next month"
+                onClick={() => shiftMonth(1)}
+                className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border border-[#e3ebe3] text-[#1f6b3a] transition hover:bg-[#f6f8f5]"
+              >
+                <ChevronRightIcon className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          <div className={`grid grid-cols-7 ${compact ? "mb-0.5 gap-0.5" : "mb-1 gap-1"}`}>
             {WEEKDAYS.map((weekday) => (
               <div
                 key={weekday}
-                className="py-1 text-center text-[11px] font-bold tracking-wide text-[#8a9a8d] uppercase"
+                className={`text-center font-bold tracking-wide text-[#8a9a8d] uppercase ${
+                  compact ? "py-0.5 text-[9px]" : "py-1 text-[11px]"
+                }`}
               >
                 {weekday}
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-1">
+          <div className={`grid grid-cols-7 ${compact ? "gap-0.5" : "gap-1"}`}>
             {cells.map(({ date, inMonth }) => {
               const disabled = isDisabled(date);
               const isSelected = selected ? isSameDay(date, selected) : false;
@@ -295,7 +419,11 @@ export function MemberDatePicker({
                   type="button"
                   disabled={disabled}
                   onClick={() => selectDate(date)}
-                  className={`inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-[10px] text-[13px] font-semibold transition ${
+                  className={`inline-flex w-full cursor-pointer items-center justify-center font-semibold transition ${
+                    compact
+                      ? "h-7 rounded-[7px] text-[11px]"
+                      : "h-8 rounded-[10px] text-[13px] sm:h-9"
+                  } ${
                     isSelected
                       ? "bg-[#1f6b3a] text-white shadow-[0_4px_12px_rgba(31,107,58,0.25)]"
                       : disabled
@@ -311,14 +439,18 @@ export function MemberDatePicker({
             })}
           </div>
 
-          {value ? (
+          {allowClear && value ? (
             <button
               type="button"
               onClick={() => {
                 onChange("");
                 setOpen(false);
               }}
-              className="mt-3 w-full cursor-pointer rounded-[10px] px-2 py-2 text-[12px] font-semibold text-[#6b7c6e] transition hover:bg-[#f6f8f5] hover:text-[#1f6b3a]"
+              className={`w-full cursor-pointer font-semibold text-[#6b7c6e] transition hover:bg-[#f6f8f5] hover:text-[#1f6b3a] ${
+                compact
+                  ? "mt-2 rounded-[8px] px-1.5 py-1.5 text-[11px]"
+                  : "mt-3 rounded-[10px] px-2 py-2 text-[12px]"
+              }`}
             >
               Clear date
             </button>
