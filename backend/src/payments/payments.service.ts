@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -12,6 +13,7 @@ import Razorpay from 'razorpay';
 import { Repository } from 'typeorm';
 import { CouponsService } from '../coupons/coupons.service';
 import { detectVisitorRegion } from '../common/visitor-region';
+import { sendResendEmail } from '../mail/resend';
 import { TrialRegistration } from '../trials/trial-registration.entity';
 import { TrialStatus } from '../users/enums/trial-status.enum';
 import { Region } from '../users/enums/region.enum';
@@ -40,6 +42,7 @@ type RazorpayInvoiceRecord = {
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
   private readonly razorpay: Razorpay | null;
 
   constructor(
@@ -116,24 +119,36 @@ export class PaymentsService {
         };
       }
 
-      const order = await this.createRazorpayOrder({
+      // Razorpay Invoice → issued order (original Razorpay invoice format).
+      // No webhook needed: we create the invoice here and open checkout on its order_id.
+      const invoice = await this.createRazorpayInvoice({
         amountPaise: quote.amountPaise,
         currency: quote.currency,
         receipt: dto.receipt,
+        planName: quote.plan.name,
+        description: `${quote.plan.name} (${quote.plan.months}-month) membership — The Healing Mat`,
+        customer: {
+          name: user.fullName,
+          email: user.email,
+          contact: user.mobile,
+        },
         notes: {
           userId: user.id,
           planMonths: String(quote.plan.months),
           planName: quote.plan.name,
+          ...(quote.couponCode ? { couponCode: quote.couponCode } : {}),
         },
       });
 
       await this.orders.save(
         this.orders.create({
           userId: user.id,
-          razorpayOrderId: order.id,
+          razorpayOrderId: invoice.order_id!,
+          razorpayInvoiceId: invoice.id,
+          razorpayInvoiceUrl: invoice.short_url,
           amountPaise: quote.amountPaise,
-          currency: order.currency,
-          receipt: String(order.receipt ?? this.makeReceipt()),
+          currency: quote.currency,
+          receipt: (dto.receipt?.slice(0, 40) || this.makeReceipt()).slice(0, 40),
           planMonths: quote.plan.months,
           couponCode: quote.couponCode,
           startMode,
@@ -146,9 +161,9 @@ export class PaymentsService {
 
       return {
         skipCheckout: false as const,
-        order_id: order.id,
+        order_id: invoice.order_id!,
         amount: quote.amountPaise,
-        currency: order.currency,
+        currency: quote.currency,
         key_id: this.requireKeyId(),
       };
     }
@@ -344,36 +359,44 @@ export class PaymentsService {
           }
         }
       } catch {
-        // Fall through to stored URL / PDF fallback.
+        // Fall through to stored URL.
       }
     }
 
+    // Paid memberships: always prefer Razorpay's original invoice page.
     if (invoiceUrl) {
       return { type: 'razorpay' as const, url: invoiceUrl };
     }
 
-    const invoiceNo = `THM-${membership.id.slice(0, 8).toUpperCase()}`;
-    const pdf = buildMembershipInvoicePdf({
-      invoiceNo,
-      issuedAt: membership.createdAt,
-      memberName: user.fullName,
-      memberEmail: user.email,
-      memberMobile: user.mobile,
-      planName: membership.planName,
-      planMonths: membership.planMonths,
-      listPricePaise: membership.listPricePaise,
-      discountPaise: membership.discountPaise,
-      amountPaidPaise: membership.amountPaidPaise,
-      paymentRef: membership.razorpayPaymentId,
-      startsAt: membership.startsAt,
-      endsAt: membership.endsAt,
-    });
+    // Free / zero-amount plans only — local PDF receipt (no Razorpay charge).
+    if (membership.amountPaidPaise === 0) {
+      const invoiceNo = `THM-${membership.id.slice(0, 8).toUpperCase()}`;
+      const pdf = buildMembershipInvoicePdf({
+        invoiceNo,
+        issuedAt: membership.createdAt,
+        memberName: user.fullName,
+        memberEmail: user.email,
+        memberMobile: user.mobile,
+        planName: membership.planName,
+        planMonths: membership.planMonths,
+        listPricePaise: membership.listPricePaise,
+        discountPaise: membership.discountPaise,
+        amountPaidPaise: membership.amountPaidPaise,
+        paymentRef: membership.razorpayPaymentId,
+        startsAt: membership.startsAt,
+        endsAt: membership.endsAt,
+      });
 
-    return {
-      type: 'pdf' as const,
-      filename: `the-healing-mat-invoice-${invoiceNo}.pdf`,
-      pdf,
-    };
+      return {
+        type: 'pdf' as const,
+        filename: `the-healing-mat-invoice-${invoiceNo}.pdf`,
+        pdf,
+      };
+    }
+
+    throw new NotFoundException(
+      'Razorpay invoice is not available for this membership. Complete a new payment to generate the original Razorpay invoice.',
+    );
   }
 
   private async fulfillZeroAmount(
@@ -452,7 +475,144 @@ export class PaymentsService {
       })
       .catch(() => null);
 
+    await this.deliverRazorpayInvoice(user, membership).catch((err) => {
+      this.logger.warn(
+        `Razorpay invoice delivery failed for membership ${membership.id}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    });
+
     return membership;
+  }
+
+  /**
+   * After payment: refresh Razorpay invoice URL, ask Razorpay to email it,
+   * and also email the member a link (Resend). No webhook required.
+   */
+  private async deliverRazorpayInvoice(user: User, membership: Membership) {
+    let invoiceId = membership.razorpayInvoiceId?.trim() || null;
+    let invoiceUrl = membership.razorpayInvoiceUrl?.trim() || null;
+
+    if (!invoiceId) {
+      const order = await this.orders.findOne({
+        where: { id: membership.paymentOrderId },
+      });
+      invoiceId = order?.razorpayInvoiceId?.trim() || null;
+      invoiceUrl = order?.razorpayInvoiceUrl?.trim() || invoiceUrl;
+    }
+
+    if (!invoiceId) return;
+
+    try {
+      const invoice = await this.fetchRazorpayInvoice(invoiceId);
+      if (invoice.short_url) {
+        invoiceUrl = String(invoice.short_url);
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Could not fetch Razorpay invoice ${invoiceId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+
+    if (invoiceUrl && membership.razorpayInvoiceUrl !== invoiceUrl) {
+      membership.razorpayInvoiceId = invoiceId;
+      membership.razorpayInvoiceUrl = invoiceUrl;
+      await this.memberships.save(membership);
+    }
+
+    if (user.email?.trim()) {
+      try {
+        await this.notifyRazorpayInvoiceByEmail(invoiceId);
+      } catch (err) {
+        this.logger.warn(
+          `Razorpay notifyBy email failed for ${invoiceId}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+
+      if (invoiceUrl) {
+        await this.emailRazorpayInvoiceLink(user, membership, invoiceUrl).catch(
+          (err) => {
+            this.logger.warn(
+              `Resend invoice link failed for ${membership.id}: ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            );
+          },
+        );
+      }
+    }
+  }
+
+  private async notifyRazorpayInvoiceByEmail(invoiceId: string) {
+    const client = this.requireClient();
+    const invoices = client.invoices as {
+      notifyBy?: (id: string, medium: string) => Promise<unknown>;
+    };
+    if (typeof invoices.notifyBy !== 'function') {
+      throw new Error('Razorpay invoices.notifyBy is unavailable.');
+    }
+    await invoices.notifyBy(invoiceId, 'email');
+  }
+
+  private async emailRazorpayInvoiceLink(
+    user: User,
+    membership: Membership,
+    invoiceUrl: string,
+  ) {
+    const email = user.email?.trim();
+    if (!email) return;
+
+    const apiKey = this.config.get<string>('RESEND_API_KEY')?.trim();
+    const from =
+      this.config.get<string>('RESEND_FROM_EMAIL')?.trim() ||
+      'The Healing Mat <onboarding@resend.dev>';
+    if (!apiKey) return;
+
+    const amount =
+      membership.currency?.toUpperCase() === 'USD'
+        ? `$${(membership.amountPaidPaise / 100).toFixed(2)}`
+        : `₹${Math.round(membership.amountPaidPaise / 100).toLocaleString('en-IN')}`;
+
+    await sendResendEmail({
+      apiKey,
+      from,
+      to: email,
+      subject: `Your Healing Mat invoice — ${membership.planName}`,
+      text: [
+        `Hi ${user.fullName.trim() || 'there'},`,
+        '',
+        'Thank you for your payment. Your Razorpay invoice is ready:',
+        invoiceUrl,
+        '',
+        `Plan: ${membership.planName}`,
+        `Amount paid: ${amount}`,
+        '',
+        '— The Healing Mat',
+      ].join('\n'),
+      html: `
+        <p>Hi ${this.escapeHtml(user.fullName.trim() || 'there')},</p>
+        <p>Thank you for your payment. Your <strong>Razorpay invoice</strong> is ready.</p>
+        <p>
+          <strong>Plan:</strong> ${this.escapeHtml(membership.planName)}<br />
+          <strong>Amount paid:</strong> ${this.escapeHtml(amount)}
+        </p>
+        <p><a href="${this.escapeHtml(invoiceUrl)}">View / download Razorpay invoice</a></p>
+        <p>— The Healing Mat</p>
+      `,
+    });
+  }
+
+  private escapeHtml(value: string) {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   private async resolveTerm(
