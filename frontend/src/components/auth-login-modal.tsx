@@ -71,7 +71,7 @@ export function AuthLoginModal({
 
   return createPortal(
     <div
-      className={`fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto px-4 py-6 sm:px-5 sm:py-8 ${
+      className={`fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto px-4 py-3 sm:px-5 sm:py-4 ${
         exiting ? "auth-modal-root is-exiting" : "auth-modal-root"
       }`}
       role="dialog"

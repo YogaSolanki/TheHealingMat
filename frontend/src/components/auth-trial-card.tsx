@@ -83,12 +83,12 @@ const OTP_LENGTH = 4;
 
 function TrialBrandMark() {
   return (
-    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#E8F0E4] sm:h-[52px] sm:w-[52px]">
+    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[#E8F0E4]">
       <Image
         src={trialIcon}
         alt=""
         aria-hidden="true"
-        className="h-7 w-7 object-contain sm:h-8 sm:w-8"
+        className="h-6 w-6 object-contain"
         priority
       />
     </div>
@@ -502,16 +502,16 @@ export function AuthTrialCard({
     step === "otp" && (mode === "signup" || mode === "forgot");
   const fieldClass =
     "w-full rounded-[14px] border border-[#d7e0d6] bg-white px-3.5 py-2.5 text-sm text-[#1f6b3a] outline-none transition focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
-  const labelClass = "mb-1.5 block text-[13px] font-medium text-[#3d4a3c]";
+  const labelClass = "mb-1 block text-[12.5px] font-medium text-[#3d4a3c]";
   const primaryBtnClass =
     "btn-primary inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[14px] bg-[#1f6b3a] px-4 py-2.5 text-[14px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.2)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-[0_8px_20px_rgba(31,107,58,0.2)] disabled:hover:filter-none";
   const textBtnClass =
     "w-full cursor-pointer text-[13px] font-medium text-[#6d8474] transition hover:text-[#1f6b3a]";
   const headerOffsetClass = "mt-0.5";
   const titleClass =
-    "mt-2 font-serif text-[1.35rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.45rem]";
+    "mt-1.5 font-serif text-[1.3rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.4rem]";
   const subtitleClass =
-    "mx-auto mt-1.5 max-w-[280px] text-[12px] leading-snug text-[#6d8474] sm:text-[13px]";
+    "mx-auto mt-1 max-w-[280px] text-[12px] leading-snug text-[#6d8474]";
   const fullNameError =
     mode === "signup" &&
     fullNameTouched &&
@@ -633,7 +633,7 @@ export function AuthTrialCard({
       ) : null}
 
       {step === "identity" ? (
-        <form onSubmit={onRequestOtp} className="mt-3.5 space-y-2.5">
+        <form onSubmit={onRequestOtp} className="mt-3 space-y-2">
           {mode === "signup" ? (
             <div>
               <label className={labelClass}>Full Name</label>
@@ -707,7 +707,7 @@ export function AuthTrialCard({
               />
             )}
 
-            {mode !== "login" ? (
+            {mode === "forgot" ? (
               region === "india" ? (
                 <button
                   type="button"
@@ -716,7 +716,7 @@ export function AuthTrialCard({
                     setError(null);
                   }}
                   disabled={loading}
-                  className="mt-3 block w-full cursor-pointer text-center text-[12.5px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-1.5 block w-full cursor-pointer text-center text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   From outside India? Start here →
                 </button>
@@ -728,7 +728,7 @@ export function AuthTrialCard({
                     setError(null);
                   }}
                   disabled={loading}
-                  className="mt-3 block w-full cursor-pointer text-center text-[12.5px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-1.5 block w-full cursor-pointer text-center text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   From India? Start here →
                 </button>
@@ -769,7 +769,7 @@ export function AuthTrialCard({
                     setError(null);
                   }}
                   disabled={loading}
-                  className="mt-3 block w-full cursor-pointer text-center text-[12.5px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-1.5 block w-full cursor-pointer text-center text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   From outside India? Start here →
                 </button>
@@ -781,7 +781,7 @@ export function AuthTrialCard({
                     setError(null);
                   }}
                   disabled={loading}
-                  className="mt-3 block w-full cursor-pointer text-center text-[12.5px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-1.5 block w-full cursor-pointer text-center text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   From India? Start here →
                 </button>
@@ -815,19 +815,44 @@ export function AuthTrialCard({
 
           {mode === "signup" ? (
             <div>
-              <label className={labelClass}>
-                Referral code{" "}
-                <span className="font-normal text-[#8a968c]">(optional)</span>
+              <label className={labelClass} htmlFor="auth-referral-code">
+                Have a referral code?
               </label>
               <input
+                id="auth-referral-code"
                 value={referralCodeInput}
                 onChange={(e) => setReferralCodeInput(e.target.value)}
                 className={fieldClass}
-                placeholder="Enter referral code if you have one"
+                placeholder="Enter code (optional)"
                 autoComplete="off"
                 maxLength={64}
                 spellCheck={false}
               />
+              {region === "india" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegion("outside_india");
+                    setError(null);
+                  }}
+                  disabled={loading}
+                  className="mt-1.5 block w-full cursor-pointer text-center text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  From outside India? Start here →
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegion("india");
+                    setError(null);
+                  }}
+                  disabled={loading}
+                  className="mt-1.5 block w-full cursor-pointer text-center text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  From India? Start here →
+                </button>
+              )}
             </div>
           ) : null}
 

@@ -22,6 +22,7 @@ import { AdminLoginDto } from './dto/admin-login.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ApplyReferralDto } from './dto/apply-referral.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UserLoginDto } from './dto/user-login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -109,6 +110,13 @@ export class AuthController {
   @HttpCode(200)
   updateProfile(@CurrentUser() user: User, @Body() dto: UpdateProfileDto) {
     return this.authService.updateProfile(user.id, dto);
+  }
+
+  @Roles(Role.User)
+  @Post('auth/referral')
+  @HttpCode(200)
+  applyReferral(@CurrentUser() user: User, @Body() dto: ApplyReferralDto) {
+    return this.authService.applyReferralCode(user.id, dto.referralCode);
   }
 
   @Public()
