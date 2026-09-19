@@ -549,6 +549,7 @@ export function updateAdminRewardRedemption(
 
 export type AdminSiteSettings = {
   liveSessionUrl: string | null;
+  referralDiscountPercent: number;
   updatedAt: string;
 };
 
@@ -558,7 +559,10 @@ export function getAdminSettings(token: string) {
 
 export function updateAdminSettings(
   token: string,
-  body: { liveSessionUrl?: string | null },
+  body: {
+    liveSessionUrl?: string | null;
+    referralDiscountPercent?: number;
+  },
 ) {
   return authJson<AdminSiteSettings>("PATCH", "/admin/settings", token, body);
 }

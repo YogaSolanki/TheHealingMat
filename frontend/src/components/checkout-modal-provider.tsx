@@ -239,7 +239,7 @@ function ModalShell({
 
   return createPortal(
     <div
-      className={`fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto px-4 py-4 sm:py-6 ${
+      className={`fixed inset-0 z-[200] flex items-center justify-center overflow-hidden px-4 py-3 sm:py-5 ${
         exiting ? "auth-modal-root is-exiting" : "auth-modal-root"
       }`}
       role="dialog"
@@ -253,7 +253,7 @@ function ModalShell({
         onClick={onClose}
       />
       <div
-        className={`auth-modal-panel relative z-10 w-full ${maxWidthClass} ${
+        className={`auth-modal-panel relative z-10 max-h-[calc(100dvh-1.5rem)] w-full overflow-hidden sm:max-h-[calc(100dvh-2.5rem)] ${maxWidthClass} ${
           exiting ? "is-exiting" : ""
         }`}
       >

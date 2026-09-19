@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CouponsModule } from '../coupons/coupons.module';
+import { SettingsModule } from '../settings/settings.module';
 import { TrialRegistration } from '../trials/trial-registration.entity';
 import { Membership } from './membership.entity';
 import { MembershipOfferPrice } from './membership-offer-price.entity';
@@ -16,6 +17,7 @@ import { PaymentsService } from './payments.service';
 @Module({
   imports: [
     CouponsModule,
+    SettingsModule,
     TypeOrmModule.forFeature([
       PaymentOrder,
       Membership,

@@ -28,7 +28,7 @@ const inlineFieldClass =
   "w-full max-w-full rounded-[12px] border border-[#d7e0d6] bg-white px-3 py-2 text-[14px] font-semibold text-[#243028] outline-none transition focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 sm:max-w-[300px]";
 
 function formatMobile(mobile: string | null) {
-  if (!mobile) return "—";
+  if (!mobile) return "";
   const digits = mobile.replace(/\D/g, "");
   if (digits.length === 12 && digits.startsWith("91")) {
     return `+91 ${digits.slice(2, 7)} ${digits.slice(7)}`;
@@ -40,14 +40,14 @@ function formatMobile(mobile: string | null) {
 }
 
 function formatGender(gender: UserGender | null) {
-  if (!gender) return "—";
-  return genderOptions.find((option) => option.value === gender)?.label ?? "—";
+  if (!gender) return "";
+  return genderOptions.find((option) => option.value === gender)?.label ?? "";
 }
 
 function formatDob(dateOfBirth: string | null) {
-  if (!dateOfBirth) return "—";
+  if (!dateOfBirth) return "";
   const date = new Date(`${dateOfBirth}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleDateString("en-IN", {
     day: "numeric",
     month: "long",
@@ -266,7 +266,7 @@ export function MemberAccountPage() {
                 icon={<PersonIcon className="h-5 w-5 text-[#1f6b3a]" />}
                 label="Full Name"
                 isEditing={isEditing}
-                value={user.fullName || "—"}
+                value={user.fullName?.trim() || ""}
                 editContent={
                   <input
                     type="text"
@@ -314,7 +314,7 @@ export function MemberAccountPage() {
                 icon={<StateIcon className="h-5 w-5 text-[#1f6b3a]" />}
                 label="State"
                 isEditing={isEditing}
-                value={user.state?.trim() || "—"}
+                value={user.state?.trim() || ""}
                 editContent={
                   user.region === "india" ? (
                     <MemberSelect
@@ -350,23 +350,8 @@ export function MemberAccountPage() {
               <InfoRow
                 icon={<MailIcon className="h-5 w-5 text-[#1f6b3a]" />}
                 label="Email Address"
-                value={user.email || "—"}
+                value={user.email?.trim() || ""}
               />
-              <InfoRow
-                icon={<LinkIcon className="h-5 w-5 text-[#1f6b3a]" />}
-                label="Personal Access Link"
-                value={user.accessLink}
-                copyable
-              />
-            </div>
-
-            <div className="flex items-start gap-2.5 border-t border-[#eef2ee] bg-[#fafbf9] px-4 py-4 sm:px-6">
-              <InfoCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-[#8a9a8d]" />
-              <p className="text-[12px] leading-relaxed text-[#6b7c6e] sm:text-[13px]">
-                To change your mobile number, OTP verification is required. Email changes, if
-                allowed, will also require verification. Your personal access link and referral
-                code stay the same if you later update your name.
-              </p>
             </div>
           </section>
 
@@ -591,6 +576,8 @@ function EditableInfoRow({
   isEditing?: boolean;
   editContent?: ReactNode;
 }) {
+  if (!isEditing && !value.trim()) return null;
+
   return (
     <div className="grid grid-cols-1 gap-2 px-4 py-4 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)] sm:items-center sm:gap-x-6 sm:px-5 sm:py-[18px] lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)] lg:px-6">
       <div className="flex items-center gap-3">
@@ -617,25 +604,13 @@ function InfoRow({
   label,
   value,
   verified = false,
-  copyable = false,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
   verified?: boolean;
-  copyable?: boolean;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  async function copyValue() {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopied(false);
-    }
-  }
+  if (!value.trim()) return null;
 
   return (
     <div className="grid grid-cols-1 gap-2 px-4 py-4 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)] sm:items-center sm:gap-x-6 sm:px-5 sm:py-[18px] lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)] lg:px-6">
@@ -653,25 +628,6 @@ function InfoRow({
           <span className="inline-flex rounded-[6px] bg-[#eef6f0] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#1f6b3a] uppercase">
             Verified
           </span>
-        ) : null}
-        {copyable ? (
-          <button
-            type="button"
-            onClick={copyValue}
-            className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[10px] border border-[#d7e0d6] bg-white px-2.5 py-1.5 text-[12px] font-semibold text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] sm:text-[13px]"
-          >
-            {copied ? (
-              <>
-                <CheckIcon className="h-3.5 w-3.5" />
-                Copied
-              </>
-            ) : (
-              <>
-                <CopyIcon className="h-3.5 w-3.5" />
-                Copy
-              </>
-            )}
-          </button>
         ) : null}
       </div>
     </div>
@@ -744,40 +700,6 @@ function MailIcon({ className }: { className?: string }) {
     <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
       <rect x="3.5" y="5.5" width="17" height="13" rx="2" stroke="currentColor" strokeWidth="1.6" />
       <path d="M4 7l8 6 8-6" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function LinkIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
-      <path
-        d="M10 13.5 8.8 14.7a3.2 3.2 0 0 1-4.5-4.5L5.5 9"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <path
-        d="M14 10.5 15.2 9.3a3.2 3.2 0 0 1 4.5 4.5L18.5 15"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <path d="M9 15l6-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function CopyIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
-      <rect x="8" y="8" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.6" />
-      <path
-        d="M6 16V6.5A1.5 1.5 0 0 1 7.5 5H16"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
     </svg>
   );
 }
@@ -859,16 +781,6 @@ function LogOutIcon({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-    </svg>
-  );
-}
-
-function InfoCircleIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M12 11v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <circle cx="12" cy="8" r="0.9" fill="currentColor" />
     </svg>
   );
 }

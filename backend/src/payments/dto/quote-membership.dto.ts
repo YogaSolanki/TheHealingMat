@@ -21,7 +21,7 @@ export class QuoteMembershipDto {
   @MaxLength(40)
   couponCode?: string;
 
-  /** Opt-in: apply the 20% referral benefit (only if account has a referrer). */
+  /** Opt-in: apply referral discount. Cannot be combined with couponCode. */
   @IsOptional()
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
