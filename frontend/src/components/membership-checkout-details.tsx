@@ -67,6 +67,10 @@ export function MembershipCheckoutDetails({
 
   const minStart = todayIso();
   const maxStart = maxStartIso();
+  const canContinue =
+    (!needsState || Boolean(state.trim())) &&
+    Boolean(preferredClassTime.trim()) &&
+    Boolean(startsOn.trim());
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -118,10 +122,7 @@ export function MembershipCheckoutDetails({
 
   return (
     <section className="rounded-[22px] border border-[#e6ebe3] bg-white px-5 py-7 shadow-[0_18px_48px_rgba(15,28,20,0.16)] sm:px-8 sm:py-8">
-      <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase">
-        Before payment
-      </p>
-      <h1 className="mt-2 font-serif text-[1.7rem] font-bold text-[#1f6b3a] sm:text-[1.9rem]">
+      <h1 className="font-serif text-[1.7rem] font-bold text-[#1f6b3a] sm:text-[1.9rem]">
         Membership details
       </h1>
       <p className="mt-2 text-[14px] text-[#5f6f64] sm:text-[15px]">
@@ -202,7 +203,7 @@ export function MembershipCheckoutDetails({
 
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || !canContinue}
           className="btn-primary inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
           {saving ? (
