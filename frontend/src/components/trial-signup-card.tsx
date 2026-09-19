@@ -91,6 +91,12 @@ export function TrialSignupCard({
   onCloseRef.current = onClose;
 
   useEffect(() => {
+    const captured = getCapturedReferralCode();
+    if (!captured) return;
+    setReferralCodeInput((current) => current.trim() || captured);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     void resolveVisitorRegion().then((next) => {
       if (!cancelled) setRegion(next);
