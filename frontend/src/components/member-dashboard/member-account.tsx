@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { ChangePasswordModal } from "@/components/member-dashboard/change-password-modal";
 import { memberPrimaryBtnClass } from "@/components/member-dashboard/member-button-styles";
 import { MemberSelect } from "@/components/member-dashboard/member-select";
-import { MemberDatePicker } from "@/components/member-dashboard/member-date-picker";
+import { InlineDobEditor } from "@/components/member-dashboard/inline-dob-editor";
 import { useMemberDashboard } from "@/components/member-dashboard/member-dashboard-provider";
 import { SiteLoader } from "@/components/site-loader";
 import {
@@ -73,6 +73,7 @@ export function MemberAccountPage() {
   const [dateOfBirth, setDateOfBirth] = useState(user.dateOfBirth ?? "");
   const [gender, setGender] = useState<UserGender | "">(user.gender ?? "");
   const [state, setState] = useState(user.state ?? "");
+  const [dobValid, setDobValid] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
   const [couponsOpen, setCouponsOpen] = useState(false);
@@ -139,6 +140,7 @@ export function MemberAccountPage() {
     setDateOfBirth(user.dateOfBirth ?? "");
     setGender(user.gender ?? "");
     setState(user.state ?? "");
+    setDobValid(true);
     setProfileError(null);
     setIsEditing(true);
   }
@@ -148,6 +150,7 @@ export function MemberAccountPage() {
     setDateOfBirth(user.dateOfBirth ?? "");
     setGender(user.gender ?? "");
     setState(user.state ?? "");
+    setDobValid(true);
     setProfileError(null);
     setIsEditing(false);
   }
@@ -158,6 +161,11 @@ export function MemberAccountPage() {
     const trimmedName = fullName.trim();
     if (trimmedName.length < 2) {
       setProfileError("Please enter your full name.");
+      return;
+    }
+
+    if (!dobValid) {
+      setProfileError("Please enter a valid date of birth (DD/MM/YYYY).");
       return;
     }
 
@@ -277,9 +285,11 @@ export function MemberAccountPage() {
                 isEditing={isEditing}
                 value={formatDob(user.dateOfBirth)}
                 editContent={
-                  <MemberDatePicker
+                  <InlineDobEditor
+                    key={`dob-${user.dateOfBirth ?? "none"}`}
                     value={dateOfBirth}
                     onChange={setDateOfBirth}
+                    onValidityChange={setDobValid}
                   />
                 }
               />
