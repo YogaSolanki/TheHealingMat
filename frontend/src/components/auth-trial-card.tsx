@@ -33,6 +33,7 @@ import { ButtonLoader } from "@/components/site-loader";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
 import { captureReferralCode, getCapturedReferralCode } from "@/lib/referral-storage";
 import { openCheckoutModal } from "@/components/checkout-modal-provider";
+import { formatFullNameInput, isValidFullName, validateFullName } from "@/lib/full-name";
 import {
   clearCheckoutIntent,
   markCheckoutResumeAfterAuth,
@@ -234,6 +235,7 @@ export function AuthTrialCard({
   const [step, setStep] = useState<Step>("identity");
   const [region, setRegion] = useState<Region>("india");
   const [fullName, setFullName] = useState("");
+  const [fullNameTouched, setFullNameTouched] = useState(false);
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -330,12 +332,16 @@ export function AuthTrialCard({
     event.preventDefault();
     setError(null);
 
-    if (mode === "signup" && !termsAccepted) {
-      setError("Please agree to the Terms & Conditions to continue.");
-      return;
-    }
-
     if (mode === "signup") {
+      const nameError = validateFullName(fullName);
+      if (nameError) {
+        setError(nameError);
+        return;
+      }
+      if (!termsAccepted) {
+        setError("Please agree to the Terms & Conditions to continue.");
+        return;
+      }
       const trimmedReferral = referralCodeInput.trim();
       if (trimmedReferral) captureReferralCode(trimmedReferral);
     }
@@ -486,7 +492,7 @@ export function AuthTrialCard({
     step === "otp" && (mode === "signup" || mode === "forgot");
   const fieldClass =
     "w-full rounded-[14px] border border-[#d7e0d6] bg-white px-3.5 py-2.5 text-sm text-[#1f6b3a] outline-none transition focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
-  const labelClass = "mb-1 block text-[13px] font-medium text-[#3d4a3c]";
+  const labelClass = "mb-1.5 block text-[13px] font-medium text-[#3d4a3c]";
   const primaryBtnClass =
     "btn-primary inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[14px] bg-[#1f6b3a] px-4 py-2.5 text-[14px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.2)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-[0_8px_20px_rgba(31,107,58,0.2)] disabled:hover:filter-none";
   const textBtnClass =
@@ -496,6 +502,12 @@ export function AuthTrialCard({
     "mt-2 font-serif text-[1.35rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.45rem]";
   const subtitleClass =
     "mx-auto mt-1.5 max-w-[280px] text-[12px] leading-snug text-[#6d8474] sm:text-[13px]";
+  const fullNameError =
+    mode === "signup" &&
+    fullNameTouched &&
+    fullName.trim().length > 0
+      ? validateFullName(fullName)
+      : null;
 
   return (
     <div className="relative w-full max-w-[440px] rounded-[22px] border border-[#e6ebe3] bg-white px-4 pt-3.5 pb-4 shadow-[0_20px_48px_rgba(31,107,58,0.14)] sm:px-6 sm:pt-4 sm:pb-5">
@@ -620,23 +632,36 @@ export function AuthTrialCard({
                 <input
                   required
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className={`${fieldClass} pl-9`}
+                  onChange={(e) => setFullName(formatFullNameInput(e.target.value))}
+                  onBlur={() => setFullNameTouched(true)}
+                  onFocus={() => setFullNameTouched(false)}
+                  className={`${fieldClass} pl-9 ${
+                    fullNameError
+                      ? "border-[#e8b4b4] focus:border-[#c45c5c] focus:ring-[#c45c5c]/15"
+                      : ""
+                  }`}
                   placeholder="Enter your full name"
                   autoComplete="name"
+                  aria-invalid={Boolean(fullNameError)}
                 />
               </div>
+              {fullNameError ? (
+                <p className="field-error-message mt-1.5 rounded-[12px] bg-[#fdecec] px-3 py-2 text-[12px] leading-snug text-[#8a2f2f]">
+                  {fullNameError}
+                </p>
+              ) : null}
             </div>
           ) : null}
 
           <div>
             <label className={labelClass}>
-              {region === "india" ? "Mobile Number" : "Email address"}
+              {region === "india" ? "WhatsApp Number" : "Email address"}
             </label>
             {region === "india" ? (
-              <div className="flex rounded-[14px] border border-[#d7e0d6] bg-white focus-within:border-[#1f6b3a] focus-within:ring-2 focus-within:ring-[#1f6b3a]/15">
-                <span className="inline-flex shrink-0 items-center rounded-l-[14px] border-r border-[#e5ebe4] bg-[#fafcfb] px-3 py-2.5 text-sm font-semibold text-[#1f6b3a]">
-                  +91
+              <div className="flex overflow-hidden rounded-[14px] border border-[#d7e0d6] bg-white focus-within:border-[#1f6b3a] focus-within:ring-2 focus-within:ring-[#1f6b3a]/15">
+                <span className="inline-flex shrink-0 items-center gap-1.5 border-r border-[#e5ebe4] bg-[#fafcfb] px-3 py-2.5 text-[#1f6b3a]">
+                  <IndiaFlag />
+                  <span className="text-sm font-semibold">+91</span>
                 </span>
                 <input
                   required
@@ -650,8 +675,8 @@ export function AuthTrialCard({
                       .slice(0, 10);
                     setMobile(digits);
                   }}
-                  className="w-full min-w-0 rounded-r-[14px] border-0 bg-transparent px-3 py-2.5 text-sm text-[#1f6b3a] outline-none"
-                  placeholder="Enter your mobile number"
+                  className="w-full min-w-0 border-0 bg-transparent px-3 py-2.5 text-sm text-[#1f6b3a] outline-none placeholder:text-[#9aa89c]"
+                  placeholder="Enter your WhatsApp number"
                   inputMode="numeric"
                   autoComplete="tel-national"
                   minLength={10}
@@ -669,11 +694,39 @@ export function AuthTrialCard({
                 autoComplete="email"
               />
             )}
+
+            {mode !== "login" ? (
+              region === "india" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegion("outside_india");
+                    setError(null);
+                  }}
+                  disabled={loading}
+                  className="mt-3 block w-full cursor-pointer text-center text-[12.5px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  From outside India? Start here →
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegion("india");
+                    setError(null);
+                  }}
+                  disabled={loading}
+                  className="mt-3 block w-full cursor-pointer text-center text-[12.5px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  From India? Start here →
+                </button>
+              )
+            ) : null}
           </div>
 
           {mode === "login" ? (
             <div>
-              <div className="mb-1 flex items-center justify-between gap-3">
+              <div className="mb-1.5 flex items-center justify-between gap-3">
                 <label className="text-[13px] font-medium text-[#3d4a3c]">
                   Password
                 </label>
@@ -696,6 +749,31 @@ export function AuthTrialCard({
                 minLength={1}
                 maxLength={72}
               />
+              {region === "india" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegion("outside_india");
+                    setError(null);
+                  }}
+                  disabled={loading}
+                  className="mt-3 block w-full cursor-pointer text-center text-[12.5px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  From outside India? Start here →
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegion("india");
+                    setError(null);
+                  }}
+                  disabled={loading}
+                  className="mt-3 block w-full cursor-pointer text-center text-[12.5px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  From India? Start here →
+                </button>
+              )}
             </div>
           ) : null}
 
@@ -751,7 +829,11 @@ export function AuthTrialCard({
 
           <button
             type="submit"
-            disabled={loading || (mode === "signup" && !termsAccepted)}
+            disabled={
+              loading ||
+              (mode === "signup" &&
+                (!termsAccepted || !isValidFullName(fullName)))
+            }
             className={primaryBtnClass}
           >
             {loading ? (
@@ -855,7 +937,7 @@ export function AuthTrialCard({
               "Reset password"
             ) : (
               <>
-                Verify & Start My Trial
+                Verify & Continue
                 <span aria-hidden="true">→</span>
               </>
             )}
@@ -888,5 +970,38 @@ export function AuthTrialCard({
       ) : null}
       </div>
     </div>
+  );
+}
+
+function IndiaFlag() {
+  return (
+    <svg
+      viewBox="0 0 21 15"
+      className="h-4 w-[21px] shrink-0 overflow-hidden rounded-[2px] border border-[#e5e8e3]"
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect width="21" height="5" y="0" fill="#FF9933" />
+      <rect width="21" height="5" y="5" fill="#FFFFFF" />
+      <rect width="21" height="5" y="10" fill="#138808" />
+      <circle cx="10.5" cy="7.5" r="2.15" fill="none" stroke="#000080" strokeWidth="0.55" />
+      <circle cx="10.5" cy="7.5" r="0.28" fill="#000080" />
+      {Array.from({ length: 24 }, (_, i) => {
+        const angle = (i * 15 * Math.PI) / 180;
+        const x2 = 10.5 + Math.cos(angle) * 2;
+        const y2 = 7.5 + Math.sin(angle) * 2;
+        return (
+          <line
+            key={i}
+            x1="10.5"
+            y1="7.5"
+            x2={x2}
+            y2={y2}
+            stroke="#000080"
+            strokeWidth="0.28"
+          />
+        );
+      })}
+    </svg>
   );
 }

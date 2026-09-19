@@ -392,7 +392,7 @@ function PradeepCard() {
                 cover: book1Cover,
                 alt: "Weight Loss Without the Drama book cover",
                 title: "Weight Loss Without the Drama",
-                href: "#",
+                href: "https://www.amazon.in/dp/B0HJBXWHB7",
                 blurb: (
                   <>
                     A simple approach through food, movement,
