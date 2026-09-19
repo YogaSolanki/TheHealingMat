@@ -53,7 +53,6 @@ export function CouponsPanel() {
   const [loading, setLoading] = useState(() => !hasCached(cacheKey));
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [assignTarget, setAssignTarget] = useState<AdminCoupon | null>(null);
   const [referralCode, setReferralCode] = useState("");
@@ -168,7 +167,6 @@ export function CouponsPanel() {
     setGenerating(true);
     setError(null);
     setNotice(null);
-    setCopied(false);
     try {
       const generated = await generateAdminCoupon(token, {
         userName: name,
@@ -182,24 +180,12 @@ export function CouponsPanel() {
       setDiscountValue(String(generated.discountValue));
       setMaxUses(String(generated.maxUses));
       setNotice(
-        `Coupon generated (${generated.maxUses} use${generated.maxUses === 1 ? "" : "s"}). Copy it, then save.`,
+        `Coupon generated (${generated.maxUses} use${generated.maxUses === 1 ? "" : "s"}). Save it to keep it.`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate coupon");
     } finally {
       setGenerating(false);
-    }
-  }
-
-  async function onCopy() {
-    if (!draft?.code) return;
-    try {
-      await navigator.clipboard.writeText(draft.code);
-      setCopied(true);
-      setNotice(`Copied ${draft.code}`);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setError("Could not copy. Select the code and copy manually.");
     }
   }
 
@@ -230,7 +216,6 @@ export function CouponsPanel() {
       setDiscountValue("");
       setMaxUses("1");
       setDiscountType("fixed");
-      setCopied(false);
       await load({ force: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save coupon");
@@ -416,13 +401,6 @@ export function CouponsPanel() {
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => void onCopy()}
-                className="h-10 rounded-full border border-[#1f6b3a] px-4 text-sm font-semibold text-[#1f6b3a] hover:bg-white"
-              >
-                {copied ? "Copied" : "Copy coupon"}
-              </button>
-              <button
-                type="button"
                 onClick={() => void onSave()}
                 disabled={saving}
                 className="h-10 rounded-full bg-[#1f6b3a] px-4 text-sm font-semibold text-white hover:bg-[#185830] disabled:opacity-60"
@@ -433,7 +411,6 @@ export function CouponsPanel() {
                 type="button"
                 onClick={() => {
                   setDraft(null);
-                  setCopied(false);
                   setNotice(null);
                 }}
                 className="h-10 rounded-full px-4 text-sm font-medium text-[#5f6f64] hover:bg-white"
