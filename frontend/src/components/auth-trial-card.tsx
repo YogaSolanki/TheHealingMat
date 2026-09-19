@@ -29,7 +29,9 @@ import {
   updateMemberAuthCache,
 } from "@/lib/session-store";
 import trialIcon from "@/assets/trail.png";
+import { useAuthModal } from "@/components/auth-modal-provider";
 import { ButtonLoader } from "@/components/site-loader";
+import { SiteToast } from "@/components/site-toast";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
 import { captureReferralCode, getCapturedReferralCode } from "@/lib/referral-storage";
 import { openCheckoutModal } from "@/components/checkout-modal-provider";
@@ -231,6 +233,7 @@ export function AuthTrialCard({
   onClose,
 }: AuthTrialCardProps) {
   const router = useRouter();
+  const { showAuthToast } = useAuthModal();
   const [mode, setMode] = useState<Mode>(initialMode);
   const [step, setStep] = useState<Step>("identity");
   const [region, setRegion] = useState<Region>("india");
@@ -250,6 +253,7 @@ export function AuthTrialCard({
   );
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(initialError);
+  const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const onCloseRef = useRef(onClose);
@@ -325,6 +329,9 @@ export function AuthTrialCard({
   async function afterAuth(accessToken: string, authedUser: PublicUser) {
     setStoredToken(accessToken);
     updateMemberAuthCache(authedUser);
+    showAuthToast(
+      mode === "signup" ? "Sign up successful" : "Login successful",
+    );
     goToDashboard();
   }
 
@@ -408,6 +415,7 @@ export function AuthTrialCard({
   async function onVerifyOtp(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    setToast(null);
     setLoading(true);
     try {
       if (mode === "forgot") {
@@ -439,7 +447,7 @@ export function AuthTrialCard({
       });
       await afterAuth(result.accessToken, result.user);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "OTP verification failed");
+      setToast(err instanceof Error ? err.message : "OTP verification failed");
     } finally {
       setLoading(false);
     }
@@ -449,6 +457,7 @@ export function AuthTrialCard({
     setMode(nextMode);
     setStep("identity");
     setError(null);
+    setToast(null);
     setOtp("");
     setPassword("");
     setConfirmPassword("");
@@ -465,6 +474,7 @@ export function AuthTrialCard({
     setMode("forgot");
     setStep("identity");
     setError(null);
+    setToast(null);
     setOtp("");
     setPassword("");
     setConfirmPassword("");
@@ -511,6 +521,8 @@ export function AuthTrialCard({
 
   return (
     <div className="relative w-full max-w-[440px] rounded-[22px] border border-[#e6ebe3] bg-white px-4 pt-3.5 pb-4 shadow-[0_20px_48px_rgba(31,107,58,0.14)] sm:px-6 sm:pt-4 sm:pb-5">
+      <SiteToast message={toast} onDismiss={() => setToast(null)} />
+
       {step === "otp" ? (
         <button
           type="button"

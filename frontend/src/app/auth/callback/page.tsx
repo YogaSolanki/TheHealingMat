@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { queueAuthSuccessToast } from "@/components/auth-modal-provider";
 import { openCheckoutModal } from "@/components/checkout-modal-provider";
 import { clearGoogleAuthPending } from "@/components/google-auth-bridge";
 import { MemberDashboardSkeleton } from "@/components/member-dashboard/member-dashboard-skeleton";
@@ -105,6 +106,7 @@ export default function AuthCallbackPage() {
           await wait(250);
           if (cancelled) return;
           clearHandoff();
+          queueAuthSuccessToast("Sign up successful");
           router.replace("/dashboard");
           return;
         }
@@ -117,6 +119,7 @@ export default function AuthCallbackPage() {
           await wait(200);
           if (cancelled) return;
           clearHandoff();
+          queueAuthSuccessToast("Login successful");
           router.replace("/dashboard");
           openCheckoutModal(intent.planMonths, intent.startMode);
           return;
@@ -128,6 +131,7 @@ export default function AuthCallbackPage() {
         await wait(200);
         if (cancelled) return;
         clearHandoff();
+        queueAuthSuccessToast("Login successful");
         router.replace("/dashboard");
       } catch (err: unknown) {
         if (cancelled) return;

@@ -47,6 +47,8 @@ export type PublicUser = {
   fullName: string;
   dateOfBirth: string | null;
   gender: Gender | null;
+  state: string | null;
+  preferredClassTime: string | null;
   region: Region;
   mobile: string | null;
   email: string | null;
@@ -380,8 +382,20 @@ export class AuthService {
     }
 
     user.fullName = dto.fullName.trim();
-    user.dateOfBirth = dto.dateOfBirth ?? null;
-    user.gender = dto.gender ?? null;
+    if (dto.dateOfBirth !== undefined) {
+      user.dateOfBirth = dto.dateOfBirth ?? null;
+    }
+    if (dto.gender !== undefined) {
+      user.gender = dto.gender ?? null;
+    }
+    if (dto.state !== undefined) {
+      const nextState = dto.state?.trim() || null;
+      user.state = nextState;
+    }
+    if (dto.preferredClassTime !== undefined) {
+      const nextTime = dto.preferredClassTime?.trim() || null;
+      user.preferredClassTime = nextTime;
+    }
 
     const saved = await this.users.save(user);
 
@@ -405,6 +419,8 @@ export class AuthService {
       fullName: user.fullName,
       dateOfBirth: user.dateOfBirth ?? null,
       gender: user.gender ?? null,
+      state: user.state ?? null,
+      preferredClassTime: user.preferredClassTime ?? null,
       region: user.region,
       mobile: user.mobile,
       email: user.email,

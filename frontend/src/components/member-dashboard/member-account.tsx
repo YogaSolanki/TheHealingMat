@@ -15,6 +15,7 @@ import {
   type UserGender,
 } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
+import { INDIA_STATES } from "@/lib/india-states";
 
 const genderOptions: { value: UserGender; label: string }[] = [
   { value: "male", label: "Male" },
@@ -71,6 +72,7 @@ export function MemberAccountPage() {
   const [fullName, setFullName] = useState(user.fullName);
   const [dateOfBirth, setDateOfBirth] = useState(user.dateOfBirth ?? "");
   const [gender, setGender] = useState<UserGender | "">(user.gender ?? "");
+  const [state, setState] = useState(user.state ?? "");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
   const [couponsOpen, setCouponsOpen] = useState(false);
@@ -136,6 +138,7 @@ export function MemberAccountPage() {
     setFullName(user.fullName);
     setDateOfBirth(user.dateOfBirth ?? "");
     setGender(user.gender ?? "");
+    setState(user.state ?? "");
     setProfileError(null);
     setIsEditing(true);
   }
@@ -144,6 +147,7 @@ export function MemberAccountPage() {
     setFullName(user.fullName);
     setDateOfBirth(user.dateOfBirth ?? "");
     setGender(user.gender ?? "");
+    setState(user.state ?? "");
     setProfileError(null);
     setIsEditing(false);
   }
@@ -164,6 +168,8 @@ export function MemberAccountPage() {
       return;
     }
 
+    const trimmedState = state.trim();
+
     const token = getStoredToken();
     if (!token) {
       setProfileError("Your session has expired. Please log in again.");
@@ -176,6 +182,7 @@ export function MemberAccountPage() {
         fullName: trimmedName,
         dateOfBirth: parsedDob,
         gender: gender || null,
+        state: trimmedState || null,
       });
       updateUser(result.user);
       setIsEditing(false);
@@ -291,6 +298,38 @@ export function MemberAccountPage() {
                       ...genderOptions,
                     ]}
                   />
+                }
+              />
+              <EditableInfoRow
+                icon={<StateIcon className="h-5 w-5 text-[#1f6b3a]" />}
+                label="State"
+                isEditing={isEditing}
+                value={user.state?.trim() || "—"}
+                editContent={
+                  user.region === "india" ? (
+                    <MemberSelect
+                      value={state}
+                      onChange={setState}
+                      placeholder="Select your state"
+                      options={[
+                        { value: "", label: "Select your state" },
+                        ...INDIA_STATES.map((name) => ({
+                          value: name,
+                          label: name,
+                        })),
+                      ]}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={state}
+                      onChange={(event) => setState(event.target.value)}
+                      className={inlineFieldClass}
+                      placeholder="State / province"
+                      autoComplete="address-level1"
+                      maxLength={120}
+                    />
+                  )
                 }
               />
               <InfoRow
@@ -663,6 +702,20 @@ function GenderIcon({ className }: { className?: string }) {
       <circle cx="10" cy="10" r="4" stroke="currentColor" strokeWidth="1.6" />
       <path d="M13.5 6.5 18 2M18 2v4.5M18 2h-4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
       <path d="M7 18c1.5-2.5 3.8-4 5-4s3.5 1.5 5 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function StateIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path
+        d="M12 21s6.5-5.2 6.5-10.2A6.5 6.5 0 0 0 12 4.3a6.5 6.5 0 0 0-6.5 6.5C5.5 15.8 12 21 12 21Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="10.8" r="2.2" stroke="currentColor" strokeWidth="1.6" />
     </svg>
   );
 }

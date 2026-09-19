@@ -567,6 +567,51 @@ body {
   animation: auth-backdrop-in 0.2s ease both;
 }
 
+.checkout-step-in {
+  animation: checkout-step-forward 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.checkout-step-in-back {
+  animation: checkout-step-back 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.checkout-step-in-fade {
+  animation: checkout-step-fade 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes checkout-step-forward {
+  from {
+    opacity: 0;
+    transform: translateX(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes checkout-step-back {
+  from {
+    opacity: 0;
+    transform: translateX(-22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes checkout-step-fade {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes payment-backdrop-in {
   from {
     opacity: 0;
@@ -718,6 +763,9 @@ body {
   .payment-success-check,
   .payment-success-ring,
   .payment-verify-overlay,
+  .checkout-step-in,
+  .checkout-step-in-back,
+  .checkout-step-in-fade,
   .badge-shine::after,
   .testimonials-marquee-track {
     transition: none !important;

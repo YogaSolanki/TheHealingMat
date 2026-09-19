@@ -4,6 +4,9 @@ export const sundayQaSlots = ["8:00 AM", "7:00 PM"] as const;
 export const trialSessionSlots = ["7:00 AM", "7:00 PM"] as const;
 export const specialSessionLabel = "11:30 AM";
 
+/** Preferred class times offered during membership checkout. */
+export const preferredClassTimeOptions = [...weekdayMorningSlots] as const;
+
 export type SessionAccessKind = "trial" | "member";
 
 const SESSION_DURATION_MINUTES = 60;

@@ -1,6 +1,7 @@
 import { Type, Transform } from 'class-transformer';
 import {
   IsBoolean,
+  IsDateString,
   IsIn,
   IsInt,
   IsOptional,
@@ -43,6 +44,11 @@ export class CreateOrderDto {
   @IsOptional()
   @IsIn(['now', 'after_current'])
   startMode?: 'now' | 'after_current';
+
+  /** Preferred membership start date (YYYY-MM-DD). */
+  @IsOptional()
+  @IsDateString({}, { message: 'startsOn must be a valid date (YYYY-MM-DD).' })
+  startsOn?: string;
 
   /** Opt-in: apply the 20% referral benefit (only if account has a referrer). */
   @IsOptional()

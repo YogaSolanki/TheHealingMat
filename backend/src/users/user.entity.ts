@@ -35,6 +35,14 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   gender: Gender | null;
 
+  /** Indian state / region of residence (collected before membership payment). */
+  @Column({ type: 'varchar', nullable: true })
+  state: string | null;
+
+  /** Preferred daily class time slot label (e.g. "6:30 AM"). */
+  @Column({ type: 'varchar', nullable: true })
+  preferredClassTime: string | null;
+
   /** bcrypt hash only - never returned in API responses. */
   @Column({ select: false })
   passwordHash: string;

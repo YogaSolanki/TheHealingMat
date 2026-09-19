@@ -9,25 +9,63 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AuthLoginModal } from "@/components/auth-login-modal";
 import { CheckoutModalHost } from "@/components/checkout-modal-provider";
+import { SiteToast } from "@/components/site-toast";
 import { getStoredToken } from "@/lib/auth-storage";
 
 type AuthMode = "login" | "signup" | "forgot";
+type ToastVariant = "success" | "error";
+
+type AuthToast = {
+  message: string;
+  variant: ToastVariant;
+};
 
 type AuthModalContextValue = {
   openAuth: (mode?: AuthMode) => void;
   closeAuth: () => void;
+  showAuthToast: (message: string, variant?: ToastVariant) => void;
 };
+
+const AUTH_SUCCESS_TOAST_KEY = "thm_auth_success_toast";
+
+export function queueAuthSuccessToast(message: string) {
+  try {
+    sessionStorage.setItem(AUTH_SUCCESS_TOAST_KEY, message);
+  } catch {
+    /* ignore */
+  }
+}
+
+function consumeQueuedAuthSuccessToast(): string | null {
+  try {
+    const message = sessionStorage.getItem(AUTH_SUCCESS_TOAST_KEY);
+    if (!message) return null;
+    sessionStorage.removeItem(AUTH_SUCCESS_TOAST_KEY);
+    return message;
+  } catch {
+    return null;
+  }
+}
 
 const AuthModalContext = createContext<AuthModalContextValue | null>(null);
 
 export function AuthModalProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>("login");
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<AuthToast | null>(null);
+
+  const showAuthToast = useCallback(
+    (message: string, variant: ToastVariant = "success") => {
+      setToast({ message, variant });
+    },
+    [],
+  );
 
   const openAuth = useCallback(
     (nextMode: AuthMode = "login") => {
@@ -82,17 +120,28 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
     window.history.replaceState({}, "", next);
   }, [router]);
 
+  useEffect(() => {
+    const queued = consumeQueuedAuthSuccessToast();
+    if (queued) setToast({ message: queued, variant: "success" });
+  }, [pathname]);
+
   const value = useMemo(
     () => ({
       openAuth,
       closeAuth,
+      showAuthToast,
     }),
-    [openAuth, closeAuth],
+    [openAuth, closeAuth, showAuthToast],
   );
 
   return (
     <AuthModalContext.Provider value={value}>
       {children}
+      <SiteToast
+        message={toast?.message ?? null}
+        variant={toast?.variant ?? "success"}
+        onDismiss={() => setToast(null)}
+      />
       <AuthLoginModal
         open={open}
         onClose={closeAuth}
