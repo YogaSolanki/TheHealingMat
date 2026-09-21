@@ -55,7 +55,7 @@ function normalizeIndiaMobile(value: string) {
 }
 
 function buildPasswordResetOtpPayload(user: PublicUser) {
-  // Prefer SMS when a mobile is on file; otherwise email OTP (e.g. Google India accounts).
+  // Prefer WhatsApp when a mobile is on file; otherwise email OTP (e.g. Google India accounts).
   if (user.mobile) {
     return {
       region: "india" as Region,

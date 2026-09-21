@@ -621,10 +621,11 @@ export function AuthTrialCard({
         <div className={`${error ? "mt-2.5" : headerOffsetClass} text-center`}>
           <TrialBrandMark />
           <h2 className={titleClass}>
-            {region === "india" ? "Verify Your Mobile Number" : "Verify Your Email Address"}
+            {region === "india" ? "Verify Your WhatsApp Number" : "Verify Your Email Address"}
           </h2>
           <p className={subtitleClass}>
-            We&apos;ve sent a {OTP_LENGTH}-digit OTP to{" "}
+            We&apos;ve sent a {OTP_LENGTH}-digit OTP
+            {region === "india" ? " on WhatsApp" : ""} to{" "}
             <span className="font-semibold text-[#1f6b3a]">
               {displayMobileForOtp()}
             </span>

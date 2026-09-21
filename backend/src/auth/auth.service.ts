@@ -22,7 +22,7 @@ import {
   isUniqueViolation,
 } from '../users/account-identity';
 import { sendResendEmail } from '../mail/resend';
-import { sendMsg91Otp } from '../sms/msg91';
+import { sendAiSensyOtp } from '../sms/aisensy-whatsapp';
 import { detectVisitorRegion as detectVisitorRegionFromRequest } from '../common/visitor-region';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
@@ -174,8 +174,11 @@ export class AuthService {
       });
       delivered = true;
     } else {
-      // Mobile OTP is fixed as 1111 for now — do not SMS or expose the code.
-      delivered = true;
+      delivered = await this.sendOtpWhatsApp({
+        destination,
+        code,
+        purpose: dto.purpose,
+      });
     }
 
     return {
@@ -637,14 +640,28 @@ export class AuthService {
     return String(randomInt(1000, 9999));
   }
 
-  /** Mobile SMS OTP is fixed to 1111 (not delivered via SMS / not returned to client). */
+  /**
+   * Local/dev only: accept 1111 when AiSensy is not configured so signup
+   * stays testable. Never used in production, and never used once keys exist.
+   */
+  private allowDevWhatsAppOtpBypass(): boolean {
+    if (this.config.get('NODE_ENV') === 'production') return false;
+    const apiKey = this.config.get<string>('AISENSY_API_KEY')?.trim();
+    const campaign = this.config.get<string>('AISENSY_CAMPAIGN_NAME')?.trim();
+    return !apiKey || !campaign;
+  }
+
   private async otpCodeMatches(
     channel: string,
     code: string,
     codeHash: string,
   ): Promise<boolean> {
     const trimmed = code.trim();
-    if (channel === 'sms' && trimmed === '1111') {
+    if (
+      channel === 'sms' &&
+      trimmed === '1111' &&
+      this.allowDevWhatsAppOtpBypass()
+    ) {
       return true;
     }
     return bcrypt.compare(trimmed, codeHash);
@@ -665,55 +682,66 @@ export class AuthService {
   }
 
   /**
-   * India SMS OTP via MSG91 (signup / login / password_reset).
-   * Returns true when MSG91 accepted the send; false only in non-prod
-   * when MSG91 is not configured (dev fallback logs the code).
+   * India WhatsApp OTP via AiSensy (signup / login / password_reset).
+   * Returns true when AiSensy accepted the send; false only in non-prod
+   * when AiSensy is not configured (dev fallback logs the code).
    */
-  private async sendOtpSms(input: {
+  private async sendOtpWhatsApp(input: {
     destination: string;
     code: string;
     purpose: string;
   }): Promise<boolean> {
-    const authKey = this.config.get<string>('MSG91_AUTH_KEY')?.trim();
-    const templateId = this.config.get<string>('MSG91_OTP_TEMPLATE_ID')?.trim();
+    const apiKey = this.config.get<string>('AISENSY_API_KEY')?.trim();
+    const campaignName = this.config
+      .get<string>('AISENSY_CAMPAIGN_NAME')
+      ?.trim();
     const isProd = this.config.get('NODE_ENV') === 'production';
 
-    if (!authKey || !templateId) {
+    if (!apiKey || !campaignName) {
       if (isProd) {
         throw new ServiceUnavailableException(
-          'SMS OTP is not configured yet (missing MSG91_AUTH_KEY or MSG91_OTP_TEMPLATE_ID).',
+          'WhatsApp OTP is not configured yet (missing AISENSY_API_KEY or AISENSY_CAMPAIGN_NAME).',
         );
       }
-      // Local/dev without MSG91 — keep signup testable.
       console.log(
-        `[OTP][dev-fallback] sms → ${input.destination}: ${input.code} (purpose=${input.purpose})`,
+        `[OTP][dev-fallback] whatsapp → ${input.destination}: ${input.code} (purpose=${input.purpose})`,
       );
       return false;
     }
 
-    const modeRaw = this.config.get<string>('MSG91_API_MODE')?.trim().toLowerCase();
-    const mode = modeRaw === 'flow' ? 'flow' : 'otp';
-    const senderId = this.config.get<string>('MSG91_SENDER_ID')?.trim();
-    const otpVariable =
-      this.config.get<string>('MSG91_OTP_VAR')?.trim() || 'otp';
+    const copyCodeRaw = this.config
+      .get<string>('AISENSY_OTP_COPY_CODE_BUTTON')
+      ?.trim()
+      .toLowerCase();
+    const includeCopyCodeButton = copyCodeRaw !== 'false' && copyCodeRaw !== '0';
+    const paramCountRaw = Number(
+      this.config.get<string>('AISENSY_OTP_PARAM_COUNT')?.trim() || '1',
+    );
+    const templateParamCount = Number.isFinite(paramCountRaw)
+      ? paramCountRaw
+      : 1;
 
     try {
-      await sendMsg91Otp({
-        authKey,
-        templateId,
+      await sendAiSensyOtp({
+        apiKey,
+        campaignName,
         mobile: input.destination,
         otp: input.code,
-        otpExpiryMinutes: Math.ceil(OTP_TTL_SECONDS / 60),
-        mode,
-        senderId,
-        otpVariable,
+        userName:
+          this.config.get<string>('AISENSY_DEFAULT_USER_NAME')?.trim() ||
+          'Member',
+        source:
+          this.config.get<string>('AISENSY_SOURCE')?.trim() ||
+          'The Healing Mat',
+        includeCopyCodeButton,
+        templateParamCount,
       });
       return true;
     } catch (error) {
       const detail =
-        error instanceof Error ? error.message : 'Unknown MSG91 error';
+        error instanceof Error ? error.message : 'Unknown AiSensy error';
       throw new ServiceUnavailableException(
-        `Unable to send SMS OTP right now. ${detail}`,
+        `Unable to send WhatsApp OTP right now. ${detail}`,
       );
     }
   }
