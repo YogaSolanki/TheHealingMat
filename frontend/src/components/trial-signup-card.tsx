@@ -363,10 +363,11 @@ export function TrialSignupCard({
         ) : (
           <>
             <h2 className="mt-2 font-serif text-[1.35rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.45rem]">
-              {isIndia ? "Verify Your Mobile Number" : "Verify Your Email Address"}
+              {isIndia ? "Verify Your WhatsApp Number" : "Verify Your Email Address"}
             </h2>
             <p className="mx-auto mt-1 max-w-[300px] text-[12px] leading-snug text-[#6d8474]">
-              We&apos;ve sent a {OTP_LENGTH}-digit OTP to{" "}
+              We&apos;ve sent a {OTP_LENGTH}-digit OTP
+              {isIndia ? " on WhatsApp" : ""} to{" "}
               <span className="font-semibold text-[#1f6b3a]">{otpDestination}</span>
             </p>
           </>
