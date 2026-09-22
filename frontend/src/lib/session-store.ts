@@ -37,7 +37,7 @@ type SessionSnapshot = {
 const SERVER_SNAPSHOT: SessionSnapshot = {
   user: null,
   userReady: false,
-  access: emptyMemberAccess("active"),
+  access: emptyMemberAccess("pending"),
   accessReady: false,
   referrals: EMPTY_REFERRALS,
   referralsReady: false,
@@ -70,7 +70,7 @@ function writeJson(key: string, value: unknown | null) {
 class SessionStore {
   private user: PublicUser | null = null;
   private userReady = false;
-  private access: MemberAccess = emptyMemberAccess("active");
+  private access: MemberAccess = emptyMemberAccess("pending");
   private accessReady = false;
   private referrals: MyReferralsResponse = EMPTY_REFERRALS;
   private referralsReady = false;
@@ -79,6 +79,8 @@ class SessionStore {
   private accessInflight: Promise<MemberAccess> | null = null;
   private referralsInflight: Promise<MyReferralsResponse> | null = null;
   private hydrated = false;
+  /** False until browser mount — keeps SSR/hydration snapshots aligned. */
+  private clientAttached = false;
   private cachedSnapshot: SessionSnapshot = {
     user: null,
     userReady: false,
@@ -88,8 +90,21 @@ class SessionStore {
     referralsReady: false,
   };
 
+  /**
+   * Call once after mount. Loads sessionStorage into memory and notifies subscribers.
+   * Must not run during SSR or the hydration render.
+   */
+  attachClient() {
+    if (this.clientAttached) return;
+    this.clientAttached = true;
+    this.hydrateFromStorage();
+    this.emit();
+  }
+
   private hydrateFromStorage() {
-    if (this.hydrated || typeof window === "undefined") return;
+    if (!this.clientAttached || this.hydrated || typeof window === "undefined") {
+      return;
+    }
     this.hydrated = true;
 
     let changed = false;
@@ -108,11 +123,21 @@ class SessionStore {
         ...storedAccess,
         membershipId: storedAccess.membershipId ?? null,
       };
+      // Older caches used "expired" for never-purchased accounts.
+      if (
+        access.state === "expired" &&
+        !access.membershipId &&
+        !access.expiredOnLabel
+      ) {
+        access.state = "pending";
+        access.planName = "No plan yet";
+      }
       this.access = access;
       // Paid memberships without an id are from a stale cache — refetch.
       const stalePaid =
         access.state !== "trial" &&
         access.state !== "scheduled" &&
+        access.state !== "pending" &&
         !access.membershipId;
       this.accessReady = !stalePaid;
       changed = true;
@@ -159,20 +184,22 @@ class SessionStore {
   };
 
   getSnapshot = (): SessionSnapshot => {
-    this.hydrateFromStorage();
+    // Until attachClient(), mirror the server snapshot so hydration matches.
+    if (!this.clientAttached) return SERVER_SNAPSHOT;
     return this.cachedSnapshot;
   };
 
   getServerSnapshot = (): SessionSnapshot => SERVER_SNAPSHOT;
 
   getUser() {
-    this.hydrateFromStorage();
+    if (this.clientAttached) this.hydrateFromStorage();
     return this.user;
   }
 
   /** Store user from login/signup response — no /me call needed. */
   setUser(user: PublicUser) {
-    this.hydrateFromStorage();
+    this.clientAttached = true;
+    this.hydrated = true;
     this.user = user;
     this.userReady = true;
     writeJson(USER_STORAGE_KEY, user);
@@ -180,12 +207,13 @@ class SessionStore {
   }
 
   getAccess() {
-    this.hydrateFromStorage();
+    if (this.clientAttached) this.hydrateFromStorage();
     return this.access;
   }
 
   setAccess(access: MemberAccess) {
-    this.hydrateFromStorage();
+    this.clientAttached = true;
+    this.hydrated = true;
     this.access = access;
     this.accessReady = true;
     writeJson(ACCESS_STORAGE_KEY, access);
@@ -193,12 +221,13 @@ class SessionStore {
   }
 
   getReferrals() {
-    this.hydrateFromStorage();
+    if (this.clientAttached) this.hydrateFromStorage();
     return this.referrals;
   }
 
   setReferrals(data: MyReferralsResponse) {
-    this.hydrateFromStorage();
+    this.clientAttached = true;
+    this.hydrated = true;
     this.referrals = data;
     this.referralsReady = true;
     writeJson(REFERRALS_STORAGE_KEY, data);
@@ -208,7 +237,7 @@ class SessionStore {
   clear() {
     this.user = null;
     this.userReady = false;
-    this.access = emptyMemberAccess("active");
+    this.access = emptyMemberAccess("pending");
     this.accessReady = false;
     this.referrals = EMPTY_REFERRALS;
     this.referralsReady = false;
@@ -226,7 +255,7 @@ class SessionStore {
    * Pass force=true only after profile edits that need a server refresh.
    */
   async ensureUser(options?: { force?: boolean }): Promise<PublicUser | null> {
-    this.hydrateFromStorage();
+    if (this.clientAttached) this.hydrateFromStorage();
     const token = getStoredToken();
     if (!token) {
       this.clear();
@@ -260,10 +289,10 @@ class SessionStore {
    * Returns cached membership/trial access, or fetches once if missing.
    */
   async ensureAccess(options?: { force?: boolean }): Promise<MemberAccess> {
-    this.hydrateFromStorage();
+    if (this.clientAttached) this.hydrateFromStorage();
     const token = getStoredToken();
     if (!token) {
-      const fallback = emptyMemberAccess("active");
+      const fallback = emptyMemberAccess("pending");
       this.setAccess(fallback);
       return fallback;
     }
@@ -283,7 +312,7 @@ class SessionStore {
       .catch(() => {
         const fallback = this.accessReady
           ? this.access
-          : emptyMemberAccess("active");
+          : emptyMemberAccess("pending");
         this.setAccess(fallback);
         return fallback;
       })
@@ -298,7 +327,7 @@ class SessionStore {
   async ensureReferrals(
     options?: { force?: boolean },
   ): Promise<MyReferralsResponse> {
-    this.hydrateFromStorage();
+    if (this.clientAttached) this.hydrateFromStorage();
     const token = getStoredToken();
     if (!token) {
       this.setReferrals(EMPTY_REFERRALS);

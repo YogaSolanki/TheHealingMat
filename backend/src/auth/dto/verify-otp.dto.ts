@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
+  IsIn,
   IsOptional,
   IsString,
   IsUUID,
@@ -41,4 +42,12 @@ export class VerifyOtpDto {
   @IsString()
   @MaxLength(40)
   referralCode?: string;
+
+  /**
+   * Signup path: "trial" (default) starts free trial; "membership" skips it
+   * so the user can complete paid checkout first.
+   */
+  @IsOptional()
+  @IsIn(['trial', 'membership'])
+  signupIntent?: 'trial' | 'membership';
 }

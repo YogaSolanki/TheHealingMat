@@ -2,9 +2,20 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
+import { isDashboardPath } from "@/lib/member-routes";
+
+/**
+ * Keep a stable React key for all /dashboard/* routes so the auth layout
+ * (and cached profile) is not remounted on every tab switch.
+ */
+function transitionKeyFor(pathname: string) {
+  if (isDashboardPath(pathname)) return "/dashboard";
+  return pathname;
+}
 
 export function PageTransition({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const transitionKey = transitionKeyFor(pathname);
 
   useEffect(() => {
     const reduceMotion = window.matchMedia(
@@ -21,7 +32,7 @@ export function PageTransition({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   return (
-    <div key={pathname} className="page-transition">
+    <div key={transitionKey} className="page-transition">
       {children}
     </div>
   );

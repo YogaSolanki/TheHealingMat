@@ -1,6 +1,11 @@
 import type { MembershipAccessResponse, MembershipCurrency } from "@/lib/api";
 
-export type MemberAccessState = "trial" | "active" | "expired" | "scheduled";
+export type MemberAccessState =
+  | "trial"
+  | "active"
+  | "expired"
+  | "scheduled"
+  | "pending";
 
 export type MemberAccess = {
   state: MemberAccessState;
@@ -24,6 +29,7 @@ export function membershipStatusLabel(state: MemberAccessState) {
   if (state === "trial") return "Trial";
   if (state === "scheduled") return "Trial scheduled";
   if (state === "expired") return "Expired";
+  if (state === "pending") return "Pending";
   return "Active";
 }
 
@@ -75,12 +81,18 @@ function formatDiscount(
     : formatMoney(discountPaise, currency);
 }
 
-export function emptyMemberAccess(state: MemberAccessState = "active"): MemberAccess {
+export function emptyMemberAccess(
+  state: MemberAccessState = "pending",
+): MemberAccess {
   return {
     state,
     membershipId: null,
     planName:
-      state === "trial" || state === "scheduled" ? "Your Trial" : "Membership",
+      state === "trial" || state === "scheduled"
+        ? "Your Trial"
+        : state === "pending"
+          ? "No plan yet"
+          : "Membership",
     startDateLabel: null,
     validUntilLabel: null,
     trialStartsOnLabel: null,
@@ -96,16 +108,36 @@ export function emptyMemberAccess(state: MemberAccessState = "active"): MemberAc
   };
 }
 
+/** Older APIs returned "expired" for never-purchased accounts — treat as pending. */
+function resolveAccessState(
+  data: MembershipAccessResponse,
+): MemberAccessState {
+  if (
+    data.state === "expired" &&
+    !data.current &&
+    !data.lastExpired &&
+    !data.trial
+  ) {
+    return "pending";
+  }
+  return data.state;
+}
+
 export function mapMembershipAccess(data: MembershipAccessResponse): MemberAccess {
+  const state = resolveAccessState(data);
   const membership = data.current ?? data.lastExpired;
-  const access = emptyMemberAccess(data.state);
+  const access = emptyMemberAccess(state);
   access.trialStartsOnLabel = formatLongDate(data.trial?.startsAt);
   access.trialEndsOnLabel = formatLongDate(data.trial?.endsAt);
   access.hasScheduledMembership = Boolean(data.scheduled);
   access.scheduledPlanName = data.scheduled?.planName ?? null;
   access.scheduledStartsOnLabel = formatLongDate(data.scheduled?.startsAt);
 
-  if (data.state === "trial" || data.state === "scheduled") {
+  if (state === "pending") {
+    return access;
+  }
+
+  if (state === "trial" || state === "scheduled") {
     access.planName = "Your Trial";
     access.startDateLabel = formatLongDate(data.trial?.startsAt);
     access.validUntilLabel = formatLongDate(data.trial?.endsAt);
@@ -119,7 +151,7 @@ export function mapMembershipAccess(data: MembershipAccessResponse): MemberAcces
   access.startDateLabel = formatLongDate(membership.startsAt);
   access.validUntilLabel = formatLongDate(membership.endsAt);
   access.expiredOnLabel =
-    data.state === "expired" ? formatLongDate(membership.endsAt) : null;
+    state === "expired" ? formatLongDate(membership.endsAt) : null;
   access.amountPaid = formatMoney(
     membership.amountPaidPaise,
     membership.currency ?? "INR",

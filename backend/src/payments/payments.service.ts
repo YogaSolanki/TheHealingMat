@@ -305,10 +305,12 @@ export class PaymentsService {
     const lastExpired =
       rows.find((row) => row.status === 'expired') ?? null;
 
-    let state: 'trial' | 'active' | 'expired' | 'scheduled' = 'expired';
+    let state: 'trial' | 'active' | 'expired' | 'scheduled' | 'pending' =
+      'pending';
     if (current) state = 'active';
     else if (trialActive) state = 'trial';
     else if (trialScheduled) state = 'scheduled';
+    else if (lastExpired) state = 'expired';
 
     return {
       state,

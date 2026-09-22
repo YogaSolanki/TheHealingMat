@@ -78,6 +78,17 @@ export function MemberJoinPage() {
     );
   }
 
+  if (access.state === "pending") {
+    return (
+      <StateCard
+        title="Complete your membership"
+        body="Purchase a membership or start a free trial to join live sessions."
+        actionHref="/dashboard/membership"
+        actionLabel="View Membership"
+      />
+    );
+  }
+
   if (access.state === "expired") {
     return (
       <StateCard

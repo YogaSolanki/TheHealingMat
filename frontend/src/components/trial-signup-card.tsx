@@ -21,7 +21,10 @@ import {
   updateMemberAuthCache,
 } from "@/lib/session-store";
 import trialIcon from "@/assets/trail.png";
-import { useAuthModal } from "@/components/auth-modal-provider";
+import {
+  useAuthModal,
+  type AuthSignupIntent,
+} from "@/components/auth-modal-provider";
 import { ButtonLoader } from "@/components/site-loader";
 import { SiteToast } from "@/components/site-toast";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
@@ -29,7 +32,12 @@ import {
   captureReferralCode,
   getCapturedReferralCode,
 } from "@/lib/referral-storage";
-import { clearCheckoutIntent } from "@/lib/checkout-intent";
+import {
+  clearCheckoutIntent,
+  readCheckoutIntent,
+  shouldResumeCheckoutAfterAuth,
+} from "@/lib/checkout-intent";
+import { openCheckoutModal } from "@/components/checkout-modal-provider";
 import { formatFullNameInput, isValidFullName, validateFullName } from "@/lib/full-name";
 
 const OTP_LENGTH = 4;
@@ -57,14 +65,17 @@ function formatCountdown(totalSeconds: number) {
 }
 
 type TrialSignupCardProps = {
+  intent?: AuthSignupIntent;
   initialError?: string | null;
   onClose?: () => void;
 };
 
 export function TrialSignupCard({
+  intent = "trial",
   initialError = null,
   onClose,
 }: TrialSignupCardProps) {
+  const isMembership = intent === "membership";
   const router = useRouter();
   const { showAuthToast } = useAuthModal();
   const [step, setStep] = useState<"identity" | "otp">("identity");
@@ -110,10 +121,12 @@ export function TrialSignupCard({
     const saved = getStoredToken();
     if (!saved) return;
 
+    const destination = isMembership ? "/dashboard/membership" : "/dashboard";
+
     const cached = getCachedPublicUser();
     if (cached) {
       onCloseRef.current?.();
-      router.replace("/dashboard");
+      router.replace(destination);
       return;
     }
 
@@ -123,7 +136,7 @@ export function TrialSignupCard({
       .then((me) => {
         if (cancelled || !me) return;
         onCloseRef.current?.();
-        router.replace("/dashboard");
+        router.replace(destination);
       })
       .catch(() => {
         if (cancelled) return;
@@ -133,7 +146,7 @@ export function TrialSignupCard({
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, isMembership]);
 
   useEffect(() => {
     if (step !== "otp") return;
@@ -148,9 +161,26 @@ export function TrialSignupCard({
     setStoredToken(accessToken);
     updateMemberAuthCache(authedUser);
     showAuthToast("Sign up successful");
-    onCloseRef.current?.();
+
+    if (isMembership) {
+      const intent = readCheckoutIntent();
+      const planMonths = intent.planMonths;
+      const startMode = intent.startMode;
+      const resume = shouldResumeCheckoutAfterAuth() && planMonths;
+
+      clearCheckoutIntent();
+      // Navigate before closing auth so a remount cannot send us to /dashboard.
+      router.replace("/dashboard/membership");
+      onCloseRef.current?.();
+      if (resume && planMonths) {
+        openCheckoutModal(planMonths, startMode);
+      }
+      return;
+    }
+
     clearCheckoutIntent();
-    router.push("/dashboard");
+    router.replace("/dashboard");
+    onCloseRef.current?.();
   }
 
   function beginOtpStep(input: {
@@ -257,6 +287,7 @@ export function TrialSignupCard({
         challengeId,
         code: otp,
         fullName: fullName.trim(),
+        signupIntent: intent,
         ...(referralCode ? { referralCode } : {}),
       });
       await afterAuth(result.accessToken, result.user);
@@ -354,10 +385,14 @@ export function TrialSignupCard({
         {step === "identity" ? (
           <>
             <h2 className="mt-2 font-serif text-[1.35rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.45rem]">
-              14 Days of Free Yoga Classes
+              {isMembership
+                ? "Start Your Membership"
+                : "14 Days of Free Yoga Classes"}
             </h2>
             <p className="mx-auto mt-1 max-w-[280px] text-[12px] leading-snug text-[#6d8474]">
-              Start your journey to better health and well-being.
+              {isMembership
+                ? "Create your account to continue with your chosen plan."
+                : "Start your journey to better health and well-being."}
             </p>
           </>
         ) : (
@@ -505,7 +540,7 @@ export function TrialSignupCard({
               <ButtonLoader />
             ) : (
               <>
-                Start My Free Trial
+                {isMembership ? "Continue to Membership" : "Start My Free Trial"}
                 <span aria-hidden="true">→</span>
               </>
             )}
@@ -513,7 +548,9 @@ export function TrialSignupCard({
 
           <p className="flex items-center justify-center gap-1.5 text-[11px] text-[#8a968c]">
             <ShieldCheckIcon />
-            No payment details required
+            {isMembership
+              ? "Secure signup · Takes under a minute"
+              : "No payment details required"}
           </p>
         </form>
       ) : (

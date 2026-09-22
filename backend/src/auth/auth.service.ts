@@ -120,7 +120,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials.');
     }
 
-    return this.issueUserToken(user, false);
+    return this.issueUserToken(user, false, { startFreeTrial: false });
   }
 
   async requestOtp(dto: RequestOtpDto) {
@@ -268,7 +268,14 @@ export class AuthService {
       isNewAccount = true;
     }
 
-    return this.issueUserToken(user, isNewAccount);
+    // Membership signup must not auto-start a free trial.
+    // Trial signup (explicit or default new-account path) keeps ensureFreeTrial.
+    const startFreeTrial =
+      dto.signupIntent === 'membership'
+        ? false
+        : isNewAccount || dto.signupIntent === 'trial';
+
+    return this.issueUserToken(user, isNewAccount, { startFreeTrial });
   }
 
   async resetPassword(dto: ResetPasswordDto) {
@@ -466,8 +473,17 @@ export class AuthService {
     };
   }
 
-  private async issueUserToken(user: User, isNewAccount: boolean) {
-    const withTrial = await this.trials.ensureFreeTrial(user);
+  private async issueUserToken(
+    user: User,
+    isNewAccount: boolean,
+    options?: { startFreeTrial?: boolean },
+  ) {
+    // Default: start trial for new accounts (OTP trial signup + Google signup).
+    // Login / membership signup pass startFreeTrial: false so trial is opt-in.
+    const shouldStartTrial = options?.startFreeTrial ?? isNewAccount;
+    const withTrial = shouldStartTrial
+      ? await this.trials.ensureFreeTrial(user)
+      : user;
     const accessToken = await this.jwt.signAsync(
       { sub: withTrial.id, typ: 'user' },
       { expiresIn: USER_TOKEN_TTL_SECONDS },
@@ -1019,8 +1035,8 @@ export class AuthService {
 
   /**
    * Google login + signup share one path:
-   * - existing email → sign in
-   * - new email → create account (with free trial via issueUserToken)
+   * - existing email → sign in (no auto trial)
+   * - new email → create account and start free trial (default signup path)
    */
   private async findOrCreateGoogleUser(input: {
     email: string;

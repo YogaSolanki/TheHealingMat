@@ -256,7 +256,7 @@ function PlansBlock({
 
   return (
     <section
-      id={isRenew ? "membership-plans" : undefined}
+      id="membership-plans"
       className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-3 sm:px-6 sm:pt-7 lg:px-6 lg:pt-8 xl:px-8"
     >
       <div className="text-center">

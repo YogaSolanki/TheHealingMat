@@ -254,6 +254,7 @@ export async function verifyOtp(input: {
   fullName?: string;
   password?: string;
   referralCode?: string;
+  signupIntent?: "trial" | "membership";
 }): Promise<OtpVerifyResponse> {
   const password = input.password?.trim();
   const body = {
@@ -264,6 +265,7 @@ export async function verifyOtp(input: {
     ...(input.referralCode?.trim()
       ? { referralCode: input.referralCode.trim() }
       : {}),
+    ...(input.signupIntent ? { signupIntent: input.signupIntent } : {}),
   };
   const response = await fetch(`${API_URL}/auth/otp/verify`, {
     method: "POST",
@@ -305,6 +307,17 @@ export async function registerTrial(
       Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify({ orientationSlotId }),
+  });
+  return parseJson<TrialAccountResponse>(response);
+}
+
+/** Start the free trial for an eligible logged-in member (skips if already used). */
+export async function startFreeTrial(
+  accessToken: string,
+): Promise<TrialAccountResponse> {
+  const response = await fetch(`${API_URL}/trials/start`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
   return parseJson<TrialAccountResponse>(response);
 }
@@ -438,7 +451,7 @@ export type PublicMembership = {
 };
 
 export type MembershipAccessResponse = {
-  state: "trial" | "active" | "expired" | "scheduled";
+  state: "trial" | "active" | "expired" | "scheduled" | "pending";
   current: PublicMembership | null;
   scheduled: PublicMembership | null;
   lastExpired: PublicMembership | null;

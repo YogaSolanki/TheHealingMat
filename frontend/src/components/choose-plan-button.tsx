@@ -34,7 +34,7 @@ export function ChoosePlanButton({
         if (!getStoredToken()) {
           saveCheckoutIntent(months, startMode);
           markCheckoutResumeAfterAuth();
-          openAuth("signup");
+          openAuth("signup", { intent: "membership" });
           return;
         }
         openCheckoutModal(months, startMode);

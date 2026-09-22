@@ -16,6 +16,8 @@ import { SiteToast } from "@/components/site-toast";
 import { getStoredToken } from "@/lib/auth-storage";
 
 type AuthMode = "login" | "signup" | "forgot";
+/** Same signup flow; only popup copy changes. */
+export type AuthSignupIntent = "trial" | "membership";
 type ToastVariant = "success" | "error";
 
 type AuthToast = {
@@ -23,8 +25,12 @@ type AuthToast = {
   variant: ToastVariant;
 };
 
+type OpenAuthOptions = {
+  intent?: AuthSignupIntent;
+};
+
 type AuthModalContextValue = {
-  openAuth: (mode?: AuthMode) => void;
+  openAuth: (mode?: AuthMode, options?: OpenAuthOptions) => void;
   closeAuth: () => void;
   showAuthToast: (message: string, variant?: ToastVariant) => void;
 };
@@ -57,6 +63,8 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>("login");
+  const [signupIntent, setSignupIntent] =
+    useState<AuthSignupIntent>("trial");
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<AuthToast | null>(null);
 
@@ -68,12 +76,23 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
   );
 
   const openAuth = useCallback(
-    (nextMode: AuthMode = "login") => {
+    (nextMode: AuthMode = "login", options?: OpenAuthOptions) => {
       if (getStoredToken()) {
-        router.replace("/dashboard");
+        // Already signed in — openAuth is only used to gate checkout; send
+        // membership flows to My Membership, everything else to the home dashboard.
+        router.replace(
+          options?.intent === "membership"
+            ? "/dashboard/membership"
+            : "/dashboard",
+        );
         return;
       }
       setMode(nextMode);
+      setSignupIntent(
+        nextMode === "signup" && options?.intent === "membership"
+          ? "membership"
+          : "trial",
+      );
       setError(null);
       setOpen(true);
     },
@@ -83,6 +102,8 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
   const closeAuth = useCallback(() => {
     setOpen(false);
     setError(null);
+    // Keep signupIntent until the next openAuth() so the exiting modal
+    // does not remount as a trial card and redirect to /dashboard.
   }, []);
 
   useEffect(() => {
@@ -93,8 +114,13 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
     let changed = false;
 
     if (getStoredToken() && (authMode === "login" || authMode === "signup")) {
-      router.replace("/dashboard");
+      router.replace(
+        authMode === "signup" && params.get("intent") === "membership"
+          ? "/dashboard/membership"
+          : "/dashboard",
+      );
       params.delete("auth");
+      params.delete("intent");
       const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
       window.history.replaceState({}, "", next);
       return;
@@ -110,8 +136,14 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
 
     if (authMode === "login" || authMode === "signup" || authMode === "forgot") {
       setMode(authMode);
+      setSignupIntent(
+        authMode === "signup" && params.get("intent") === "membership"
+          ? "membership"
+          : "trial",
+      );
       setOpen(true);
       params.delete("auth");
+      params.delete("intent");
       changed = true;
     }
 
@@ -146,6 +178,7 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
         open={open}
         onClose={closeAuth}
         initialMode={mode}
+        signupIntent={signupIntent}
         initialError={error}
       />
       <CheckoutModalHost />

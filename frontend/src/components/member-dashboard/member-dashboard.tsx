@@ -8,9 +8,14 @@ import leafRight from "@/assets/leaf-right.png";
 import moonIcon from "@/assets/moon.png";
 import sunIcon from "@/assets/sun.png";
 import yogaMenIcon from "@/assets/yoga-men.png";
-import { memberPrimaryBtnClass, memberPrimaryBtnSmClass } from "@/components/member-dashboard/member-button-styles";
+import { openCheckoutModal } from "@/components/checkout-modal-provider";
+import { memberPrimaryBtnClass, memberPrimaryBtnSmClass, memberOutlineBtnClass } from "@/components/member-dashboard/member-button-styles";
 import { TrialWelcomePopup } from "@/components/member-dashboard/trial-welcome-popup";
-import type { PublicUser } from "@/lib/api";
+import { startFreeTrial, type PublicUser } from "@/lib/api";
+import { getStoredToken } from "@/lib/auth-storage";
+import {
+  readCheckoutIntent,
+} from "@/lib/checkout-intent";
 import {
   greetingForName,
   membershipStatusLabel,
@@ -26,7 +31,7 @@ import {
   weekdayEveningSlots,
   weekdayMorningSlots,
 } from "@/lib/member-session-schedule";
-import { useMyReferrals } from "@/lib/session-store";
+import { sessionStore, useMyReferrals, updateMemberAuthCache } from "@/lib/session-store";
 
 type MemberDashboardProps = {
   user: PublicUser;
@@ -78,14 +83,19 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const todayLabelCompact = formatDashboardDate(now, true);
   const sunday = isSunday(now);
   const membershipKnown = !loading;
+  const isUnaffiliated = membershipKnown && access.state === "pending";
   const isExpired = membershipKnown && access.state === "expired";
   const isScheduledTrial = membershipKnown && access.state === "scheduled";
   const isTrial = membershipKnown && access.state === "trial";
   const sessionKind = isTrial || isScheduledTrial ? "trial" : "member";
   const running =
-    isExpired || isScheduledTrial ? null : findRunningSession(now, sessionKind);
+    isExpired || isScheduledTrial || isUnaffiliated
+      ? null
+      : findRunningSession(now, sessionKind);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+  const [startingTrial, setStartingTrial] = useState(false);
   const { successfulCount: successfulReferrals } = useMyReferrals();
+  const canStartFreeTrial = isUnaffiliated && !user.hasUsedFreeTrial;
 
   const nextMilestone = nextReferralMilestone(successfulReferrals);
   const remainingToMilestone = Math.max(0, nextMilestone - successfulReferrals);
@@ -95,7 +105,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
       : 0;
 
   function handleJoin() {
-    if (isExpired || isScheduledTrial) return;
+    if (isExpired || isScheduledTrial || isUnaffiliated) return;
     const current = findRunningSession(new Date(), sessionKind);
     if (!current) {
       setSessionNotice(sessionUnavailableMessage(new Date(), sessionKind));
@@ -121,7 +131,36 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     window.location.assign("/dashboard/join");
   }
 
-  const supportingMessage = isScheduledTrial || isTrial
+  function handleCompleteMembership() {
+    const intent = readCheckoutIntent();
+    const months = intent.planMonths ?? 12;
+    openCheckoutModal(months, intent.startMode ?? "now");
+  }
+
+  async function handleStartFreeTrial() {
+    const token = getStoredToken();
+    if (!token || startingTrial || !canStartFreeTrial) return;
+    setStartingTrial(true);
+    setSessionNotice(null);
+    try {
+      const result = await startFreeTrial(token);
+      updateMemberAuthCache({
+        ...user,
+        hasUsedFreeTrial: result.account.hasUsedFreeTrial,
+      });
+      await sessionStore.ensureAccess({ force: true });
+    } catch (err) {
+      setSessionNotice(
+        err instanceof Error ? err.message : "Unable to start your free trial.",
+      );
+    } finally {
+      setStartingTrial(false);
+    }
+  }
+
+  const supportingMessage = isUnaffiliated
+    ? "Complete your membership to unlock daily yoga sessions, or start a free trial if you are eligible."
+    : isScheduledTrial || isTrial
     ? `Your trial starts on ${access.trialStartsOnLabel ?? "the upcoming cohort Monday"}.`
     : isExpired
       ? "Renew your membership to continue your daily yoga sessions."
@@ -187,7 +226,40 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
             </div>
           ) : null}
 
-          {isExpired ? (
+          {isUnaffiliated ? (
+            <div className="px-4 py-6 sm:px-6 sm:py-8">
+              <p className="text-[16px] font-bold text-[#243028] sm:text-[18px]">
+                Finish setting up your access
+              </p>
+              <p className="mt-3 max-w-[520px] text-[14px] leading-relaxed text-[#6b7c6e]">
+                Your account is ready. Complete your selected membership to unlock
+                daily sessions
+                {canStartFreeTrial
+                  ? ", or start a 14-day free trial if you prefer to try first"
+                  : ""}
+                .
+              </p>
+              <div className="mt-5 flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleCompleteMembership}
+                  className={`${memberPrimaryBtnClass} w-full justify-center px-5 py-3 text-[14px] sm:w-auto sm:text-[15px]`}
+                >
+                  Complete Membership
+                </button>
+                {canStartFreeTrial ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleStartFreeTrial()}
+                    disabled={startingTrial}
+                    className={`${memberOutlineBtnClass} w-full justify-center disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none disabled:hover:filter-none sm:w-auto`}
+                  >
+                    {startingTrial ? "Starting…" : "Start 14 days free trial"}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : isExpired ? (
             <div className="px-4 py-6 sm:px-6 sm:py-8">
               <p className="text-[16px] font-bold text-[#243028] sm:text-[18px]">
                 Your membership has expired
@@ -427,12 +499,22 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
           <DashboardCard
             icon={<WalletIcon className="h-7 w-7 text-[#1f6b3a]" />}
             title="My Membership"
-            badge={membershipKnown ? membershipStatusLabel(access.state) : "—"}
+            badge={
+              membershipKnown
+                ? isUnaffiliated
+                  ? "Pending"
+                  : membershipStatusLabel(access.state)
+                : "—"
+            }
             body={
               <>
-                <p className="font-semibold text-[#3d4a3c]">{access.planName}</p>
+                <p className="font-semibold text-[#3d4a3c]">
+                  {isUnaffiliated ? "No plan yet" : access.planName}
+                </p>
                 <p className="mt-0.5 text-[13px] text-[#6b7c6e]">
-                  {isScheduledTrial
+                  {isUnaffiliated
+                    ? "Complete membership or start a free trial"
+                    : isScheduledTrial
                     ? `Starts ${access.trialStartsOnLabel ?? "—"}`
                     : isTrial
                       ? `Trial ends ${access.trialEndsOnLabel ?? "—"}`
@@ -445,10 +527,18 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
             href="/dashboard/membership"
             linkLabel="View Membership"
             secondaryHref={
-              isExpired || isTrial ? "/dashboard/membership" : undefined
+              isUnaffiliated || isExpired || isTrial
+                ? "/dashboard/membership"
+                : undefined
             }
             secondaryLabel={
-              isExpired ? "Renew Membership" : isTrial ? "Start Membership" : undefined
+              isUnaffiliated
+                ? "Complete Membership"
+                : isExpired
+                  ? "Renew Membership"
+                  : isTrial
+                    ? "Start Membership"
+                    : undefined
             }
             decor={<LeafDecor />}
           />

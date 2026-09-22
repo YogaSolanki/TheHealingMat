@@ -157,7 +157,7 @@ export function MembershipCheckoutPanel({
     if (!token) {
       saveCheckoutIntent(planMonths, startMode);
       markCheckoutResumeAfterAuth();
-      openAuth("signup");
+      openAuth("signup", { intent: "membership" });
       return;
     }
 
@@ -334,7 +334,7 @@ export function MembershipCheckoutPanel({
   async function onPay() {
     const token = getStoredToken();
     if (!token) {
-      openAuth("signup");
+      openAuth("signup", { intent: "membership" });
       return;
     }
     if (!window.Razorpay) {
@@ -482,14 +482,29 @@ export function MembershipCheckoutPanel({
               ) : null}
               <button
                 type="button"
-                className="btn-primary inline-flex w-full items-center justify-center rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white"
+                className="btn-primary inline-flex w-full cursor-pointer items-center justify-center rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white"
                 onClick={() => {
                   closeCheckoutModal();
                   onClose?.();
-                  router.replace("/dashboard/membership");
+                  const scrollToCurrentMembership = () => {
+                    document
+                      .getElementById("current-membership")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  };
+                  if (window.location.pathname === "/dashboard/membership") {
+                    // Modal close animation — scroll after overlay is gone.
+                    window.setTimeout(scrollToCurrentMembership, 240);
+                    window.history.replaceState(
+                      null,
+                      "",
+                      "/dashboard/membership#current-membership",
+                    );
+                    return;
+                  }
+                  router.replace("/dashboard/membership#current-membership");
                 }}
               >
-                Go to My Membership
+                See Membership
               </button>
             </div>
           </CheckoutCard>
@@ -530,8 +545,9 @@ export function MembershipCheckoutPanel({
                 <p className="text-[13px] font-semibold text-[#1f6b3a]">
                   Confirming payment…
                 </p>
-                <p className="px-6 text-center text-[12px] text-[#5f6f64]">
+                <p className="max-w-[280px] px-6 text-center text-[12px] leading-relaxed text-[#5f6f64]">
                   Checking status with our server and updating your membership.
+                  Please don&apos;t close this tab or refresh the page.
                 </p>
               </div>
             ) : null}

@@ -65,7 +65,7 @@ function isValidDob(value: string) {
 }
 
 export function MemberAccountPage() {
-  const { user, signOut, updateUser } = useMemberDashboard();
+  const { user, signOut, signingOut, updateUser } = useMemberDashboard();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [passwordToast, setPasswordToast] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -488,8 +488,8 @@ export function MemberAccountPage() {
           <section className="overflow-hidden rounded-[22px] border border-[#f0e2d8] bg-[#FAF4EF]">
             <div className="flex flex-col gap-4 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
               <div className="flex items-start gap-4 sm:items-center">
-                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#fdeee4] sm:h-12 sm:w-12">
-                  <LogOutIcon className="h-5 w-5 text-[#c45c4a]" />
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#fee2e2] sm:h-12 sm:w-12">
+                  <LogOutIcon className="h-5 w-5 text-[#dc2626]" />
                 </span>
                 <div>
                   <p className="text-[15px] font-bold text-[#243028] sm:text-[16px]">Log Out</p>
@@ -501,9 +501,19 @@ export function MemberAccountPage() {
               <button
                 type="button"
                 onClick={signOut}
-                className="inline-flex w-full shrink-0 cursor-pointer items-center justify-center rounded-[14px] border border-[#d9a89a] bg-white px-5 py-2.5 text-[13px] font-semibold text-[#c45c4a] transition hover:bg-[#fff8f6] sm:w-auto sm:self-center sm:text-[14px]"
+                disabled={signingOut}
+                aria-busy={signingOut}
+                className="inline-flex w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-[14px] border border-[#fecaca] bg-white px-5 py-2.5 text-[13px] font-semibold text-[#dc2626] transition hover:bg-[#fef2f2] disabled:cursor-wait disabled:opacity-80 sm:w-auto sm:self-center sm:text-[14px]"
               >
-                Log Out
+                {signingOut ? (
+                  <span
+                    role="status"
+                    aria-label="Logging out"
+                    className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[#fecaca] border-t-[#dc2626]"
+                  />
+                ) : (
+                  "Log Out"
+                )}
               </button>
             </div>
           </section>

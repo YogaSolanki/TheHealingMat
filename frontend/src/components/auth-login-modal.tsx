@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AuthTrialCard } from "@/components/auth-trial-card";
+import type { AuthSignupIntent } from "@/components/auth-modal-provider";
 import { TrialSignupCard } from "@/components/trial-signup-card";
+import { lockBodyScroll } from "@/lib/body-scroll-lock";
 
 type AuthLoginModalProps = {
   open: boolean;
   onClose: () => void;
   initialMode?: "login" | "signup" | "forgot";
+  signupIntent?: AuthSignupIntent;
   initialError?: string | null;
 };
 
@@ -18,6 +21,7 @@ export function AuthLoginModal({
   open,
   onClose,
   initialMode = "login",
+  signupIntent = "trial",
   initialError = null,
 }: AuthLoginModalProps) {
   const [mounted, setMounted] = useState(false);
@@ -51,8 +55,7 @@ export function AuthLoginModal({
   useEffect(() => {
     if (!rendered) return;
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") handleClose();
@@ -60,7 +63,7 @@ export function AuthLoginModal({
 
     window.addEventListener("keydown", onKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      unlock();
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [rendered, handleClose]);
@@ -68,6 +71,7 @@ export function AuthLoginModal({
   if (!mounted || !rendered) return null;
 
   const isTrialSignup = initialMode === "signup";
+  const isMembershipSignup = isTrialSignup && signupIntent === "membership";
 
   return createPortal(
     <div
@@ -81,7 +85,9 @@ export function AuthLoginModal({
           ? "Member login"
           : initialMode === "forgot"
             ? "Forgot password"
-            : "Free trial signup"
+            : isMembershipSignup
+              ? "Membership signup"
+              : "Free trial signup"
       }
     >
       <button
@@ -97,7 +103,8 @@ export function AuthLoginModal({
       >
         {isTrialSignup ? (
           <TrialSignupCard
-            key={`signup-${initialError ?? ""}`}
+            key={`signup-${signupIntent}-${initialError ?? ""}`}
+            intent={signupIntent}
             initialError={initialError}
             onClose={handleClose}
           />
