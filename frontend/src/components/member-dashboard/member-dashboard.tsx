@@ -153,7 +153,6 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
         hasUsedFreeTrial: result.account.hasUsedFreeTrial,
       });
       await sessionStore.ensureAccess({ force: true });
-      await sessionStore.ensureUser({ force: true });
     } catch (err) {
       setSessionNotice(
         err instanceof Error ? err.message : "Unable to start your free trial.",

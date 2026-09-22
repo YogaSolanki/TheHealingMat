@@ -13,6 +13,15 @@ import { MemberSiteBreadcrumb } from "@/components/member-site-breadcrumb";
 import { ReferralCapture } from "@/components/referral-capture";
 import { getStoredToken } from "@/lib/auth-storage";
 import { isDashboardPath, shouldShowMemberHeader } from "@/lib/member-routes";
+import { sessionStore } from "@/lib/session-store";
+
+/** Attach sessionStorage after mount so SSR HTML matches the hydration pass. */
+function SessionClientAttach() {
+  useEffect(() => {
+    sessionStore.attachClient();
+  }, []);
+  return null;
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -28,6 +37,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <ReferEarnPopupProvider>
+      <SessionClientAttach />
       <Suspense fallback={null}>
         <LoggedInRedirect />
         <ReferralCapture />

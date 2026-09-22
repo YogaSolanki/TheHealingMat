@@ -7,7 +7,7 @@ import { memberPrimaryBtnClass } from "@/components/member-dashboard/member-butt
 import { MemberSelect } from "@/components/member-dashboard/member-select";
 import { InlineDobEditor } from "@/components/member-dashboard/inline-dob-editor";
 import { useMemberDashboard } from "@/components/member-dashboard/member-dashboard-provider";
-import { SiteLoader } from "@/components/site-loader";
+import { ButtonLoader, SiteLoader } from "@/components/site-loader";
 import {
   getMyCoupons,
   updateProfile,
@@ -65,7 +65,7 @@ function isValidDob(value: string) {
 }
 
 export function MemberAccountPage() {
-  const { user, signOut, updateUser } = useMemberDashboard();
+  const { user, signOut, signingOut, updateUser } = useMemberDashboard();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [passwordToast, setPasswordToast] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -501,9 +501,15 @@ export function MemberAccountPage() {
               <button
                 type="button"
                 onClick={signOut}
-                className="inline-flex w-full shrink-0 cursor-pointer items-center justify-center rounded-[14px] border border-[#d9a89a] bg-white px-5 py-2.5 text-[13px] font-semibold text-[#c45c4a] transition hover:bg-[#fff8f6] sm:w-auto sm:self-center sm:text-[14px]"
+                disabled={signingOut}
+                aria-busy={signingOut}
+                className="inline-flex w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-[14px] border border-[#d9a89a] bg-white px-5 py-2.5 text-[13px] font-semibold text-[#c45c4a] transition hover:bg-[#fff8f6] disabled:cursor-wait disabled:opacity-80 sm:w-auto sm:self-center sm:text-[14px]"
               >
-                Log Out
+                {signingOut ? (
+                  <ButtonLoader tone="brand" size="sm" label="Logging out" />
+                ) : (
+                  "Log Out"
+                )}
               </button>
             </div>
           </section>

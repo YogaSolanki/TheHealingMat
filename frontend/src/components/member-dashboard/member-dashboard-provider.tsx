@@ -15,6 +15,7 @@ import { updateMemberAuthCache } from "@/lib/session-store";
 type MemberDashboardContextValue = {
   user: PublicUser;
   signOut: () => void;
+  signingOut: boolean;
   updateUser: (user: PublicUser) => void;
 };
 
@@ -23,10 +24,12 @@ const MemberDashboardContext = createContext<MemberDashboardContextValue | null>
 export function MemberDashboardProvider({
   user: initialUser,
   signOut,
+  signingOut = false,
   children,
 }: {
   user: PublicUser;
   signOut: () => void;
+  signingOut?: boolean;
   children: ReactNode;
 }) {
   const [user, setUser] = useState(initialUser);
@@ -44,9 +47,10 @@ export function MemberDashboardProvider({
     () => ({
       user,
       signOut,
+      signingOut,
       updateUser,
     }),
-    [signOut, updateUser, user],
+    [signOut, signingOut, updateUser, user],
   );
 
   return (
