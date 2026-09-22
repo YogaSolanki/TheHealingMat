@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import calendarIcon from "@/assets/calander-icon.png";
 import rsIcon from "@/assets/rs.png";
 import tagIcon from "@/assets/tag.png";
@@ -28,6 +28,21 @@ export function MemberMembershipPage() {
   const { access, loading } = useMemberAccess();
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#current-membership") return;
+
+    const scroll = () => {
+      document
+        .getElementById("current-membership")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+
+    // Wait for layout / access content so the section is in place.
+    const id = window.setTimeout(scroll, loading ? 320 : 120);
+    return () => window.clearTimeout(id);
+  }, [loading, access.state, access.planName]);
   const isPending = !loading && access.state === "pending";
   const isTrialLike =
     access.state === "trial" || access.state === "scheduled";
@@ -110,7 +125,10 @@ export function MemberMembershipPage() {
         </section>
 
         {/* Current membership */}
-        <section className="mb-5 overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white px-4 py-5 sm:mb-6 sm:px-6 sm:py-6 lg:overflow-visible lg:px-8 lg:py-7">
+        <section
+          id="current-membership"
+          className="mb-5 scroll-mt-28 overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white px-4 py-5 sm:mb-6 sm:scroll-mt-32 sm:px-6 sm:py-6 lg:overflow-visible lg:px-8 lg:py-7"
+        >
           <p className="text-[14px] font-semibold text-[#1f6b3a] sm:text-[15px]">
             Current Membership
           </p>
