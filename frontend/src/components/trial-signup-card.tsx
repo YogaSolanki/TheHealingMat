@@ -121,10 +121,12 @@ export function TrialSignupCard({
     const saved = getStoredToken();
     if (!saved) return;
 
+    const destination = isMembership ? "/dashboard/membership" : "/dashboard";
+
     const cached = getCachedPublicUser();
     if (cached) {
       onCloseRef.current?.();
-      router.replace("/dashboard");
+      router.replace(destination);
       return;
     }
 
@@ -134,7 +136,7 @@ export function TrialSignupCard({
       .then((me) => {
         if (cancelled || !me) return;
         onCloseRef.current?.();
-        router.replace("/dashboard");
+        router.replace(destination);
       })
       .catch(() => {
         if (cancelled) return;
@@ -144,7 +146,7 @@ export function TrialSignupCard({
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, isMembership]);
 
   useEffect(() => {
     if (step !== "otp") return;
@@ -159,20 +161,26 @@ export function TrialSignupCard({
     setStoredToken(accessToken);
     updateMemberAuthCache(authedUser);
     showAuthToast("Sign up successful");
-    onCloseRef.current?.();
 
     if (isMembership) {
       const intent = readCheckoutIntent();
-      if (shouldResumeCheckoutAfterAuth() && intent.planMonths) {
-        clearCheckoutIntent();
-        router.push("/dashboard");
-        openCheckoutModal(intent.planMonths, intent.startMode);
-        return;
+      const planMonths = intent.planMonths;
+      const startMode = intent.startMode;
+      const resume = shouldResumeCheckoutAfterAuth() && planMonths;
+
+      clearCheckoutIntent();
+      // Navigate before closing auth so a remount cannot send us to /dashboard.
+      router.replace("/dashboard/membership");
+      onCloseRef.current?.();
+      if (resume && planMonths) {
+        openCheckoutModal(planMonths, startMode);
       }
+      return;
     }
 
     clearCheckoutIntent();
-    router.push("/dashboard");
+    router.replace("/dashboard");
+    onCloseRef.current?.();
   }
 
   function beginOtpStep(input: {

@@ -78,7 +78,13 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
   const openAuth = useCallback(
     (nextMode: AuthMode = "login", options?: OpenAuthOptions) => {
       if (getStoredToken()) {
-        router.replace("/dashboard");
+        // Already signed in — openAuth is only used to gate checkout; send
+        // membership flows to My Membership, everything else to the home dashboard.
+        router.replace(
+          options?.intent === "membership"
+            ? "/dashboard/membership"
+            : "/dashboard",
+        );
         return;
       }
       setMode(nextMode);
@@ -96,7 +102,8 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
   const closeAuth = useCallback(() => {
     setOpen(false);
     setError(null);
-    setSignupIntent("trial");
+    // Keep signupIntent until the next openAuth() so the exiting modal
+    // does not remount as a trial card and redirect to /dashboard.
   }, []);
 
   useEffect(() => {
@@ -107,8 +114,13 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
     let changed = false;
 
     if (getStoredToken() && (authMode === "login" || authMode === "signup")) {
-      router.replace("/dashboard");
+      router.replace(
+        authMode === "signup" && params.get("intent") === "membership"
+          ? "/dashboard/membership"
+          : "/dashboard",
+      );
       params.delete("auth");
+      params.delete("intent");
       const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
       window.history.replaceState({}, "", next);
       return;

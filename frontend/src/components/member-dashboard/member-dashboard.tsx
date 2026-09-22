@@ -9,7 +9,7 @@ import moonIcon from "@/assets/moon.png";
 import sunIcon from "@/assets/sun.png";
 import yogaMenIcon from "@/assets/yoga-men.png";
 import { openCheckoutModal } from "@/components/checkout-modal-provider";
-import { memberPrimaryBtnClass, memberPrimaryBtnSmClass } from "@/components/member-dashboard/member-button-styles";
+import { memberPrimaryBtnClass, memberPrimaryBtnSmClass, memberOutlineBtnClass } from "@/components/member-dashboard/member-button-styles";
 import { TrialWelcomePopup } from "@/components/member-dashboard/trial-welcome-popup";
 import { startFreeTrial, type PublicUser } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
@@ -257,9 +257,9 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                     type="button"
                     onClick={() => void handleStartFreeTrial()}
                     disabled={startingTrial}
-                    className="inline-flex w-full items-center justify-center rounded-[16px] border border-[#1f6b3a] bg-white px-5 py-3 text-[14px] font-bold text-[#1f6b3a] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:text-[15px]"
+                    className={`${memberOutlineBtnClass} w-full justify-center disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none disabled:hover:filter-none sm:w-auto`}
                   >
-                    {startingTrial ? "Starting…" : "Start Free Trial"}
+                    {startingTrial ? "Starting…" : "Start 14 days free trial"}
                   </button>
                 ) : null}
               </div>
