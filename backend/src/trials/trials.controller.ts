@@ -24,6 +24,17 @@ export class TrialsController {
     return this.trialsService.register(user, dto);
   }
 
+  /**
+   * Explicit free-trial start for logged-in members who skipped trial at
+   * membership signup. Reuses ensureFreeTrial (same logic as trial signup).
+   */
+  @Roles(Role.User)
+  @Post('start')
+  @HttpCode(200)
+  start(@CurrentUser() user: User) {
+    return this.trialsService.startFreeTrial(user);
+  }
+
   @Roles(Role.User)
   @Get('me')
   me(@CurrentUser() user: User) {

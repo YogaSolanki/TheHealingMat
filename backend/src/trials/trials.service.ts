@@ -150,6 +150,21 @@ export class TrialsService {
     };
   }
 
+  /**
+   * Starts the standard free trial for an eligible logged-in member.
+   * Same cohort / messaging path as signup via ensureFreeTrial.
+   */
+  async startFreeTrial(user: User) {
+    if (user.hasUsedFreeTrial) {
+      throw new ConflictException(
+        'One Free Trial per user. This account has already used its trial.',
+      );
+    }
+
+    const updated = await this.ensureFreeTrial(user);
+    return this.getMyTrial(updated);
+  }
+
   async register(user: User, dto: RegisterTrialDto) {
     if (user.hasUsedFreeTrial) {
       throw new ConflictException(

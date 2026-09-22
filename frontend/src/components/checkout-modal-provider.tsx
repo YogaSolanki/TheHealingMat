@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { MembershipCheckoutPanel } from "@/components/membership-checkout";
+import { lockBodyScroll } from "@/lib/body-scroll-lock";
 import {
   clearCheckoutIntent,
   saveCheckoutIntent,
@@ -206,8 +207,7 @@ function ModalShell({
 
   useEffect(() => {
     if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
@@ -215,7 +215,7 @@ function ModalShell({
 
     window.addEventListener("keydown", onKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      unlock();
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [open, onClose]);

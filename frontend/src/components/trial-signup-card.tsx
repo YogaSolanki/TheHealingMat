@@ -32,7 +32,12 @@ import {
   captureReferralCode,
   getCapturedReferralCode,
 } from "@/lib/referral-storage";
-import { clearCheckoutIntent } from "@/lib/checkout-intent";
+import {
+  clearCheckoutIntent,
+  readCheckoutIntent,
+  shouldResumeCheckoutAfterAuth,
+} from "@/lib/checkout-intent";
+import { openCheckoutModal } from "@/components/checkout-modal-provider";
 import { formatFullNameInput, isValidFullName, validateFullName } from "@/lib/full-name";
 
 const OTP_LENGTH = 4;
@@ -155,6 +160,17 @@ export function TrialSignupCard({
     updateMemberAuthCache(authedUser);
     showAuthToast("Sign up successful");
     onCloseRef.current?.();
+
+    if (isMembership) {
+      const intent = readCheckoutIntent();
+      if (shouldResumeCheckoutAfterAuth() && intent.planMonths) {
+        clearCheckoutIntent();
+        router.push("/dashboard");
+        openCheckoutModal(intent.planMonths, intent.startMode);
+        return;
+      }
+    }
+
     clearCheckoutIntent();
     router.push("/dashboard");
   }
@@ -263,6 +279,7 @@ export function TrialSignupCard({
         challengeId,
         code: otp,
         fullName: fullName.trim(),
+        signupIntent: intent,
         ...(referralCode ? { referralCode } : {}),
       });
       await afterAuth(result.accessToken, result.user);
