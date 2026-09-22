@@ -641,10 +641,28 @@ export class AuthService {
   }
 
   /**
-   * Local/dev only: accept 1111 when AiSensy is not configured so signup
-   * stays testable. Never used in production, and never used once keys exist.
+   * Temporary default WhatsApp OTP (1111) while AiSensy billing / delivery
+   * is paused. Enable with WHATSAPP_OTP_DEFAULT_ENABLED=true.
+   * AiSensy send code stays in place and resumes when this flag is off.
    */
+  private defaultWhatsAppOtpEnabled(): boolean {
+    const raw = this.config
+      .get<string>('WHATSAPP_OTP_DEFAULT_ENABLED')
+      ?.trim()
+      .toLowerCase();
+    return raw === 'true' || raw === '1' || raw === 'yes';
+  }
+
+  private defaultWhatsAppOtpCode(): string {
+    const configured = this.config
+      .get<string>('WHATSAPP_OTP_DEFAULT_CODE')
+      ?.trim();
+    return configured && /^\d{4,8}$/.test(configured) ? configured : '1111';
+  }
+
+  /** Local/dev only: accept default OTP when AiSensy keys are missing. */
   private allowDevWhatsAppOtpBypass(): boolean {
+    if (this.defaultWhatsAppOtpEnabled()) return true;
     if (this.config.get('NODE_ENV') === 'production') return false;
     const apiKey = this.config.get<string>('AISENSY_API_KEY')?.trim();
     const campaign = this.config.get<string>('AISENSY_CAMPAIGN_NAME')?.trim();
@@ -659,7 +677,7 @@ export class AuthService {
     const trimmed = code.trim();
     if (
       channel === 'sms' &&
-      trimmed === '1111' &&
+      trimmed === this.defaultWhatsAppOtpCode() &&
       this.allowDevWhatsAppOtpBypass()
     ) {
       return true;
@@ -683,14 +701,22 @@ export class AuthService {
 
   /**
    * India WhatsApp OTP via AiSensy (signup / login / password_reset).
-   * Returns true when AiSensy accepted the send; false only in non-prod
-   * when AiSensy is not configured (dev fallback logs the code).
+   * Returns true when AiSensy accepted the send; false when default OTP
+   * bypass is on or (non-prod) AiSensy is not configured.
    */
   private async sendOtpWhatsApp(input: {
     destination: string;
     code: string;
     purpose: string;
   }): Promise<boolean> {
+    if (this.defaultWhatsAppOtpEnabled()) {
+      console.log(
+        `[OTP][default-bypass] whatsapp send skipped → ${input.destination} ` +
+          `(use ${this.defaultWhatsAppOtpCode()}, purpose=${input.purpose})`,
+      );
+      return true;
+    }
+
     const apiKey = this.config.get<string>('AISENSY_API_KEY')?.trim();
     const campaignName = this.config
       .get<string>('AISENSY_CAMPAIGN_NAME')
