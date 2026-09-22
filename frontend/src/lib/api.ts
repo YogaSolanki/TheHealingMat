@@ -451,7 +451,7 @@ export type PublicMembership = {
 };
 
 export type MembershipAccessResponse = {
-  state: "trial" | "active" | "expired" | "scheduled";
+  state: "trial" | "active" | "expired" | "scheduled" | "pending";
   current: PublicMembership | null;
   scheduled: PublicMembership | null;
   lastExpired: PublicMembership | null;

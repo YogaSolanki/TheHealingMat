@@ -37,7 +37,7 @@ type SessionSnapshot = {
 const SERVER_SNAPSHOT: SessionSnapshot = {
   user: null,
   userReady: false,
-  access: emptyMemberAccess("active"),
+  access: emptyMemberAccess("pending"),
   accessReady: false,
   referrals: EMPTY_REFERRALS,
   referralsReady: false,
@@ -70,7 +70,7 @@ function writeJson(key: string, value: unknown | null) {
 class SessionStore {
   private user: PublicUser | null = null;
   private userReady = false;
-  private access: MemberAccess = emptyMemberAccess("active");
+  private access: MemberAccess = emptyMemberAccess("pending");
   private accessReady = false;
   private referrals: MyReferralsResponse = EMPTY_REFERRALS;
   private referralsReady = false;
@@ -123,11 +123,21 @@ class SessionStore {
         ...storedAccess,
         membershipId: storedAccess.membershipId ?? null,
       };
+      // Older caches used "expired" for never-purchased accounts.
+      if (
+        access.state === "expired" &&
+        !access.membershipId &&
+        !access.expiredOnLabel
+      ) {
+        access.state = "pending";
+        access.planName = "No plan yet";
+      }
       this.access = access;
       // Paid memberships without an id are from a stale cache — refetch.
       const stalePaid =
         access.state !== "trial" &&
         access.state !== "scheduled" &&
+        access.state !== "pending" &&
         !access.membershipId;
       this.accessReady = !stalePaid;
       changed = true;
@@ -227,7 +237,7 @@ class SessionStore {
   clear() {
     this.user = null;
     this.userReady = false;
-    this.access = emptyMemberAccess("active");
+    this.access = emptyMemberAccess("pending");
     this.accessReady = false;
     this.referrals = EMPTY_REFERRALS;
     this.referralsReady = false;
@@ -282,7 +292,7 @@ class SessionStore {
     if (this.clientAttached) this.hydrateFromStorage();
     const token = getStoredToken();
     if (!token) {
-      const fallback = emptyMemberAccess("active");
+      const fallback = emptyMemberAccess("pending");
       this.setAccess(fallback);
       return fallback;
     }
@@ -302,7 +312,7 @@ class SessionStore {
       .catch(() => {
         const fallback = this.accessReady
           ? this.access
-          : emptyMemberAccess("active");
+          : emptyMemberAccess("pending");
         this.setAccess(fallback);
         return fallback;
       })

@@ -18,20 +18,7 @@ export function MemberDashboardSkeleton() {
       aria-live="polite"
       aria-label="Loading dashboard"
     >
-      <div className="border-b border-[#e6ebe4] bg-white">
-        <div className="flex h-[68px] w-full items-center justify-between gap-2 pr-4 pl-5 sm:h-[76px] sm:pr-6 sm:pl-7 lg:pr-8 lg:pl-8 xl:pr-10 xl:pl-12">
-          <Bone className="h-8 w-36 rounded-md sm:h-9 sm:w-44" />
-          <div className="hidden items-center gap-4 lg:flex">
-            <Bone className="h-3.5 w-14" />
-            <Bone className="h-3.5 w-24" />
-            <Bone className="h-3.5 w-20" />
-            <Bone className="h-3.5 w-16" />
-            <Bone className="h-3.5 w-20" />
-          </div>
-          <Bone className="h-10 w-10 rounded-lg lg:hidden" />
-        </div>
-      </div>
-
+      {/* No fake header — AppShell already renders MemberDashboardHeader. */}
       <div className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-8 sm:px-6 sm:pt-8 sm:pb-10 lg:px-6 lg:pb-10 xl:px-8">
         <section className="mb-6 sm:mb-8">
           <Bone className="h-8 w-56 rounded-md sm:h-9 sm:w-72" />

@@ -87,16 +87,20 @@ export function MemberAuthGate({ children }: MemberAuthGateProps) {
   function signOut() {
     if (signingOut) return;
     setSigningOut(true);
-    // Let the logout button paint its spinner before tearing down session UI.
+    // Keep the account UI (button spinner) until navigation starts — never
+    // flash the dashboard skeleton (its fake header looks like a drop shadow).
     window.setTimeout(() => {
+      router.replace("/");
       sessionStore.clear();
       clearStoredToken();
-      router.replace("/");
-    }, 120);
+    }, 180);
   }
 
-  if (signingOut && cachedUser) {
-    return <>{children({ user: cachedUser, signOut, signingOut: true })}</>;
+  if (signingOut) {
+    if (cachedUser) {
+      return <>{children({ user: cachedUser, signOut, signingOut: true })}</>;
+    }
+    return null;
   }
 
   if (!cachedUser) {

@@ -25,23 +25,43 @@ import {
 import { sessionStore } from "@/lib/session-store";
 
 export function MemberMembershipPage() {
-  const { access } = useMemberAccess();
+  const { access, loading } = useMemberAccess();
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
-  const statusLabel = membershipStatusLabel(access.state);
-  const statusMessage =
-    access.state === "scheduled"
-      ? `Your 14-Day Free Trial starts on ${access.trialStartsOnLabel ?? "—"}. Session links activate on that day.`
-      : access.state === "trial"
-        ? `Your trial is active. Trial ends on ${access.trialEndsOnLabel ?? "—"}.`
-        : access.state === "expired"
-          ? `Your membership has ended. Renew to continue daily yoga sessions.`
-          : `Your membership is active. Valid until ${access.validUntilLabel ?? "—"}.`;
+  const isPending = !loading && access.state === "pending";
+  const isTrialLike =
+    access.state === "trial" || access.state === "scheduled";
+  const statusLabel = loading
+    ? null
+    : isPending
+      ? "Pending"
+      : membershipStatusLabel(access.state);
+  const statusMessage = loading
+    ? "Loading your membership details…"
+    : access.state === "pending"
+      ? "You have not purchased a membership yet. Choose a plan below to complete your membership."
+      : access.state === "scheduled"
+        ? `Your 14-Day Free Trial starts on ${access.trialStartsOnLabel ?? "—"}. Session links activate on that day.`
+        : access.state === "trial"
+          ? `Your trial is active. Trial ends on ${access.trialEndsOnLabel ?? "—"}.`
+          : access.state === "expired"
+            ? `Your membership has ended. Renew to continue daily yoga sessions.`
+            : `Your membership is active. Valid until ${access.validUntilLabel ?? "—"}.`;
 
   const renewStartMode: CheckoutStartMode =
     access.state === "active" ? "after_current" : "now";
-  const isTrialLike =
-    access.state === "trial" || access.state === "scheduled";
+  const planTitle = loading
+    ? "Membership"
+    : isTrialLike
+      ? "Your Trial"
+      : isPending
+        ? "No plan yet"
+        : access.planName;
+  const primaryCtaLabel = isTrialLike
+    ? "Start Membership"
+    : isPending
+      ? "Complete Membership"
+      : "Renew Membership";
 
   function scrollToPlans() {
     document
@@ -110,11 +130,13 @@ export function MemberMembershipPage() {
                 <div className="hidden h-[22px] lg:block" aria-hidden="true" />
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <h2 className="text-[16px] font-bold text-[#243028] sm:text-[17px]">
-                    {isTrialLike ? "Your Trial" : access.planName}
+                    {planTitle}
                   </h2>
-                  <span className="inline-flex rounded-[6px] bg-[#eef6f0] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#1f6b3a] uppercase">
-                    {statusLabel}
-                  </span>
+                  {statusLabel ? (
+                    <span className="inline-flex rounded-[6px] bg-[#eef6f0] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#1f6b3a] uppercase">
+                      {statusLabel}
+                    </span>
+                  ) : null}
                 </div>
                 <p className="mt-2 text-[13px] leading-relaxed text-[#5f6f64] sm:max-w-[320px] sm:text-[14px] lg:max-w-[280px]">
                   {statusMessage}
@@ -151,7 +173,7 @@ export function MemberMembershipPage() {
                     {access.transactionRef ? ` · Ref ${access.transactionRef}` : ""}
                   </p>
                 ) : null}
-                {isTrialLike ? null : (
+                {isTrialLike || isPending || loading ? null : (
                   <div className="mt-2">
                     <button
                       type="button"
@@ -222,7 +244,7 @@ export function MemberMembershipPage() {
                   onClick={scrollToPlans}
                   className={`${memberPrimaryBtnClass} w-full px-5 py-3 text-[14px] sm:w-auto sm:min-w-[190px] sm:text-[15px]`}
                 >
-                  {isTrialLike ? "Start Membership" : "Renew Membership"}
+                  {primaryCtaLabel}
                   <ChevronRightIcon className="h-4 w-4" />
                 </button>
               </div>
@@ -299,19 +321,32 @@ export function MemberMembershipPage() {
             <InfoIcon className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#C4A574] sm:mt-0" />
             <div className="min-w-0">
               <p className="text-[14px] font-bold leading-snug text-[#243028] sm:text-[15px]">
-                {access.state === "expired" ? "Your account is still here" : "Need to renew early?"}
+                {access.state === "pending"
+                  ? "Ready when you are"
+                  : access.state === "expired"
+                    ? "Your account is still here"
+                    : "Need to renew early?"}
               </p>
               <p className="mt-0.5 text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
-                {access.state === "expired"
-                  ? "Your account and referral information are still available. Renew membership to restore session access."
-                  : "Early renewal leaves your current membership unchanged and creates the next scheduled membership. It begins automatically after this one ends."}
+                {access.state === "pending"
+                  ? "Complete your membership below to unlock daily yoga sessions. You can also start a free trial from Home if you are eligible."
+                  : access.state === "expired"
+                    ? "Your account and referral information are still available. Renew membership to restore session access."
+                    : "Early renewal leaves your current membership unchanged and creates the next scheduled membership. It begins automatically after this one ends."}
               </p>
             </div>
           </div>
         </section>
       </div>
 
-      <MembershipSection variant="renew" startMode={renewStartMode} />
+      <MembershipSection
+        variant={
+          access.state === "active" || access.state === "expired"
+            ? "renew"
+            : "public"
+        }
+        startMode={renewStartMode}
+      />
     </div>
   );
 }

@@ -83,12 +83,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const todayLabelCompact = formatDashboardDate(now, true);
   const sunday = isSunday(now);
   const membershipKnown = !loading;
-  const isUnaffiliated =
-    membershipKnown &&
-    access.state === "expired" &&
-    !access.membershipId &&
-    !access.expiredOnLabel;
-  const isExpired = membershipKnown && access.state === "expired" && !isUnaffiliated;
+  const isUnaffiliated = membershipKnown && access.state === "pending";
+  const isExpired = membershipKnown && access.state === "expired";
   const isScheduledTrial = membershipKnown && access.state === "scheduled";
   const isTrial = membershipKnown && access.state === "trial";
   const sessionKind = isTrial || isScheduledTrial ? "trial" : "member";
