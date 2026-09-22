@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AuthTrialCard } from "@/components/auth-trial-card";
+import type { AuthSignupIntent } from "@/components/auth-modal-provider";
 import { TrialSignupCard } from "@/components/trial-signup-card";
 
 type AuthLoginModalProps = {
   open: boolean;
   onClose: () => void;
   initialMode?: "login" | "signup" | "forgot";
+  signupIntent?: AuthSignupIntent;
   initialError?: string | null;
 };
 
@@ -18,6 +20,7 @@ export function AuthLoginModal({
   open,
   onClose,
   initialMode = "login",
+  signupIntent = "trial",
   initialError = null,
 }: AuthLoginModalProps) {
   const [mounted, setMounted] = useState(false);
@@ -68,6 +71,7 @@ export function AuthLoginModal({
   if (!mounted || !rendered) return null;
 
   const isTrialSignup = initialMode === "signup";
+  const isMembershipSignup = isTrialSignup && signupIntent === "membership";
 
   return createPortal(
     <div
@@ -81,7 +85,9 @@ export function AuthLoginModal({
           ? "Member login"
           : initialMode === "forgot"
             ? "Forgot password"
-            : "Free trial signup"
+            : isMembershipSignup
+              ? "Membership signup"
+              : "Free trial signup"
       }
     >
       <button
@@ -97,7 +103,8 @@ export function AuthLoginModal({
       >
         {isTrialSignup ? (
           <TrialSignupCard
-            key={`signup-${initialError ?? ""}`}
+            key={`signup-${signupIntent}-${initialError ?? ""}`}
+            intent={signupIntent}
             initialError={initialError}
             onClose={handleClose}
           />

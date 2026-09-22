@@ -157,7 +157,7 @@ export function MembershipCheckoutPanel({
     if (!token) {
       saveCheckoutIntent(planMonths, startMode);
       markCheckoutResumeAfterAuth();
-      openAuth("signup");
+      openAuth("signup", { intent: "membership" });
       return;
     }
 
@@ -334,7 +334,7 @@ export function MembershipCheckoutPanel({
   async function onPay() {
     const token = getStoredToken();
     if (!token) {
-      openAuth("signup");
+      openAuth("signup", { intent: "membership" });
       return;
     }
     if (!window.Razorpay) {
