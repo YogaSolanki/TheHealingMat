@@ -33,7 +33,6 @@ import { useAuthModal } from "@/components/auth-modal-provider";
 import { ButtonLoader } from "@/components/site-loader";
 import { SiteToast } from "@/components/site-toast";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
-import { captureReferralCode, getCapturedReferralCode } from "@/lib/referral-storage";
 import { openCheckoutModal } from "@/components/checkout-modal-provider";
 import { formatFullNameInput, isValidFullName, validateFullName } from "@/lib/full-name";
 import {
@@ -223,12 +222,14 @@ function PasswordValidityIcon({
 
 type AuthTrialCardProps = {
   initialMode?: Mode;
+  initialReferralCode?: string;
   initialError?: string | null;
   onClose?: () => void;
 };
 
 export function AuthTrialCard({
   initialMode = "signup",
+  initialReferralCode = "",
   initialError = null,
   onClose,
 }: AuthTrialCardProps) {
@@ -244,7 +245,7 @@ export function AuthTrialCard({
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [referralCodeInput, setReferralCodeInput] = useState(
-    () => getCapturedReferralCode() ?? "",
+    () => initialReferralCode.trim(),
   );
   const [otp, setOtp] = useState("");
   const [challengeId, setChallengeId] = useState("");
@@ -300,10 +301,10 @@ export function AuthTrialCard({
 
   useEffect(() => {
     if (mode !== "signup") return;
-    const captured = getCapturedReferralCode();
-    if (!captured) return;
-    setReferralCodeInput((current) => current.trim() || captured);
-  }, [mode]);
+    const seed = initialReferralCode.trim();
+    if (!seed) return;
+    setReferralCodeInput((current) => current.trim() || seed);
+  }, [mode, initialReferralCode]);
 
   function goToDashboard() {
     onCloseRef.current?.();
@@ -349,8 +350,6 @@ export function AuthTrialCard({
         setError("Please agree to the Terms & Conditions to continue.");
         return;
       }
-      const trimmedReferral = referralCodeInput.trim();
-      if (trimmedReferral) captureReferralCode(trimmedReferral);
     }
 
     setLoading(true);
@@ -432,9 +431,7 @@ export function AuthTrialCard({
         return;
       }
 
-      const referralCode =
-        referralCodeInput.trim() || getCapturedReferralCode() || "";
-      if (referralCode) captureReferralCode(referralCode);
+      const referralCode = referralCodeInput.trim();
       const result = await verifyOtp({
         challengeId,
         code: otp,
@@ -466,7 +463,7 @@ export function AuthTrialCard({
     setResetMessage(null);
     setTermsAccepted(false);
     if (nextMode === "signup") {
-      setReferralCodeInput(getCapturedReferralCode() ?? "");
+      setReferralCodeInput(initialReferralCode.trim());
     }
   }
 

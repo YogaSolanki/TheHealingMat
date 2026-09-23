@@ -27,6 +27,8 @@ type AuthToast = {
 
 type OpenAuthOptions = {
   intent?: AuthSignupIntent;
+  /** One-shot invite code for this modal open only (not stored). */
+  referralCode?: string;
 };
 
 type AuthModalContextValue = {
@@ -65,6 +67,7 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<AuthMode>("login");
   const [signupIntent, setSignupIntent] =
     useState<AuthSignupIntent>("trial");
+  const [initialReferralCode, setInitialReferralCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<AuthToast | null>(null);
 
@@ -93,6 +96,9 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
           ? "membership"
           : "trial",
       );
+      setInitialReferralCode(
+        nextMode === "signup" ? options?.referralCode?.trim() || "" : "",
+      );
       setError(null);
       setOpen(true);
     },
@@ -102,6 +108,7 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
   const closeAuth = useCallback(() => {
     setOpen(false);
     setError(null);
+    setInitialReferralCode("");
     // Keep signupIntent until the next openAuth() so the exiting modal
     // does not remount as a trial card and redirect to /dashboard.
   }, []);
@@ -129,6 +136,7 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
     if (authError) {
       setError(authError);
       setMode("login");
+      setInitialReferralCode("");
       setOpen(true);
       params.delete("authError");
       changed = true;
@@ -141,6 +149,7 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
           ? "membership"
           : "trial",
       );
+      setInitialReferralCode("");
       setOpen(true);
       params.delete("auth");
       params.delete("intent");
@@ -179,6 +188,7 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
         onClose={closeAuth}
         initialMode={mode}
         signupIntent={signupIntent}
+        initialReferralCode={initialReferralCode}
         initialError={error}
       />
       <CheckoutModalHost />

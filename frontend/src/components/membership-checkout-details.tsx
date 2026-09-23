@@ -12,10 +12,6 @@ import {
 import { getStoredToken } from "@/lib/auth-storage";
 import { INDIA_STATES } from "@/lib/india-states";
 import { preferredClassTimeOptions } from "@/lib/member-session-schedule";
-import {
-  captureReferralCode,
-  getCapturedReferralCode,
-} from "@/lib/referral-storage";
 import { updateMemberAuthCache } from "@/lib/session-store";
 
 export type MembershipCheckoutDetailsValue = {
@@ -58,9 +54,7 @@ export function MembershipCheckoutDetails({
     user.preferredClassTime?.trim() ?? "",
   );
   const [startsOn, setStartsOn] = useState(todayIso());
-  const [referralCodeInput, setReferralCodeInput] = useState(
-    () => (canEnterReferral ? getCapturedReferralCode() ?? "" : ""),
-  );
+  const [referralCodeInput, setReferralCodeInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -112,7 +106,6 @@ export function MembershipCheckoutDetails({
       let nextUser = user;
       const trimmedReferral = referralCodeInput.trim();
       if (canEnterReferral && trimmedReferral) {
-        captureReferralCode(trimmedReferral);
         const referralResult = await applyReferralCode(token, trimmedReferral);
         nextUser = referralResult.user;
         updateMemberAuthCache(nextUser);

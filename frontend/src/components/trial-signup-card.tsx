@@ -29,10 +29,6 @@ import { ButtonLoader } from "@/components/site-loader";
 import { SiteToast } from "@/components/site-toast";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
 import {
-  captureReferralCode,
-  getCapturedReferralCode,
-} from "@/lib/referral-storage";
-import {
   clearCheckoutIntent,
   readCheckoutIntent,
   shouldResumeCheckoutAfterAuth,
@@ -66,12 +62,14 @@ function formatCountdown(totalSeconds: number) {
 
 type TrialSignupCardProps = {
   intent?: AuthSignupIntent;
+  initialReferralCode?: string;
   initialError?: string | null;
   onClose?: () => void;
 };
 
 export function TrialSignupCard({
   intent = "trial",
+  initialReferralCode = "",
   initialError = null,
   onClose,
 }: TrialSignupCardProps) {
@@ -96,16 +94,10 @@ export function TrialSignupCard({
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [referralCodeInput, setReferralCodeInput] = useState(
-    () => getCapturedReferralCode() ?? "",
+    () => initialReferralCode.trim(),
   );
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
-
-  useEffect(() => {
-    const captured = getCapturedReferralCode();
-    if (!captured) return;
-    setReferralCodeInput((current) => current.trim() || captured);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -280,9 +272,7 @@ export function TrialSignupCard({
 
     setLoading(true);
     try {
-      const referralCode =
-        referralCodeInput.trim() || getCapturedReferralCode() || "";
-      if (referralCode) captureReferralCode(referralCode);
+      const referralCode = referralCodeInput.trim();
       const result = await verifyOtp({
         challengeId,
         code: otp,

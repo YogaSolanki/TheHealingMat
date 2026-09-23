@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { MemberDashboardSkeleton } from "@/components/member-dashboard/member-dashboard-skeleton";
 import type { PublicUser } from "@/lib/api";
 import { clearStoredToken, getStoredToken } from "@/lib/auth-storage";
+import {
+  clearLegacyReferralStorage,
+  stripReferralCodeFromUrl,
+} from "@/lib/referral-storage";
 import { sessionStore, useSessionUser } from "@/lib/session-store";
 
 export {
@@ -93,6 +97,8 @@ export function MemberAuthGate({ children }: MemberAuthGateProps) {
       router.replace("/");
       sessionStore.clear();
       clearStoredToken();
+      clearLegacyReferralStorage();
+      stripReferralCodeFromUrl();
     }, 180);
   }
 
