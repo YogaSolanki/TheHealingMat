@@ -157,6 +157,138 @@ export function deleteAdminUser(token: string, id: string) {
   ).then(() => undefined);
 }
 
+export function deleteAllAdminUsers(token: string) {
+  return authJson<{ success: boolean; deletedCount: number }>(
+    "DELETE",
+    "/admin/users",
+    token,
+  );
+}
+
+export type AdminUserDetail = {
+  profile: {
+    id: string;
+    fullName: string;
+    region: string;
+    mobile: string | null;
+    email: string | null;
+    dateOfBirth: string | null;
+    gender: string | null;
+    state: string | null;
+    preferredClassTime: string | null;
+    referralCode: string;
+    accessLink: string;
+    accessLinkToken: string;
+    hasUsedFreeTrial: boolean;
+    passwordSetByUser: boolean;
+    referredByUserId: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+  referredBy: {
+    id: string;
+    fullName: string;
+    referralCode: string;
+  } | null;
+  referralCount: number;
+  trial: {
+    id: string;
+    status: string;
+    trialStartsAt: string;
+    trialEndsAt: string;
+    registeredAt: string;
+    cohortLabel: string | null;
+    orientationLabel: string | null;
+  } | null;
+  memberships: AdminUserMembership[];
+  payments: AdminUserPayment[];
+};
+
+export type AdminUserMembership = {
+  id: string;
+  planMonths: number;
+  planName: string;
+  listPricePaise: number;
+  discountPaise: number;
+  amountPaidPaise: number;
+  currency: string;
+  status: "active" | "scheduled" | "expired";
+  startsAt: string;
+  endsAt: string;
+  paymentOrderId: string;
+  razorpayPaymentId: string | null;
+  razorpayInvoiceId: string | null;
+  razorpayInvoiceUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminUserPayment = {
+  id: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string | null;
+  razorpayInvoiceId: string | null;
+  razorpayInvoiceUrl: string | null;
+  amountPaise: number;
+  currency: string;
+  receipt: string;
+  planMonths: number | null;
+  couponCode: string | null;
+  startMode: string;
+  startsOn: string | null;
+  listPricePaise: number;
+  discountPaise: number;
+  status: "created" | "paid" | "failed";
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type UpdateAdminUserInput = {
+  fullName?: string;
+  region?: string;
+  email?: string | null;
+  mobile?: string | null;
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  state?: string | null;
+  preferredClassTime?: string | null;
+  hasUsedFreeTrial?: boolean;
+};
+
+export type UpdateAdminMembershipInput = {
+  status?: "active" | "scheduled" | "expired";
+  startsAt?: string;
+  endsAt?: string;
+  planMonths?: number;
+  planName?: string;
+};
+
+export function getAdminUserDetail(token: string, id: string) {
+  return authGet<AdminUserDetail>(`/admin/users/${id}`, token);
+}
+
+export function updateAdminUser(
+  token: string,
+  id: string,
+  body: UpdateAdminUserInput,
+) {
+  return authJson<AdminUserDetail>("PATCH", `/admin/users/${id}`, token, body);
+}
+
+export function updateAdminUserMembership(
+  token: string,
+  userId: string,
+  membershipId: string,
+  body: UpdateAdminMembershipInput,
+) {
+  return authJson<AdminUserDetail>(
+    "PATCH",
+    `/admin/users/${userId}/memberships/${membershipId}`,
+    token,
+    body,
+  );
+}
+
 export type AdminContentItem = {
   id: string;
   slug: string;
