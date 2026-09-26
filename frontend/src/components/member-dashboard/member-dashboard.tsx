@@ -537,7 +537,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 : isExpired
                   ? "Renew Membership"
                   : isTrial
-                    ? "Start Membership"
+                    ? "Join Membership"
                     : undefined
             }
             decor={<LeafDecor />}

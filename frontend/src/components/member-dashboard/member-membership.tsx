@@ -73,7 +73,7 @@ export function MemberMembershipPage() {
         ? "No plan yet"
         : access.planName;
   const primaryCtaLabel = isTrialLike
-    ? "Start Membership"
+    ? "Join Membership"
     : isPending
       ? "Complete Membership"
       : "Renew Membership";
