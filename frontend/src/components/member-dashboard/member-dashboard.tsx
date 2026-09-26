@@ -527,8 +527,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
             href="/dashboard/membership"
             linkLabel="View Membership"
             secondaryHref={
-              isUnaffiliated || isExpired || isTrial
-                ? "/dashboard/membership"
+              isUnaffiliated || isExpired || isTrial || isScheduledTrial
+                ? "/dashboard/membership#membership-plans"
                 : undefined
             }
             secondaryLabel={
@@ -536,7 +536,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 ? "Complete Membership"
                 : isExpired
                   ? "Renew Membership"
-                  : isTrial
+                  : isTrial || isScheduledTrial
                     ? "Join Membership"
                     : undefined
             }

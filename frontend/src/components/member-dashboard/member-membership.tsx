@@ -31,11 +31,15 @@ export function MemberMembershipPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.location.hash !== "#current-membership") return;
+    const hash = window.location.hash;
+    if (hash !== "#current-membership" && hash !== "#membership-plans") return;
+
+    const targetId =
+      hash === "#membership-plans" ? "membership-plans" : "current-membership";
 
     const scroll = () => {
       document
-        .getElementById("current-membership")
+        .getElementById(targetId)
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
     };
 
@@ -63,6 +67,8 @@ export function MemberMembershipPage() {
             ? `Your membership has ended. Renew to continue daily yoga sessions.`
             : `Your membership is active. Valid until ${access.validUntilLabel ?? "—"}.`;
 
+  // Trial / pending: normal purchase journey (pick plan + start date in checkout).
+  // Active paid: renew after current term.
   const renewStartMode: CheckoutStartMode =
     access.state === "active" ? "after_current" : "now";
   const planTitle = loading
@@ -79,9 +85,12 @@ export function MemberMembershipPage() {
       : "Renew Membership";
 
   function scrollToPlans() {
-    document
-      .getElementById("membership-plans")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const el = document.getElementById("membership-plans");
+    if (!el) return;
+    if (window.location.hash !== "#membership-plans") {
+      window.history.replaceState(null, "", "#membership-plans");
+    }
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function onDownloadInvoice() {
