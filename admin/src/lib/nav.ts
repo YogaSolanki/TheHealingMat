@@ -9,6 +9,7 @@ export const ADMIN_NAV = [
   { href: "/dashboard/offers", label: "Offers", icon: "offers" },
   { href: "/dashboard/coupons", label: "Coupons", icon: "coupon" },
   { href: "/dashboard/rewards", label: "Rewards", icon: "rewards" },
+  { href: "/dashboard/sessions", label: "Sessions", icon: "sessions" },
   { href: "/dashboard/settings", label: "Settings", icon: "settings" },
 ] as const;
 

@@ -28,6 +28,8 @@ export function NavGlyph({ name, className = iconClass }: { name: NavIcon; class
       return <CompassIcon className={className} />;
     case "plans":
       return <PlansIcon className={className} />;
+    case "sessions":
+      return <SessionsIcon className={className} />;
     case "settings":
       return <SettingsIcon className={className} />;
   }
@@ -114,6 +116,15 @@ function PlansIcon({ className = iconClass }: IconProps) {
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
       <rect x="4" y="4.5" width="16" height="15" rx="2" />
       <path d="M8 9h8M8 12.5h8M8 16h5" />
+    </svg>
+  );
+}
+
+function SessionsIcon({ className = iconClass }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.25" />
+      <path d="M12 8v4.2l2.8 1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

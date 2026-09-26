@@ -186,12 +186,14 @@ function PasswordValidityIcon({
   value: string;
   valid: boolean;
 }) {
-  if (!value) return null;
+  if (!value) {
+    return <span className="inline-flex h-8 w-8" aria-hidden="true" />;
+  }
 
   return (
     <span
       aria-hidden="true"
-      className={`pointer-events-none absolute inset-y-0 right-3.5 flex items-center ${
+      className={`inline-flex h-8 w-8 items-center justify-center ${
         valid ? "text-[#1f6b3a]" : "text-[#c45c4a]"
       }`}
     >
@@ -221,6 +223,92 @@ function PasswordValidityIcon({
   );
 }
 
+function EyeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M3 3l18 18M10.5 10.6a2.5 2.5 0 0 0 3 3M7 7.3C4.7 8.7 3 12 3 12s3.5 6.5 9.5 6.5c1.5 0 2.9-.3 4.1-.8M17.2 15.4C19.3 14 21.5 12 21.5 12S18 5.5 12 5.5c-.9 0-1.7.1-2.5.3"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function PasswordRevealField({
+  value,
+  onChange,
+  show,
+  onToggleShow,
+  className,
+  placeholder,
+  autoComplete,
+  minLength,
+  maxLength,
+  required,
+  validity,
+  "aria-invalid": ariaInvalid,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  show: boolean;
+  onToggleShow: () => void;
+  className: string;
+  placeholder: string;
+  autoComplete: string;
+  minLength?: number;
+  maxLength?: number;
+  required?: boolean;
+  validity?: { valid: boolean };
+  "aria-invalid"?: boolean;
+}) {
+  return (
+    <div className="relative">
+      <input
+        required={required}
+        type={show ? "text" : "password"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`${className} ${validity ? "pr-[4.5rem]" : "pr-11"}`}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        minLength={minLength}
+        maxLength={maxLength}
+        aria-invalid={ariaInvalid}
+      />
+      <div className="absolute inset-y-0 right-1 flex items-center">
+        {validity ? (
+          <PasswordValidityIcon value={value} valid={validity.valid} />
+        ) : null}
+        <button
+          type="button"
+          onClick={onToggleShow}
+          aria-label={show ? "Hide password" : "Show password"}
+          className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-[#8a968c] transition hover:bg-[#f6f8f5] hover:text-[#1f6b3a]"
+        >
+          {show ? <EyeOffIcon /> : <EyeIcon />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 type AuthTrialCardProps = {
   initialMode?: Mode;
   initialReferralCode?: string;
@@ -245,6 +333,8 @@ export function AuthTrialCard({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [referralCodeInput, setReferralCodeInput] = useState(
     () => initialReferralCode.trim(),
   );
@@ -465,6 +555,8 @@ export function AuthTrialCard({
     setOtp("");
     setPassword("");
     setConfirmPassword("");
+    setShowPassword(false);
+    setShowConfirmPassword(false);
     setChallengeId("");
     setDestinationMasked(null);
     setResetMessage(null);
@@ -482,6 +574,8 @@ export function AuthTrialCard({
     setOtp("");
     setPassword("");
     setConfirmPassword("");
+    setShowPassword(false);
+    setShowConfirmPassword(false);
     setChallengeId("");
     setDestinationMasked(null);
     setResetMessage(null);
@@ -757,11 +851,12 @@ export function AuthTrialCard({
                   Forgot password?
                 </button>
               </div>
-              <input
+              <PasswordRevealField
                 required
-                type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={setPassword}
+                show={showPassword}
+                onToggleShow={() => setShowPassword((v) => !v)}
                 className={fieldClass}
                 placeholder="Enter your password"
                 autoComplete="current-password"
@@ -799,24 +894,20 @@ export function AuthTrialCard({
           {mode === "signup" ? (
             <div>
               <label className={labelClass}>Password</label>
-              <div className="relative">
-                <input
-                  required
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={`${fieldClass} pr-11`}
-                  placeholder="Create a password"
-                  autoComplete="new-password"
-                  minLength={8}
-                  maxLength={72}
-                  aria-invalid={password.length > 0 && !isValidSignupPassword(password)}
-                />
-                <PasswordValidityIcon
-                  value={password}
-                  valid={isValidSignupPassword(password)}
-                />
-              </div>
+              <PasswordRevealField
+                required
+                value={password}
+                onChange={setPassword}
+                show={showPassword}
+                onToggleShow={() => setShowPassword((v) => !v)}
+                className={fieldClass}
+                placeholder="Create a password"
+                autoComplete="new-password"
+                minLength={8}
+                maxLength={72}
+                aria-invalid={password.length > 0 && !isValidSignupPassword(password)}
+                validity={{ valid: isValidSignupPassword(password) }}
+              />
             </div>
           ) : null}
 
@@ -934,51 +1025,44 @@ export function AuthTrialCard({
             <>
               <div>
                 <label className={labelClass}>New password</label>
-                <div className="relative">
-                  <input
-                    required
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className={`${fieldClass} pr-11`}
-                    placeholder="Create a new password"
-                    autoComplete="new-password"
-                    minLength={8}
-                    maxLength={72}
-                    aria-invalid={password.length > 0 && !isValidSignupPassword(password)}
-                  />
-                  <PasswordValidityIcon
-                    value={password}
-                    valid={isValidSignupPassword(password)}
-                  />
-                </div>
+                <PasswordRevealField
+                  required
+                  value={password}
+                  onChange={setPassword}
+                  show={showPassword}
+                  onToggleShow={() => setShowPassword((v) => !v)}
+                  className={fieldClass}
+                  placeholder="Create a new password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  maxLength={72}
+                  aria-invalid={password.length > 0 && !isValidSignupPassword(password)}
+                  validity={{ valid: isValidSignupPassword(password) }}
+                />
               </div>
               <div>
                 <label className={labelClass}>Confirm password</label>
-                <div className="relative">
-                  <input
-                    required
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className={`${fieldClass} pr-11`}
-                    placeholder="Re-enter new password"
-                    autoComplete="new-password"
-                    minLength={8}
-                    maxLength={72}
-                    aria-invalid={
-                      confirmPassword.length > 0 &&
-                      confirmPassword !== password
-                    }
-                  />
-                  <PasswordValidityIcon
-                    value={confirmPassword}
-                    valid={
+                <PasswordRevealField
+                  required
+                  value={confirmPassword}
+                  onChange={setConfirmPassword}
+                  show={showConfirmPassword}
+                  onToggleShow={() => setShowConfirmPassword((v) => !v)}
+                  className={fieldClass}
+                  placeholder="Re-enter new password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  maxLength={72}
+                  aria-invalid={
+                    confirmPassword.length > 0 &&
+                    confirmPassword !== password
+                  }
+                  validity={{
+                    valid:
                       isValidSignupPassword(password) &&
-                      confirmPassword === password
-                    }
-                  />
-                </div>
+                      confirmPassword === password,
+                  }}
+                />
               </div>
             </>
           ) : null}

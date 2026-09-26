@@ -13,9 +13,9 @@ import {
 const inputClass =
   "mt-1.5 h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
 
-export function SettingsPanel() {
+export function SessionsPanel() {
   const [settings, setSettings] = useState<AdminSiteSettings | null>(null);
-  const [referralDiscountPercent, setReferralDiscountPercent] = useState("20");
+  const [liveSessionUrl, setLiveSessionUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,9 +41,11 @@ export function SettingsPanel() {
       try {
         const next = await getAdminSettings(token);
         setSettings(next);
-        setReferralDiscountPercent(String(next.referralDiscountPercent ?? 20));
+        setLiveSessionUrl(next.liveSessionUrl ?? "");
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Unable to load settings.");
+        setError(
+          err instanceof Error ? err.message : "Unable to load session settings.",
+        );
       } finally {
         setLoading(false);
       }
@@ -60,9 +62,9 @@ export function SettingsPanel() {
     event.preventDefault();
     if (!token || saving) return;
 
-    const percent = Number(referralDiscountPercent);
-    if (!Number.isInteger(percent) || percent < 0 || percent > 100) {
-      setError("Referral discount must be a whole number between 0 and 100.");
+    const trimmed = liveSessionUrl.trim();
+    if (trimmed && !/^https?:\/\//i.test(trimmed)) {
+      setError("Use a full URL including https://");
       return;
     }
 
@@ -71,13 +73,15 @@ export function SettingsPanel() {
     setSaved(false);
     try {
       const next = await updateAdminSettings(token, {
-        referralDiscountPercent: percent,
+        liveSessionUrl: trimmed || null,
       });
       setSettings(next);
-      setReferralDiscountPercent(String(next.referralDiscountPercent ?? 20));
+      setLiveSessionUrl(next.liveSessionUrl ?? "");
       setSaved(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Unable to save settings.");
+      setError(
+        err instanceof Error ? err.message : "Unable to save session settings.",
+      );
     } finally {
       setSaving(false);
     }
@@ -88,10 +92,10 @@ export function SettingsPanel() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-serif text-[1.75rem] font-bold text-[#1f6b3a]">
-            Settings
+            Session Management
           </h1>
           <p className="mt-1 text-sm text-[#5f6f64]">
-            Referral discount used across checkout and membership flows.
+            Control the live class link members use when they tap Join.
           </p>
         </div>
         <ReloadButton onClick={() => void load(true)} disabled={loading || saving} />
@@ -104,7 +108,7 @@ export function SettingsPanel() {
       ) : null}
 
       {loading && !settings ? (
-        <PanelLoader label="Loading settings…" />
+        <PanelLoader label="Loading session settings…" />
       ) : (
         <form
           onSubmit={onSubmit}
@@ -112,25 +116,23 @@ export function SettingsPanel() {
         >
           <div>
             <label className="block text-sm font-semibold text-[#243028]">
-              Referral discount (%)
+              Live session URL
               <input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={100}
-                step={1}
-                value={referralDiscountPercent}
+                type="url"
+                value={liveSessionUrl}
                 onChange={(event) => {
-                  setReferralDiscountPercent(event.target.value);
+                  setLiveSessionUrl(event.target.value);
                   setSaved(false);
                 }}
+                placeholder="https://zoom.us/j/…"
                 className={inputClass}
                 disabled={saving}
               />
             </label>
             <p className="mt-2 text-[13px] leading-relaxed text-[#6b7c6e]">
-              Applied at checkout for every referred member (same rate for all
-              referral codes). Set to 0 to disable the referral discount.
+              Members are redirected here when they tap Join during a live class.
+              Leave blank to disable Join until a URL is set. Use a full URL
+              including <span className="font-medium">https://</span>.
             </p>
           </div>
 
@@ -153,7 +155,7 @@ export function SettingsPanel() {
               disabled={saving}
               className="inline-flex h-11 items-center justify-center rounded-xl bg-[#1f6b3a] px-5 text-sm font-bold text-white disabled:opacity-60"
             >
-              {saving ? "Saving…" : "Save settings"}
+              {saving ? "Saving…" : "Save session settings"}
             </button>
             {saved ? (
               <span className="text-sm font-medium text-[#1f6b3a]">Saved</span>

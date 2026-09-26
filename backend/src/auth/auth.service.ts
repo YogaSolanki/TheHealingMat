@@ -10,7 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { randomBytes, randomInt } from 'crypto';
-import { Repository } from 'typeorm';
+import { MoreThanOrEqual, Repository } from 'typeorm';
 import { Admin } from '../admins/admin.entity';
 import { Region } from '../users/enums/region.enum';
 import { Gender } from '../users/enums/gender.enum';
@@ -68,6 +68,12 @@ const OTP_TTL_SECONDS = 10 * 60;
 const USER_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30;
 /** bcrypt cost factor - higher = slower brute-force. */
 const BCRYPT_ROUNDS = 12;
+/** Max OTP sends per destination per day: 1 initial + up to 3 resends. */
+const OTP_MAX_SENDS_PER_DAY = 4;
+/** Max incorrect OTP guesses per destination per calendar day. */
+const OTP_MAX_FAILED_ATTEMPTS_PER_DAY = 5;
+/** Max incorrect guesses against a single OTP challenge. */
+const OTP_MAX_ATTEMPTS_PER_CHALLENGE = 5;
 @Injectable()
 export class AuthService {
   constructor(
@@ -154,6 +160,8 @@ export class AuthService {
       );
     }
 
+    await this.assertOtpSendAllowed(destination);
+
     const code = this.generateOtpCode();
     const codeHash = await bcrypt.hash(code, BCRYPT_ROUNDS);
     const expiresAt = new Date(Date.now() + OTP_TTL_SECONDS * 1000);
@@ -214,15 +222,24 @@ export class AuthService {
     if (challenge.expiresAt.getTime() < Date.now()) {
       throw new BadRequestException('OTP expired. Request a new code.');
     }
-    if (challenge.attempts >= 5) {
-      throw new BadRequestException('Too many attempts. Request a new code.');
+    if (challenge.attempts >= OTP_MAX_ATTEMPTS_PER_CHALLENGE) {
+      throw new BadRequestException('Too many incorrect OTPs. Try again tomorrow.');
     }
+    await this.assertOtpVerifyAllowed(challenge.destination);
 
     const matches = await this.otpCodeMatches(challenge.channel, dto.code, challenge.codeHash);
     challenge.attempts += 1;
 
     if (!matches) {
       await this.otps.save(challenge);
+      const failedToday = await this.countFailedOtpAttemptsToday(
+        challenge.destination,
+      );
+      if (failedToday >= OTP_MAX_FAILED_ATTEMPTS_PER_DAY) {
+        throw new UnauthorizedException(
+          'Too many incorrect OTPs. Try again tomorrow.',
+        );
+      }
       throw new UnauthorizedException('Incorrect OTP.');
     }
 
@@ -309,15 +326,24 @@ export class AuthService {
     if (challenge.expiresAt.getTime() < Date.now()) {
       throw new BadRequestException('OTP expired. Request a new code.');
     }
-    if (challenge.attempts >= 5) {
-      throw new BadRequestException('Too many attempts. Request a new code.');
+    if (challenge.attempts >= OTP_MAX_ATTEMPTS_PER_CHALLENGE) {
+      throw new BadRequestException('Too many incorrect OTPs. Try again tomorrow.');
     }
+    await this.assertOtpVerifyAllowed(challenge.destination);
 
     const matches = await this.otpCodeMatches(challenge.channel, dto.code, challenge.codeHash);
     challenge.attempts += 1;
 
     if (!matches) {
       await this.otps.save(challenge);
+      const failedToday = await this.countFailedOtpAttemptsToday(
+        challenge.destination,
+      );
+      if (failedToday >= OTP_MAX_FAILED_ATTEMPTS_PER_DAY) {
+        throw new UnauthorizedException(
+          'Too many incorrect OTPs. Try again tomorrow.',
+        );
+      }
       throw new UnauthorizedException('Incorrect OTP.');
     }
 
@@ -527,6 +553,67 @@ export class AuthService {
     return channel === 'sms'
       ? 'This mobile number is already registered.'
       : 'This email is already registered.';
+  }
+
+  /** Midnight IST for “per day” OTP limits. */
+  private startOfIstDay(now = new Date()) {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const date = formatter.format(now); // YYYY-MM-DD
+    return new Date(`${date}T00:00:00+05:30`);
+  }
+
+  private async countOtpSendsToday(destination: string) {
+    return this.otps.count({
+      where: {
+        destination,
+        createdAt: MoreThanOrEqual(this.startOfIstDay()),
+      },
+    });
+  }
+
+  private async countFailedOtpAttemptsToday(destination: string) {
+    const rows = await this.otps.find({
+      where: {
+        destination,
+        createdAt: MoreThanOrEqual(this.startOfIstDay()),
+      },
+      select: { attempts: true, verifiedAt: true },
+    });
+    return rows.reduce((sum, row) => {
+      if (row.verifiedAt) {
+        return sum + Math.max(0, row.attempts - 1);
+      }
+      return sum + row.attempts;
+    }, 0);
+  }
+
+  private async assertOtpSendAllowed(destination: string) {
+    const failedToday = await this.countFailedOtpAttemptsToday(destination);
+    if (failedToday >= OTP_MAX_FAILED_ATTEMPTS_PER_DAY) {
+      throw new BadRequestException(
+        'Too many incorrect OTPs. Try again tomorrow.',
+      );
+    }
+    const sendsToday = await this.countOtpSendsToday(destination);
+    if (sendsToday >= OTP_MAX_SENDS_PER_DAY) {
+      throw new BadRequestException(
+        'OTP resend limit reached for today. Try again tomorrow.',
+      );
+    }
+  }
+
+  private async assertOtpVerifyAllowed(destination: string) {
+    const failedToday = await this.countFailedOtpAttemptsToday(destination);
+    if (failedToday >= OTP_MAX_FAILED_ATTEMPTS_PER_DAY) {
+      throw new BadRequestException(
+        'Too many incorrect OTPs. Try again tomorrow.',
+      );
+    }
   }
 
   private resolveDestination(dto: RequestOtpDto): {
