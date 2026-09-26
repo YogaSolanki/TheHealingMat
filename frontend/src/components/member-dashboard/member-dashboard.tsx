@@ -12,6 +12,7 @@ import yogaMenIcon from "@/assets/yoga-men.png";
 import { openCheckoutModal } from "@/components/checkout-modal-provider";
 import { memberPrimaryBtnClass, memberPrimaryBtnSmClass, memberOutlineBtnClass, memberOutlineBtnSmClass } from "@/components/member-dashboard/member-button-styles";
 import { OrientationVideoModal } from "@/components/member-dashboard/orientation-video-modal";
+import { PersonalSessionLinkPopup } from "@/components/member-dashboard/personal-session-link-popup";
 import { TrialWelcomePopup } from "@/components/member-dashboard/trial-welcome-popup";
 import { startFreeTrial, type PublicUser } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
@@ -111,6 +112,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const [startingTrial, setStartingTrial] = useState(false);
   const [activeOrientation, setActiveOrientation] =
     useState<OrientationVideoCard | null>(null);
+  const [sessionLinkOpen, setSessionLinkOpen] = useState(false);
   const { cards: startHereVideos } = useOrientationVideoCards(isActiveMember);
   const { successfulCount: successfulReferrals } = useMyReferrals();
   const canStartFreeTrial = isUnaffiliated && !user.hasUsedFreeTrial;
@@ -674,6 +676,12 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
           onClose={() => setActiveOrientation(null)}
         />
 
+        <PersonalSessionLinkPopup
+          open={sessionLinkOpen}
+          link={user.accessLink}
+          onClose={() => setSessionLinkOpen(false)}
+        />
+
         {/* Bottom cards */}
         <section
           className={`grid gap-3 sm:gap-4 ${
@@ -706,11 +714,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 subtitle="We're here to help."
               />
               <CompactNavCard
-                href="/dashboard/join"
                 icon={<LinkIcon className="h-5 w-5 text-[#1f6b3a]" />}
                 iconBg="bg-[#eef6f0]"
                 title="Your Personal Session Link"
                 subtitle="Use this link to join your sessions."
+                onClick={() => setSessionLinkOpen(true)}
               />
             </>
           ) : (
@@ -969,18 +977,20 @@ function CompactNavCard({
   title,
   subtitle,
   href,
+  onClick,
 }: {
   icon: ReactNode;
   iconBg?: string;
   title: string;
   subtitle: string;
-  href: string;
+  href?: string;
+  onClick?: () => void;
 }) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 rounded-[14px] border border-[#e6ebe3] bg-white px-3.5 py-3.5 shadow-[0_6px_18px_rgba(31,107,58,0.05)] transition hover:border-[#d5e0d6] hover:shadow-[0_8px_22px_rgba(31,107,58,0.08)] sm:gap-3.5 sm:px-4 sm:py-4"
-    >
+  const className =
+    "flex w-full items-center gap-3 rounded-[14px] border border-[#e6ebe3] bg-white px-3.5 py-3.5 text-left shadow-[0_6px_18px_rgba(31,107,58,0.05)] transition hover:border-[#d5e0d6] hover:shadow-[0_8px_22px_rgba(31,107,58,0.08)] sm:gap-3.5 sm:px-4 sm:py-4";
+
+  const content = (
+    <>
       <span
         className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${iconBg}`}
       >
@@ -995,6 +1005,20 @@ function CompactNavCard({
         </p>
       </div>
       <ChevronRightIcon className="h-4 w-4 shrink-0 text-[#9aab9e]" />
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={`cursor-pointer ${className}`}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <Link href={href ?? "#"} className={className}>
+      {content}
     </Link>
   );
 }
