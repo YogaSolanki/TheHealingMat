@@ -257,7 +257,7 @@ function PlansBlock({
   startMode: CheckoutStartMode;
 }) {
   const isRenew = variant === "renew";
-  const { data, ready, error } = useMembershipPlans();
+  const { data, error } = useMembershipPlans();
   const plans = data.plans.map(toPlanCard);
   const liveOffer = data.offer;
 
@@ -296,11 +296,7 @@ function PlansBlock({
             : "sm:grid-cols-3"
         }`}
       >
-        {!ready && plans.length === 0 ? (
-          <p className="col-span-full py-10 text-center text-sm text-[#8a978c]">
-            Loading plans…
-          </p>
-        ) : error && plans.length === 0 ? (
+        {plans.length === 0 && error ? (
           <p className="col-span-full py-10 text-center text-sm text-[#8a2f2f]">
             {error}
           </p>

@@ -3,27 +3,18 @@
 import { useEffect, useState } from "react";
 import { MemberMembershipPage } from "@/components/member-dashboard/member-membership";
 import { MembershipSection } from "@/components/membership-section";
-import { SiteLoader } from "@/components/site-loader";
 import { getStoredToken } from "@/lib/auth-storage";
 
 /**
- * Logged-out: public “Choose Your Membership” plans.
- * Logged-in: same chrome pattern as Resources — show My Membership content.
+ * Logged-out: public “Choose Your Membership” plans (defaults first, then API).
+ * Logged-in: My Membership content.
  */
 export function MembershipPageView() {
-  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
     setSignedIn(Boolean(getStoredToken()));
   }, []);
-
-  if (signedIn === null) {
-    return (
-      <main>
-        <SiteLoader variant="page" label="Loading membership" />
-      </main>
-    );
-  }
 
   if (signedIn) {
     return (
