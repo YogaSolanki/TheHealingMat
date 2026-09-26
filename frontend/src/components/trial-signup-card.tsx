@@ -93,6 +93,7 @@ export function TrialSignupCard({
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [referralCodeInput, setReferralCodeInput] = useState(
     () => initialReferralCode.trim(),
   );
@@ -204,6 +205,10 @@ export function TrialSignupCard({
       setError("Please accept the Terms & Conditions and Privacy Policy to continue.");
       return;
     }
+    if (isMembership && !ageConfirmed) {
+      setError("Please confirm that you are 18 years of age or older.");
+      return;
+    }
 
     if (activeRegion === "india") {
       const digits = mobile.replace(/\D/g, "").slice(-10);
@@ -272,7 +277,7 @@ export function TrialSignupCard({
 
     setLoading(true);
     try {
-      const referralCode = referralCodeInput.trim();
+      const referralCode = isMembership ? "" : referralCodeInput.trim();
       const result = await verifyOtp({
         challengeId,
         code: otp,
@@ -298,6 +303,7 @@ export function TrialSignupCard({
   const mobileDigits = mobile.replace(/\D/g, "").slice(0, 10);
   const canSubmitIdentity =
     termsAccepted &&
+    (!isMembership || ageConfirmed) &&
     isValidFullName(fullName) &&
     (isIndia
       ? mobileDigits.length === 10
@@ -376,12 +382,12 @@ export function TrialSignupCard({
           <>
             <h2 className="mt-2 font-serif text-[1.35rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.45rem]">
               {isMembership
-                ? "Start Your Membership"
+                ? "Welcome to Your THM Membership"
                 : "14 Days of Free Yoga Classes"}
             </h2>
-            <p className="mx-auto mt-1 max-w-[280px] text-[12px] leading-snug text-[#6d8474]">
+            <p className="mx-auto mt-1 max-w-[300px] text-[12px] leading-snug text-[#6d8474]">
               {isMembership
-                ? "Create your account to continue with your chosen plan."
+                ? "A simple step towards making better health part of your everyday life."
                 : "Start your journey to better health and well-being."}
             </p>
           </>
@@ -472,21 +478,26 @@ export function TrialSignupCard({
             )}
           </div>
 
+          {!isMembership ? (
+            <div>
+              <label className={labelClass} htmlFor="trial-referral-code">
+                Have a referral code?
+              </label>
+              <input
+                id="trial-referral-code"
+                value={referralCodeInput}
+                onChange={(e) => setReferralCodeInput(e.target.value)}
+                className={`${fieldClass} px-3.5`}
+                placeholder="Enter code (optional)"
+                autoComplete="off"
+                maxLength={64}
+                spellCheck={false}
+                disabled={loading}
+              />
+            </div>
+          ) : null}
+
           <div>
-            <label className={labelClass} htmlFor="trial-referral-code">
-              Have a referral code?
-            </label>
-            <input
-              id="trial-referral-code"
-              value={referralCodeInput}
-              onChange={(e) => setReferralCodeInput(e.target.value)}
-              className={`${fieldClass} px-3.5`}
-              placeholder="Enter code (optional)"
-              autoComplete="off"
-              maxLength={64}
-              spellCheck={false}
-              disabled={loading}
-            />
             {isIndia ? (
               <button
                 type="button"
@@ -514,6 +525,25 @@ export function TrialSignupCard({
             )}
           </div>
 
+          {isMembership ? (
+            <label
+              htmlFor="membership-age-confirm"
+              className="flex cursor-pointer items-start gap-2 rounded-[10px] border border-[#e2e8df] bg-[#f7faf7] px-2.5 py-1.5 text-left"
+            >
+              <input
+                id="membership-age-confirm"
+                type="checkbox"
+                checked={ageConfirmed}
+                disabled={loading}
+                onChange={(event) => setAgeConfirmed(event.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-[#b7cbb8] text-[#1f6b3a] focus:ring-[#1f6b3a]/20"
+              />
+              <span className="text-[12px] leading-snug text-[#3d4a3c]">
+                I confirm that I am 18 years of age or older.
+              </span>
+            </label>
+          ) : null}
+
           <TermsAcceptanceField
             id="trial-signup-terms"
             checked={termsAccepted}
@@ -530,7 +560,9 @@ export function TrialSignupCard({
               <ButtonLoader />
             ) : (
               <>
-                {isMembership ? "Continue to Membership" : "Start My Free Trial"}
+                {isMembership
+                  ? "Continue to Verification"
+                  : "Start My Free Trial"}
                 <span aria-hidden="true">→</span>
               </>
             )}
