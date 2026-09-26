@@ -119,7 +119,7 @@ export class AuthService {
     const passwordMatches = await bcrypt.compare(dto.password, hash);
 
     if (!user || !user.passwordHash || !passwordMatches) {
-      throw new UnauthorizedException('Invalid credentials.');
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     return this.issueUserToken(user, false, { startFreeTrial: false });
@@ -145,6 +145,12 @@ export class AuthService {
     ) {
       throw new BadRequestException(
         'No account found. Please sign up for a Free Trial first.',
+      );
+    }
+
+    if (dto.purpose === 'signup' && existing) {
+      throw new BadRequestException(
+        this.accountAlreadyExistsMessage(channel),
       );
     }
 
@@ -232,6 +238,12 @@ export class AuthService {
     if (challenge.purpose === 'password_reset') {
       throw new BadRequestException(
         'Use the password reset endpoint to set a new password.',
+      );
+    }
+
+    if (user && challenge.purpose === 'signup') {
+      throw new BadRequestException(
+        this.accountAlreadyExistsMessage(challenge.channel),
       );
     }
 
@@ -509,6 +521,12 @@ export class AuthService {
       isNewAccount,
       user: await this.toPublicUser(withTrial),
     };
+  }
+
+  private accountAlreadyExistsMessage(channel: 'sms' | 'email') {
+    return channel === 'sms'
+      ? 'This mobile number is already registered.'
+      : 'This email is already registered.';
   }
 
   private resolveDestination(dto: RequestOtpDto): {

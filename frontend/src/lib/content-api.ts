@@ -47,7 +47,7 @@ async function fetchJson<T>(path: string): Promise<T> {
     cache: "no-store",
   });
   if (!response.ok) {
-    throw new Error(`Failed to load ${path}`);
+    throw new Error("Something went wrong. Please try again.");
   }
   return response.json() as Promise<T>;
 }

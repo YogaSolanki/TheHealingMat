@@ -181,6 +181,7 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
       <SiteToast
         message={toast?.message ?? null}
         variant={toast?.variant ?? "success"}
+        durationMs={toast?.variant === "error" ? 5200 : 3200}
         onDismiss={() => setToast(null)}
       />
       <AuthLoginModal

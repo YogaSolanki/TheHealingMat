@@ -142,19 +142,62 @@ export type TrialAccountResponse = {
   };
 };
 
+const USER_FACING_GENERIC_ERROR = "Something went wrong. Please try again.";
+
+function isTechnicalErrorMessage(message: string, status?: number) {
+  if (status != null && status >= 500) return true;
+  const trimmed = message.trim();
+  if (!trimmed) return true;
+  return (
+    /^request failed(\s*\(\d+\))?$/i.test(trimmed) ||
+    /internal server error/i.test(trimmed) ||
+    /status code\s*5\d\d/i.test(trimmed) ||
+    /failed to fetch|networkerror|load failed|network request failed/i.test(
+      trimmed,
+    )
+  );
+}
+
+/** Safe copy for UI / toasts — never exposes raw 5xx / network noise. */
+export function toUserFacingError(
+  err: unknown,
+  fallback = USER_FACING_GENERIC_ERROR,
+) {
+  if (!(err instanceof Error)) return fallback;
+  const message = err.message.trim();
+  if (!message || isTechnicalErrorMessage(message)) return fallback;
+  // Nest default for bare 401 responses.
+  if (/^unauthorized$/i.test(message)) return "Invalid credentials";
+  return message;
+}
+
+function readResponseErrorMessage(
+  data: unknown,
+  status: number,
+  fallback = USER_FACING_GENERIC_ERROR,
+) {
+  const raw =
+    typeof data === "object" &&
+    data &&
+    "message" in data &&
+    (data as { message?: string | string[] }).message
+      ? Array.isArray((data as { message: string | string[] }).message)
+        ? (data as { message: string[] }).message.join(", ")
+        : String((data as { message: string }).message)
+      : "";
+  if (!raw.trim() || isTechnicalErrorMessage(raw, status)) {
+    return fallback;
+  }
+  if (status === 401 && /^unauthorized$/i.test(raw.trim())) {
+    return "Invalid credentials";
+  }
+  return raw.trim();
+}
+
 async function parseJson<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message =
-      typeof data === "object" &&
-      data &&
-      "message" in data &&
-      (data as { message?: string | string[] }).message
-        ? Array.isArray((data as { message: string | string[] }).message)
-          ? (data as { message: string[] }).message.join(", ")
-          : String((data as { message: string }).message)
-        : `Request failed (${response.status})`;
-    throw new Error(message);
+    throw new Error(readResponseErrorMessage(data, response.status));
   }
   return data as T;
 }
@@ -602,10 +645,9 @@ export async function downloadMembershipInvoice(
     const body = (await response.json().catch(() => ({}))) as {
       message?: string | string[];
     };
-    const message = Array.isArray(body.message)
-      ? body.message[0]
-      : body.message;
-    throw new Error(message || "Unable to download invoice.");
+    throw new Error(
+      readResponseErrorMessage(body, response.status, "Unable to download invoice."),
+    );
   }
 
   const contentType = response.headers.get("Content-Type") || "";

@@ -14,6 +14,7 @@ import {
   resetPassword,
   userLogin,
   verifyOtp,
+  toUserFacingError,
   type PublicUser,
   type Region,
 } from "@/lib/api";
@@ -383,7 +384,12 @@ export function AuthTrialCard({
       }
       setStep("otp");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Request failed");
+      showAuthToast(
+        mode === "login"
+          ? toUserFacingError(err, "Invalid credentials")
+          : toUserFacingError(err),
+        "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -405,7 +411,8 @@ export function AuthTrialCard({
       setDestinationMasked(result.destinationMasked);
       setOtp("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not resend OTP");
+      showAuthToast(toUserFacingError(err, "Could not resend OTP"), "error");
+      if (mode === "signup") setStep("identity");
     } finally {
       setLoading(false);
     }
@@ -444,7 +451,7 @@ export function AuthTrialCard({
       });
       await afterAuth(result.accessToken, result.user);
     } catch (err) {
-      setToast(err instanceof Error ? err.message : "OTP verification failed");
+      showAuthToast(toUserFacingError(err, "OTP verification failed"), "error");
     } finally {
       setLoading(false);
     }
@@ -560,7 +567,9 @@ export function AuthTrialCard({
       ) : null}
 
       {error ? (
-        <p className={`${headerOffsetClass} rounded-[12px] bg-[#fdecec] px-3 py-2 text-[13px] text-[#8a2f2f]`}>
+        <p
+          className={`${headerOffsetClass} rounded-[12px] bg-[#fdecec] px-3 py-2 text-[13px] text-[#8a2f2f]`}
+        >
           {error}
         </p>
       ) : null}
@@ -889,6 +898,19 @@ export function AuthTrialCard({
             <p className="flex items-center justify-center gap-1.5 text-[11px] text-[#8a968c]">
               <FieldShieldIcon />
               No payment details required
+            </p>
+          ) : null}
+
+          {mode === "signup" ? (
+            <p className="text-center text-[12.5px] text-[#6b7c6e]">
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={() => resetFlow("login")}
+                className="cursor-pointer font-semibold text-[#1f6b3a] underline-offset-2 hover:underline"
+              >
+                Log in
+              </button>
             </p>
           ) : null}
 
