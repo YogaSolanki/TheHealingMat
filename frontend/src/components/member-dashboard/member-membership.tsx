@@ -333,7 +333,8 @@ export function MemberMembershipPage() {
         </section>
         ) : null}
 
-        {/* Renewal info */}
+        {/* Renewal info — paid / pending / expired only (not trial) */}
+        {!isTrialLike ? (
         <section className="mb-2 rounded-[18px] border border-[#ebe6dc] bg-[#F7F3EA] px-4 py-4 sm:mb-4 sm:px-6 sm:py-4">
           <div className="flex min-w-0 items-start gap-3 sm:items-center">
             <InfoIcon className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#C4A574] sm:mt-0" />
@@ -355,6 +356,7 @@ export function MemberMembershipPage() {
             </div>
           </div>
         </section>
+        ) : null}
       </div>
 
       <MembershipSection
@@ -364,6 +366,7 @@ export function MemberMembershipPage() {
             : "public"
         }
         startMode={renewStartMode}
+        showMarketing={false}
       />
     </div>
   );

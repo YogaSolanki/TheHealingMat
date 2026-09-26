@@ -226,18 +226,25 @@ const sessionPillars: {
 export function MembershipSection({
   variant = "public",
   startMode = "now",
+  showMarketing = true,
 }: {
   variant?: MembershipSectionVariant;
   startMode?: CheckoutStartMode;
+  /** Public marketing blocks (week schedule, benefits, trial CTA). Off for logged-in My Membership. */
+  showMarketing?: boolean;
 } = {}) {
   return (
     <div className={variant === "renew" ? "w-full bg-[#FBF9F5]" : "w-full bg-white"}>
       <PlansBlock variant={variant} startMode={startMode} />
       <CouponStrip />
-      <WeekBlock />
-      <BenefitsBlock />
-      <DailySessionsBlock />
-      {variant === "public" ? <StillNotSureCta /> : null}
+      {showMarketing ? (
+        <>
+          <WeekBlock />
+          <BenefitsBlock />
+          <DailySessionsBlock />
+          {variant === "public" ? <StillNotSureCta /> : null}
+        </>
+      ) : null}
     </div>
   );
 }
