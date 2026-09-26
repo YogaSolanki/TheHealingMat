@@ -346,12 +346,27 @@ export type AdminMembershipPlan = {
   name: string;
   listPricePaise: number;
   perDayRupees: number;
+  listPriceUsdCents: number;
+  perDayUsdCents: number;
   featured: boolean;
   perk: string | null;
   active: boolean;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+};
+
+export type MembershipPlanInput = {
+  months?: number;
+  name?: string;
+  priceRupees?: number;
+  perDayRupees?: number;
+  priceUsd?: number;
+  perDayUsdCents?: number;
+  featured?: boolean;
+  perk?: string | null;
+  active?: boolean;
+  sortOrder?: number;
 };
 
 export type AdminMembershipOfferPrice = {
@@ -391,6 +406,19 @@ export function listAdminMembershipPlans(token: string) {
     "GET",
     "/admin/membership-plans",
     token,
+  );
+}
+
+export function updateAdminMembershipPlan(
+  token: string,
+  id: string,
+  body: MembershipPlanInput,
+) {
+  return authJson<AdminMembershipPlan>(
+    "PATCH",
+    `/admin/membership-plans/${id}`,
+    token,
+    body,
   );
 }
 

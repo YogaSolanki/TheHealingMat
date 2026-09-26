@@ -4,6 +4,7 @@ export const ADMIN_NAV = [
   { href: "/dashboard/resources", label: "Resources", icon: "resources" },
   { href: "/dashboard/articles", label: "Articles", icon: "blog" },
   { href: "/dashboard/videos", label: "Videos", icon: "videos" },
+  { href: "/dashboard/plans", label: "Plans", icon: "plans" },
   { href: "/dashboard/offers", label: "Offers", icon: "offers" },
   { href: "/dashboard/coupons", label: "Coupons", icon: "coupon" },
   { href: "/dashboard/rewards", label: "Rewards", icon: "rewards" },

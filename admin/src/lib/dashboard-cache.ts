@@ -8,6 +8,7 @@ export const DASHBOARD_CACHE_KEYS = {
   overview: "dashboard:overview",
   users: "dashboard:users",
   coupons: "dashboard:coupons",
+  membershipPlans: "dashboard:membership-plans",
   membershipOffers: "dashboard:membership-offers",
   referralMilestones: "dashboard:referral-milestones",
   rewardRedemptions: "dashboard:reward-redemptions",
