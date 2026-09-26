@@ -122,6 +122,15 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const nextMilestone = nextReferralMilestone(successfulReferrals);
   const remainingToMilestone = Math.max(0, nextMilestone - successfulReferrals);
 
+  function openPersonalSessionLink() {
+    const link = user.accessLink?.trim();
+    if (!link) {
+      setSessionNotice("Your personal session link is not available yet.");
+      return;
+    }
+    window.open(link, "_blank", "noopener,noreferrer");
+  }
+
   function handleJoin() {
     if (isExpired || isScheduledTrial || isUnaffiliated) return;
     const current = findRunningSession(new Date(), sessionKind);
@@ -129,7 +138,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
       setSessionNotice(sessionUnavailableMessage(new Date(), sessionKind));
       return;
     }
-    window.location.assign("/dashboard/join");
+    setSessionNotice(null);
+    openPersonalSessionLink();
   }
 
   function handleTrialSlotJoin(slotLabel: string) {
@@ -146,7 +156,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
       );
       return;
     }
-    window.location.assign("/dashboard/join");
+    setSessionNotice(null);
+    openPersonalSessionLink();
   }
 
   function handleCompleteMembership() {
@@ -511,11 +522,6 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   liveSlot={running?.label}
                   onJoin={handleJoin}
                 />
-
-                <p className="mt-4 flex items-start gap-2 text-[12px] leading-snug text-[#6b7c6e] sm:text-[13px]">
-                  <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-[#8a968c]" />
-                  Morning and evening times share one Join action. Regular sessions do not show individual topics.
-                </p>
               </div>
 
               <div className="border-t border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-t-0">
@@ -611,8 +617,10 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 <h2 className="font-serif text-[1.35rem] font-bold text-[#1f6b3a] sm:text-[1.55rem]">
                   Start Here
                 </h2>
-                <p className="mt-1 text-[13px] text-[#6b7c6e] sm:text-[14px]">
-                  Short orientation videos to help you begin with clarity.
+                <p className="mt-1 max-w-[640px] text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
+                  New to The Healing Mat? These two member-only orientation
+                  sessions will help you understand the basics, precautions and
+                  important instructions before you begin your daily sessions.
                 </p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
