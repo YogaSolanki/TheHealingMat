@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { MemberDatePicker } from "@/components/member-dashboard/member-date-picker";
 import { MemberSelect } from "@/components/member-dashboard/member-select";
 import { ButtonLoader } from "@/components/site-loader";
@@ -22,6 +22,10 @@ export type MembershipCheckoutDetailsValue = {
 type MembershipCheckoutDetailsProps = {
   user: PublicUser;
   planName: string;
+  /** Earliest allowed start (YYYY-MM-DD). Defaults to today. */
+  minStartsOn?: string;
+  /** When renewing after an active term — adjusts helper copy. */
+  isRenewAfterCurrent?: boolean;
   onContinue: (value: MembershipCheckoutDetailsValue) => void;
   onClose?: () => void;
 };
@@ -33,30 +37,42 @@ function todayIso() {
   return `${now.getFullYear()}-${month}-${day}`;
 }
 
-function maxStartIso() {
-  const now = new Date();
-  now.setMonth(now.getMonth() + 6);
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${now.getFullYear()}-${month}-${day}`;
+function addMonthsIso(isoDate: string, months: number) {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setMonth(date.getMonth() + months);
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function maxIso(a: string, b: string) {
+  return a >= b ? a : b;
 }
 
 export function MembershipCheckoutDetails({
   user,
   planName,
+  minStartsOn,
+  isRenewAfterCurrent = false,
   onContinue,
   onClose,
 }: MembershipCheckoutDetailsProps) {
   const needsState = !user.state?.trim();
   const canEnterReferral = !user.wasReferred;
+  const minStart = maxIso(minStartsOn?.trim() || todayIso(), todayIso());
   const [state, setState] = useState(user.state?.trim() ?? "");
   const [preferredClassTime, setPreferredClassTime] = useState(
     user.preferredClassTime?.trim() ?? "",
   );
-  const [startsOn, setStartsOn] = useState(todayIso());
+  const [startsOn, setStartsOn] = useState(minStart);
   const [referralCodeInput, setReferralCodeInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setStartsOn((prev) => (prev < minStart ? minStart : prev));
+  }, [minStart]);
 
   const stateOptions = useMemo(
     () => INDIA_STATES.map((name) => ({ value: name, label: name })),
@@ -71,8 +87,7 @@ export function MembershipCheckoutDetails({
     [],
   );
 
-  const minStart = todayIso();
-  const maxStart = maxStartIso();
+  const maxStart = addMonthsIso(minStart, 6);
   const canContinue =
     (!needsState || Boolean(state.trim())) &&
     Boolean(preferredClassTime.trim()) &&
@@ -92,6 +107,14 @@ export function MembershipCheckoutDetails({
     }
     if (!startsOn.trim()) {
       setError("Please choose your membership start date.");
+      return;
+    }
+    if (startsOn.trim() < minStart) {
+      setError(
+        isRenewAfterCurrent
+          ? "Start date must be on or after your current membership ends."
+          : "Please choose a valid membership start date.",
+      );
       return;
     }
 
@@ -201,7 +224,9 @@ export function MembershipCheckoutDetails({
             className="!max-w-none"
           />
           <p className="mt-1.5 text-[12px] leading-snug text-[#6b7c6e]">
-            Today starts membership now; a later date keeps your current access.
+            {isRenewAfterCurrent
+              ? "Starts after your current membership ends."
+              : "Today starts membership now; a later date keeps your current access."}
           </p>
         </div>
 

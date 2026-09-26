@@ -287,7 +287,10 @@ export function MemberMembershipPage() {
 
             <div
               className={`flex justify-center pt-1 lg:flex-none lg:flex-col lg:pt-0 lg:pl-7 ${
-                isTrialLike ? "lg:justify-center" : "lg:justify-end"
+                isTrialLike ||
+                (access.hasScheduledMembership && access.state !== "expired")
+                  ? "lg:justify-center"
+                  : "lg:justify-end"
               }`}
             >
               <div className="relative flex w-full flex-col items-center sm:w-auto">
@@ -297,19 +300,22 @@ export function MemberMembershipPage() {
                   width={160}
                   height={160}
                   className={
-                    isTrialLike
+                    isTrialLike ||
+                    (access.hasScheduledMembership && access.state !== "expired")
                       ? "pointer-events-none mb-2 h-20 w-20 object-contain sm:h-24 sm:w-24"
                       : "pointer-events-none mb-3 h-28 w-28 object-contain sm:h-36 sm:w-36 lg:absolute lg:bottom-full lg:left-1/2 lg:mb-2 lg:h-40 lg:w-40 lg:-translate-x-1/2"
                   }
                 />
-                <button
-                  type="button"
-                  onClick={scrollToPlans}
-                  className={`${memberPrimaryBtnClass} w-full px-5 py-3 text-[14px] sm:w-auto sm:min-w-[190px] sm:text-[15px]`}
-                >
-                  {primaryCtaLabel}
-                  <ChevronRightIcon className="h-4 w-4" />
-                </button>
+                {access.hasScheduledMembership && access.state !== "expired" ? null : (
+                  <button
+                    type="button"
+                    onClick={scrollToPlans}
+                    className={`${memberPrimaryBtnClass} w-full px-5 py-3 text-[14px] sm:w-auto sm:min-w-[190px] sm:text-[15px]`}
+                  >
+                    {primaryCtaLabel}
+                    <ChevronRightIcon className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -378,8 +384,8 @@ export function MemberMembershipPage() {
         </section>
         ) : null}
 
-        {/* Renewal info — paid / pending / expired only (not trial) */}
-        {!isTrialLike ? (
+        {/* Renewal info — paid / pending / expired only (not trial, not when next is already scheduled) */}
+        {!isTrialLike && !access.hasScheduledMembership ? (
         <section className="mb-2 rounded-[18px] border border-[#ebe6dc] bg-[#F7F3EA] px-4 py-4 sm:mb-4 sm:px-6 sm:py-4">
           <div className="flex min-w-0 items-start gap-3 sm:items-center">
             <InfoIcon className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#C4A574] sm:mt-0" />
@@ -404,15 +410,17 @@ export function MemberMembershipPage() {
         ) : null}
       </div>
 
-      <MembershipSection
-        variant={
-          access.state === "active" || access.state === "expired"
-            ? "renew"
-            : "public"
-        }
-        startMode={renewStartMode}
-        showMarketing={false}
-      />
+      {!access.hasScheduledMembership || access.state === "expired" ? (
+        <MembershipSection
+          variant={
+            access.state === "active" || access.state === "expired"
+              ? "renew"
+              : "public"
+          }
+          startMode={renewStartMode}
+          showMarketing={false}
+        />
+      ) : null}
     </div>
   );
 }

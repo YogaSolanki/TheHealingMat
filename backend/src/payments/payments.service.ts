@@ -646,8 +646,10 @@ export class PaymentsService {
       trial && now <= trial.trialEndsAt ? trial : null;
 
     if (active) {
-      // Previous term's last inclusive day → next term starts the following day.
-      const startsAt = this.dayAfter(active.endsAt);
+      // Previous term's last inclusive day → next term starts the following day
+      // (or a later date the member chooses in checkout).
+      const earliest = this.dayAfter(active.endsAt);
+      const startsAt = this.laterDate(earliest, this.parseStartsOn(startsOn));
       return {
         status: 'scheduled' as const,
         startsAt,

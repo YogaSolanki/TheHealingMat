@@ -11,6 +11,7 @@ import {
   createRazorpayOrder,
   downloadMembershipInvoice,
   getMyCoupons,
+  getMyMembership,
   quoteMembership,
   verifyRazorpayPayment,
   type MemberCoupon,
@@ -40,6 +41,16 @@ import { sessionStore } from "@/lib/session-store";
 
 const PAYMENT_INCOMPLETE =
   "Payment was not completed. Please try again to start or renew your membership.";
+
+/** Calendar day after membership endsAt (YYYY-MM-DD) — earliest renew start. */
+function nextStartIsoFromEndsAt(endsAt: string): string {
+  const end = new Date(endsAt);
+  end.setHours(0, 0, 0, 0);
+  end.setDate(end.getDate() + 1);
+  const month = String(end.getMonth() + 1).padStart(2, "0");
+  const day = String(end.getDate()).padStart(2, "0");
+  return `${end.getFullYear()}-${month}-${day}`;
+}
 
 type RazorpaySuccess = {
   razorpay_payment_id: string;
@@ -109,6 +120,7 @@ export function MembershipCheckoutPanel({
   const { openAuth } = useAuthModal();
 
   const [user, setUser] = useState<PublicUser | null>(null);
+  const [renewMinStartsOn, setRenewMinStartsOn] = useState<string | null>(null);
   const [step, setStep] = useState<"details" | "payment">("details");
   const [stepAnim, setStepAnim] = useState<"fade" | "forward" | "back">("fade");
   const [startsOn, setStartsOn] = useState<string | null>(null);
@@ -140,6 +152,7 @@ export function MembershipCheckoutPanel({
     setStep("details");
     setStepAnim("fade");
     setStartsOn(null);
+    setRenewMinStartsOn(null);
   }, [planMonths]);
 
   useEffect(() => {
@@ -165,11 +178,27 @@ export function MembershipCheckoutPanel({
 
     Promise.all([
       sessionStore.ensureUser(),
+      getMyMembership(token).catch(() => null),
       getMyCoupons(token).catch(() => ({ coupons: [] })),
     ])
-      .then(async ([me, mine]) => {
+      .then(async ([me, membershipAccess, mine]) => {
         if (cancelled) return;
         setUser(me);
+
+        if (membershipAccess?.state === "active" && membershipAccess.current?.endsAt) {
+          setRenewMinStartsOn(
+            nextStartIsoFromEndsAt(membershipAccess.current.endsAt),
+          );
+        } else if (
+          startMode === "after_current" &&
+          membershipAccess?.trial?.endsAt
+        ) {
+          setRenewMinStartsOn(
+            nextStartIsoFromEndsAt(membershipAccess.trial.endsAt),
+          );
+        } else {
+          setRenewMinStartsOn(null);
+        }
 
         const assigned = mine.coupons ?? [];
         setAssignedCoupons(assigned);
@@ -525,6 +554,8 @@ export function MembershipCheckoutPanel({
           <MembershipCheckoutDetails
             user={user}
             planName={quote.planName}
+            minStartsOn={renewMinStartsOn ?? undefined}
+            isRenewAfterCurrent={Boolean(renewMinStartsOn)}
             onContinue={(value) => void onDetailsContinue(value)}
             onClose={() => {
               closeCheckoutModal();
