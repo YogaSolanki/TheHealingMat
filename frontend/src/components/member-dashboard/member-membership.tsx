@@ -127,15 +127,29 @@ export function MemberMembershipPage() {
         {/* Current membership */}
         <section
           id="current-membership"
-          className="mb-5 scroll-mt-28 overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white px-4 py-5 sm:mb-6 sm:scroll-mt-32 sm:px-6 sm:py-6 lg:overflow-visible lg:px-8 lg:py-7"
+          className={`mb-5 scroll-mt-28 rounded-[22px] border border-[#e6ebe3] bg-white px-4 py-5 sm:mb-6 sm:scroll-mt-32 sm:px-6 sm:py-6 lg:px-8 lg:py-7 ${
+            isTrialLike ? "overflow-hidden" : "overflow-hidden lg:overflow-visible"
+          }`}
         >
           <p className="text-[14px] font-semibold text-[#1f6b3a] sm:text-[15px]">
             Current Membership
           </p>
 
-          <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-0">
-            <div className="flex min-w-0 flex-[1.15] items-start gap-3 sm:gap-4 lg:pr-7">
-              <span className="mt-0 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-14 sm:w-14 lg:mt-[22px]">
+          <div
+            className={`flex flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-0 ${
+              isTrialLike ? "mt-3 sm:mt-3.5" : "mt-5"
+            }`}
+          >
+            <div
+              className={`flex min-w-0 flex-[1.15] items-start gap-3 sm:gap-4 lg:pr-7${
+                isTrialLike ? " lg:items-center" : ""
+              }`}
+            >
+              <span
+                className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-14 sm:w-14${
+                  isTrialLike ? "" : " lg:mt-[22px]"
+                }`}
+              >
                 <Image
                   src={yogaMenIcon}
                   alt=""
@@ -145,7 +159,9 @@ export function MemberMembershipPage() {
                 />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="hidden h-[22px] lg:block" aria-hidden="true" />
+                {!isTrialLike ? (
+                  <div className="hidden h-[22px] lg:block" aria-hidden="true" />
+                ) : null}
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <h2 className="text-[16px] font-bold text-[#243028] sm:text-[17px]">
                     {planTitle}
@@ -164,13 +180,18 @@ export function MemberMembershipPage() {
 
             <MembershipColumnDivider />
 
-            <div className="min-w-0 flex-1 lg:px-7">
+            <div
+              className={`min-w-0 flex-1 lg:px-7${
+                isTrialLike ? " lg:flex lg:flex-col lg:justify-center" : ""
+              }`}
+            >
               <MembershipStat
                 icon={<GreenCalendarIcon />}
                 label="Start Date"
                 value={access.startDateLabel ?? "—"}
-                alignValueWithLabel
+                alignValueWithLabel={!isTrialLike}
               />
+              {!isTrialLike ? (
               <div className="mt-7 sm:mt-8">
                 <MembershipStat
                   icon={
@@ -191,7 +212,7 @@ export function MemberMembershipPage() {
                     {access.transactionRef ? ` · Ref ${access.transactionRef}` : ""}
                   </p>
                 ) : null}
-                {isTrialLike || isPending || loading ? null : (
+                {isPending || loading ? null : (
                   <div className="mt-2">
                     <button
                       type="button"
@@ -212,11 +233,16 @@ export function MemberMembershipPage() {
                   </div>
                 )}
               </div>
+              ) : null}
             </div>
 
             <MembershipColumnDivider />
 
-            <div className="min-w-0 flex-1 lg:px-7">
+            <div
+              className={`min-w-0 flex-1 lg:px-7${
+                isTrialLike ? " lg:flex lg:flex-col lg:justify-center" : ""
+              }`}
+            >
               <MembershipStat
                 icon={<GreenCalendarIcon />}
                 label="Valid Until"
@@ -227,8 +253,9 @@ export function MemberMembershipPage() {
                       ? access.trialEndsOnLabel ?? "—"
                       : access.validUntilLabel ?? "—"
                 }
-                alignValueWithLabel
+                alignValueWithLabel={!isTrialLike}
               />
+              {!isTrialLike ? (
               <div className="mt-7 sm:mt-8">
                 <MembershipStat
                   icon={
@@ -244,18 +271,27 @@ export function MemberMembershipPage() {
                   value={access.discount}
                 />
               </div>
+              ) : null}
             </div>
 
             <MembershipColumnDivider />
 
-            <div className="flex justify-center pt-1 lg:flex-none lg:flex-col lg:justify-end lg:pt-0 lg:pl-7">
+            <div
+              className={`flex justify-center pt-1 lg:flex-none lg:flex-col lg:pt-0 lg:pl-7 ${
+                isTrialLike ? "lg:justify-center" : "lg:justify-end"
+              }`}
+            >
               <div className="relative flex w-full flex-col items-center sm:w-auto">
                 <Image
                   src={yogaGirlIcon}
                   alt=""
                   width={160}
                   height={160}
-                  className="pointer-events-none mb-3 h-28 w-28 object-contain sm:h-36 sm:w-36 lg:absolute lg:bottom-full lg:left-1/2 lg:mb-2 lg:h-40 lg:w-40 lg:-translate-x-1/2"
+                  className={
+                    isTrialLike
+                      ? "pointer-events-none mb-2 h-20 w-20 object-contain sm:h-24 sm:w-24"
+                      : "pointer-events-none mb-3 h-28 w-28 object-contain sm:h-36 sm:w-36 lg:absolute lg:bottom-full lg:left-1/2 lg:mb-2 lg:h-40 lg:w-40 lg:-translate-x-1/2"
+                  }
                 />
                 <button
                   type="button"
