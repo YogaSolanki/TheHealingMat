@@ -201,8 +201,7 @@ export function MembershipCheckoutDetails({
             className="!max-w-none"
           />
           <p className="mt-1.5 text-[12px] leading-snug text-[#6b7c6e]">
-            Choose today to begin membership immediately. A future date keeps your
-            current access until membership starts.
+            Today starts membership now; a later date keeps your current access.
           </p>
         </div>
 

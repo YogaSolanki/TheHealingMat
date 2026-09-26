@@ -646,11 +646,12 @@ export class PaymentsService {
       trial && now <= trial.trialEndsAt ? trial : null;
 
     if (active) {
-      const startsAt = active.endsAt;
+      // Previous term's last inclusive day → next term starts the following day.
+      const startsAt = this.dayAfter(active.endsAt);
       return {
         status: 'scheduled' as const,
         startsAt,
-        endsAt: this.addMonths(startsAt, months),
+        endsAt: this.membershipEndsAt(startsAt, months),
       };
     }
 
@@ -662,7 +663,7 @@ export class PaymentsService {
       return {
         status: 'scheduled' as const,
         startsAt,
-        endsAt: this.addMonths(startsAt, months),
+        endsAt: this.membershipEndsAt(startsAt, months),
       };
     }
 
@@ -671,14 +672,14 @@ export class PaymentsService {
       return {
         status: 'scheduled' as const,
         startsAt: chosenStart,
-        endsAt: this.addMonths(chosenStart, months),
+        endsAt: this.membershipEndsAt(chosenStart, months),
       };
     }
 
     return {
       status: 'active' as const,
       startsAt: now,
-      endsAt: this.addMonths(now, months),
+      endsAt: this.membershipEndsAt(now, months),
     };
   }
 
@@ -1104,6 +1105,26 @@ export class PaymentsService {
   private addMonths(date: Date, months: number) {
     const next = new Date(date.getTime());
     next.setMonth(next.getMonth() + months);
+    return next;
+  }
+
+  /**
+   * Last inclusive day of a membership term: start + N months − 1 day
+   * (e.g. 27 Sep 2026 for 12 months → valid until 26 Sep 2027).
+   * End-of-day so the full last calendar day remains accessible.
+   */
+  private membershipEndsAt(startsAt: Date, months: number) {
+    const ends = this.addMonths(startsAt, months);
+    ends.setDate(ends.getDate() - 1);
+    ends.setHours(23, 59, 59, 999);
+    return ends;
+  }
+
+  /** Day after a term ends — used as the next membership start. */
+  private dayAfter(date: Date) {
+    const next = new Date(date.getTime());
+    next.setDate(next.getDate() + 1);
+    next.setHours(0, 0, 0, 0);
     return next;
   }
 
