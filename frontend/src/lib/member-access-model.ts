@@ -13,6 +13,8 @@ export type MemberAccess = {
   planName: string;
   startDateLabel: string | null;
   validUntilLabel: string | null;
+  /** Raw ISO for countdown math (current or last membership endsAt). */
+  validUntilIso: string | null;
   trialStartsOnLabel: string | null;
   trialEndsOnLabel: string | null;
   expiredOnLabel: string | null;
@@ -95,6 +97,7 @@ export function emptyMemberAccess(
           : "Membership",
     startDateLabel: null,
     validUntilLabel: null,
+    validUntilIso: null,
     trialStartsOnLabel: null,
     trialEndsOnLabel: null,
     expiredOnLabel: null,
@@ -141,6 +144,7 @@ export function mapMembershipAccess(data: MembershipAccessResponse): MemberAcces
     access.planName = "Your Trial";
     access.startDateLabel = formatLongDate(data.trial?.startsAt);
     access.validUntilLabel = formatLongDate(data.trial?.endsAt);
+    access.validUntilIso = data.trial?.endsAt ?? null;
     return access;
   }
 
@@ -150,6 +154,7 @@ export function mapMembershipAccess(data: MembershipAccessResponse): MemberAcces
   access.planName = membership.planName;
   access.startDateLabel = formatLongDate(membership.startsAt);
   access.validUntilLabel = formatLongDate(membership.endsAt);
+  access.validUntilIso = membership.endsAt;
   access.expiredOnLabel =
     state === "expired" ? formatLongDate(membership.endsAt) : null;
   access.amountPaid = formatMoney(
