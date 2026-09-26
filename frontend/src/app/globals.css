@@ -373,6 +373,28 @@ body {
   animation: page-enter 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Member dashboard tab switches (Home ↔ Membership ↔ Refer ↔ …) */
+.dashboard-tab-transition {
+  animation: dashboard-tab-enter 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes dashboard-tab-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-tab-transition {
+    animation: none;
+  }
+}
+
 .google-auth-bridge-label {
   animation: google-auth-label-in 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
