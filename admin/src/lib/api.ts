@@ -766,6 +766,117 @@ export function updateAdminSettings(
   return authJson<AdminSiteSettings>("PATCH", "/admin/settings", token, body);
 }
 
+export type AdminSessionTiming = {
+  id: string;
+  label: string;
+  sortOrder: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminScheduledClass = {
+  id: string;
+  classDate: string;
+  dayLabel: string;
+  sessionTimingId: string;
+  sessionTimeLabel: string;
+  meetingUrl: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function listAdminSessionTimings(
+  token: string,
+  options?: { activeOnly?: boolean },
+) {
+  const query = options?.activeOnly ? "?activeOnly=1" : "";
+  return authJson<AdminSessionTiming[]>(
+    "GET",
+    `/admin/session-timings${query}`,
+    token,
+  );
+}
+
+export function createAdminSessionTiming(
+  token: string,
+  body: { label: string; sortOrder?: number; active?: boolean },
+) {
+  return authJson<AdminSessionTiming>(
+    "POST",
+    "/admin/session-timings",
+    token,
+    body,
+  );
+}
+
+export function updateAdminSessionTiming(
+  token: string,
+  id: string,
+  body: { label?: string; sortOrder?: number; active?: boolean },
+) {
+  return authJson<AdminSessionTiming>(
+    "PATCH",
+    `/admin/session-timings/${id}`,
+    token,
+    body,
+  );
+}
+
+export function deleteAdminSessionTiming(token: string, id: string) {
+  return authJson<{ success: boolean }>(
+    "DELETE",
+    `/admin/session-timings/${id}`,
+    token,
+  ).then(() => undefined);
+}
+
+export function listAdminScheduledClasses(
+  token: string,
+  options?: { from?: string },
+) {
+  const query = options?.from
+    ? `?from=${encodeURIComponent(options.from)}`
+    : "";
+  return authJson<AdminScheduledClass[]>(
+    "GET",
+    `/admin/classes${query}`,
+    token,
+  );
+}
+
+export function createAdminScheduledClass(
+  token: string,
+  body: { classDate: string; sessionTimingId: string; meetingUrl: string },
+) {
+  return authJson<AdminScheduledClass>("POST", "/admin/classes", token, body);
+}
+
+export function updateAdminScheduledClass(
+  token: string,
+  id: string,
+  body: {
+    classDate?: string;
+    sessionTimingId?: string;
+    meetingUrl?: string;
+  },
+) {
+  return authJson<AdminScheduledClass>(
+    "PATCH",
+    `/admin/classes/${id}`,
+    token,
+    body,
+  );
+}
+
+export function deleteAdminScheduledClass(token: string, id: string) {
+  return authJson<{ success: boolean }>(
+    "DELETE",
+    `/admin/classes/${id}`,
+    token,
+  ).then(() => undefined);
+}
+
 export function listAdminVideos(token: string) {
   return authJson<AdminContentItem[]>("GET", "/admin/videos", token);
 }

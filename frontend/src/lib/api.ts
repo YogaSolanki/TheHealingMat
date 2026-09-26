@@ -582,8 +582,12 @@ export async function getMyMembership(
 
 export async function getLiveSessionUrl(
   accessToken: string,
+  options?: { slot?: string | null },
 ): Promise<{ url: string | null }> {
-  const response = await fetch(`${API_URL}/sessions/live`, {
+  const query = options?.slot
+    ? `?slot=${encodeURIComponent(options.slot)}`
+    : "";
+  const response = await fetch(`${API_URL}/sessions/live${query}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
   });
