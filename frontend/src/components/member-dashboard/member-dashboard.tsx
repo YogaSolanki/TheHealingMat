@@ -603,64 +603,66 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
 
         {isActiveMember && startHereVideos.length > 0 ? (
           <section className="mb-6 sm:mb-8">
-            <div className="mb-3 sm:mb-4">
-              <h2 className="font-serif text-[1.35rem] font-bold text-[#1f6b3a] sm:text-[1.55rem]">
-                Start Here
-              </h2>
-              <p className="mt-1 text-[13px] text-[#6b7c6e] sm:text-[14px]">
-                Short orientation videos to help you begin with clarity.
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-              {startHereVideos.map((video) => {
-                return (
-                  <article
-                    key={video.slug || video.title}
-                    className="flex h-[130px] overflow-hidden rounded-[16px] border border-[#e6ebe3] bg-white shadow-[0_6px_18px_rgba(31,107,58,0.04)] sm:h-[140px]"
-                  >
-                    <div className="relative h-full w-[154px] shrink-0 bg-[#eef6f0] sm:w-[168px]">
-                      {video.coverUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={video.coverUrl}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center">
-                          <PlayCircleIcon className="h-9 w-9 text-[#1f6b3a]/35" />
-                        </div>
-                      )}
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/15">
-                        <PlayCircleIcon className="h-9 w-9 text-white drop-shadow" />
-                      </span>
-                    </div>
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3.5 py-2.5 sm:px-4 sm:py-3">
-                      <div className="min-h-0 flex-1 overflow-hidden">
-                        <h3 className="line-clamp-2 text-[13px] font-bold leading-snug text-[#243028] sm:text-[14px]">
-                          {video.title}
-                        </h3>
-                        <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-[#6b7c6e]">
-                          {video.subtitle}
-                        </p>
-                      </div>
-                      <div className="mt-2 flex shrink-0 items-center justify-between gap-2">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1f6b3a] sm:text-[12px]">
-                          <ClockIcon className="h-3.5 w-3.5 shrink-0" />
-                          {video.duration || "Video"}
+            <div className="rounded-[20px] border border-[#e6ebe3] bg-white p-4 shadow-[0_6px_18px_rgba(31,107,58,0.04)] sm:p-5">
+              <div className="mb-3.5 sm:mb-4">
+                <h2 className="font-serif text-[1.35rem] font-bold text-[#1f6b3a] sm:text-[1.55rem]">
+                  Start Here
+                </h2>
+                <p className="mt-1 text-[13px] text-[#6b7c6e] sm:text-[14px]">
+                  Short orientation videos to help you begin with clarity.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+                {startHereVideos.map((video) => {
+                  return (
+                    <article
+                      key={video.slug || video.title}
+                      className="flex h-[130px] overflow-hidden rounded-[16px] border border-[#e6ebe3] bg-[#FBF9F5] sm:h-[140px]"
+                    >
+                      <div className="relative h-full w-[154px] shrink-0 bg-[#eef6f0] sm:w-[168px]">
+                        {video.coverUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={video.coverUrl}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center">
+                            <PlayCircleIcon className="h-9 w-9 text-[#1f6b3a]/35" />
+                          </div>
+                        )}
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/15">
+                          <PlayCircleIcon className="h-9 w-9 text-white drop-shadow" />
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => setActiveOrientation(video)}
-                          className={`${memberOutlineBtnSmClass} px-3 py-1.5 text-[11px] sm:text-[12px]`}
-                        >
-                          Watch Video
-                        </button>
                       </div>
-                    </div>
-                  </article>
-                );
-              })}
+                      <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3.5 py-2.5 sm:px-4 sm:py-3">
+                        <div className="min-h-0 flex-1 overflow-hidden">
+                          <h3 className="line-clamp-2 text-[13px] font-bold leading-snug text-[#243028] sm:text-[14px]">
+                            {video.title}
+                          </h3>
+                          <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-[#6b7c6e]">
+                            {video.subtitle}
+                          </p>
+                        </div>
+                        <div className="mt-2 flex shrink-0 items-center justify-between gap-2">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1f6b3a] sm:text-[12px]">
+                            <ClockIcon className="h-3.5 w-3.5 shrink-0" />
+                            {video.duration || "Video"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setActiveOrientation(video)}
+                            className={`${memberOutlineBtnSmClass} px-3 py-1.5 text-[11px] sm:text-[12px]`}
+                          >
+                            Watch Video
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             </div>
           </section>
         ) : null}
