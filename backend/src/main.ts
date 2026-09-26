@@ -1,6 +1,9 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import { existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
 import { AppModule } from './app.module';
 
 function parseOrigins(...values: Array<string | undefined>) {
@@ -16,8 +19,14 @@ function parseOrigins(...values: Array<string | undefined>) {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
+
+  const uploadsRoot = join(process.cwd(), 'uploads');
+  if (!existsSync(uploadsRoot)) {
+    mkdirSync(uploadsRoot, { recursive: true });
+  }
+  app.useStaticAssets(uploadsRoot, { prefix: '/uploads/' });
 
   app.setGlobalPrefix('api');
   app.enableCors({

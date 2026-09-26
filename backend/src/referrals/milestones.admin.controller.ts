@@ -8,7 +8,11 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
 import {
@@ -40,6 +44,25 @@ export class MilestonesAdminController {
     @Body() dto: UpdateMilestoneDto,
   ) {
     return this.milestones.updateMilestone(id, dto);
+  }
+
+  @Post('referral-milestones/:id/image')
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  uploadMilestoneImage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.milestones.setMilestoneImage(id, file);
+  }
+
+  @Delete('referral-milestones/:id/image')
+  clearMilestoneImage(@Param('id', ParseUUIDPipe) id: string) {
+    return this.milestones.clearMilestoneImage(id);
   }
 
   @Delete('referral-milestones/:id')

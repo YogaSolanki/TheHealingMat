@@ -23,6 +23,10 @@ export class ReferralMilestone {
   @Column({ type: 'text', default: '' })
   rewardDescription: string;
 
+  /** Public URL path for the reward image (e.g. /uploads/milestones/…). */
+  @Column({ type: 'varchar', nullable: true, default: null })
+  imageUrl: string | null;
+
   @Column({ default: true })
   active: boolean;
 

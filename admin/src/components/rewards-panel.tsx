@@ -5,12 +5,15 @@ import { PanelLoader } from "@/components/panel-loader";
 import { ReloadButton } from "@/components/reload-button";
 import {
   ADMIN_TOKEN_KEY,
+  clearAdminReferralMilestoneImage,
   createAdminReferralMilestone,
   deleteAdminReferralMilestone,
   listAdminReferralMilestones,
   listAdminRewardRedemptions,
+  mediaUrl,
   updateAdminReferralMilestone,
   updateAdminRewardRedemption,
+  uploadAdminReferralMilestoneImage,
   type AdminRedemptionStatus,
   type AdminReferralMilestone,
   type AdminRewardRedemption,
@@ -31,6 +34,7 @@ type MilestoneForm = {
   rewardDescription: string;
   active: boolean;
   sortOrder: string;
+  imageUrl: string | null;
 };
 
 const inputClass =
@@ -42,6 +46,7 @@ const emptyForm = (): MilestoneForm => ({
   rewardDescription: "",
   active: true,
   sortOrder: "",
+  imageUrl: null,
 });
 
 function formatWhen(iso: string | null) {
@@ -70,6 +75,9 @@ export function RewardsPanel() {
   const [form, setForm] = useState<MilestoneForm>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [removeImage, setRemoveImage] = useState(false);
   const [statusFilter, setStatusFilter] = useState<
     AdminRedemptionStatus | "all"
   >("pending");
@@ -143,13 +151,36 @@ export function RewardsPanel() {
       rewardDescription: row.rewardDescription,
       active: row.active,
       sortOrder: String(row.sortOrder),
+      imageUrl: row.imageUrl,
     });
+    setImageFile(null);
+    setImagePreview(mediaUrl(row.imageUrl));
+    setRemoveImage(false);
     setTab("milestones");
   }
 
   function resetForm() {
     setEditingId(null);
     setForm(emptyForm());
+    setImageFile(null);
+    setImagePreview(null);
+    setRemoveImage(false);
+  }
+
+  function onPickImage(file: File | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose an image file (JPG, PNG, WEBP, or GIF).");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be 5 MB or smaller.");
+      return;
+    }
+    setError(null);
+    setImageFile(file);
+    setRemoveImage(false);
+    setImagePreview(URL.createObjectURL(file));
   }
 
   async function onSaveMilestone(event: FormEvent) {
@@ -179,11 +210,20 @@ export function RewardsPanel() {
     setSaving(true);
     setError(null);
     try {
+      let savedId = editingId;
       if (editingId) {
         await updateAdminReferralMilestone(token, editingId, body);
       } else {
-        await createAdminReferralMilestone(token, body);
+        const created = await createAdminReferralMilestone(token, body);
+        savedId = created.id;
       }
+
+      if (savedId && imageFile) {
+        await uploadAdminReferralMilestoneImage(token, savedId, imageFile);
+      } else if (savedId && removeImage && editingId) {
+        await clearAdminReferralMilestoneImage(token, savedId);
+      }
+
       resetForm();
       await load(true);
     } catch (err: unknown) {
@@ -315,6 +355,56 @@ export function RewardsPanel() {
                 }
               />
             </label>
+
+            <div className="mt-3">
+              <p className="text-xs font-semibold text-[#5f6f64]">Reward image</p>
+              <div className="mt-1.5 flex items-start gap-3">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#e2e8df] bg-[#f7faf6]">
+                  {imagePreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={imagePreview}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="px-2 text-center text-[10px] font-medium text-[#8a968c]">
+                      No image
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <label className="inline-flex h-10 cursor-pointer items-center justify-center rounded-full border border-[#d7e0d6] bg-white px-4 text-xs font-semibold text-[#243028] hover:bg-[#f3f6f1]">
+                    Choose image
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="sr-only"
+                      onChange={(e) =>
+                        onPickImage(e.target.files?.[0] ?? null)
+                      }
+                    />
+                  </label>
+                  {imagePreview ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageFile(null);
+                        setImagePreview(null);
+                        setRemoveImage(true);
+                      }}
+                      className="block text-xs font-semibold text-[#9b3b32]"
+                    >
+                      Remove image
+                    </button>
+                  ) : null}
+                  <p className="text-[11px] leading-snug text-[#8a968c]">
+                    JPG, PNG, WEBP, or GIF · max 5 MB
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <label className="mt-3 block text-xs font-semibold text-[#5f6f64]">
               Sort order
               <input
@@ -368,6 +458,7 @@ export function RewardsPanel() {
             <table className="min-w-full text-left text-sm">
               <thead className="bg-[#f7faf6] text-[11px] font-bold tracking-wide text-[#6b7c6e] uppercase">
                 <tr>
+                  <th className="px-4 py-3">Image</th>
                   <th className="px-4 py-3">Count</th>
                   <th className="px-4 py-3">Reward</th>
                   <th className="px-4 py-3">Status</th>
@@ -378,15 +469,33 @@ export function RewardsPanel() {
                 {milestones.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={4}
+                      colSpan={5}
                       className="px-4 py-10 text-center text-[#6b7c6e]"
                     >
                       No milestones yet.
                     </td>
                   </tr>
                 ) : (
-                  milestones.map((row) => (
+                  milestones.map((row) => {
+                    const thumb = mediaUrl(row.imageUrl);
+                    return (
                     <tr key={row.id} className="border-t border-[#eef2ee]">
+                      <td className="px-4 py-3">
+                        <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-[#e8eee6] bg-[#f7faf6]">
+                          {thumb ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={thumb}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-[9px] font-medium text-[#8a968c]">
+                              —
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 font-bold text-[#243028]">
                         {row.referralCount}
                       </td>
@@ -426,7 +535,8 @@ export function RewardsPanel() {
                         </button>
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>

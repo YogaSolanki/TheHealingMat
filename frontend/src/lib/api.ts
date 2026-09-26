@@ -30,6 +30,22 @@ function resolveApiUrl() {
 
 export const API_URL = resolveApiUrl();
 
+/** Resolve stored media path (e.g. /uploads/…) to an absolute URL. */
+export function mediaUrl(path: string | null | undefined) {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  const origin =
+    API_URL.startsWith("http://") || API_URL.startsWith("https://")
+      ? API_URL.replace(/\/api\/?$/, "")
+      : typeof window !== "undefined"
+        ? window.location.origin
+        : (process.env.BACKEND_URL ?? "http://localhost:4000").replace(
+            /\/$/,
+            "",
+          );
+  return `${origin}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 export type HealthResponse = {
   status: "ok" | "degraded";
   service: string;
@@ -656,6 +672,7 @@ export type MemberMilestone = {
   referralCount: number;
   rewardTitle: string;
   rewardDescription: string;
+  imageUrl: string | null;
   status: MemberMilestoneStatus;
   canRedeem: boolean;
   requestId: string | null;

@@ -468,6 +468,7 @@ export type AdminReferralMilestone = {
   referralCount: number;
   rewardTitle: string;
   rewardDescription: string;
+  imageUrl: string | null;
   active: boolean;
   sortOrder: number;
   createdAt: string;
@@ -478,6 +479,7 @@ export type MilestoneInput = {
   referralCount?: number;
   rewardTitle?: string;
   rewardDescription?: string;
+  imageUrl?: string | null;
   active?: boolean;
   sortOrder?: number;
 };
@@ -503,6 +505,7 @@ export type AdminRewardRedemption = {
     referralCount: number;
     rewardTitle: string;
     rewardDescription: string;
+    imageUrl: string | null;
   };
 };
 
@@ -545,6 +548,42 @@ export function deleteAdminReferralMilestone(token: string, id: string) {
     `/admin/referral-milestones/${id}`,
     token,
   ).then(() => undefined);
+}
+
+/** Resolve a stored milestone image path to an absolute URL. */
+export function mediaUrl(path: string | null | undefined) {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  const origin = API_URL.replace(/\/api\/?$/, "");
+  return `${origin}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+export async function uploadAdminReferralMilestoneImage(
+  token: string,
+  id: string,
+  file: File,
+) {
+  const body = new FormData();
+  body.append("image", file);
+  const response = await fetch(`${API_URL}/admin/referral-milestones/${id}/image`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body,
+  });
+  const payload = (await response.json().catch(() => ({}))) as ApiErrorBody &
+    Partial<AdminReferralMilestone>;
+  if (!response.ok) {
+    throw new Error(readErrorMessage(payload, "Unable to upload image."));
+  }
+  return payload as AdminReferralMilestone;
+}
+
+export function clearAdminReferralMilestoneImage(token: string, id: string) {
+  return authJson<AdminReferralMilestone>(
+    "DELETE",
+    `/admin/referral-milestones/${id}/image`,
+    token,
+  );
 }
 
 export function listAdminRewardRedemptions(

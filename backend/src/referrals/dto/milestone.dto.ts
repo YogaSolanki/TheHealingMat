@@ -29,6 +29,11 @@ export class CreateMilestoneDto {
   rewardDescription?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  imageUrl?: string | null;
+
+  @IsOptional()
   @IsBoolean()
   active?: boolean;
 
@@ -58,6 +63,11 @@ export class UpdateMilestoneDto {
   @IsString()
   @MaxLength(2000)
   rewardDescription?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  imageUrl?: string | null;
 
   @IsOptional()
   @IsBoolean()
