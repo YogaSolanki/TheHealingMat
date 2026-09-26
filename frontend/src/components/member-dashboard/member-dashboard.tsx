@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import calendarIcon from "@/assets/calander-icon.png";
 import crownIcon from "@/assets/crown.png";
 import leafRight from "@/assets/leaf-right.png";
@@ -11,13 +11,17 @@ import sunIcon from "@/assets/sun.png";
 import yogaMenIcon from "@/assets/yoga-men.png";
 import { openCheckoutModal } from "@/components/checkout-modal-provider";
 import { memberPrimaryBtnClass, memberPrimaryBtnSmClass, memberOutlineBtnClass, memberOutlineBtnSmClass } from "@/components/member-dashboard/member-button-styles";
+import { OrientationVideoModal } from "@/components/member-dashboard/orientation-video-modal";
 import { TrialWelcomePopup } from "@/components/member-dashboard/trial-welcome-popup";
 import { startFreeTrial, type PublicUser } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
 import {
   readCheckoutIntent,
 } from "@/lib/checkout-intent";
-import { fetchVideos, type ApiHealthVideo } from "@/lib/content-api";
+import {
+  useOrientationVideoCards,
+  type OrientationVideoCard,
+} from "@/lib/orientation-videos-store";
 import {
   greetingForName,
   useMemberAccess,
@@ -40,25 +44,6 @@ type MemberDashboardProps = {
 };
 
 const DASHBOARD_REFERRAL_MILESTONES = [5, 10, 15, 20, 30, 40, 50] as const;
-
-const START_HERE_FALLBACK: Array<
-  Pick<ApiHealthVideo, "slug" | "title" | "subtitle" | "duration" | "coverUrl">
-> = [
-  {
-    slug: "",
-    title: "Know Your Body: Start Where You Are",
-    subtitle: "Orientation to help you begin with awareness and ease.",
-    duration: "50 mins",
-    coverUrl: "",
-  },
-  {
-    slug: "",
-    title: "Health Beyond the Mat",
-    subtitle: "Simple guidance for everyday wellness beyond practice.",
-    duration: "50 mins",
-    coverUrl: "",
-  },
-];
 
 function nextReferralMilestone(successfulCount: number) {
   return (
@@ -124,35 +109,12 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
       : findRunningSession(now, sessionKind);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const [startingTrial, setStartingTrial] = useState(false);
-  const [startHereVideos, setStartHereVideos] = useState(START_HERE_FALLBACK);
+  const [activeOrientation, setActiveOrientation] =
+    useState<OrientationVideoCard | null>(null);
+  const { cards: startHereVideos } = useOrientationVideoCards(isActiveMember);
   const { successfulCount: successfulReferrals } = useMyReferrals();
   const canStartFreeTrial = isUnaffiliated && !user.hasUsedFreeTrial;
   const membershipDaysLeft = daysRemaining(access.validUntilIso);
-
-  useEffect(() => {
-    if (!isActiveMember) return;
-    let cancelled = false;
-    void fetchVideos()
-      .then((videos) => {
-        if (cancelled || videos.length === 0) return;
-        const orientation = videos.filter((video) =>
-          /orient|start|begin|welcome/i.test(
-            `${video.category} ${video.title} ${video.slug}`,
-          ),
-        );
-        const picked = (orientation.length >= 2 ? orientation : videos).slice(
-          0,
-          2,
-        );
-        setStartHereVideos(picked);
-      })
-      .catch(() => {
-        /* keep fallback cards */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isActiveMember]);
 
   const nextMilestone = nextReferralMilestone(successfulReferrals);
   const remainingToMilestone = Math.max(0, nextMilestone - successfulReferrals);
@@ -639,7 +601,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
           </section>
         ) : null}
 
-        {isActiveMember ? (
+        {isActiveMember && startHereVideos.length > 0 ? (
           <section className="mb-6 sm:mb-8">
             <div className="mb-3 sm:mb-4">
               <h2 className="font-serif text-[1.35rem] font-bold text-[#1f6b3a] sm:text-[1.55rem]">
@@ -651,13 +613,12 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
             </div>
             <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
               {startHereVideos.map((video) => {
-                const href = video.slug ? `/videos/${video.slug}` : "/videos";
                 return (
                   <article
                     key={video.slug || video.title}
-                    className="flex overflow-hidden rounded-[16px] border border-[#e6ebe3] bg-white shadow-[0_6px_18px_rgba(31,107,58,0.04)]"
+                    className="flex h-[130px] overflow-hidden rounded-[16px] border border-[#e6ebe3] bg-white shadow-[0_6px_18px_rgba(31,107,58,0.04)] sm:h-[140px]"
                   >
-                    <div className="relative h-[130px] w-[154px] shrink-0 bg-[#eef6f0] sm:h-[140px] sm:w-[168px]">
+                    <div className="relative h-full w-[154px] shrink-0 bg-[#eef6f0] sm:w-[168px]">
                       {video.coverUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -674,24 +635,27 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                         <PlayCircleIcon className="h-9 w-9 text-white drop-shadow" />
                       </span>
                     </div>
-                    <div className="flex min-w-0 flex-1 flex-col justify-center px-3.5 py-3 sm:px-4 sm:py-3.5">
-                      <h3 className="line-clamp-2 text-[13px] font-bold leading-snug text-[#243028] sm:text-[14px]">
-                        {video.title}
-                      </h3>
-                      <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-[#6b7c6e]">
-                        {video.subtitle}
-                      </p>
-                      <div className="mt-2.5 flex items-center justify-between gap-2">
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3.5 py-2.5 sm:px-4 sm:py-3">
+                      <div className="min-h-0 flex-1 overflow-hidden">
+                        <h3 className="line-clamp-2 text-[13px] font-bold leading-snug text-[#243028] sm:text-[14px]">
+                          {video.title}
+                        </h3>
+                        <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-[#6b7c6e]">
+                          {video.subtitle}
+                        </p>
+                      </div>
+                      <div className="mt-2 flex shrink-0 items-center justify-between gap-2">
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1f6b3a] sm:text-[12px]">
                           <ClockIcon className="h-3.5 w-3.5 shrink-0" />
                           {video.duration || "Video"}
                         </span>
-                        <Link
-                          href={href}
+                        <button
+                          type="button"
+                          onClick={() => setActiveOrientation(video)}
                           className={`${memberOutlineBtnSmClass} px-3 py-1.5 text-[11px] sm:text-[12px]`}
                         >
                           Watch Video
-                        </Link>
+                        </button>
                       </div>
                     </div>
                   </article>
@@ -700,6 +664,13 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
             </div>
           </section>
         ) : null}
+
+        <OrientationVideoModal
+          open={activeOrientation !== null}
+          slug={activeOrientation?.slug ?? null}
+          title={activeOrientation?.title ?? "Orientation video"}
+          onClose={() => setActiveOrientation(null)}
+        />
 
         {/* Bottom cards */}
         <section

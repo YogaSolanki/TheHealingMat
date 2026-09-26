@@ -652,3 +652,37 @@ export function deleteAdminVideo(token: string, id: string) {
     () => undefined,
   );
 }
+
+export function listAdminOrientationVideos(token: string) {
+  return authJson<AdminContentItem[]>("GET", "/admin/orientation-videos", token);
+}
+export function createAdminOrientationVideo(
+  token: string,
+  body: Record<string, unknown>,
+) {
+  return authJson<AdminContentItem>(
+    "POST",
+    "/admin/orientation-videos",
+    token,
+    body,
+  );
+}
+export function updateAdminOrientationVideo(
+  token: string,
+  id: string,
+  body: Record<string, unknown>,
+) {
+  return authJson<AdminContentItem>(
+    "PATCH",
+    `/admin/orientation-videos/${id}`,
+    token,
+    body,
+  );
+}
+export function deleteAdminOrientationVideo(token: string, id: string) {
+  return authJson<{ success: boolean }>(
+    "DELETE",
+    `/admin/orientation-videos/${id}`,
+    token,
+  ).then(() => undefined);
+}

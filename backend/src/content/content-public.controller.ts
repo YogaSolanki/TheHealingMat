@@ -31,4 +31,14 @@ export class ContentPublicController {
   getVideo(@Param('slug') slug: string) {
     return this.content.getVideoBySlug(slug, true);
   }
+
+  @Get('orientation-videos')
+  listOrientationVideos() {
+    return this.content.listOrientationVideos(true);
+  }
+
+  @Get('orientation-videos/:slug')
+  getOrientationVideo(@Param('slug') slug: string) {
+    return this.content.getOrientationVideoBySlug(slug, true);
+  }
 }

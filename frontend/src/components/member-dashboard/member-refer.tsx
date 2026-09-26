@@ -11,13 +11,13 @@ import {
 import { useMemberDashboard } from "@/components/member-dashboard/member-dashboard-provider";
 import { SiteLoader } from "@/components/site-loader";
 import {
-  getMyMilestones,
   mediaUrl,
   requestMilestoneRedeem,
   type MemberMilestone,
   type ReferralStatus,
 } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
+import { useMyMilestones } from "@/lib/milestones-store";
 import { useMyReferrals } from "@/lib/session-store";
 import { FaWhatsapp } from "react-icons/fa";
 
@@ -136,8 +136,11 @@ export function MemberReferPage() {
   const readyMadeMessage = `Join me on The Healing Mat! Your friend gets 14 days of FREE yoga classes + ${referralDiscountPercent}% OFF membership. Use my referral code ${referralCode} or sign up here: ${referralLink}`;
   const [copiedField, setCopiedField] = useState<"code" | "link" | "message" | null>(null);
   const [messageOpen, setMessageOpen] = useState(false);
-  const [milestones, setMilestones] = useState<MemberMilestone[]>([]);
-  const [loadingMilestones, setLoadingMilestones] = useState(true);
+  const {
+    milestones,
+    loading: loadingMilestones,
+    refresh: refreshMilestones,
+  } = useMyMilestones();
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] =
@@ -148,27 +151,6 @@ export function MemberReferPage() {
   const desktopScrollRef = useRef<HTMLDivElement>(null);
   const loadMoreLockRef = useRef(false);
   const lastScrollLoadRef = useRef(0);
-
-  const loadMilestones = async () => {
-    const token = getStoredToken();
-    if (!token) {
-      setLoadingMilestones(false);
-      return;
-    }
-    setLoadingMilestones(true);
-    try {
-      const data = await getMyMilestones(token);
-      setMilestones(data.milestones);
-    } catch {
-      setMilestones([]);
-    } finally {
-      setLoadingMilestones(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadMilestones();
-  }, []);
 
   useEffect(() => {
     setVisibleCount(REFERRAL_PAGE_SIZE);
@@ -202,7 +184,7 @@ export function MemberReferPage() {
     setRedeemingId(milestone.id);
     try {
       await requestMilestoneRedeem(token, milestone.id);
-      await loadMilestones();
+      await refreshMilestones();
     } catch (err: unknown) {
       setRedeemError(
         err instanceof Error ? err.message : "Unable to submit redemption request.",

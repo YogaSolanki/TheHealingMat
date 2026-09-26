@@ -19,7 +19,7 @@ import {
   setCached,
 } from "@/lib/dashboard-cache";
 
-export type ContentKind = "resources" | "articles" | "videos";
+export type ContentKind = "resources" | "articles" | "videos" | "orientation";
 
 export type ContentItem = {
   id: string;
@@ -125,7 +125,9 @@ export function ContentCrudPanel({
       ? DASHBOARD_CACHE_KEYS.resources
       : kind === "articles"
         ? DASHBOARD_CACHE_KEYS.articles
-        : DASHBOARD_CACHE_KEYS.videos;
+        : kind === "orientation"
+          ? DASHBOARD_CACHE_KEYS.orientation
+          : DASHBOARD_CACHE_KEYS.videos;
 
   const [items, setItems] = useState<ContentItem[]>(
     () => getCached<ContentItem[]>(cacheKey) ?? [],
@@ -189,7 +191,10 @@ export function ContentCrudPanel({
 
   function openCreate() {
     setEditing(null);
-    setForm(emptyForm());
+    setForm({
+      ...emptyForm(),
+      category: kind === "orientation" ? "Orientation" : "",
+    });
     setFormOpen(true);
   }
 
@@ -232,9 +237,12 @@ export function ContentCrudPanel({
       payload.readTime = form.readTime.trim();
       payload.body = normalizeArticleBody(form.body);
     }
-    if (kind === "videos") {
+    if (kind === "videos" || kind === "orientation") {
       payload.duration = form.duration.trim();
       payload.videoUrl = form.videoUrl.trim() || null;
+      if (kind === "orientation" && !payload.category) {
+        payload.category = "Orientation";
+      }
     }
     return payload;
   }
@@ -510,7 +518,7 @@ export function ContentCrudPanel({
                 </Field>
               ) : null}
 
-              {kind === "videos" ? (
+              {kind === "videos" || kind === "orientation" ? (
                 <>
                   <Field label="Duration">
                     <input

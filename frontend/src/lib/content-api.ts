@@ -71,3 +71,13 @@ export function fetchVideos() {
 export function fetchVideo(slug: string) {
   return fetchJson<ApiHealthVideo>(`/videos/${slug}`);
 }
+
+export type ApiOrientationVideo = ApiHealthVideo;
+
+export function fetchOrientationVideos() {
+  return fetchJson<ApiOrientationVideo[]>("/orientation-videos");
+}
+
+export function fetchOrientationVideo(slug: string) {
+  return fetchJson<ApiOrientationVideo>(`/orientation-videos/${slug}`);
+}

@@ -24,6 +24,8 @@ export function NavGlyph({ name, className = iconClass }: { name: NavIcon; class
       return <FolderIcon className={className} />;
     case "videos":
       return <PlayIcon className={className} />;
+    case "orientation":
+      return <CompassIcon className={className} />;
     case "plans":
       return <PlansIcon className={className} />;
     case "settings":
@@ -154,6 +156,15 @@ export function StarIcon({ className = iconClass }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
       <path d="m12 4 2.2 4.7 5.2.6-3.8 3.5 1 5.1L12 15.8 7.4 17.9l1-5.1L4.6 9.3l5.2-.6Z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CompassIcon({ className = iconClass }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m14.8 9.2-1.4 4.2-4.2 1.4 1.4-4.2 4.2-1.4Z" strokeLinejoin="round" />
     </svg>
   );
 }

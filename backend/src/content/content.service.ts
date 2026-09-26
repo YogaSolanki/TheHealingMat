@@ -15,6 +15,7 @@ import {
 } from './dto/content.dto';
 import { HealthArticle } from './health-article.entity';
 import { HealthVideo } from './health-video.entity';
+import { OrientationVideo } from './orientation-video.entity';
 import { ResourceGuide } from './resource-guide.entity';
 
 @Injectable()
@@ -26,6 +27,8 @@ export class ContentService {
     private readonly articles: Repository<HealthArticle>,
     @InjectRepository(HealthVideo)
     private readonly videos: Repository<HealthVideo>,
+    @InjectRepository(OrientationVideo)
+    private readonly orientationVideos: Repository<OrientationVideo>,
   ) {}
 
   // ── Resources ─────────────────────────────────────────────
@@ -194,6 +197,76 @@ export class ContentService {
   async deleteVideo(id: string) {
     const item = await this.requireById(this.videos, id, 'Video');
     await this.videos.remove(item);
+    return { success: true };
+  }
+
+  // ── Orientation videos (Start Here) ───────────────────────
+
+  listOrientationVideos(publishedOnly = false) {
+    return this.orientationVideos.find({
+      where: publishedOnly ? { published: true } : undefined,
+      order: { sortOrder: 'ASC', createdAt: 'DESC' },
+    });
+  }
+
+  async getOrientationVideoBySlug(slug: string, publishedOnly = false) {
+    const item = await this.orientationVideos.findOne({ where: { slug } });
+    if (!item || (publishedOnly && !item.published)) {
+      throw new NotFoundException('Orientation video not found.');
+    }
+    return item;
+  }
+
+  async createOrientationVideo(dto: CreateVideoDto) {
+    await this.ensureUniqueSlug(this.orientationVideos, dto.slug);
+    return this.orientationVideos.save(
+      this.orientationVideos.create({
+        slug: this.normalizeSlug(dto.slug),
+        title: dto.title.trim(),
+        subtitle: dto.subtitle.trim(),
+        description: dto.description.trim(),
+        category: dto.category?.trim() || 'Orientation',
+        duration: dto.duration?.trim() || '',
+        coverUrl: dto.coverUrl?.trim() || '',
+        videoUrl: dto.videoUrl?.trim() || null,
+        sortOrder:
+          dto.sortOrder ?? (await this.nextSortOrder(this.orientationVideos)),
+        published: dto.published ?? true,
+      }),
+    );
+  }
+
+  async updateOrientationVideo(id: string, dto: UpdateVideoDto) {
+    const item = await this.requireById(
+      this.orientationVideos,
+      id,
+      'Orientation video',
+    );
+    if (dto.slug && dto.slug !== item.slug) {
+      await this.ensureUniqueSlug(this.orientationVideos, dto.slug, id);
+      item.slug = this.normalizeSlug(dto.slug);
+    }
+    if (dto.title !== undefined) item.title = dto.title.trim();
+    if (dto.subtitle !== undefined) item.subtitle = dto.subtitle.trim();
+    if (dto.description !== undefined) item.description = dto.description.trim();
+    if (dto.category !== undefined) {
+      item.category = dto.category.trim() || 'Orientation';
+    }
+    if (dto.duration !== undefined) item.duration = dto.duration.trim();
+    if (dto.coverUrl !== undefined) item.coverUrl = dto.coverUrl.trim();
+    if (dto.videoUrl !== undefined) item.videoUrl = dto.videoUrl?.trim() || null;
+    if (dto.sortOrder !== undefined) item.sortOrder = dto.sortOrder;
+    if (dto.published !== undefined) item.published = dto.published;
+    return this.orientationVideos.save(item);
+  }
+
+  async deleteOrientationVideo(id: string) {
+    const item = await this.requireById(
+      this.orientationVideos,
+      id,
+      'Orientation video',
+    );
+    await this.orientationVideos.remove(item);
     return { success: true };
   }
 

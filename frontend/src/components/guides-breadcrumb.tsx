@@ -7,27 +7,39 @@ export type GuidesCrumb = {
 
 type GuidesBreadcrumbProps = {
   /** Hash on /guides for the section this flow belongs to */
-  guidesHash: "resources" | "articles" | "videos";
+  guidesHash?: "resources" | "articles" | "videos";
+  /** Override the leading crumb (defaults to Health Guides → /guides#…) */
+  root?: GuidesCrumb;
   items: GuidesCrumb[];
   className?: string;
 };
 
 export function GuidesBreadcrumb({
-  guidesHash,
+  guidesHash = "videos",
+  root,
   items,
   className = "",
 }: GuidesBreadcrumbProps) {
+  const leading: GuidesCrumb = root ?? {
+    label: "Health Guides",
+    href: `/guides#${guidesHash}`,
+  };
+
   return (
     <nav
       aria-label="Breadcrumb"
       className={`flex cursor-pointer flex-wrap items-center gap-1.5 text-[13px] sm:text-[14px] ${className}`.trim()}
     >
-      <Link
-        href={`/guides#${guidesHash}`}
-        className="inline-flex cursor-pointer items-center gap-1 font-semibold text-[#1f6b3a] transition hover:text-[#185830]"
-      >
-        Health Guides
-      </Link>
+      {leading.href ? (
+        <Link
+          href={leading.href}
+          className="inline-flex cursor-pointer items-center gap-1 font-semibold text-[#1f6b3a] transition hover:text-[#185830]"
+        >
+          {leading.label}
+        </Link>
+      ) : (
+        <span className="font-semibold text-[#1f6b3a]">{leading.label}</span>
+      )}
 
       {items.map((item, index) => {
         const isLast = index === items.length - 1;

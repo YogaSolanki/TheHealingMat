@@ -15,6 +15,7 @@ export const DASHBOARD_CACHE_KEYS = {
   resources: "content:resources",
   articles: "content:articles",
   videos: "content:videos",
+  orientation: "content:orientation",
 } as const;
 
 export function getCached<T>(key: string): T | undefined {
