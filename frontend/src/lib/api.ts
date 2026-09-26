@@ -556,6 +556,8 @@ export async function createRazorpayOrder(
     startMode?: "now" | "after_current";
     startsOn?: string;
     applyReferralDiscount?: boolean;
+    /** Latest quoted payable amount; server rejects if price changed. */
+    expectedAmountPaise?: number;
   },
 ): Promise<CreateOrderResponse> {
   const response = await fetch(`${API_URL}/create-order`, {

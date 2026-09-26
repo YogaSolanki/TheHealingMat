@@ -55,4 +55,14 @@ export class CreateOrderDto {
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   applyReferralDiscount?: boolean;
+
+  /**
+   * Client-confirmed payable amount (paise) from the latest /memberships/quote.
+   * Rejected when it no longer matches the server quote.
+   */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  expectedAmountPaise?: number;
 }

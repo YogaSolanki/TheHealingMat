@@ -379,12 +379,23 @@ export function MembershipCheckoutPanel({
         !applyReferralDiscount
           ? appliedCoupon || couponInput.trim() || undefined
           : undefined;
+      const applyReferral = applyReferralDiscount && !couponCode;
+
+      // Re-confirm payable amount from the backend before charging.
+      const confirmedQuote = await quoteMembership(token, {
+        planMonths,
+        couponCode,
+        applyReferralDiscount: applyReferral,
+      });
+      setQuote(confirmedQuote);
+
       const order = await createRazorpayOrder(token, {
         planMonths,
         couponCode,
         startMode,
         ...(startsOn ? { startsOn } : {}),
-        applyReferralDiscount: applyReferralDiscount && !couponCode,
+        applyReferralDiscount: applyReferral,
+        expectedAmountPaise: confirmedQuote.amountPaise,
       });
 
       if (order.skipCheckout) {
@@ -396,6 +407,16 @@ export function MembershipCheckoutPanel({
         throw new Error("Unable to start payment.");
       }
 
+      // Keep UI in sync with the amount the order was created for.
+      setQuote((prev) => ({
+        ...prev,
+        amountPaise: order.amount,
+        currency:
+          order.currency === "USD" || order.currency === "INR"
+            ? order.currency
+            : prev.currency,
+      }));
+
       const razorpayOrderId = String(order.order_id);
 
       const checkout = new window.Razorpay({
@@ -403,7 +424,7 @@ export function MembershipCheckoutPanel({
         amount: order.amount,
         currency: order.currency,
         name: "The Healing Mat",
-        description: quote.planName,
+        description: confirmedQuote.planName,
         order_id: razorpayOrderId,
         prefill: {
           name: user?.fullName,

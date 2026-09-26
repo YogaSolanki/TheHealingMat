@@ -104,6 +104,14 @@ export class PaymentsService {
         dto.couponCode,
         dto.applyReferralDiscount === true,
       );
+      if (
+        dto.expectedAmountPaise != null &&
+        dto.expectedAmountPaise !== quote.amountPaise
+      ) {
+        throw new BadRequestException(
+          'The membership price was updated. Please review the new amount and try again.',
+        );
+      }
       if (quote.amountPaise === 0) {
         const membership = await this.fulfillZeroAmount(
           user,
