@@ -277,7 +277,7 @@ export class PaymentsService {
       rows.find((row) => row.status === 'scheduled' && row.startsAt > now) ??
       null;
     const trial = await this.trials.findOne({ where: { userId: user.id } });
-    if (trial) {
+    if (trial && trial.status !== TrialStatus.Completed) {
       const nowMs = now.getTime();
       if (nowMs > trial.trialEndsAt.getTime()) {
         if (trial.status !== TrialStatus.Expired) {
@@ -296,11 +296,20 @@ export class PaymentsService {
     }
 
     const trialActive =
-      trial && now >= trial.trialStartsAt && now <= trial.trialEndsAt
+      trial &&
+      trial.status !== TrialStatus.Completed &&
+      trial.status !== TrialStatus.Expired &&
+      now >= trial.trialStartsAt &&
+      now <= trial.trialEndsAt
         ? trial
         : null;
     const trialScheduled =
-      trial && now < trial.trialStartsAt ? trial : null;
+      trial &&
+      trial.status !== TrialStatus.Completed &&
+      trial.status !== TrialStatus.Expired &&
+      now < trial.trialStartsAt
+        ? trial
+        : null;
 
     const lastExpired =
       rows.find((row) => row.status === 'expired') ?? null;
@@ -470,6 +479,11 @@ export class PaymentsService {
         razorpayInvoiceUrl: order.razorpayInvoiceUrl,
       }),
     );
+
+    // Immediate paid membership ends the trial so the member home unlocks now.
+    if (status === 'active') {
+      await this.completeTrialForMembership(user.id);
+    }
 
     await this.coupons
       .recordRedemption({
@@ -730,7 +744,25 @@ export class PaymentsService {
     for (const row of starting) {
       row.status = 'active';
     }
-    if (starting.length) await this.memberships.save(starting);
+    if (starting.length) {
+      await this.memberships.save(starting);
+      // Scheduled membership began — end trial and unlock paid member home.
+      await this.completeTrialForMembership(userId);
+    }
+  }
+
+  /** End an in-progress/scheduled trial when paid membership access begins. */
+  private async completeTrialForMembership(userId: string) {
+    const trial = await this.trials.findOne({ where: { userId } });
+    if (!trial) return;
+    if (trial.status === TrialStatus.Completed) return;
+
+    const now = new Date();
+    if (trial.trialEndsAt > now) {
+      trial.trialEndsAt = now;
+    }
+    trial.status = TrialStatus.Completed;
+    await this.trials.save(trial);
   }
 
   private async buildQuote(

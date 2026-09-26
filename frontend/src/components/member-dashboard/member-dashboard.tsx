@@ -338,17 +338,6 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 Trial access includes these two session times. Regular membership sessions
                 become available when your membership starts.
               </p>
-              <div className="mt-5 flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <Link href="/membership?start=now" className={`${memberPrimaryBtnClass} w-full justify-center px-4 py-2.5 text-[13px] sm:w-auto sm:text-[14px]`}>
-                  Start Membership Now
-                </Link>
-                <Link
-                  href="/membership?start=after-trial"
-                  className="inline-flex w-full items-center justify-center rounded-[16px] border border-[#1f6b3a] bg-white px-4 py-2.5 text-[13px] font-bold text-[#1f6b3a] sm:w-auto sm:text-[14px]"
-                >
-                  Start After Trial
-                </Link>
-              </div>
             </div>
           ) : sunday ? (
             <div className="px-4 py-4 sm:px-6 sm:py-5">
@@ -494,6 +483,36 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
           )}
         </section>
 
+        {((isTrial || isScheduledTrial) && !access.hasScheduledMembership) ? (
+          <section className="relative mb-6 overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-[#F7F3EA] px-4 py-5 shadow-[0_10px_32px_rgba(31,107,58,0.05)] sm:mb-8 sm:px-6 sm:py-6 lg:px-8">
+            <Image
+              src={leafRight}
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1/2 right-0 z-0 h-[90%] w-auto -translate-y-1/2 object-contain object-right opacity-30 sm:opacity-40"
+              sizes="200px"
+            />
+            <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+              <div className="min-w-0 max-w-[560px]">
+                <h2 className="font-serif text-[1.35rem] leading-tight font-bold text-[#1f6b3a] sm:text-[1.55rem]">
+                  Ready to join The Healing Mat?
+                </h2>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
+                  You can start your membership anytime. Choose when you&apos;d like
+                  your membership to begin.
+                </p>
+              </div>
+              <Link
+                href="/dashboard/membership#membership-plans"
+                className={`${memberPrimaryBtnClass} w-full shrink-0 justify-center px-5 py-3 text-[14px] sm:w-auto sm:min-w-[200px] sm:text-[15px]`}
+              >
+                Join Membership
+                <span aria-hidden="true">→</span>
+              </Link>
+            </div>
+          </section>
+        ) : null}
+
         {/* Bottom cards */}
         <section className="grid gap-4 md:grid-cols-3 md:items-stretch md:gap-5">
           <DashboardCard
@@ -527,7 +546,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
             href="/dashboard/membership"
             linkLabel="View Membership"
             secondaryHref={
-              isUnaffiliated || isExpired || isTrial || isScheduledTrial
+              isUnaffiliated || isExpired
                 ? "/dashboard/membership#membership-plans"
                 : undefined
             }
@@ -536,9 +555,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 ? "Complete Membership"
                 : isExpired
                   ? "Renew Membership"
-                  : isTrial || isScheduledTrial
-                    ? "Join Membership"
-                    : undefined
+                  : undefined
             }
             decor={<LeafDecor />}
           />
