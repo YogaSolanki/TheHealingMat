@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   emptyMemberAccess,
+  daypartYogaMessage,
   greetingForName,
   mapMembershipAccess,
   membershipStatusLabel,
@@ -14,6 +15,7 @@ import { sessionStore, useSessionAccess } from "@/lib/session-store";
 export type { MemberAccess, MemberAccessState };
 export {
   emptyMemberAccess,
+  daypartYogaMessage,
   greetingForName,
   mapMembershipAccess,
   membershipStatusLabel,

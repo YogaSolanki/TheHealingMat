@@ -43,6 +43,14 @@ export function greetingForName(fullName: string, now = new Date()) {
   return `${period}, ${name}`;
 }
 
+/** Supporting line under the greeting — matches morning / afternoon / evening. */
+export function daypartYogaMessage(now = new Date()) {
+  const hour = now.getHours();
+  if (hour < 12) return "Let’s begin your day with yoga.";
+  if (hour < 17) return "Take a little time for yourself with yoga.";
+  return "Let’s end your day with yoga.";
+}
+
 function formatLongDate(iso: string | null | undefined) {
   if (!iso) return null;
   return new Date(iso).toLocaleDateString("en-IN", {

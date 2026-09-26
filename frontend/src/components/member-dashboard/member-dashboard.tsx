@@ -25,6 +25,7 @@ import {
 } from "@/lib/orientation-videos-store";
 import {
   greetingForName,
+  daypartYogaMessage,
   useMemberAccess,
 } from "@/lib/member-access";
 import {
@@ -181,7 +182,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     ? `Your trial starts on ${access.trialStartsOnLabel ?? "the upcoming cohort Monday"}.`
     : isExpired
       ? "Renew your membership to continue your daily yoga sessions."
-      : "Let’s begin your day with yoga.";
+      : daypartYogaMessage();
 
   return (
     <div className="w-full bg-[#FBF9F5]">
