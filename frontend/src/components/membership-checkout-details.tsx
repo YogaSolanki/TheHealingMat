@@ -5,7 +5,6 @@ import { MemberDatePicker } from "@/components/member-dashboard/member-date-pick
 import { MemberSelect } from "@/components/member-dashboard/member-select";
 import { ButtonLoader } from "@/components/site-loader";
 import {
-  applyReferralCode,
   updateProfile,
   type PublicUser,
 } from "@/lib/api";
@@ -59,14 +58,12 @@ export function MembershipCheckoutDetails({
   onClose,
 }: MembershipCheckoutDetailsProps) {
   const needsState = !user.state?.trim();
-  const canEnterReferral = !user.wasReferred;
   const minStart = maxIso(minStartsOn?.trim() || todayIso(), todayIso());
   const [state, setState] = useState(user.state?.trim() ?? "");
   const [preferredClassTime, setPreferredClassTime] = useState(
     user.preferredClassTime?.trim() ?? "",
   );
   const [startsOn, setStartsOn] = useState(minStart);
-  const [referralCodeInput, setReferralCodeInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -126,18 +123,10 @@ export function MembershipCheckoutDetails({
 
     setSaving(true);
     try {
-      let nextUser = user;
-      const trimmedReferral = referralCodeInput.trim();
-      if (canEnterReferral && trimmedReferral) {
-        const referralResult = await applyReferralCode(token, trimmedReferral);
-        nextUser = referralResult.user;
-        updateMemberAuthCache(nextUser);
-      }
-
       const result = await updateProfile(token, {
-        fullName: nextUser.fullName,
-        dateOfBirth: nextUser.dateOfBirth,
-        gender: nextUser.gender,
+        fullName: user.fullName,
+        dateOfBirth: user.dateOfBirth,
+        gender: user.gender,
         ...(needsState ? { state: state.trim() } : {}),
         preferredClassTime: preferredClassTime.trim(),
       });
@@ -229,28 +218,6 @@ export function MembershipCheckoutDetails({
               : "Today starts membership now; a later date keeps your current access."}
           </p>
         </div>
-
-        {canEnterReferral ? (
-          <div>
-            <label
-              className="mb-1 block text-[13px] font-semibold text-[#243028]"
-              htmlFor="checkout-referral-code"
-            >
-              Have a referral code?
-            </label>
-            <input
-              id="checkout-referral-code"
-              type="text"
-              value={referralCodeInput}
-              onChange={(event) => setReferralCodeInput(event.target.value)}
-              placeholder="Enter code (optional)"
-              autoComplete="off"
-              maxLength={64}
-              spellCheck={false}
-              className="w-full rounded-[12px] border border-[#d7e0d6] bg-white px-3.5 py-2.5 text-[14px] font-semibold text-[#243028] outline-none transition placeholder:font-medium placeholder:text-[#9aa89c] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
-            />
-          </div>
-        ) : null}
 
         {error ? (
           <p className="rounded-[12px] bg-[#fdecec] px-3 py-2 text-[13px] text-[#8a2f2f]">

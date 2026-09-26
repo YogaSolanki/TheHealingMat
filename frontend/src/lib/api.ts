@@ -72,6 +72,8 @@ export type PublicUser = {
   hasPassword: boolean;
   /** True when this account was created via a referral link. */
   wasReferred?: boolean;
+  /** Referrer's display name when the account was referred. */
+  referredByName?: string | null;
   role: string;
 };
 

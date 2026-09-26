@@ -679,7 +679,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
           className={`grid gap-3 sm:gap-4 ${
             isActiveMember || isTrial
               ? "sm:grid-cols-2 xl:grid-cols-4"
-              : "sm:grid-cols-2"
+              : "sm:grid-cols-3"
           }`}
         >
           {isActiveMember || isTrial ? (
@@ -741,19 +741,13 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                     : `${successfulReferrals} referral${successfulReferrals === 1 ? "" : "s"} · ${remainingToMilestone} to next reward`
                 }
               />
-              {isUnaffiliated || isExpired ? (
-                <CompactNavCard
-                  href="/dashboard/membership#membership-plans"
-                  icon={<WalletIcon className="h-5 w-5 text-[#1f6b3a]" />}
-                  iconBg="bg-[#eef6f0]"
-                  title={isExpired ? "Renew Membership" : "Complete Membership"}
-                  subtitle={
-                    isExpired
-                      ? "Choose a plan to restore session access."
-                      : "Choose a plan to unlock daily yoga sessions."
-                  }
-                />
-              ) : null}
+              <CompactNavCard
+                href="/contact"
+                icon={<SupportIcon className="h-5 w-5 text-[#1f6b3a]" />}
+                iconBg="bg-[#eef6f0]"
+                title="Questions or Support?"
+                subtitle="We're here to help."
+              />
             </>
           )}
         </section>

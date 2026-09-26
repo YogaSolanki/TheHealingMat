@@ -59,6 +59,8 @@ export type PublicUser = {
   hasPassword: boolean;
   /** True when this account was created via a referral link. */
   wasReferred: boolean;
+  /** Referrer's display name when wasReferred is true. */
+  referredByName: string | null;
   role: string;
 };
 
@@ -325,7 +327,7 @@ export class AuthService {
     return {
       success: true,
       message: 'Password updated. You can log in with your new password.',
-      user: this.toPublicUser(user),
+      user: await this.toPublicUser(user),
     };
   }
 
@@ -381,7 +383,7 @@ export class AuthService {
     return {
       success: true,
       message: 'Password updated successfully.',
-      user: this.toPublicUser(user),
+      user: await this.toPublicUser(user),
     };
   }
 
@@ -412,7 +414,7 @@ export class AuthService {
     return {
       success: true,
       message: 'Profile updated successfully.',
-      user: this.toPublicUser(saved),
+      user: await this.toPublicUser(saved),
     };
   }
 
@@ -442,7 +444,7 @@ export class AuthService {
     return {
       success: true,
       message: 'Referral code applied successfully.',
-      user: this.toPublicUser(saved),
+      user: await this.toPublicUser(saved),
     };
   }
 
@@ -453,7 +455,17 @@ export class AuthService {
     };
   }
 
-  toPublicUser(user: User): PublicUser {
+  async toPublicUser(user: User): Promise<PublicUser> {
+    let referredByName: string | null = null;
+    if (user.referredByUserId) {
+      const referrer = await this.users.findOne({
+        where: { id: user.referredByUserId },
+        select: { id: true, fullName: true },
+      });
+      const name = referrer?.fullName?.trim() || '';
+      referredByName = name || null;
+    }
+
     return {
       id: user.id,
       fullName: user.fullName,
@@ -469,6 +481,7 @@ export class AuthService {
       hasUsedFreeTrial: user.hasUsedFreeTrial,
       hasPassword: Boolean(user.passwordSetByUser),
       wasReferred: Boolean(user.referredByUserId),
+      referredByName,
       role: user.role,
     };
   }
@@ -494,7 +507,7 @@ export class AuthService {
       tokenType: 'Bearer',
       expiresIn: USER_TOKEN_TTL_SECONDS,
       isNewAccount,
-      user: this.toPublicUser(withTrial),
+      user: await this.toPublicUser(withTrial),
     };
   }
 
