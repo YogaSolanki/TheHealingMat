@@ -38,6 +38,22 @@ function todayIsoDate() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
+/** Max calendar days ahead admins may schedule (today + 6 = 7 days). */
+const MAX_SCHEDULE_AHEAD_DAYS = 6;
+
+function assertWithinScheduleWindow(classDate: string) {
+  const today = todayIsoDate();
+  const max = shiftIsoDate(today, MAX_SCHEDULE_AHEAD_DAYS);
+  if (classDate < today) {
+    throw new BadRequestException('Cannot schedule a class on a past date.');
+  }
+  if (classDate > max) {
+    throw new BadRequestException(
+      'Classes can only be scheduled within the next 7 days.',
+    );
+  }
+}
+
 /** Shift a YYYY-MM-DD calendar date by `days` (can be negative). */
 function shiftIsoDate(isoDate: string, days: number) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
@@ -90,11 +106,7 @@ export class ScheduledClassesService implements OnModuleInit {
     const dayLabel = dayLabelFromDate(classDate);
     const meetingUrl = dto.meetingUrl.trim();
 
-    if (classDate < todayIsoDate()) {
-      throw new BadRequestException(
-        'Cannot schedule a class on a past date.',
-      );
-    }
+    assertWithinScheduleWindow(classDate);
 
     const clash = await this.classes.findOne({
       where: { classDate, sessionTimingId: timing.id },
@@ -141,11 +153,7 @@ export class ScheduledClassesService implements OnModuleInit {
       row.meetingUrl = dto.meetingUrl.trim();
     }
 
-    if (row.classDate < todayIsoDate()) {
-      throw new BadRequestException(
-        'Cannot move a class onto a past date.',
-      );
-    }
+    assertWithinScheduleWindow(row.classDate);
 
     const clash = await this.classes.findOne({
       where: {
