@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
+import { AdminConfirmDialog } from "@/components/admin-confirm-dialog";
 import { PanelLoader } from "@/components/panel-loader";
 import { ReloadButton } from "@/components/reload-button";
 import {
@@ -104,6 +105,8 @@ export function UsersPanel() {
   const [deletingAll, setDeletingAll] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const [pendingDeleteUser, setPendingDeleteUser] =
+    useState<AdminUserRow | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [loading, setLoading] = useState(() => !hasCached(cacheKey));
   const [addOpen, setAddOpen] = useState(false);
@@ -342,29 +345,30 @@ export function UsersPanel() {
   }
 
   async function onDelete(user: AdminUserRow) {
-    if (
-      !window.confirm(
-        `Delete user “${user.fullName}”? This permanently removes their account, trial, and membership records.`,
-      )
-    ) {
-      return;
-    }
+    setMenuOpenId(null);
+    setPendingDeleteUser(user);
+  }
+
+  async function confirmDeleteUser() {
+    const user = pendingDeleteUser;
+    if (!user || deletingId) return;
 
     const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
     if (!token) {
       setError("Please sign in again.");
+      setPendingDeleteUser(null);
       return;
     }
 
     setDeletingId(user.id);
     setError(null);
-    setMenuOpenId(null);
     try {
       await deleteAdminUser(token, user.id);
       const next = users.filter((row) => row.id !== user.id);
       setUsers(next);
       setCached(cacheKey, next);
       invalidateCached(DASHBOARD_CACHE_KEYS.overview);
+      setPendingDeleteUser(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete user");
     } finally {
@@ -424,6 +428,21 @@ export function UsersPanel() {
 
   return (
     <>
+      <AdminConfirmDialog
+        open={Boolean(pendingDeleteUser)}
+        title="Delete user?"
+        description={
+          pendingDeleteUser
+            ? `Delete user “${pendingDeleteUser.fullName}”? This permanently removes their account, trial, and membership records.`
+            : ""
+        }
+        confirmLabel="Delete user"
+        busy={Boolean(deletingId)}
+        onCancel={() => {
+          if (!deletingId) setPendingDeleteUser(null);
+        }}
+        onConfirm={() => void confirmDeleteUser()}
+      />
       <section className="overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_rgba(21,32,25,0.04)]">
         <div className="flex flex-col gap-3 border-b border-[#e6ebe3] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">

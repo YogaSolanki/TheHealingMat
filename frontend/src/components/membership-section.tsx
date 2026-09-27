@@ -460,7 +460,7 @@ function WeekBlock() {
     morning: morningSlots,
     evening: eveningSlots,
     special: specialSlots,
-  } = useSessionTimings();
+  } = useSessionTimings(false);
   const specialSlot = specialSlots[0] ?? null;
 
   return (
@@ -671,7 +671,7 @@ function BenefitsBlock() {
 }
 
 function DailySessionsBlock() {
-  const { special } = useSessionTimings();
+  const { special } = useSessionTimings(false);
   const specialSlot = special[0] ?? null;
 
   return (

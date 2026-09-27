@@ -10,6 +10,7 @@ import {
 } from "react";
 import { PanelLoader } from "@/components/panel-loader";
 import { ReloadButton } from "@/components/reload-button";
+import { AdminConfirmDialog } from "@/components/admin-confirm-dialog";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { ADMIN_TOKEN_KEY } from "@/lib/api";
 import {
@@ -139,6 +140,9 @@ export function ContentCrudPanel({
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<ContentItem | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [pendingDeleteItem, setPendingDeleteItem] =
+    useState<ContentItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(
     async (options?: { force?: boolean }) => {
@@ -274,20 +278,28 @@ export function ContentCrudPanel({
   }
 
   async function onDelete(item: ContentItem) {
-    if (!window.confirm(`Delete “${item.title}”? This cannot be undone.`)) {
-      return;
-    }
+    setPendingDeleteItem(item);
+  }
+
+  async function confirmDeleteItem() {
+    const item = pendingDeleteItem;
+    if (!item || deleting) return;
     const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
     if (!token) {
       setError("Please sign in again.");
+      setPendingDeleteItem(null);
       return;
     }
+    setDeleting(true);
     setError(null);
     try {
       await remove(token, item.id);
+      setPendingDeleteItem(null);
       await load({ force: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -297,6 +309,21 @@ export function ContentCrudPanel({
 
   return (
     <section className="space-y-4">
+      <AdminConfirmDialog
+        open={Boolean(pendingDeleteItem)}
+        title="Delete item?"
+        description={
+          pendingDeleteItem
+            ? `Delete “${pendingDeleteItem.title}”? This cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete"
+        busy={deleting}
+        onCancel={() => {
+          if (!deleting) setPendingDeleteItem(null);
+        }}
+        onConfirm={() => void confirmDeleteItem()}
+      />
       {error ? (
         <p className="rounded-2xl bg-white px-5 py-4 text-sm text-[#8a2f2f] shadow-sm">
           {error}

@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { AdminConfirmDialog } from "@/components/admin-confirm-dialog";
+import { AdminToast } from "@/components/admin-toast";
 import { PanelLoader } from "@/components/panel-loader";
 import { ReloadButton } from "@/components/reload-button";
 import {
@@ -18,6 +20,11 @@ import {
 const inputClass =
   "mt-1.5 h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
 
+type ToastState = {
+  message: string;
+  variant: "error" | "success";
+};
+
 export function SettingsPanel() {
   const [settings, setSettings] = useState<AdminSiteSettings | null>(null);
   const [timings, setTimings] = useState<AdminSessionTiming[]>([]);
@@ -29,8 +36,11 @@ export function SettingsPanel() {
   const [saving, setSaving] = useState(false);
   const [timingBusy, setTimingBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
   const [saved, setSaved] = useState(false);
   const [timingSaved, setTimingSaved] = useState(false);
+  const [pendingDeleteTiming, setPendingDeleteTiming] =
+    useState<AdminSessionTiming | null>(null);
 
   const token = useMemo(
     () =>
@@ -39,6 +49,15 @@ export function SettingsPanel() {
         : "",
     [],
   );
+
+  function showError(message: string) {
+    setError(message);
+    setToast({ message, variant: "error" });
+  }
+
+  function showSuccess(message: string) {
+    setToast({ message, variant: "success" });
+  }
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -55,7 +74,10 @@ export function SettingsPanel() {
       );
       setTimings(nextTimings);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Unable to load settings.");
+      const message =
+        err instanceof Error ? err.message : "Unable to load settings.";
+      setError(message);
+      setToast({ message, variant: "error" });
     } finally {
       setLoading(false);
     }
@@ -71,7 +93,7 @@ export function SettingsPanel() {
 
     const percent = Number(referralDiscountPercent);
     if (!Number.isInteger(percent) || percent < 0 || percent > 100) {
-      setError("Referral discount must be a whole number between 0 and 100.");
+      showError("Referral discount must be a whole number between 0 and 100.");
       return;
     }
 
@@ -85,8 +107,11 @@ export function SettingsPanel() {
       setSettings(next);
       setReferralDiscountPercent(String(next.referralDiscountPercent ?? 20));
       setSaved(true);
+      showSuccess("Referral settings saved.");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Unable to save settings.");
+      showError(
+        err instanceof Error ? err.message : "Unable to save settings.",
+      );
     } finally {
       setSaving(false);
     }
@@ -110,8 +135,9 @@ export function SettingsPanel() {
       );
       setNewTimingLabel("");
       setTimingSaved(true);
+      showSuccess(`Added session time ${created.label}.`);
     } catch (err: unknown) {
-      setError(
+      showError(
         err instanceof Error ? err.message : "Unable to add session time.",
       );
     } finally {
@@ -139,8 +165,9 @@ export function SettingsPanel() {
       setEditingId(null);
       setEditingLabel("");
       setTimingSaved(true);
+      showSuccess("Session time updated.");
     } catch (err: unknown) {
-      setError(
+      showError(
         err instanceof Error ? err.message : "Unable to update session time.",
       );
     } finally {
@@ -159,8 +186,13 @@ export function SettingsPanel() {
       setTimings((current) =>
         current.map((item) => (item.id === row.id ? updated : item)),
       );
+      showSuccess(
+        updated.active
+          ? `${updated.label} is now active.`
+          : `${updated.label} is now inactive.`,
+      );
     } catch (err: unknown) {
-      setError(
+      showError(
         err instanceof Error ? err.message : "Unable to update session time.",
       );
     } finally {
@@ -170,21 +202,22 @@ export function SettingsPanel() {
 
   async function onDeleteTiming(row: AdminSessionTiming) {
     if (!token || timingBusy) return;
-    if (
-      !window.confirm(
-        `Delete session time “${row.label}”? Class Management will no longer offer it.`,
-      )
-    ) {
-      return;
-    }
+    setPendingDeleteTiming(row);
+  }
+
+  async function confirmDeleteTiming() {
+    const row = pendingDeleteTiming;
+    if (!token || !row || timingBusy) return;
 
     setTimingBusy(true);
     setError(null);
     try {
       await deleteAdminSessionTiming(token, row.id);
       setTimings((current) => current.filter((item) => item.id !== row.id));
+      setPendingDeleteTiming(null);
+      showSuccess(`Deleted session time ${row.label}.`);
     } catch (err: unknown) {
-      setError(
+      showError(
         err instanceof Error ? err.message : "Unable to delete session time.",
       );
     } finally {
@@ -198,6 +231,28 @@ export function SettingsPanel() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
+      <AdminToast
+        message={toast?.message ?? null}
+        variant={toast?.variant ?? "error"}
+        onDismiss={() => setToast(null)}
+        durationMs={toast?.variant === "error" ? 6200 : 3200}
+      />
+      <AdminConfirmDialog
+        open={Boolean(pendingDeleteTiming)}
+        title="Delete session time?"
+        description={
+          pendingDeleteTiming
+            ? `Delete session time “${pendingDeleteTiming.label}”? Class Management will no longer offer it.`
+            : ""
+        }
+        confirmLabel="Delete time"
+        busy={timingBusy}
+        onCancel={() => {
+          if (!timingBusy) setPendingDeleteTiming(null);
+        }}
+        onConfirm={() => void confirmDeleteTiming()}
+      />
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-serif text-[1.75rem] font-bold text-[#1f6b3a]">

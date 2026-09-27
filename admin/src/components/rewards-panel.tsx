@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { AdminConfirmDialog } from "@/components/admin-confirm-dialog";
 import { PanelLoader } from "@/components/panel-loader";
 import { ReloadButton } from "@/components/reload-button";
 import {
@@ -81,6 +82,9 @@ export function RewardsPanel() {
     AdminRedemptionStatus | "all"
   >("pending");
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const [pendingDeleteMilestone, setPendingDeleteMilestone] =
+    useState<AdminReferralMilestone | null>(null);
+  const [deletingMilestone, setDeletingMilestone] = useState(false);
 
   const token = useMemo(
     () =>
@@ -209,18 +213,27 @@ export function RewardsPanel() {
     }
   }
 
-  async function onDeleteMilestone(id: string) {
+  async function onDeleteMilestone(row: AdminReferralMilestone) {
     if (!token) return;
-    if (!window.confirm("Delete this milestone?")) return;
+    setPendingDeleteMilestone(row);
+  }
+
+  async function confirmDeleteMilestone() {
+    const row = pendingDeleteMilestone;
+    if (!token || !row || deletingMilestone) return;
+    setDeletingMilestone(true);
     setError(null);
     try {
-      await deleteAdminReferralMilestone(token, id);
-      if (editingId === id) resetForm();
+      await deleteAdminReferralMilestone(token, row.id);
+      if (editingId === row.id) resetForm();
+      setPendingDeleteMilestone(null);
       await load(true);
     } catch (err: unknown) {
       setError(
         err instanceof Error ? err.message : "Unable to delete milestone.",
       );
+    } finally {
+      setDeletingMilestone(false);
     }
   }
 
@@ -245,6 +258,21 @@ export function RewardsPanel() {
 
   return (
     <div className="space-y-6">
+      <AdminConfirmDialog
+        open={Boolean(pendingDeleteMilestone)}
+        title="Delete milestone?"
+        description={
+          pendingDeleteMilestone
+            ? `Delete the “${pendingDeleteMilestone.rewardTitle}” milestone (${pendingDeleteMilestone.referralCount} referrals)? This cannot be undone.`
+            : "Delete this milestone?"
+        }
+        confirmLabel="Delete milestone"
+        busy={deletingMilestone}
+        onCancel={() => {
+          if (!deletingMilestone) setPendingDeleteMilestone(null);
+        }}
+        onConfirm={() => void confirmDeleteMilestone()}
+      />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-serif text-2xl font-bold text-[#243028]">
@@ -497,7 +525,7 @@ export function RewardsPanel() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => void onDeleteMilestone(row.id)}
+                          onClick={() => void onDeleteMilestone(row)}
                           className="text-xs font-semibold text-[#9b3b32]"
                         >
                           Delete

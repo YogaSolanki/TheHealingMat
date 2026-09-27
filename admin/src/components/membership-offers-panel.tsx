@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { AdminConfirmDialog } from "@/components/admin-confirm-dialog";
 import { PanelLoader } from "@/components/panel-loader";
 import { ReloadButton } from "@/components/reload-button";
 import {
@@ -154,6 +155,9 @@ export function MembershipOffersPanel() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<AdminMembershipOffer | null>(null);
   const [form, setForm] = useState<FormState>(() => emptyForm([]));
+  const [pendingDeleteOffer, setPendingDeleteOffer] =
+    useState<AdminMembershipOffer | null>(null);
+  const [deletingOffer, setDeletingOffer] = useState(false);
 
   const load = useCallback(
     async (options?: { force?: boolean }) => {
@@ -294,21 +298,31 @@ export function MembershipOffersPanel() {
   }
 
   async function onDelete(offer: AdminMembershipOffer) {
-    if (!window.confirm(`Delete offer “${offer.title}”?`)) return;
+    setPendingDeleteOffer(offer);
+  }
+
+  async function confirmDeleteOffer() {
+    const offer = pendingDeleteOffer;
+    if (!offer || deletingOffer) return;
     const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
     if (!token) {
       setError("Please sign in again.");
+      setPendingDeleteOffer(null);
       return;
     }
+    setDeletingOffer(true);
     setError(null);
     try {
       await deleteAdminMembershipOffer(token, offer.id);
       const nextOffers = offers.filter((row) => row.id !== offer.id);
       setCached(cacheKey, { plans, offers: nextOffers });
       setOffers(nextOffers);
+      setPendingDeleteOffer(null);
       setNotice("Offer deleted.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete offer");
+    } finally {
+      setDeletingOffer(false);
     }
   }
 
@@ -349,6 +363,21 @@ export function MembershipOffersPanel() {
 
   return (
     <section className="flex min-h-[calc(100dvh-7rem)] flex-col gap-4">
+      <AdminConfirmDialog
+        open={Boolean(pendingDeleteOffer)}
+        title="Delete offer?"
+        description={
+          pendingDeleteOffer
+            ? `Delete offer “${pendingDeleteOffer.title}”? This cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete offer"
+        busy={deletingOffer}
+        onCancel={() => {
+          if (!deletingOffer) setPendingDeleteOffer(null);
+        }}
+        onConfirm={() => void confirmDeleteOffer()}
+      />
       {error ? (
         <p className="shrink-0 rounded-2xl bg-white px-5 py-4 text-sm text-[#8a2f2f] shadow-sm">
           {error}

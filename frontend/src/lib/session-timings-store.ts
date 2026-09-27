@@ -7,7 +7,7 @@ import {
   splitSessionLabels,
 } from "@/lib/member-session-schedule";
 
-const STORAGE_KEY = "thm_session_timings_v2";
+const STORAGE_KEY = "thm_session_timings_v3";
 
 export type SessionTimingsSnapshot = {
   labels: string[];
@@ -17,11 +17,14 @@ export type SessionTimingsSnapshot = {
   /** Preferred class time dropdown options (all active timings). */
   preferredOptions: string[];
   ready: boolean;
-  /** True only after a successful API response. */
+  /** True only after a successful API response (or hydrated cache). */
   fromApi: boolean;
+  loading: boolean;
 };
 
-function fromLabels(labels: string[]): Omit<SessionTimingsSnapshot, "ready" | "fromApi"> {
+function fromLabels(
+  labels: string[],
+): Omit<SessionTimingsSnapshot, "ready" | "fromApi" | "loading"> {
   const split = splitSessionLabels(labels);
   return {
     labels,
@@ -38,6 +41,7 @@ const SERVER_SNAPSHOT: SessionTimingsSnapshot = {
   ...FALLBACK,
   ready: false,
   fromApi: false,
+  loading: false,
 };
 
 function readCache(): string[] | null {
@@ -45,8 +49,8 @@ function readCache(): string[] | null {
   try {
     const raw = window.sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { labels?: string[]; fromApi?: boolean };
-    if (!parsed?.fromApi || !Array.isArray(parsed.labels)) return null;
+    const parsed = JSON.parse(raw) as { labels?: string[] };
+    if (!Array.isArray(parsed.labels)) return null;
     const labels = parsed.labels.filter(
       (item) => typeof item === "string" && item.trim(),
     );
@@ -58,16 +62,14 @@ function readCache(): string[] | null {
 
 function writeCache(labels: string[]) {
   if (typeof window === "undefined") return;
-  window.sessionStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({ labels, fromApi: true }),
-  );
+  window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ labels }));
 }
 
 class SessionTimingsStore {
   private labels: string[] = [...FALLBACK_SESSION_LABELS];
   private ready = false;
   private fromApi = false;
+  private loading = false;
   private inflight: Promise<string[]> | null = null;
   private listeners = new Set<() => void>();
   private cachedSnapshot: SessionTimingsSnapshot = SERVER_SNAPSHOT;
@@ -99,6 +101,7 @@ class SessionTimingsStore {
       ...fromLabels(this.labels),
       ready: this.ready,
       fromApi: this.fromApi,
+      loading: this.loading,
     };
   }
 
@@ -107,22 +110,32 @@ class SessionTimingsStore {
     for (const listener of this.listeners) listener();
   }
 
+  /**
+   * Cache-first. Network only when there is no API/cache data, or force=true.
+   * Preferred-time UI should call this when the select opens.
+   */
   async ensure(options?: { force?: boolean }): Promise<string[]> {
     const force = options?.force === true;
+
     if (!force && this.fromApi && this.labels.length > 0) {
       return this.labels;
     }
-    if (!force && !this.fromApi) {
+
+    if (!force) {
       const cached = readCache();
       if (cached && cached.length > 0) {
         this.labels = cached;
         this.ready = true;
         this.fromApi = true;
         this.emit();
-        // Still refresh in background so admin edits show up.
+        return this.labels;
       }
     }
+
     if (this.inflight) return this.inflight;
+
+    this.loading = true;
+    this.emit();
 
     this.inflight = listSessionTimings()
       .then((rows) => {
@@ -144,7 +157,6 @@ class SessionTimingsStore {
         return this.labels;
       })
       .catch(() => {
-        // Keep showing fallback/cache, but do not mark as API-sourced so we retry.
         if (!this.ready) {
           this.labels = [...FALLBACK_SESSION_LABELS];
           this.ready = true;
@@ -154,7 +166,9 @@ class SessionTimingsStore {
         return this.labels;
       })
       .finally(() => {
+        this.loading = false;
         this.inflight = null;
+        this.emit();
       });
 
     return this.inflight;
@@ -163,7 +177,13 @@ class SessionTimingsStore {
 
 export const sessionTimingsStore = new SessionTimingsStore();
 
-export function useSessionTimings(enabled = true): SessionTimingsSnapshot {
+/**
+ * @param load When true, fetch once if cache is empty. Prefer leaving this
+ * false and calling `ensure()` only when Preferred class time opens.
+ */
+export function useSessionTimings(load = false): SessionTimingsSnapshot & {
+  ensure: (options?: { force?: boolean }) => Promise<string[]>;
+} {
   const snapshot = useSyncExternalStore(
     sessionTimingsStore.subscribe,
     sessionTimingsStore.getSnapshot,
@@ -171,9 +191,12 @@ export function useSessionTimings(enabled = true): SessionTimingsSnapshot {
   );
 
   useEffect(() => {
-    if (!enabled) return;
-    void sessionTimingsStore.ensure({ force: true });
-  }, [enabled]);
+    if (!load) return;
+    void sessionTimingsStore.ensure();
+  }, [load]);
 
-  return snapshot;
+  return {
+    ...snapshot,
+    ensure: (options) => sessionTimingsStore.ensure(options),
+  };
 }

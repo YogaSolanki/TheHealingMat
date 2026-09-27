@@ -11,8 +11,18 @@ export const FALLBACK_SESSION_LABELS = [
 
 export type SessionAccessKind = "trial" | "member";
 
+/** How long a regular class stays joinable after its start time. */
 const SESSION_DURATION_MINUTES = 60;
+/** Mid-morning special block (e.g. 11:30 AM). */
 const SPECIAL_SESSION_DURATION_MINUTES = 30;
+/**
+ * Members may enter a few minutes early (waiting room) and stay joinable
+ * for the full class window — including mid-session.
+ */
+const JOIN_EARLY_MINUTES = 15;
+
+/** All live session windows are evaluated in India business time. */
+const SESSION_TIMEZONE = "Asia/Kolkata";
 
 type SessionSlot = {
   label: string;
@@ -80,11 +90,11 @@ function toSlots(labels: readonly string[]): SessionSlot[] {
 }
 
 export function isSunday(date = new Date()) {
-  return date.getDay() === 0;
+  return istWeekday(date) === 0;
 }
 
 export function isWeekdaySessionDay(date = new Date()) {
-  const day = date.getDay();
+  const day = istWeekday(date);
   return day >= 1 && day <= 6;
 }
 
@@ -100,8 +110,41 @@ function slotsForDate(
   return toSlots(labels);
 }
 
+/** Minutes since midnight in Asia/Kolkata. */
 function currentMinutes(date: Date) {
-  return toMinutes(date.getHours(), date.getMinutes());
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: SESSION_TIMEZONE,
+    hour: "numeric",
+    minute: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const hours = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+  const minutes = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
+  return toMinutes(hours, minutes);
+}
+
+function istWeekday(date: Date) {
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: SESSION_TIMEZONE,
+    weekday: "short",
+  }).format(date);
+  const map: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+  return map[weekday] ?? date.getDay();
+}
+
+function joinWindow(slot: SessionSlot) {
+  return {
+    openAt: slot.minutes - JOIN_EARLY_MINUTES,
+    closeAt: slot.minutes + slot.durationMinutes,
+  };
 }
 
 export function findRunningSession(
@@ -111,11 +154,10 @@ export function findRunningSession(
 ) {
   const minutesNow = currentMinutes(now);
   return (
-    slotsForDate(now, kind, labels).find(
-      (slot) =>
-        minutesNow >= slot.minutes &&
-        minutesNow < slot.minutes + slot.durationMinutes,
-    ) ?? null
+    slotsForDate(now, kind, labels).find((slot) => {
+      const { openAt, closeAt } = joinWindow(slot);
+      return minutesNow >= openAt && minutesNow < closeAt;
+    }) ?? null
   );
 }
 
@@ -135,9 +177,11 @@ export function findNextSession(
   labels: readonly string[] = FALLBACK_SESSION_LABELS,
 ) {
   const minutesNow = currentMinutes(now);
-  const todaySlots = slotsForDate(now, kind, labels).filter(
-    (slot) => slot.minutes > minutesNow,
-  );
+  const todaySlots = slotsForDate(now, kind, labels).filter((slot) => {
+    // Next start is after the current join window has closed (or before open).
+    const { openAt } = joinWindow(slot);
+    return openAt > minutesNow;
+  });
   if (todaySlots.length > 0) {
     return { label: todaySlots[0].label, when: "today" as const };
   }

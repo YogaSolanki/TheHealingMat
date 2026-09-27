@@ -66,7 +66,8 @@ export function MembershipCheckoutDetails({
   const [startsOn, setStartsOn] = useState(minStart);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const { preferredOptions } = useSessionTimings();
+  const { preferredOptions, loading: timingsLoading, ensure: ensureSessionTimings } =
+    useSessionTimings(false);
 
   useEffect(() => {
     setStartsOn((prev) => (prev < minStart ? minStart : prev));
@@ -194,9 +195,14 @@ export function MembershipCheckoutDetails({
             value={preferredClassTime}
             onChange={setPreferredClassTime}
             options={timeOptions}
-            placeholder="Select preferred time"
+            placeholder={
+              timingsLoading ? "Loading times…" : "Select preferred time"
+            }
             size="sm"
             className="!max-w-none"
+            onOpen={() => {
+              void ensureSessionTimings();
+            }}
           />
         </div>
 

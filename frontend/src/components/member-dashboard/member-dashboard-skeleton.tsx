@@ -9,6 +9,35 @@ function Bone({ className }: { className?: string }) {
   );
 }
 
+/** Placeholder for Today's Yoga session rows while timings load / refresh. */
+export function TodayYogaSessionsSkeleton() {
+  return (
+    <div
+      className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]"
+      aria-busy="true"
+      aria-live="polite"
+      aria-label="Loading today's sessions"
+    >
+      <div className="border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-r">
+        <Bone className="h-4 w-44" />
+        <Bone className="mt-2 h-3 w-32" />
+        <div className="mt-4 space-y-3">
+          <Bone className="h-[3.25rem] w-full rounded-[14px]" />
+          <Bone className="h-[3.25rem] w-full rounded-[14px]" />
+        </div>
+      </div>
+      <div className="border-t border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-t-0">
+        <Bone className="h-4 w-36" />
+        <Bone className="mt-2 h-3 w-28" />
+        <div className="mt-4 space-y-3">
+          <Bone className="h-[3.25rem] w-full rounded-[14px]" />
+          <Bone className="h-[3.25rem] w-full rounded-[14px]" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Dashboard-shaped placeholder used while Google auth / session bootstraps. */
 export function MemberDashboardSkeleton() {
   return (
@@ -36,10 +65,7 @@ export function MemberDashboardSkeleton() {
             </div>
             <Bone className="hidden h-4 w-44 sm:block" />
           </div>
-          <div className="space-y-3 px-4 py-5 sm:px-6">
-            <Bone className="h-16 w-full rounded-[16px]" />
-            <Bone className="h-16 w-full rounded-[16px]" />
-          </div>
+          <TodayYogaSessionsSkeleton />
         </section>
 
         <div className="grid gap-5 lg:grid-cols-2">

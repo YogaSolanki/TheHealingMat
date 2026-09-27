@@ -32,10 +32,14 @@ function dayLabelFromDate(isoDate: string) {
   return date.toLocaleDateString('en-US', { weekday: 'long' });
 }
 
+/** Calendar "today" in Asia/Kolkata (class schedule business timezone). */
 function todayIsoDate() {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
 }
 
 /** Max calendar days ahead admins may schedule (today + 6 = 7 days). */
@@ -190,11 +194,7 @@ export class ScheduledClassesService implements OnModuleInit {
   async findLiveMeetingUrl(preferredLabel?: string | null) {
     await this.purgeExpiredClasses();
 
-    const today = todayIsoDate();
-    const todays = await this.classes.find({
-      where: { classDate: today },
-      order: { sessionTimeLabel: 'ASC' },
-    });
+    const todays = await this.listTodayRows();
     if (todays.length === 0) return null;
 
     if (preferredLabel) {
@@ -208,6 +208,44 @@ export class ScheduledClassesService implements OnModuleInit {
 
     const withUrl = todays.find((row) => row.meetingUrl?.trim());
     return withUrl?.meetingUrl?.trim() || null;
+  }
+
+  /** Session times actually scheduled for today (Class Management). */
+  async listToday() {
+    await this.purgeExpiredClasses();
+    const today = todayIsoDate();
+    const todays = await this.listTodayRows();
+    const seen = new Set<string>();
+    const sessions: {
+      id: string;
+      sessionTimingId: string;
+      sessionTimeLabel: string;
+    }[] = [];
+
+    for (const row of todays) {
+      const key = row.sessionTimeLabel.trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      sessions.push({
+        id: row.id,
+        sessionTimingId: row.sessionTimingId,
+        sessionTimeLabel: row.sessionTimeLabel,
+      });
+    }
+
+    return {
+      date: today,
+      dayLabel: dayLabelFromDate(today),
+      sessions,
+    };
+  }
+
+  private async listTodayRows() {
+    const today = todayIsoDate();
+    return this.classes.find({
+      where: { classDate: today },
+      order: { sessionTimeLabel: 'ASC' },
+    });
   }
 
   /** Delete classes whose calendar day has ended (classDate before today). */

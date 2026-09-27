@@ -599,6 +599,29 @@ export async function listSessionTimings(): Promise<PublicSessionTiming[]> {
   return parseJson<PublicSessionTiming[]>(response);
 }
 
+export type TodaySessionSlot = {
+  id: string;
+  sessionTimingId: string;
+  sessionTimeLabel: string;
+};
+
+export type TodaySessionsResponse = {
+  date: string;
+  dayLabel: string;
+  sessions: TodaySessionSlot[];
+};
+
+/** Session times scheduled for today via Admin → Class Management. */
+export async function getTodaySessions(
+  accessToken: string,
+): Promise<TodaySessionsResponse> {
+  const response = await fetch(`${API_URL}/sessions/today`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  return parseJson<TodaySessionsResponse>(response);
+}
+
 export async function getLiveSessionUrl(
   accessToken: string,
   options?: { slot?: string | null },

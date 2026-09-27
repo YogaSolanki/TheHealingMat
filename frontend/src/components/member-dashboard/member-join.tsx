@@ -12,11 +12,11 @@ import {
   sessionUnavailableMessage,
   type SessionAccessKind,
 } from "@/lib/member-session-schedule";
-import { useSessionTimings } from "@/lib/session-timings-store";
+import { useTodaySessions } from "@/lib/today-sessions-store";
 
 export function MemberJoinPage() {
   const { access, loading: accessLoading } = useMemberAccess();
-  const { labels: sessionLabels } = useSessionTimings();
+  const { labels: sessionLabels, ready: todayReady } = useTodaySessions();
   const [liveUrl, setLiveUrl] = useState<string | null>(null);
   const [urlLoading, setUrlLoading] = useState(true);
   const [urlError, setUrlError] = useState<string | null>(null);
@@ -28,7 +28,9 @@ export function MemberJoinPage() {
     (access.state === "trial" || access.state === "active");
   const running = useMemo(
     () =>
-      accessOk ? findRunningSession(new Date(), kind, sessionLabels) : null,
+      accessOk && sessionLabels.length > 0
+        ? findRunningSession(new Date(), kind, sessionLabels)
+        : null,
     [accessOk, kind, sessionLabels],
   );
 
@@ -63,7 +65,7 @@ export function MemberJoinPage() {
     };
   }, [running?.label]);
 
-  const loading = accessLoading || urlLoading;
+  const loading = accessLoading || urlLoading || !todayReady;
   const canRedirect = accessOk && Boolean(running) && Boolean(liveUrl);
 
   useEffect(() => {
@@ -145,8 +147,16 @@ export function MemberJoinPage() {
   if (!running) {
     return (
       <StateCard
-        title="No session is currently running."
-        body={sessionUnavailableMessage(new Date(), kind, sessionLabels)}
+        title={
+          sessionLabels.length === 0
+            ? "No sessions scheduled today"
+            : "No session is currently running."
+        }
+        body={
+          sessionLabels.length === 0
+            ? "There are no classes scheduled for today in Class Management. Please check back later."
+            : sessionUnavailableMessage(new Date(), kind, sessionLabels)
+        }
         actionHref="/dashboard"
         actionLabel="Back to Home"
       />

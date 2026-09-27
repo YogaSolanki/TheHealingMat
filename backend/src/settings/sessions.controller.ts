@@ -11,6 +11,13 @@ export class SessionsController {
     private readonly classes: ScheduledClassesService,
   ) {}
 
+  /** Session times scheduled for today (from Class Management). */
+  @Roles(Role.User)
+  @Get('today')
+  listToday() {
+    return this.classes.listToday();
+  }
+
   /** Live class URL for authenticated members / trial users. */
   @Roles(Role.User)
   @Get('live')

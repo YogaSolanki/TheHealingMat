@@ -25,7 +25,7 @@ export function TrialWelcomePopup({
   const titleId = useId();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { labels: sessionLabels } = useSessionTimings();
+  const { labels: sessionLabels } = useSessionTimings(false);
   const slotCopy = formatSlotList(sessionLabels);
 
   useEffect(() => {
