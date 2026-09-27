@@ -283,6 +283,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   const [catalogPlans, setCatalogPlans] = useState<AdminMembershipPlan[]>([]);
   const [membershipComposer, setMembershipComposer] =
     useState<MembershipComposer>(null);
+  const [upgradeTargetId, setUpgradeTargetId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -348,6 +349,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     setError(null);
     setEditing(false);
     setMembershipComposer(null);
+    setUpgradeTargetId(null);
     setPendingSave(null);
     try {
       const [next, plans] = await Promise.all([
@@ -373,6 +375,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     setProfileForm(null);
     setEditing(false);
     setMembershipComposer(null);
+    setUpgradeTargetId(null);
     setPendingSave(null);
     void load();
   }, [load]);
@@ -382,6 +385,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     applyDetail(detail);
     setEditing(true);
     setMembershipComposer(null);
+    setUpgradeTargetId(null);
     setNewMembershipForm(emptyNewMembershipForm(catalogPlans));
     const active =
       detail.memberships.find((m) => m.status === "active") ?? null;
@@ -404,6 +408,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     applyDetail(detail);
     setEditing(false);
     setMembershipComposer(null);
+    setUpgradeTargetId(null);
     setNewMembershipForm(emptyNewMembershipForm(catalogPlans));
     const active =
       detail.memberships.find((m) => m.status === "active") ?? null;
@@ -419,38 +424,66 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   function openMembershipComposer(mode: Exclude<MembershipComposer, null>) {
     setMembershipComposer((current) => {
       const next = current === mode ? null : mode;
-      if ((next === "renew" || next === "upgrade") && detail) {
+      if (next === "renew" && detail) {
         const active =
           detail.memberships.find((m) => m.status === "active") ?? null;
         if (active) {
-          if (next === "renew") {
-            setNewMembershipForm((form) => ({
-              ...form,
-              planMonths: String(active.planMonths),
-              paymentOrderId: "",
-              paymentRef: "",
-            }));
-          }
-          if (next === "upgrade") {
-            setUpgradeForm({ planMonths: String(active.planMonths) });
-            const activeForm = membershipForms[active.id];
-            if (activeForm) {
-              setMembershipForms({
-                ...membershipForms,
-                [active.id]: {
-                  ...activeForm,
-                  planMonths: String(active.planMonths),
-                  planName: active.planName,
-                  startsAt: toDateTimeLocal(active.startsAt),
-                  endsAt: toDateTimeLocal(active.endsAt),
-                  status: "active",
-                },
-              });
-            }
-          }
+          setNewMembershipForm((form) => ({
+            ...form,
+            planMonths: String(active.planMonths),
+            paymentOrderId: "",
+            paymentRef: "",
+          }));
         }
       }
+      if (next !== "upgrade") {
+        setUpgradeTargetId(null);
+      }
       return next;
+    });
+    setMembershipCreated(false);
+    setMembershipActionMessage(null);
+    setError(null);
+  }
+
+  function startUpgrade(membershipId: string) {
+    if (!detail) return;
+    const target = detail.memberships.find((m) => m.id === membershipId);
+    if (!target) return;
+
+    if (!editing) {
+      applyDetail(detail);
+      setEditing(true);
+      setNewMembershipForm(emptyNewMembershipForm(catalogPlans));
+      setProfileSaved(false);
+      setMembershipSavedId(null);
+    }
+
+    if (
+      membershipComposer === "upgrade" &&
+      upgradeTargetId === membershipId
+    ) {
+      setMembershipComposer(null);
+      setUpgradeTargetId(null);
+      return;
+    }
+
+    setMembershipComposer("upgrade");
+    setUpgradeTargetId(membershipId);
+    setUpgradeForm({ planMonths: String(target.planMonths) });
+    setMembershipForms((forms) => {
+      const existing = forms[membershipId] ?? membershipFormFromRow(target);
+      return {
+        ...forms,
+        [membershipId]: {
+          ...existing,
+          planMonths: String(target.planMonths),
+          planName: target.planName,
+          startsAt: toDateTimeLocal(target.startsAt),
+          endsAt: toDateTimeLocal(target.endsAt),
+          status: target.status,
+        },
+      };
     });
     setMembershipCreated(false);
     setMembershipActionMessage(null);
@@ -584,23 +617,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       setMembershipActionMessage(null);
       setPendingSave(null);
       try {
-        // Renew uses the current plan's end date — persist any edits to that
-        // plan first so the scheduled start matches what admin sees.
-        if (mode === "renew" && detail) {
-          const active =
-            detail.memberships.find((m) => m.status === "active") ?? null;
-          const activeForm = active ? membershipForms[active.id] : null;
-          if (active && activeForm) {
-            await updateAdminUserMembership(token, userId, active.id, {
-              status: activeForm.status,
-              planName: activeForm.planName.trim(),
-              planMonths: Number(activeForm.planMonths),
-              startsAt: fromDateTimeLocal(activeForm.startsAt),
-              endsAt: fromDateTimeLocal(activeForm.endsAt),
-            });
-          }
-        }
-
+        // Renew always starts after the saved current plan end date.
         const next = await createAdminUserMembership(token, userId, {
           planMonths,
           mode,
@@ -699,15 +716,20 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             planMonths,
             planName,
             endsAt: endsAt.toISOString(),
-            status: "active",
+            status: membership.status,
           },
         );
         applyDetail(next);
         invalidateCached(DASHBOARD_CACHE_KEYS.users);
         invalidateCached(DASHBOARD_CACHE_KEYS.overview);
         setMembershipSavedId(membershipId);
-        setMembershipActionMessage("Membership upgraded successfully.");
+        setMembershipActionMessage(
+          membership.status === "scheduled"
+            ? "Scheduled renew upgraded successfully."
+            : "Current membership upgraded successfully.",
+        );
         setMembershipComposer(null);
+        setUpgradeTargetId(null);
         setUpgradeForm(
           emptyUpgradeForm(
             next.memberships.find((m) => m.status === "active") ?? null,
@@ -826,20 +848,16 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   const scheduledMembership =
     detail.memberships.find((m) => m.status === "scheduled") ?? null;
   const canRenew = Boolean(activeMembership) && !scheduledMembership;
-  const canUpgrade = Boolean(activeMembership);
   const canAdd = !activeMembership;
+  const upgradeTarget =
+    detail.memberships.find((m) => m.id === upgradeTargetId) ?? null;
   const upgradeDirty = Boolean(
-    activeMembership &&
-      String(activeMembership.planMonths) !== upgradeForm.planMonths,
+    upgradeTarget &&
+      String(upgradeTarget.planMonths) !== upgradeForm.planMonths,
   );
-  const activeForm = activeMembership
-    ? membershipForms[activeMembership.id]
+  const renewStartsAt = activeMembership
+    ? dayAfterDate(new Date(activeMembership.endsAt))
     : null;
-  const renewStartsAt = activeForm?.endsAt
-    ? dayAfterDate(new Date(fromDateTimeLocal(activeForm.endsAt)))
-    : activeMembership
-      ? dayAfterDate(new Date(activeMembership.endsAt))
-      : null;
   const selectedCatalogPlan =
     catalogPlans.find(
       (plan) => String(plan.months) === newMembershipForm.planMonths,
@@ -861,9 +879,9 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           name: `${months}-Month Membership`,
         }));
   const upgradePreviewEndsAt =
-    activeMembership && Number(upgradeForm.planMonths) > 0
+    upgradeTarget && Number(upgradeForm.planMonths) > 0
       ? calcMembershipEndsAt(
-          new Date(activeMembership.startsAt),
+          new Date(upgradeTarget.startsAt),
           Number(upgradeForm.planMonths),
         )
       : null;
@@ -1252,7 +1270,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
               {editing
                 ? canAdd
                   ? "Add a membership to grant access"
-                  : "Upgrade the current plan, or renew once after it ends"
+                  : "Upgrade current or renew from the cards above, or schedule one renew"
                 : "Current plan, scheduled renew, and past memberships"}
             </p>
           </div>
@@ -1270,20 +1288,6 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   }`}
                 >
                   Add membership
-                </button>
-              ) : null}
-              {canUpgrade ? (
-                <button
-                  type="button"
-                  onClick={() => openMembershipComposer("upgrade")}
-                  disabled={confirmBusy}
-                  className={`inline-flex h-10 items-center justify-center rounded-full border px-4 text-sm font-semibold transition disabled:opacity-60 ${
-                    membershipComposer === "upgrade"
-                      ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
-                      : "border-[#1f6b3a]/30 bg-[#e8f2ea] text-[#1f6b3a] hover:bg-[#dceadf]"
-                  }`}
-                >
-                  Upgrade
                 </button>
               ) : null}
               {canRenew ? (
@@ -1430,48 +1434,70 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         ) : null}
 
         {(activeMembership || scheduledMembership) ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-[#1f6b3a]/25 bg-[#f3faf5] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#1f6b3a]">
-                Current membership
-              </p>
-              {activeMembership ? (
-                <>
-                  <p className="mt-1.5 text-sm font-semibold text-[#243028]">
-                    {activeMembership.planName}
+          <div
+            className={`grid gap-3 ${
+              activeMembership && scheduledMembership ? "sm:grid-cols-2" : ""
+            }`}
+          >
+            {activeMembership ? (
+              <div className="rounded-2xl border border-[#1f6b3a]/25 bg-[#f3faf5] p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#1f6b3a]">
+                    Current membership
                   </p>
-                  <p className="mt-1 text-xs text-[#5f6f64]">
-                    {activeMembership.planMonths} months · Active now · Ends{" "}
-                    {formatDateOnly(activeMembership.endsAt)}
-                  </p>
-                </>
-              ) : (
-                <p className="mt-1.5 text-sm text-[#8a978c]">No active plan</p>
-              )}
-            </div>
-            <div className="rounded-2xl border border-[#e8d4a8] bg-[#fffdf5] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#8a5a2f]">
-                Next renew
-              </p>
-              {scheduledMembership ? (
-                <>
-                  <p className="mt-1.5 text-sm font-semibold text-[#243028]">
-                    {scheduledMembership.planName}
-                  </p>
-                  <p className="mt-1 text-xs text-[#5f6f64]">
-                    {scheduledMembership.planMonths} months · Starts{" "}
-                    {formatDateOnly(scheduledMembership.startsAt)} · Ends{" "}
-                    {formatDateOnly(scheduledMembership.endsAt)}
-                  </p>
-                </>
-              ) : (
-                <p className="mt-1.5 text-sm text-[#8a978c]">
-                  {activeMembership
-                    ? "No renew scheduled yet"
-                    : "No upcoming renew"}
+                  <button
+                    type="button"
+                    onClick={() => startUpgrade(activeMembership.id)}
+                    disabled={confirmBusy}
+                    className={`inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-semibold transition disabled:opacity-60 ${
+                      membershipComposer === "upgrade" &&
+                      upgradeTargetId === activeMembership.id
+                        ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
+                        : "border-[#1f6b3a]/35 bg-white text-[#1f6b3a] hover:bg-[#e8f2ea]"
+                    }`}
+                  >
+                    Upgrade
+                  </button>
+                </div>
+                <p className="mt-1.5 text-sm font-semibold text-[#243028]">
+                  {activeMembership.planName}
                 </p>
-              )}
-            </div>
+                <p className="mt-1 text-xs text-[#5f6f64]">
+                  {activeMembership.planMonths} months · Active now · Ends{" "}
+                  {formatDateOnly(activeMembership.endsAt)}
+                </p>
+              </div>
+            ) : null}
+            {scheduledMembership ? (
+              <div className="rounded-2xl border border-[#e8d4a8] bg-[#fffdf5] p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#8a5a2f]">
+                    Next renew
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => startUpgrade(scheduledMembership.id)}
+                    disabled={confirmBusy}
+                    className={`inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-semibold transition disabled:opacity-60 ${
+                      membershipComposer === "upgrade" &&
+                      upgradeTargetId === scheduledMembership.id
+                        ? "border-[#8a5a2f] bg-[#8a5a2f] text-white"
+                        : "border-[#e8d4a8] bg-white text-[#8a5a2f] hover:bg-[#fff8ef]"
+                    }`}
+                  >
+                    Upgrade
+                  </button>
+                </div>
+                <p className="mt-1.5 text-sm font-semibold text-[#243028]">
+                  {scheduledMembership.planName}
+                </p>
+                <p className="mt-1 text-xs text-[#5f6f64]">
+                  {scheduledMembership.planMonths} months · Starts{" "}
+                  {formatDateOnly(scheduledMembership.startsAt)} · Ends{" "}
+                  {formatDateOnly(scheduledMembership.endsAt)}
+                </p>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -1499,13 +1525,13 @@ export function UserDetailPanel({ userId }: { userId: string }) {
               activeMembership?.id === membership.id;
             const isUpgradeTarget =
               membershipComposer === "upgrade" &&
-              activeMembership?.id === membership.id;
+              upgradeTargetId === membership.id;
             const isActionTarget = isRenewTarget || isUpgradeTarget;
+            // Current plan stays locked while renewing; only upgrade unlocks fields.
             const fieldsDisabled =
               fieldsLocked ||
-              ((membershipComposer === "renew" ||
-                membershipComposer === "upgrade") &&
-                !isActionTarget);
+              membershipComposer === "renew" ||
+              (membershipComposer === "upgrade" && !isUpgradeTarget);
             const roleLabel = membershipRoleLabel(
               membership,
               activeMembership?.id ?? null,
@@ -1537,12 +1563,14 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                     </p>
                     {isUpgradeTarget ? (
                       <p className="mt-0.5 text-xs font-medium text-[#1f6b3a]">
-                        Upgrade this plan — end date recalculates from start date
+                        {membership.status === "scheduled"
+                          ? "Upgrade this renew — end date recalculates from its start date"
+                          : "Upgrade this plan — end date recalculates from start date"}
                       </p>
                     ) : null}
                     {isRenewTarget ? (
                       <p className="mt-0.5 text-xs font-medium text-[#1f6b3a]">
-                        Edit this plan, then schedule renew after it ends
+                        Current plan stays as-is — schedule renew after it ends
                       </p>
                     ) : null}
                     {!editing && isRenewCard ? (
@@ -1577,7 +1605,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                               planMonths: months,
                               planName:
                                 plan?.name ?? `${months}-Month Membership`,
-                              status: "active" as const,
+                              status: membership.status,
                             };
                             if (
                               Number.isInteger(monthsNum) &&
@@ -1638,11 +1666,18 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                         disabled={fieldsLocked || !upgradeDirty}
                         className="inline-flex h-11 items-center justify-center rounded-xl bg-[#1f6b3a] px-5 text-sm font-bold text-white disabled:opacity-60"
                       >
-                        {savingThis ? "Upgrading…" : "Upgrade membership"}
+                        {savingThis
+                          ? "Upgrading…"
+                          : membership.status === "scheduled"
+                            ? "Upgrade renew"
+                            : "Upgrade membership"}
                       </button>
                       <button
                         type="button"
-                        onClick={() => setMembershipComposer(null)}
+                        onClick={() => {
+                          setMembershipComposer(null);
+                          setUpgradeTargetId(null);
+                        }}
                         disabled={fieldsLocked}
                         className="inline-flex h-11 items-center justify-center rounded-xl border border-[#e2e8df] px-4 text-sm font-semibold text-[#3d4a3c] disabled:opacity-60"
                       >
@@ -1694,6 +1729,98 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                       ) : null}
                     </div>
                   </>
+                ) : isRenewTarget ? (
+                  <>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <InfoTile
+                        label="Duration"
+                        value={`${membership.planMonths} months`}
+                      />
+                      <InfoTile
+                        label="Started"
+                        value={formatDateOnly(membership.startsAt)}
+                      />
+                      <InfoTile
+                        label="Ends"
+                        value={formatDateOnly(membership.endsAt)}
+                      />
+                    </div>
+                    <div className="mt-5 rounded-xl border border-[#1f6b3a]/20 bg-[#f3faf5] p-4">
+                      <h3 className="text-sm font-semibold text-[#243028]">
+                        Renew after this plan
+                      </h3>
+                      <p className="mt-1 text-xs text-[#8a978c]">
+                        Current membership is not changed. The renew starts the day
+                        after it ends. Only one renew can be scheduled.
+                      </p>
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <label className={labelClass}>
+                          Renew plan
+                          <select
+                            value={newMembershipForm.planMonths}
+                            onChange={(e) =>
+                              setNewMembershipForm({
+                                ...newMembershipForm,
+                                planMonths: e.target.value,
+                              })
+                            }
+                            className={inputClass}
+                            disabled={fieldsLocked}
+                          >
+                            {planOptions.map((plan) => (
+                              <option
+                                key={plan.id ?? plan.months}
+                                value={plan.months}
+                              >
+                                {plan.months} months
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <div>
+                          <p className={labelClass}>Renewal starts</p>
+                          <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#5f6f64]">
+                            {renewStartsAt ? formatDateOnly(renewStartsAt) : "—"}
+                          </p>
+                        </div>
+                        <label className={`${labelClass} sm:col-span-2`}>
+                          Payment reference (optional)
+                          <input
+                            value={newMembershipForm.paymentRef}
+                            onChange={(e) =>
+                              setNewMembershipForm({
+                                ...newMembershipForm,
+                                paymentRef: e.target.value,
+                              })
+                            }
+                            className={inputClass}
+                            disabled={fieldsLocked}
+                            placeholder="pay_… / UTR / bank transfer note"
+                          />
+                        </label>
+                      </div>
+                      <div className="mt-4 flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => requestCreateMembership("renew")}
+                          disabled={fieldsLocked}
+                          className="inline-flex h-11 items-center justify-center rounded-xl bg-[#1f6b3a] px-5 text-sm font-bold text-white disabled:opacity-60"
+                        >
+                          {savingNewMembership
+                            ? "Scheduling…"
+                            : "Schedule renew"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMembershipComposer(null)}
+                          disabled={fieldsLocked}
+                          className="inline-flex h-11 items-center justify-center rounded-xl border border-[#e2e8df] bg-white px-4 text-sm font-semibold text-[#3d4a3c] disabled:opacity-60"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 ) : (
                   <>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -1723,27 +1850,12 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                       max={36}
                       value={form.planMonths}
                       onChange={(e) => {
-                        const nextMonths = e.target.value;
-                        const monthsNum = Number(nextMonths);
-                        const nextForm = {
-                          ...form,
-                          planMonths: nextMonths,
-                        };
-                        if (
-                          isRenewTarget &&
-                          Number.isInteger(monthsNum) &&
-                          monthsNum >= 1 &&
-                          form.startsAt
-                        ) {
-                          const ends = calcMembershipEndsAt(
-                            new Date(fromDateTimeLocal(form.startsAt)),
-                            monthsNum,
-                          );
-                          nextForm.endsAt = toDateTimeLocal(ends.toISOString());
-                        }
                         setMembershipForms({
                           ...membershipForms,
-                          [membership.id]: nextForm,
+                          [membership.id]: {
+                            ...form,
+                            planMonths: e.target.value,
+                          },
                         });
                         setMembershipSavedId(null);
                       }}
@@ -1840,80 +1952,6 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                     />
                   </label>
                 </div>
-
-                {isRenewTarget ? (
-                  <div className="mt-5 rounded-xl border border-[#1f6b3a]/20 bg-[#f3faf5] p-4">
-                    <h3 className="text-sm font-semibold text-[#243028]">
-                      Renew after this plan
-                    </h3>
-                    <p className="mt-1 text-xs text-[#8a978c]">
-                      Same as adding a membership, but it starts the day after this
-                      plan ends. Edit the current plan above if needed — renew uses
-                      that end date. Only one renew can be scheduled.
-                    </p>
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <label className={labelClass}>
-                        Renew plan
-                        <select
-                          value={newMembershipForm.planMonths}
-                          onChange={(e) =>
-                            setNewMembershipForm({
-                              ...newMembershipForm,
-                              planMonths: e.target.value,
-                            })
-                          }
-                          className={inputClass}
-                          disabled={fieldsLocked}
-                        >
-                          {planOptions.map((plan) => (
-                            <option key={plan.id ?? plan.months} value={plan.months}>
-                              {plan.months} months
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <div>
-                        <p className={labelClass}>Renewal starts</p>
-                        <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#5f6f64]">
-                          {renewStartsAt ? formatDateOnly(renewStartsAt) : "—"}
-                        </p>
-                      </div>
-                      <label className={`${labelClass} sm:col-span-2`}>
-                        Payment reference (optional)
-                        <input
-                          value={newMembershipForm.paymentRef}
-                          onChange={(e) =>
-                            setNewMembershipForm({
-                              ...newMembershipForm,
-                              paymentRef: e.target.value,
-                            })
-                          }
-                          className={inputClass}
-                          disabled={fieldsLocked}
-                          placeholder="pay_… / UTR / bank transfer note"
-                        />
-                      </label>
-                    </div>
-                    <div className="mt-4 flex flex-wrap items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => requestCreateMembership("renew")}
-                        disabled={fieldsLocked}
-                        className="inline-flex h-11 items-center justify-center rounded-xl bg-[#1f6b3a] px-5 text-sm font-bold text-white disabled:opacity-60"
-                      >
-                        {savingNewMembership ? "Scheduling…" : "Schedule renew"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setMembershipComposer(null)}
-                        disabled={fieldsLocked}
-                        className="inline-flex h-11 items-center justify-center rounded-xl border border-[#e2e8df] bg-white px-4 text-sm font-semibold text-[#3d4a3c] disabled:opacity-60"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
 
                 {editing && !isActionTarget ? (
                   <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -2080,7 +2118,9 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                     ? "This will schedule one renew after the current membership ends."
                     : "This will add a new active membership for this member."
                   : pendingSave.type === "upgrade-membership"
-                    ? "This will upgrade the current active membership plan."
+                    ? pendingSave.membershipId === scheduledMembership?.id
+                      ? "This will upgrade the scheduled renew plan."
+                      : "This will upgrade the current membership plan."
                     : pendingSave.type === "activate-payment"
                       ? "This will create a membership from the selected payment order."
                       : "This will update this member’s membership plan and dates."}{" "}
