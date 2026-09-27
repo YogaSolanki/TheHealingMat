@@ -131,36 +131,37 @@ export class PaymentsService {
         };
       }
 
-      // Razorpay Invoice → issued order (original Razorpay invoice format).
-      // No webhook needed: we create the invoice here and open checkout on its order_id.
-      const invoice = await this.createRazorpayInvoice({
+      const receipt = (dto.receipt?.slice(0, 40) || this.makeReceipt()).slice(
+        0,
+        40,
+      );
+      const notes: Record<string, string> = {
+        userId: user.id,
+        planMonths: String(quote.plan.months),
+        planName: quote.plan.name,
+        ...(quote.couponCode ? { couponCode: quote.couponCode } : {}),
+      };
+
+      // Always use Orders API + Checkout for membership.
+      // Razorpay Invoices often block international cards even when the merchant
+      // account has International Payments enabled (error: "International cards
+      // are not supported"). Orders inherit the account's card settings.
+      const order = await this.createRazorpayOrder({
         amountPaise: quote.amountPaise,
         currency: quote.currency,
-        receipt: dto.receipt,
-        planName: quote.plan.name,
-        description: `${quote.plan.name} (${quote.plan.months}-month) membership — The Healing Mat`,
-        customer: {
-          name: user.fullName,
-          email: user.email,
-          contact: user.mobile,
-        },
-        notes: {
-          userId: user.id,
-          planMonths: String(quote.plan.months),
-          planName: quote.plan.name,
-          ...(quote.couponCode ? { couponCode: quote.couponCode } : {}),
-        },
+        receipt,
+        notes,
       });
 
       await this.orders.save(
         this.orders.create({
           userId: user.id,
-          razorpayOrderId: invoice.order_id!,
-          razorpayInvoiceId: invoice.id,
-          razorpayInvoiceUrl: invoice.short_url,
+          razorpayOrderId: order.id,
+          razorpayInvoiceId: null,
+          razorpayInvoiceUrl: null,
           amountPaise: quote.amountPaise,
           currency: quote.currency,
-          receipt: (dto.receipt?.slice(0, 40) || this.makeReceipt()).slice(0, 40),
+          receipt,
           planMonths: quote.plan.months,
           couponCode: quote.couponCode,
           startMode,
@@ -173,7 +174,7 @@ export class PaymentsService {
 
       return {
         skipCheckout: false as const,
-        order_id: invoice.order_id!,
+        order_id: order.id,
         amount: quote.amountPaise,
         currency: quote.currency,
         key_id: this.requireKeyId(),
@@ -1344,6 +1345,7 @@ export class PaymentsService {
       name: string;
       email: string | null;
       contact: string | null;
+      region?: Region;
     };
     notes: Record<string, string>;
   }): Promise<RazorpayInvoiceRecord> {
@@ -1353,7 +1355,10 @@ export class PaymentsService {
     if (input.customer.email?.trim()) {
       customer.email = input.customer.email.trim();
     }
-    const contact = this.invoiceCustomerContact(input.customer.contact);
+    const contact = this.invoiceCustomerContact(
+      input.customer.contact,
+      input.customer.region,
+    );
     if (contact) customer.contact = contact;
 
     try {
@@ -1425,10 +1430,16 @@ export class PaymentsService {
     return 'Member';
   }
 
-  private invoiceCustomerContact(mobile: string | null) {
+  private invoiceCustomerContact(mobile: string | null, region?: Region) {
     if (!mobile?.trim()) return null;
     const digits = mobile.replace(/\D/g, '');
     if (!digits) return null;
+    // Never force +91 on international members — that rejects valid foreign numbers.
+    if (region === Region.OutsideIndia) {
+      if (mobile.trim().startsWith('+')) return `+${digits}`;
+      if (digits.length > 10) return `+${digits}`;
+      return digits;
+    }
     if (digits.length === 10) return `+91${digits}`;
     if (mobile.trim().startsWith('+')) return `+${digits}`;
     return digits;
@@ -1447,6 +1458,7 @@ export class PaymentsService {
         currency: input.currency.toUpperCase(),
         receipt: input.receipt?.slice(0, 40) || this.makeReceipt(),
         notes: input.notes,
+        payment_capture: true,
       });
     } catch (error) {
       const status = this.razorpayStatus(error);

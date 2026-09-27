@@ -461,18 +461,33 @@ export function MembershipCheckoutPanel({
       }));
 
       const razorpayOrderId = String(order.order_id);
+      const checkoutCurrency =
+        order.currency === "USD" || order.currency === "INR"
+          ? order.currency
+          : "INR";
+      const isUsd = checkoutCurrency === "USD";
+      // Razorpay rejects international checkout when prefill.contact is forced to +91.
+      const prefillContact = (() => {
+        const raw = user?.mobile?.trim();
+        if (!raw) return undefined;
+        if (!isUsd) return raw;
+        if (raw.startsWith("+") && !raw.startsWith("+91")) return raw;
+        const digits = raw.replace(/\D/g, "");
+        if (digits.length > 10) return `+${digits}`;
+        return undefined;
+      })();
 
       const checkout = new window.Razorpay({
         key: order.key_id || keyId,
         amount: order.amount,
-        currency: order.currency,
+        currency: checkoutCurrency,
         name: "The Healing Mat",
         description: confirmedQuote.planName,
         order_id: razorpayOrderId,
         prefill: {
           name: user?.fullName,
           email: user?.email ?? undefined,
-          contact: user?.mobile ?? undefined,
+          ...(prefillContact ? { contact: prefillContact } : {}),
         },
         theme: { color: "#1f6b3a" },
         modal: {
