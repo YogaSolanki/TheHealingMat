@@ -46,11 +46,11 @@ const COMPANY = {
 
 const NAVY = '#1A365D';
 const NAVY_SOFT = '#2A4A6E';
-const LIGHT_BLUE = '#C5D9EB';
-const GREY_BOX = '#E6E6E6';
+const LIGHT_BLUE = '#EAF5FB';
+const GREY_BOX = '#F3F3F3';
 const MUTED = '#4A5A6A';
 const RULE = '#1A365D';
-const TABLE_LINE = '#9BB4C9';
+const TABLE_LINE = '#D2E3EF';
 
 function assetsRoot() {
   return path.resolve(__dirname, '..', '..', 'assets');
@@ -279,17 +279,13 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
   const mark = currencyMark(input.currency);
 
   // ========== HEADER ==========
+  const headerTop = 16;
   const logoFile = logoPath();
-  const logoH = 56;
-  const logoY = 30;
-  let logoW = 145;
-  if (existsSync(logoFile)) {
-    doc.image(logoFile, MARGIN_X, logoY, { height: logoH });
-    logoW = logoH * (640 / 249);
-  }
+  const logoH = 68;
+  let logoW = logoH * (640 / 249);
 
-  const contactX = Math.max(MARGIN_X + logoW + 20, PAGE_W - MARGIN_X - 260);
-  let cy = 32;
+  const contactX = Math.max(MARGIN_X + logoW + 12, PAGE_W - MARGIN_X - 270);
+  let cy = headerTop;
   const contactLine = (
     drawIcon: (d: PDFKit.PDFDocument, x: number, y: number, c: string) => void,
     text: string,
@@ -297,21 +293,29 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
     drawIcon(doc, contactX, cy + 1, NAVY_SOFT);
     doc
       .font('Invoice')
-      .fontSize(8.5)
+      .fontSize(10)
       .fillColor(MUTED)
       .text(text, contactX + 14, cy, {
         width: right - contactX - 14,
         align: 'left',
-        lineGap: 1,
+        lineGap: 0,
       });
-    cy = doc.y + 3;
+    cy = doc.y + 2;
   };
   contactLine(drawPinIcon, COMPANY.address);
   contactLine(drawPhoneIcon, COMPANY.phone);
   contactLine(drawMailIcon, COMPANY.email);
   contactLine(drawGlobeIcon, COMPANY.website);
 
-  const headerRuleY = Math.max(logoY + logoH + 16, cy + 10);
+  // Vertically center the logo within the header contact block height.
+  const headerBandH = Math.max(logoH, cy - headerTop);
+  const logoY = headerTop + (headerBandH - logoH) / 2;
+  if (existsSync(logoFile)) {
+    doc.image(logoFile, MARGIN_X, logoY, { height: logoH });
+    logoW = logoH * (640 / 249);
+  }
+
+  const headerRuleY = headerTop + headerBandH + 10;
   doc
     .moveTo(MARGIN_X, headerRuleY)
     .lineTo(right, headerRuleY)
@@ -330,43 +334,57 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
     .fillColor(NAVY)
     .text('INVOICE', MARGIN_X + 16, bannerY + 20, { lineBreak: false });
 
-  const metaX = right - 220;
-  doc.font('Invoice').fontSize(11).fillColor(NAVY);
-  doc.text('Invoice No.: ', metaX, bannerY + 12, {
-    continued: true,
-    lineBreak: false,
-  });
-  doc.font('Invoice-Bold').text(input.invoiceNo, { lineBreak: false });
-
-  doc
-    .font('Invoice')
-    .fontSize(11)
-    .fillColor(NAVY)
-    .text(`Invoice Date: ${formatDate(input.issuedAt)}`, metaX, bannerY + 32, {
-      lineBreak: false,
-    });
-
-  doc.font('Invoice').fontSize(11).fillColor(NAVY);
-  doc.text('Payment Status: ', metaX, bannerY + 52, {
-    continued: true,
-    lineBreak: false,
-  });
-  doc.font('Invoice-Bold').text('Paid', { lineBreak: false });
+  const metaX = right - 230;
+  const metaLabelW = 108;
+  const metaValueX = metaX + metaLabelW + 8;
+  const metaRow = (
+    label: string,
+    value: string,
+    rowY: number,
+    valueBold = false,
+  ) => {
+    doc
+      .font('Invoice')
+      .fontSize(11)
+      .fillColor(NAVY)
+      .text(label, metaX, rowY, { lineBreak: false });
+    doc
+      .font(valueBold ? 'Invoice-Bold' : 'Invoice')
+      .fontSize(11)
+      .fillColor(NAVY)
+      .text(value, metaValueX, rowY, { lineBreak: false });
+  };
+  metaRow('Invoice No.', input.invoiceNo, bannerY + 12, true);
+  metaRow(`Invoice Date`, formatDate(input.issuedAt), bannerY + 32);
+  metaRow('Payment Status', 'Paid', bannerY + 52, true);
 
   // ========== BILL TO ==========
   let y = bannerY + bannerH + 28;
+  const sectionLeft = MARGIN_X + 12;
   doc
     .font('Invoice-Bold')
     .fontSize(15)
     .fillColor(NAVY)
-    .text('Bill To', MARGIN_X, y);
-  y += 22;
+    .text('Bill To', sectionLeft, y);
+  y += 24;
 
+  const billLabelW = 78;
+  const billValueX = sectionLeft + billLabelW + 18;
   const billRow = (label: string, value: string) => {
-    doc.font('Invoice').fontSize(12).fillColor(NAVY);
-    doc.text(`${label}: `, MARGIN_X, y, { continued: true, lineBreak: false });
-    doc.font('Invoice-Bold').text(value, { lineBreak: false });
-    y += 20;
+    doc
+      .font('Invoice')
+      .fontSize(12)
+      .fillColor(MUTED)
+      .text(label, sectionLeft, y, { lineBreak: false });
+    doc
+      .font('Invoice')
+      .fontSize(12)
+      .fillColor(NAVY)
+      .text(value, billValueX, y, {
+        width: contentW - (billValueX - MARGIN_X),
+        lineBreak: false,
+      });
+    y += 24;
   };
 
   billRow('Name', input.memberName);
@@ -376,97 +394,24 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
     billRow(input.isInternational ? 'Country' : 'State', input.memberLocation);
   }
 
-  y += 18;
+  y += 20;
 
-  // ========== TABLE ==========
-  const colQtyR = MARGIN_X + 300;
-  const colUnitR = MARGIN_X + 405;
-  const colAmtR = right - 10;
-  const headH = 28;
-  doc.rect(MARGIN_X, y, contentW, headH).fill(LIGHT_BLUE);
-  const htY = y + 8;
-  doc.font('Invoice-Bold').fontSize(11).fillColor(NAVY);
-  doc.text('Description', MARGIN_X + 12, htY, { lineBreak: false });
-  doc.text('Qty', colQtyR - 36, htY, {
-    width: 36,
-    align: 'right',
-    lineBreak: false,
-  });
-  doc.text(`Unit Price (${mark})`, colUnitR - 110, htY, {
-    width: 110,
-    align: 'right',
-    lineBreak: false,
-  });
-  doc.text(`Amount (${mark})`, colAmtR - 100, htY, {
-    width: 100,
-    align: 'right',
-    lineBreak: false,
-  });
+  // ========== LINE ITEMS TABLE (thin bordered grid) ==========
+  const tableX = MARGIN_X;
+  const tableW = contentW;
+  const colDescW = 250;
+  const colQtyW = 52;
+  const colUnitW = 120;
+  const colAmtW = tableW - colDescW - colQtyW - colUnitW;
+  const xQty = tableX + colDescW;
+  const xUnit = xQty + colQtyW;
+  const xAmt = xUnit + colUnitW;
 
-  y += headH;
-  doc
-    .moveTo(MARGIN_X, y)
-    .lineTo(right, y)
-    .lineWidth(0.8)
-    .strokeColor(TABLE_LINE)
-    .stroke();
-
-  const rowTop = y;
-  const rowH = 64;
-  y += 14;
-  doc
-    .font('Invoice-Bold')
-    .fontSize(13)
-    .fillColor(NAVY)
-    .text(input.planName, MARGIN_X + 12, y, { lineBreak: false });
-  y += 18;
-  doc
-    .font('Invoice')
-    .fontSize(10)
-    .fillColor(MUTED)
-    .text(`Start Date: ${formatDate(input.startsAt)}`, MARGIN_X + 12, y);
-  y += 15;
-  doc.text(`End Date: ${formatDate(input.endsAt)}`, MARGIN_X + 12, y);
-
-  const midY = rowTop + 26;
+  const headH = 40;
+  const itemH = 84;
+  const sumH = 34;
+  const totalH = 44;
   const unitStr = formatMoney(input.listPricePaise, input.currency);
-  doc.font('Invoice').fontSize(12).fillColor(NAVY);
-  doc.text('1', colQtyR - 36, midY, {
-    width: 36,
-    align: 'right',
-    lineBreak: false,
-  });
-  doc.text(unitStr, colUnitR - 110, midY, {
-    width: 110,
-    align: 'right',
-    lineBreak: false,
-  });
-  doc.text(unitStr, colAmtR - 100, midY, {
-    width: 100,
-    align: 'right',
-    lineBreak: false,
-  });
-
-  y = rowTop + rowH;
-  doc
-    .moveTo(MARGIN_X, y)
-    .lineTo(right, y)
-    .lineWidth(0.8)
-    .strokeColor(TABLE_LINE)
-    .stroke();
-
-  // ========== TOTALS ==========
-  const totalsX = MARGIN_X + 280;
-  y += 20;
-  doc.font('Invoice').fontSize(12).fillColor(NAVY);
-  doc.text('Subtotal', totalsX, y, { lineBreak: false });
-  doc.text(formatMoney(input.listPricePaise, input.currency), colAmtR - 100, y, {
-    width: 100,
-    align: 'right',
-    lineBreak: false,
-  });
-
-  y += 20;
   const discLabel = input.discountLabel
     ? `Discount (${input.discountLabel})`
     : 'Discount';
@@ -474,64 +419,200 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
     input.discountPaise > 0
       ? `-${formatMoney(input.discountPaise, input.currency)}`
       : formatMoney(0, input.currency);
-  doc.text(discLabel, totalsX, y, { lineBreak: false });
-  doc.text(discValue, colAmtR - 100, y, {
-    width: 100,
-    align: 'right',
+
+  const tableH = headH + itemH + sumH + sumH + totalH;
+  const tableTop = y;
+
+  // Outer border + header fill
+  doc.rect(tableX, tableTop, tableW, headH).fill(LIGHT_BLUE);
+  doc
+    .rect(tableX, tableTop + headH + itemH + sumH + sumH, tableW, totalH)
+    .fill(LIGHT_BLUE);
+
+  // Thin grid
+  doc.lineWidth(0.7).strokeColor(TABLE_LINE);
+  doc.rect(tableX, tableTop, tableW, tableH).stroke();
+  // Horizontal rules
+  let ruleY = tableTop + headH;
+  doc.moveTo(tableX, ruleY).lineTo(tableX + tableW, ruleY).stroke();
+  ruleY += itemH;
+  doc.moveTo(tableX, ruleY).lineTo(tableX + tableW, ruleY).stroke();
+  ruleY += sumH;
+  doc.moveTo(tableX, ruleY).lineTo(tableX + tableW, ruleY).stroke();
+  ruleY += sumH;
+  doc.moveTo(tableX, ruleY).lineTo(tableX + tableW, ruleY).stroke();
+  // Vertical rules (header + item row only — summary rows span)
+  const vBottom = tableTop + headH + itemH;
+  for (const vx of [xQty, xUnit, xAmt]) {
+    doc.moveTo(vx, tableTop).lineTo(vx, vBottom).stroke();
+  }
+  // Amount column vertical for summary/total rows
+  doc
+    .moveTo(xAmt, tableTop + headH + itemH)
+    .lineTo(xAmt, tableTop + tableH)
+    .stroke();
+
+  // Header labels
+  const htY = tableTop + 13;
+  doc.font('Invoice-Bold').fontSize(12).fillColor(NAVY);
+  doc.text('Description', tableX + 12, htY, { lineBreak: false });
+  doc.text('Qty', xQty, htY, {
+    width: colQtyW,
+    align: 'center',
+    lineBreak: false,
+  });
+  doc.text(`Unit Price (${mark})`, xUnit, htY, {
+    width: colUnitW,
+    align: 'center',
+    lineBreak: false,
+  });
+  doc.text(`Amount (${mark})`, xAmt, htY, {
+    width: colAmtW,
+    align: 'center',
     lineBreak: false,
   });
 
-  y += 22;
-  const totalH = 36;
-  doc.rect(MARGIN_X, y - 6, contentW, totalH).fill(LIGHT_BLUE);
+  // Item row
+  const itemTop = tableTop + headH;
   doc
     .font('Invoice-Bold')
     .fontSize(13)
     .fillColor(NAVY)
-    .text(`Total Amount Paid (${mark})`, totalsX, y + 4, { lineBreak: false });
+    .text(input.planName, tableX + 12, itemTop + 16, {
+      width: colDescW - 18,
+      lineBreak: false,
+    });
+  doc
+    .font('Invoice')
+    .fontSize(11)
+    .fillColor(MUTED)
+    .text(
+      `Start Date: ${formatDate(input.startsAt)}`,
+      tableX + 12,
+      itemTop + 38,
+      { width: colDescW - 18 },
+    );
+  doc.text(`End Date: ${formatDate(input.endsAt)}`, tableX + 12, itemTop + 54, {
+    width: colDescW - 18,
+  });
+
+  const itemMidY = itemTop + 34;
+  doc.font('Invoice').fontSize(12).fillColor(NAVY);
+  doc.text('1', xQty, itemMidY, {
+    width: colQtyW,
+    align: 'center',
+    lineBreak: false,
+  });
+  doc.text(unitStr, xUnit, itemMidY, {
+    width: colUnitW,
+    align: 'center',
+    lineBreak: false,
+  });
+  doc.text(unitStr, xAmt, itemMidY, {
+    width: colAmtW,
+    align: 'center',
+    lineBreak: false,
+  });
+
+  // Subtotal row
+  let sumY = itemTop + itemH;
+  doc
+    .font('Invoice')
+    .fontSize(12)
+    .fillColor(NAVY)
+    .text('Subtotal', tableX + 12, sumY + 10, { lineBreak: false });
+  doc.text(
+    formatMoney(input.listPricePaise, input.currency),
+    xAmt,
+    sumY + 10,
+    {
+      width: colAmtW,
+      align: 'center',
+      lineBreak: false,
+    },
+  );
+
+  // Discount row
+  sumY += sumH;
+  doc.text(discLabel, tableX + 12, sumY + 10, { lineBreak: false });
+  doc.text(discValue, xAmt, sumY + 10, {
+    width: colAmtW,
+    align: 'center',
+    lineBreak: false,
+  });
+
+  // Total row
+  sumY += sumH;
   doc
     .font('Invoice-Bold')
-    .fontSize(18)
+    .fontSize(13)
+    .fillColor(NAVY)
+    .text(`Total Amount Paid (${mark})`, tableX + 12, sumY + 14, {
+      lineBreak: false,
+    });
+  doc
+    .font('Invoice-Bold')
+    .fontSize(16)
     .text(
       formatMoney(input.amountPaidPaise, input.currency),
-      colAmtR - 110,
-      y + 2,
-      { width: 110, align: 'right', lineBreak: false },
+      xAmt,
+      sumY + 12,
+      { width: colAmtW, align: 'center', lineBreak: false },
     );
 
+  y = tableTop + tableH + 30;
+
   // ========== PAYMENT DETAILS ==========
-  y += totalH + 28;
   doc
     .font('Invoice-Bold')
     .fontSize(15)
     .fillColor(NAVY)
-    .text('Payment Details', MARGIN_X, y);
-  y += 22;
-  doc.font('Invoice').fontSize(12).fillColor(NAVY);
-  doc.text(`Payment Method: ${input.paymentMethod}`, MARGIN_X, y);
-  y += 18;
-  doc.text(
-    `Payment Transaction ID: ${input.paymentRef?.trim() || 'N/A'}`,
-    MARGIN_X,
-    y,
+    .text('Payment Details', sectionLeft, y);
+  y += 26;
+
+  const payLabelW = 168;
+  const payValueX = sectionLeft + payLabelW + 16;
+  const payRow = (label: string, value: string) => {
+    doc
+      .font('Invoice')
+      .fontSize(12)
+      .fillColor(MUTED)
+      .text(label, sectionLeft, y, { lineBreak: false });
+    doc
+      .font('Invoice')
+      .fontSize(12)
+      .fillColor(NAVY)
+      .text(value, payValueX, y, {
+        width: contentW - (payValueX - MARGIN_X),
+        lineBreak: false,
+      });
+    y += 24;
+  };
+
+  payRow('Payment Method', input.paymentMethod);
+  payRow('Payment Transaction ID', input.paymentRef?.trim() || 'N/A');
+  payRow(
+    'Payment Date',
+    formatPaymentDate(input.paidAt, input.isInternational),
   );
-  y += 18;
-  doc.text(
-    `Payment Date: ${formatPaymentDate(input.paidAt, input.isInternational)}`,
-    MARGIN_X,
-    y,
-  );
 
-  // ========== GST + FOOTER pinned to page bottom ==========
-  const footerLineY = PAGE_H - 48;
-  const gstH = 32;
-  const gstY = footerLineY - gstH - 28;
+  // ========== GST then thank-you, with bottom page margin ==========
+  const gstH = 30;
+  const bottomPad = 66;
+  const gapPayToGst = 28;
+  const gapGstToRule = 16;
+  const gapRuleToThanks = 12;
+  const thanksLineH = 16;
+  const stackH = gstH + gapGstToRule + gapRuleToThanks + thanksLineH;
 
-  // If content ended early, GST still sits above the footer (fills the page).
-  const contentEnd = y + 24;
-  const gstDrawY = Math.max(contentEnd, gstY);
+  let footerY = y + gapPayToGst;
+  const maxGstY = PAGE_H - bottomPad - stackH;
+  if (footerY > maxGstY && maxGstY >= y + 20) {
+    // Pull footer up only enough to keep bottom margin; never into payment rows.
+    footerY = maxGstY;
+  }
 
-  doc.rect(MARGIN_X, gstDrawY, contentW, gstH).fill(GREY_BOX);
+  doc.rect(MARGIN_X, footerY, contentW, gstH).fill(GREY_BOX);
   doc
     .font('Invoice')
     .fontSize(10)
@@ -539,13 +620,14 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
     .text(
       'GST is not applicable to this invoice under the applicable GST threshold provisions.',
       MARGIN_X + 14,
-      gstDrawY + 10,
+      footerY + 9,
       { width: contentW - 28, lineBreak: false },
     );
 
+  const footerRuleY = footerY + gstH + gapGstToRule;
   doc
-    .moveTo(MARGIN_X, footerLineY)
-    .lineTo(right, footerLineY)
+    .moveTo(MARGIN_X, footerRuleY)
+    .lineTo(right, footerRuleY)
     .lineWidth(1.2)
     .strokeColor(RULE)
     .stroke();
@@ -553,8 +635,13 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
     .font('Invoice')
     .fontSize(11)
     .fillColor(MUTED)
-    .text('Thank you for choosing The Healing Mat.', MARGIN_X, footerLineY + 12, {
-      width: contentW,
-      align: 'center',
-    });
+    .text(
+      'Thank you for choosing The Healing Mat.',
+      MARGIN_X,
+      footerRuleY + gapRuleToThanks,
+      {
+        width: contentW,
+        align: 'center',
+      },
+    );
 }
