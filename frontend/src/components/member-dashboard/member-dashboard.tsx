@@ -539,87 +539,103 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
           ) : (
             <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
               <div className="border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-r">
-                <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                  <SectionHeading
-                    className="mb-0 flex min-w-0 flex-1 items-start gap-2.5"
-                    icon={
-                      <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-7 sm:w-7">
-                        <span
-                          aria-hidden="true"
-                          className="block h-3.5 w-3.5 sm:h-4 sm:w-4"
-                          style={{
-                            backgroundColor: "#1f6b3a",
-                            WebkitMaskImage: `url(${calendarIcon.src})`,
-                            WebkitMaskSize: "contain",
-                            WebkitMaskRepeat: "no-repeat",
-                            WebkitMaskPosition: "center",
-                            maskImage: `url(${calendarIcon.src})`,
-                            maskSize: "contain",
-                            maskRepeat: "no-repeat",
-                            maskPosition: "center",
-                          }}
-                        />
-                      </span>
-                    }
-                    title="Regular Yoga Sessions"
-                    subtitle="(Monday to Saturday)"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleJoin}
-                    className={`${memberPrimaryBtnClass} w-full justify-center px-5 py-3 text-[14px] sm:w-auto sm:min-w-[148px] sm:px-6 sm:py-3.5 sm:text-[15px]`}
-                  >
-                    Join Session
-                  </button>
-                </div>
-
                 {(() => {
-                  if (!hasTodaySessions) {
-                    return (
-                      <SessionTimingBlock
-                        icon={sunIcon}
-                        label="Today's session timings"
-                        slots={[]}
-                        tint="bg-[#F4F8F2]"
-                        emptyLabel="No sessions scheduled for today"
-                      />
-                    );
-                  }
-
                   const hasMorning = morningSlots.length > 0;
                   const hasEvening = eveningSlots.length > 0;
-
-                  if (!hasMorning && !hasEvening) {
-                    return (
-                      <SessionTimingBlock
-                        icon={sunIcon}
-                        label="Today's session timings"
-                        slots={sessionLabels}
-                        tint="bg-[#F4F8F2]"
-                        liveSlot={running?.label}
-                      />
-                    );
-                  }
+                  const bothPeriods = hasMorning && hasEvening;
+                  const joinSessionButton = (
+                    <button
+                      type="button"
+                      onClick={handleJoin}
+                      className={`${memberPrimaryBtnClass} w-full justify-center px-5 py-3 text-[14px] sm:w-auto sm:min-w-[148px] sm:px-6 sm:py-3.5 sm:text-[15px]`}
+                    >
+                      Join Session
+                    </button>
+                  );
 
                   return (
                     <>
-                      {hasMorning ? (
+                      <div
+                        className={`mb-4 flex flex-wrap items-start gap-3 ${
+                          bothPeriods ? "justify-between" : ""
+                        }`}
+                      >
+                        <SectionHeading
+                          className="mb-0 flex min-w-0 flex-1 items-start gap-2.5"
+                          icon={
+                            <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-7 sm:w-7">
+                              <span
+                                aria-hidden="true"
+                                className="block h-3.5 w-3.5 sm:h-4 sm:w-4"
+                                style={{
+                                  backgroundColor: "#1f6b3a",
+                                  WebkitMaskImage: `url(${calendarIcon.src})`,
+                                  WebkitMaskSize: "contain",
+                                  WebkitMaskRepeat: "no-repeat",
+                                  WebkitMaskPosition: "center",
+                                  maskImage: `url(${calendarIcon.src})`,
+                                  maskSize: "contain",
+                                  maskRepeat: "no-repeat",
+                                  maskPosition: "center",
+                                }}
+                              />
+                            </span>
+                          }
+                          title="Regular Yoga Sessions"
+                          subtitle="(Monday to Saturday)"
+                        />
+                        {bothPeriods ? joinSessionButton : null}
+                      </div>
+
+                      {!hasTodaySessions ? (
                         <SessionTimingBlock
                           icon={sunIcon}
-                          label="Morning Sessions"
-                          slots={morningSlots}
+                          label="Today's session timings"
+                          slots={[]}
+                          tint="bg-[#F4F8F2]"
+                          emptyLabel="No sessions scheduled for today"
+                        />
+                      ) : !hasMorning && !hasEvening ? (
+                        <SessionTimingBlock
+                          icon={sunIcon}
+                          label="Today's session timings"
+                          slots={sessionLabels}
                           tint="bg-[#F4F8F2]"
                           liveSlot={running?.label}
                         />
-                      ) : null}
-                      {hasEvening ? (
-                        <SessionTimingBlock
-                          icon={moonIcon}
-                          label="Evening Sessions"
-                          slots={eveningSlots}
-                          tint="bg-[#F7F7F5]"
-                          liveSlot={running?.label}
-                        />
+                      ) : (
+                        <>
+                          {hasMorning ? (
+                            <SessionTimingBlock
+                              icon={sunIcon}
+                              label="Morning Sessions"
+                              slots={morningSlots}
+                              tint="bg-[#F4F8F2]"
+                              liveSlot={running?.label}
+                            />
+                          ) : null}
+                          {hasEvening ? (
+                            <SessionTimingBlock
+                              icon={moonIcon}
+                              label="Evening Sessions"
+                              slots={eveningSlots}
+                              tint="bg-[#F7F7F5]"
+                              liveSlot={running?.label}
+                            />
+                          ) : null}
+                        </>
+                      )}
+
+                      {!bothPeriods ? (
+                        <div className="mt-3 flex justify-center sm:mt-4">
+                          <button
+                            type="button"
+                            onClick={handleJoin}
+                            className={`${memberPrimaryBtnClass} w-full max-w-[420px] justify-center px-8 py-3.5 text-[15px] sm:px-10 sm:py-4 sm:text-[16px]`}
+                          >
+                            Join Session
+                          </button>
+                        </div>
                       ) : null}
                     </>
                   );
