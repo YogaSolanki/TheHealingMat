@@ -127,7 +127,7 @@ export function ClassManagementCard() {
     [],
   );
 
-  const weekDays = useMemo(() => buildNextSevenDays(), []);
+  const [weekDays, setWeekDays] = useState(() => buildNextSevenDays());
   const maxDate = weekDays[weekDays.length - 1]?.iso ?? todayIso();
 
   const activeTimings = useMemo(
@@ -198,9 +198,12 @@ export function ClassManagementCard() {
 
   const applyPayload = useCallback(
     (payload: ClassesCachePayload) => {
+      const from = payload.cachedFrom;
+      setWeekDays(buildNextSevenDays(from));
       setTimings(payload.timings);
       setClasses(payload.classes);
       setCached(cacheKey, payload);
+      setSelectedDate((current) => (current < from ? from : current));
       const firstActive = payload.timings.find((row) => row.active);
       setSessionTimingId((current) => {
         if (
@@ -412,7 +415,7 @@ export function ClassManagementCard() {
             Class Management
           </h2>
           <p className="mt-0.5 text-xs text-[#8a978c]">
-            Pick a day, then manage that day’s time slots
+            Rolling next 7 days from today — past days drop off automatically
           </p>
         </div>
         <ReloadButton

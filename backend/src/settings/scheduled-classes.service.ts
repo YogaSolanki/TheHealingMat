@@ -68,8 +68,8 @@ function shiftIsoDate(isoDate: string, days: number) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-/** Keep classes for 2 days after they occur, then remove from DB. */
-const CLASS_RETENTION_DAYS = 2;
+/** Past calendar days are removed as soon as a new day starts (classDate < today). */
+const CLASS_RETENTION_DAYS = 0;
 
 @Injectable()
 export class ScheduledClassesService implements OnModuleInit {
@@ -81,6 +81,11 @@ export class ScheduledClassesService implements OnModuleInit {
 
   async onModuleInit() {
     await this.purgeExpiredClasses();
+    // Hourly sweep so yesterday's classes (and links) leave the DB even if
+    // no admin request hits this service after midnight.
+    setInterval(() => {
+      void this.purgeExpiredClasses();
+    }, 60 * 60 * 1000);
   }
 
   async list(options?: { from?: string }) {
@@ -205,7 +210,7 @@ export class ScheduledClassesService implements OnModuleInit {
     return withUrl?.meetingUrl?.trim() || null;
   }
 
-  /** Delete classes older than retention window (class date + 2 days). */
+  /** Delete classes whose calendar day has ended (classDate before today). */
   async purgeExpiredClasses() {
     const cutoff = shiftIsoDate(todayIsoDate(), -CLASS_RETENTION_DAYS);
     await this.classes
