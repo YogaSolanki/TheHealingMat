@@ -7,11 +7,13 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
 import { AdminDashboardService } from './admin-dashboard.service';
 import { CreateAdminMembershipDto } from './dto/create-admin-membership.dto';
+import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { UpdateAdminMembershipDto } from './dto/update-admin-membership.dto';
 import { UpdateAdminUserDto } from './dto/update-admin-user.dto';
 
@@ -28,6 +30,19 @@ export class AdminDashboardController {
   @Get('users')
   users() {
     return this.dashboard.listUsers();
+  }
+
+  @Get('users/exists')
+  checkUserExists(
+    @Query('mobile') mobile?: string,
+    @Query('email') email?: string,
+  ) {
+    return this.dashboard.checkUserExists({ mobile, email });
+  }
+
+  @Post('users')
+  createUser(@Body() dto: CreateAdminUserDto) {
+    return this.dashboard.createUser(dto);
   }
 
   @Get('users/:id')

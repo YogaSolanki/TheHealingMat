@@ -2,13 +2,16 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { randomUUID } from 'crypto';
+import * as bcrypt from 'bcrypt';
+import { randomBytes, randomUUID } from 'crypto';
 import { DataSource, In, Not, Repository } from 'typeorm';
 import { CouponRedemption } from '../coupons/coupon-redemption.entity';
 import { Coupon } from '../coupons/coupon.entity';
+import { isValidPassword } from '../auth/dto/password.rules';
 import { Membership } from '../payments/membership.entity';
 import { MembershipPlansService } from '../payments/membership-plans.service';
 import { PaymentOrder } from '../payments/payment-order.entity';
@@ -17,13 +20,22 @@ import { RewardRedemptionRequest } from '../referrals/reward-redemption-request.
 import { OrientationSlot } from '../trials/orientation-slot.entity';
 import { TrialCohort } from '../trials/trial-cohort.entity';
 import { TrialRegistration } from '../trials/trial-registration.entity';
+import { TrialsService } from '../trials/trials.service';
+import {
+  buildAccessLinkSlug,
+  buildReferralCode,
+  isUniqueViolation,
+} from '../users/account-identity';
 import { Region } from '../users/enums/region.enum';
 import { TrialStatus } from '../users/enums/trial-status.enum';
 import { OtpChallenge } from '../users/otp-challenge.entity';
 import { User } from '../users/user.entity';
 import { CreateAdminMembershipDto } from './dto/create-admin-membership.dto';
+import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { UpdateAdminMembershipDto } from './dto/update-admin-membership.dto';
 import { UpdateAdminUserDto } from './dto/update-admin-user.dto';
+
+const BCRYPT_ROUNDS = 12;
 
 @Injectable()
 export class AdminDashboardService {
@@ -32,6 +44,7 @@ export class AdminDashboardService {
     private readonly config: ConfigService,
     private readonly membershipPlans: MembershipPlansService,
     private readonly payments: PaymentsService,
+    private readonly trialsService: TrialsService,
     @InjectRepository(User)
     private readonly users: Repository<User>,
     @InjectRepository(TrialRegistration)
@@ -295,6 +308,176 @@ export class AdminDashboardService {
         createdAt: payment.createdAt,
         updatedAt: payment.updatedAt,
       })),
+    };
+  }
+
+  async checkUserExists(input: { mobile?: string; email?: string }) {
+    const mobile = input.mobile?.trim()
+      ? this.normalizeMobile(input.mobile)
+      : null;
+    const email = input.email?.trim().toLowerCase() || null;
+
+    let mobileTaken = false;
+    let emailTaken = false;
+    let existingUserId: string | null = null;
+    let existingFullName: string | null = null;
+
+    if (mobile) {
+      const row = await this.users.findOne({
+        where: { mobile },
+        select: { id: true, fullName: true },
+      });
+      if (row) {
+        mobileTaken = true;
+        existingUserId = row.id;
+        existingFullName = row.fullName;
+      }
+    }
+
+    if (email) {
+      const row = await this.users.findOne({
+        where: { email },
+        select: { id: true, fullName: true },
+      });
+      if (row) {
+        emailTaken = true;
+        if (!existingUserId) {
+          existingUserId = row.id;
+          existingFullName = row.fullName;
+        }
+      }
+    }
+
+    let message: string | null = null;
+    if (mobileTaken && emailTaken) {
+      message = 'User already exists with this mobile number and email.';
+    } else if (mobileTaken) {
+      message = 'User already exists with this mobile number.';
+    } else if (emailTaken) {
+      message = 'User already exists with this email.';
+    }
+
+    return {
+      mobileTaken,
+      emailTaken,
+      exists: mobileTaken || emailTaken,
+      message,
+      existingUserId,
+      existingFullName,
+    };
+  }
+
+  async createUser(dto: CreateAdminUserDto) {
+    const fullName = dto.fullName.trim();
+    if (fullName.length < 2) {
+      throw new BadRequestException('fullName must be at least 2 characters.');
+    }
+
+    const mobile = dto.mobile?.trim()
+      ? this.normalizeMobile(dto.mobile)
+      : null;
+    let email = dto.email?.trim().toLowerCase() || null;
+
+    if (dto.region === Region.India && !mobile) {
+      throw new BadRequestException('Mobile number is required for India accounts.');
+    }
+    if (dto.region === Region.OutsideIndia && !email) {
+      throw new BadRequestException(
+        'Email is required for outside-India accounts.',
+      );
+    }
+    if (!mobile && !email) {
+      throw new BadRequestException(
+        'Provide at least a mobile number or email.',
+      );
+    }
+
+    if (mobile) {
+      const taken = await this.users.exists({ where: { mobile } });
+      if (taken) {
+        throw new BadRequestException(
+          'User already exists with this mobile number.',
+        );
+      }
+    }
+    if (email) {
+      const taken = await this.users.exists({ where: { email } });
+      if (taken) {
+        // Email is optional for India — skip conflicting email instead of blocking create.
+        if (mobile) {
+          email = null;
+        } else {
+          throw new BadRequestException('User already exists with this email.');
+        }
+      }
+    }
+
+    const providedPassword = dto.password?.trim();
+    let temporaryPassword: string | null = null;
+    let password: string;
+    let passwordSetByUser = false;
+    if (providedPassword) {
+      if (!isValidPassword(providedPassword)) {
+        throw new BadRequestException(
+          'Password must be 8–72 characters and include uppercase, lowercase, and a number.',
+        );
+      }
+      password = providedPassword;
+      passwordSetByUser = true;
+    } else {
+      password = `Thm1A-${randomBytes(16).toString('base64url')}`;
+      temporaryPassword = password;
+    }
+
+    const referredByUserId = await this.findReferrerId(dto.referralCode);
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+    let user: User | null = null;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const referralCode = await this.allocateUniqueReferralCode(fullName);
+      const accessLinkToken = await this.allocateUniqueAccessLinkSlug(fullName);
+      try {
+        user = await this.users.save(
+          this.users.create({
+            region: dto.region,
+            fullName,
+            mobile,
+            email,
+            passwordHash,
+            passwordSetByUser,
+            referralCode,
+            accessLinkToken,
+            referredByUserId,
+            hasUsedFreeTrial: false,
+            role: 'user',
+            dateOfBirth: dto.dateOfBirth?.trim() || null,
+            gender: dto.gender ?? null,
+            state: dto.state?.trim() || null,
+            preferredClassTime: dto.preferredClassTime?.trim() || null,
+          }),
+        );
+        break;
+      } catch (error) {
+        if (!isUniqueViolation(error) || attempt === 39) {
+          throw error;
+        }
+      }
+    }
+
+    if (!user) {
+      throw new ServiceUnavailableException(
+        'Unable to create a unique account identifier. Please try again.',
+      );
+    }
+
+    if (dto.startFreeTrial) {
+      await this.trialsService.ensureFreeTrial(user);
+    }
+
+    const detail = await this.getUserDetail(user.id);
+    return {
+      ...detail,
+      temporaryPassword,
     };
   }
 
@@ -738,6 +921,49 @@ export class AdminDashboardService {
       'http://localhost:3000',
     );
     return `${base.replace(/\/$/, '')}/u/${token}`;
+  }
+
+  private normalizeMobile(mobile: string): string {
+    const trimmed = mobile.trim().replace(/[\s-]/g, '');
+    if (trimmed.startsWith('+')) {
+      return trimmed;
+    }
+    if (/^[6-9]\d{9}$/.test(trimmed)) {
+      return `+91${trimmed}`;
+    }
+    return `+${trimmed}`;
+  }
+
+  private async findReferrerId(referralCode?: string) {
+    const code = referralCode?.trim().toLowerCase();
+    if (!code) return null;
+    const referrer = await this.users.findOne({ where: { referralCode: code } });
+    if (!referrer) {
+      throw new BadRequestException('This referral code is not valid.');
+    }
+    return referrer.id;
+  }
+
+  private async allocateUniqueReferralCode(fullName: string) {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const referralCode = buildReferralCode(fullName);
+      const exists = await this.users.findOne({ where: { referralCode } });
+      if (!exists) return referralCode;
+    }
+    throw new ServiceUnavailableException(
+      'Unable to assign a unique referral code. Please try again.',
+    );
+  }
+
+  private async allocateUniqueAccessLinkSlug(fullName: string) {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const accessLinkToken = buildAccessLinkSlug(fullName);
+      const exists = await this.users.findOne({ where: { accessLinkToken } });
+      if (!exists) return accessLinkToken;
+    }
+    throw new ServiceUnavailableException(
+      'Unable to assign a unique access link. Please try again.',
+    );
   }
 
   private async getSignupsLast7Days() {

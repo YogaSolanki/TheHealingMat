@@ -149,6 +149,43 @@ export function getAdminUsers(token: string) {
   return authGet<{ users: AdminUserRow[] }>("/admin/users", token);
 }
 
+export type CreateAdminUserInput = {
+  fullName: string;
+  region: "india" | "outside_india";
+  mobile?: string;
+  email?: string;
+  password?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  state?: string;
+  preferredClassTime?: string;
+  referralCode?: string;
+  startFreeTrial?: boolean;
+};
+
+export type AdminUserExistsResult = {
+  mobileTaken: boolean;
+  emailTaken: boolean;
+  exists: boolean;
+  message: string | null;
+  existingUserId: string | null;
+  existingFullName: string | null;
+};
+
+export function checkAdminUserExists(
+  token: string,
+  input: { mobile?: string; email?: string },
+) {
+  const params = new URLSearchParams();
+  if (input.mobile?.trim()) params.set("mobile", input.mobile.trim());
+  if (input.email?.trim()) params.set("email", input.email.trim());
+  const query = params.toString();
+  return authGet<AdminUserExistsResult>(
+    `/admin/users/exists${query ? `?${query}` : ""}`,
+    token,
+  );
+}
+
 export function deleteAdminUser(token: string, id: string) {
   return authJson<{ success: boolean }>(
     "DELETE",
@@ -275,6 +312,14 @@ export type CreateAdminMembershipInput = {
 
 export function getAdminUserDetail(token: string, id: string) {
   return authGet<AdminUserDetail>(`/admin/users/${id}`, token);
+}
+
+export type CreateAdminUserResult = AdminUserDetail & {
+  temporaryPassword: string | null;
+};
+
+export function createAdminUser(token: string, body: CreateAdminUserInput) {
+  return authJson<CreateAdminUserResult>("POST", "/admin/users", token, body);
 }
 
 export function updateAdminUser(
