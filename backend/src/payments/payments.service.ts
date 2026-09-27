@@ -22,7 +22,7 @@ import { User } from '../users/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { QuoteMembershipDto } from './dto/quote-membership.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
-import { buildMembershipInvoicePdf } from './invoice-pdf';
+import { buildInvoiceNumber, buildMembershipInvoicePdf } from './invoice-pdf';
 import { Membership } from './membership.entity';
 import { MembershipPlan } from './membership-plan.entity';
 import { DEFAULT_REFERRAL_DISCOUNT_PERCENT } from './membership-plans';
@@ -454,57 +454,54 @@ export class PaymentsService {
       throw new NotFoundException('Membership invoice not found.');
     }
 
-    let invoiceUrl = membership.razorpayInvoiceUrl;
-    let invoiceId = membership.razorpayInvoiceId;
+    const order = membership.paymentOrderId.startsWith('admin-manual-')
+      ? null
+      : await this.orders.findOne({
+          where: { id: membership.paymentOrderId, userId: user.id },
+        });
 
-    // Older memberships may only have the invoice on the payment order row.
-    if (!invoiceId || !invoiceUrl) {
-      const order = await this.orders.findOne({
-        where: { id: membership.paymentOrderId, userId: user.id },
-      });
-      if (order?.razorpayInvoiceId) {
-        invoiceId = order.razorpayInvoiceId;
-        invoiceUrl = order.razorpayInvoiceUrl;
-        membership.razorpayInvoiceId = order.razorpayInvoiceId;
-        membership.razorpayInvoiceUrl = order.razorpayInvoiceUrl;
-        await this.memberships.save(membership);
-      }
-    }
+    const currency =
+      membership.currency?.toUpperCase() === 'USD' ? ('USD' as const) : ('INR' as const);
+    const isInternational = currency === 'USD';
+    const invoiceNo = buildInvoiceNumber({
+      issuedAt: membership.createdAt,
+      currency,
+      membershipId: membership.id,
+    });
 
-    if (invoiceId) {
-      try {
-        const invoice = await this.fetchRazorpayInvoice(invoiceId);
-        if (invoice.short_url) {
-          invoiceUrl = invoice.short_url;
-          if (membership.razorpayInvoiceUrl !== invoice.short_url) {
-            membership.razorpayInvoiceUrl = invoice.short_url;
-            await this.memberships.save(membership);
-          }
-        }
-      } catch {
-        // Fall through to stored URL.
-      }
-    }
+    const paymentRef =
+      membership.razorpayPaymentId?.trim() ||
+      order?.razorpayPaymentId?.trim() ||
+      null;
+    const adminManual = membership.paymentOrderId.startsWith('admin-manual-');
+    const paymentMethod = adminManual
+      ? 'Admin assigned'
+      : 'Online (Razorpay)';
 
-    // Prefer Razorpay's original invoice page when available.
-    if (invoiceUrl) {
-      return { type: 'razorpay' as const, url: invoiceUrl };
-    }
+    const memberLocation = isInternational
+      ? 'Outside India'
+      : user.state?.trim()
+        ? `${user.state.trim()}, India`
+        : 'India';
 
-    // Fallback: Healing Mat PDF receipt (admin grants, offline payments, free plans).
-    const invoiceNo = `THM-${membership.id.slice(0, 8).toUpperCase()}`;
-    const pdf = buildMembershipInvoicePdf({
+    const pdf = await buildMembershipInvoicePdf({
       invoiceNo,
       issuedAt: membership.createdAt,
+      paidAt: membership.createdAt,
       memberName: user.fullName,
       memberEmail: user.email,
       memberMobile: user.mobile,
+      memberLocation,
+      isInternational,
       planName: membership.planName,
       planMonths: membership.planMonths,
       listPricePaise: membership.listPricePaise,
       discountPaise: membership.discountPaise,
+      discountLabel: order?.couponCode?.trim() || null,
       amountPaidPaise: membership.amountPaidPaise,
-      paymentRef: membership.razorpayPaymentId,
+      currency,
+      paymentRef,
+      paymentMethod,
       startsAt: membership.startsAt,
       endsAt: membership.endsAt,
     });
@@ -1170,7 +1167,6 @@ export class PaymentsService {
   }
 
   private toPublicMembership(membership: Membership) {
-    const adminManual = membership.paymentOrderId.startsWith('admin-manual-');
     return {
       id: membership.id,
       planName: membership.planName,
@@ -1186,8 +1182,8 @@ export class PaymentsService {
       razorpayInvoiceId: membership.razorpayInvoiceId,
       razorpayInvoiceUrl: membership.razorpayInvoiceUrl,
       paidAt: membership.createdAt.toISOString(),
-      /** False for admin-granted memberships (no Razorpay checkout invoice). */
-      invoiceDownloadable: !adminManual,
+      /** Healing Mat branded PDF is always available for paid memberships. */
+      invoiceDownloadable: true,
     };
   }
 

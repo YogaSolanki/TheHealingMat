@@ -57,10 +57,6 @@ export class PaymentsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     const invoice = await this.payments.getInvoice(user, id);
-    if (invoice.type === 'razorpay') {
-      return { url: invoice.url };
-    }
-
     return new StreamableFile(invoice.pdf, {
       type: 'application/pdf',
       disposition: `attachment; filename="${invoice.filename}"`,
