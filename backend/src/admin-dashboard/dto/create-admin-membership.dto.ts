@@ -17,13 +17,23 @@ export class CreateAdminMembershipDto {
   @Max(36)
   planMonths: number;
 
+  /**
+   * add = start an active membership now (supersedes any other active).
+   * renew = schedule the next term after the current active membership (max 1).
+   */
+  @IsOptional()
+  @IsIn(['add', 'renew'], {
+    message: 'mode must be add or renew.',
+  })
+  mode?: 'add' | 'renew';
+
   @IsOptional()
   @IsIn(['active', 'scheduled'], {
     message: 'status must be active or scheduled.',
   })
   status?: 'active' | 'scheduled';
 
-  /** Required when status is scheduled. Ignored when status is active (starts now). */
+  /** Required when status is scheduled (non-renew). Ignored for add/active and renew. */
   @IsOptional()
   @IsDateString({}, { message: 'startsAt must be a valid ISO date.' })
   startsAt?: string;

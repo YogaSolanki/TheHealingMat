@@ -597,13 +597,30 @@ export class AdminDashboardService {
       }
     }
 
-    const status = dto.status ?? 'active';
+    const mode = dto.mode ?? (dto.status === 'scheduled' ? 'renew' : 'add');
     const now = new Date();
+    let status: 'active' | 'scheduled' = dto.status ?? 'active';
     let startsAt: Date;
 
-    if (status === 'active') {
+    if (mode === 'renew') {
+      await this.assertCanScheduleRenewal(userId);
+      const active = await this.findActiveMembership(userId);
+      if (!active) {
+        throw new BadRequestException(
+          'Renew requires an active membership. Add a membership first.',
+        );
+      }
+      status = 'scheduled';
+      startsAt = this.dayAfter(active.endsAt);
+      if (startsAt.getTime() <= now.getTime()) {
+        // Current term already ended — start immediately instead.
+        status = 'active';
+        startsAt = this.startOfLocalDay(now);
+      }
+    } else if (status === 'active') {
       startsAt = this.startOfLocalDay(now);
     } else {
+      await this.assertCanScheduleRenewal(userId);
       if (!dto.startsAt) {
         throw new BadRequestException(
           'startsAt is required when status is scheduled.',
@@ -785,6 +802,28 @@ export class AdminDashboardService {
     if (others.length) await this.memberships.save(others);
   }
 
+  /** Same rule as member checkout: only one scheduled next membership. */
+  private async assertCanScheduleRenewal(userId: string) {
+    const scheduled = await this.memberships.findOne({
+      where: { userId, status: 'scheduled' },
+    });
+    if (scheduled) {
+      throw new BadRequestException(
+        'This member already has a scheduled next membership. Only one renew is allowed.',
+      );
+    }
+  }
+
+  private async findActiveMembership(userId: string) {
+    const now = new Date();
+    const membership = await this.memberships.findOne({
+      where: { userId, status: 'active' },
+      order: { endsAt: 'DESC' },
+    });
+    if (!membership || membership.endsAt < now) return null;
+    return membership;
+  }
+
   private async completeTrialForMembership(userId: string) {
     const trial = await this.trials.findOne({ where: { userId } });
     if (!trial) return;
@@ -810,6 +849,14 @@ export class AdminDashboardService {
     ends.setDate(ends.getDate() - 1);
     ends.setHours(23, 59, 59, 999);
     return ends;
+  }
+
+  /** Day after a term ends — used as the next membership start. */
+  private dayAfter(date: Date) {
+    const next = new Date(date.getTime());
+    next.setDate(next.getDate() + 1);
+    next.setHours(0, 0, 0, 0);
+    return next;
   }
 
   private startOfLocalDay(date: Date) {

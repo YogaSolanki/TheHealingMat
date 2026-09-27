@@ -303,6 +303,7 @@ export type UpdateAdminMembershipInput = {
 
 export type CreateAdminMembershipInput = {
   planMonths: number;
+  mode?: "add" | "renew";
   status?: "active" | "scheduled";
   startsAt?: string;
   paymentOrderId?: string;
