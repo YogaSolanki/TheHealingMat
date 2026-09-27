@@ -28,6 +28,11 @@ export function MemberMembershipPage() {
   const { access, loading } = useMemberAccess();
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
+  const [downloadingScheduledInvoice, setDownloadingScheduledInvoice] =
+    useState(false);
+  const [scheduledInvoiceError, setScheduledInvoiceError] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -118,6 +123,33 @@ export function MemberMembershipPage() {
       );
     } finally {
       setDownloadingInvoice(false);
+    }
+  }
+
+  async function onDownloadScheduledInvoice() {
+    const token = getStoredToken();
+    if (!token || downloadingScheduledInvoice) return;
+    setScheduledInvoiceError(null);
+    setDownloadingScheduledInvoice(true);
+    try {
+      let membershipId = access.scheduledMembershipId;
+      if (!membershipId) {
+        const data = await getMyMembership(token);
+        membershipId = data.scheduled?.id ?? null;
+        if (membershipId) {
+          sessionStore.setAccess(mapMembershipAccess(data));
+        }
+      }
+      if (!membershipId) {
+        throw new Error("No scheduled membership invoice found.");
+      }
+      await downloadMembershipInvoice(token, membershipId);
+    } catch (err: unknown) {
+      setScheduledInvoiceError(
+        err instanceof Error ? err.message : "Unable to download invoice.",
+      );
+    } finally {
+      setDownloadingScheduledInvoice(false);
     }
   }
 
@@ -379,6 +411,26 @@ export function MemberMembershipPage() {
                   <dd className="text-right font-bold text-[#3d4a3c]">Scheduled</dd>
                 </div>
               </dl>
+              {access.scheduledInvoiceDownloadable ? (
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    disabled={downloadingScheduledInvoice}
+                    onClick={() => void onDownloadScheduledInvoice()}
+                    className="inline-flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a] decoration-dotted underline-offset-[3px] transition hover:text-[#185830] disabled:cursor-wait disabled:opacity-60 sm:text-[13px]"
+                  >
+                    {downloadingScheduledInvoice
+                      ? "Downloading…"
+                      : "Download Invoice / Receipt"}
+                    <DownloadIcon className="h-4 w-4" />
+                  </button>
+                  {scheduledInvoiceError ? (
+                    <p className="mt-1 text-[12px] font-medium text-[#b42318]">
+                      {scheduledInvoiceError}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
         </section>

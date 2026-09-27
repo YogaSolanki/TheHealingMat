@@ -23,10 +23,13 @@ export type MemberAccess = {
   paymentDateLabel: string | null;
   transactionRef: string | null;
   hasScheduledMembership: boolean;
+  scheduledMembershipId: string | null;
   scheduledPlanName: string | null;
   scheduledStartsOnLabel: string | null;
   /** False for admin-manual grants — hide download invoice. */
   invoiceDownloadable: boolean;
+  /** False for admin-manual scheduled grants — hide next-membership invoice download. */
+  scheduledInvoiceDownloadable: boolean;
 };
 
 export function membershipStatusLabel(state: MemberAccessState) {
@@ -116,9 +119,11 @@ export function emptyMemberAccess(
     paymentDateLabel: null,
     transactionRef: null,
     hasScheduledMembership: false,
+    scheduledMembershipId: null,
     scheduledPlanName: null,
     scheduledStartsOnLabel: null,
     invoiceDownloadable: false,
+    scheduledInvoiceDownloadable: false,
   };
 }
 
@@ -144,8 +149,11 @@ export function mapMembershipAccess(data: MembershipAccessResponse): MemberAcces
   access.trialStartsOnLabel = formatLongDate(data.trial?.startsAt);
   access.trialEndsOnLabel = formatLongDate(data.trial?.endsAt);
   access.hasScheduledMembership = Boolean(data.scheduled);
+  access.scheduledMembershipId = data.scheduled?.id ?? null;
   access.scheduledPlanName = data.scheduled?.planName ?? null;
   access.scheduledStartsOnLabel = formatLongDate(data.scheduled?.startsAt);
+  access.scheduledInvoiceDownloadable =
+    data.scheduled != null && data.scheduled.invoiceDownloadable !== false;
 
   if (state === "pending") {
     return access;
