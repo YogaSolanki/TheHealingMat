@@ -4,6 +4,8 @@ import { useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import trialIcon from "@/assets/trail.png";
+import { formatSlotList } from "@/lib/member-session-schedule";
+import { useSessionTimings } from "@/lib/session-timings-store";
 
 type TrialWelcomePopupProps = {
   userId: string;
@@ -23,6 +25,8 @@ export function TrialWelcomePopup({
   const titleId = useId();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const { labels: sessionLabels } = useSessionTimings();
+  const slotCopy = formatSlotList(sessionLabels);
 
   useEffect(() => {
     setMounted(true);
@@ -124,7 +128,8 @@ export function TrialWelcomePopup({
           </p>
           <p className="text-[13px] text-[#6d8474]">
             Your session Join buttons stay inactive until then. You can join
-            7:00 AM or 7:00 PM from here once your trial starts.
+            {slotCopy ? ` ${slotCopy}` : " the available sessions"} from here
+            once your trial starts.
           </p>
         </div>
 

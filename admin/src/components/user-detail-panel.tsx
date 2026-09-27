@@ -9,6 +9,7 @@ import {
   createAdminUserMembership,
   getAdminUserDetail,
   listAdminMembershipPlans,
+  listAdminSessionTimings,
   updateAdminUser,
   updateAdminUserMembership,
   type AdminMembershipPlan,
@@ -18,7 +19,6 @@ import {
 import {
   GENDER_OPTIONS,
   INDIA_STATES,
-  PREFERRED_CLASS_TIMES,
 } from "@/lib/india-profile";
 import { invalidateCached, DASHBOARD_CACHE_KEYS } from "@/lib/dashboard-cache";
 
@@ -305,6 +305,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     string | null
   >(null);
   const [accessLinkCopied, setAccessLinkCopied] = useState(false);
+  const [preferredClassTimes, setPreferredClassTimes] = useState<string[]>([]);
 
   const token = useMemo(
     () =>
@@ -339,6 +340,16 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     }
   }, [token]);
 
+  const loadPreferredClassTimes = useCallback(async () => {
+    if (!token) return;
+    try {
+      const timings = await listAdminSessionTimings(token, { activeOnly: true });
+      setPreferredClassTimes(timings.map((row) => row.label));
+    } catch {
+      setPreferredClassTimes([]);
+    }
+  }, [token]);
+
   const load = useCallback(async () => {
     if (!token) {
       setError("Please sign in again.");
@@ -355,6 +366,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       const [next, plans] = await Promise.all([
         getAdminUserDetail(token, userId),
         loadCatalogPlans(),
+        loadPreferredClassTimes(),
       ]);
       applyDetail(next);
       setNewMembershipForm(emptyNewMembershipForm(plans));
@@ -368,7 +380,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [token, userId, applyDetail, loadCatalogPlans]);
+  }, [token, userId, applyDetail, loadCatalogPlans, loadPreferredClassTimes]);
 
   useEffect(() => {
     setDetail(null);
@@ -1095,11 +1107,17 @@ export function UserDetailPanel({ userId }: { userId: string }) {
               disabled={fieldsLocked}
             >
               <option value="">Not set</option>
-              {PREFERRED_CLASS_TIMES.map((slot) => (
+              {preferredClassTimes.map((slot) => (
                 <option key={slot} value={slot}>
                   {slot}
                 </option>
               ))}
+              {profileForm.preferredClassTime &&
+              !preferredClassTimes.includes(profileForm.preferredClassTime) ? (
+                <option value={profileForm.preferredClassTime}>
+                  {profileForm.preferredClassTime} (inactive)
+                </option>
+              ) : null}
             </select>
           </label>
 

@@ -8,12 +8,15 @@ import { getStoredToken } from "@/lib/auth-storage";
 import { useMemberAccess } from "@/lib/member-access";
 import {
   findRunningSession,
+  formatSlotList,
   sessionUnavailableMessage,
   type SessionAccessKind,
 } from "@/lib/member-session-schedule";
+import { useSessionTimings } from "@/lib/session-timings-store";
 
 export function MemberJoinPage() {
   const { access, loading: accessLoading } = useMemberAccess();
+  const { labels: sessionLabels } = useSessionTimings();
   const [liveUrl, setLiveUrl] = useState<string | null>(null);
   const [urlLoading, setUrlLoading] = useState(true);
   const [urlError, setUrlError] = useState<string | null>(null);
@@ -24,8 +27,9 @@ export function MemberJoinPage() {
     !accessLoading &&
     (access.state === "trial" || access.state === "active");
   const running = useMemo(
-    () => (accessOk ? findRunningSession(new Date(), kind) : null),
-    [accessOk, kind],
+    () =>
+      accessOk ? findRunningSession(new Date(), kind, sessionLabels) : null,
+    [accessOk, kind, sessionLabels],
   );
 
   useEffect(() => {
@@ -101,10 +105,15 @@ export function MemberJoinPage() {
   }
 
   if (access.state === "scheduled") {
+    const slotCopy = formatSlotList(sessionLabels);
     return (
       <StateCard
         title={`Your 14-Day Free Trial starts on ${access.trialStartsOnLabel ?? "the upcoming cohort Monday"}`}
-        body="Your session link will become active when your trial starts. You can join 7:00 AM or 7:00 PM sessions from the Member Area once it begins."
+        body={
+          slotCopy
+            ? `Your session link will become active when your trial starts. You can join ${slotCopy} sessions from the Member Area once it begins.`
+            : "Your session link will become active when your trial starts. You can join sessions from the Member Area once it begins."
+        }
         actionHref="/dashboard"
         actionLabel="Back to Home"
       />
@@ -137,7 +146,7 @@ export function MemberJoinPage() {
     return (
       <StateCard
         title="No session is currently running."
-        body={sessionUnavailableMessage(new Date(), kind)}
+        body={sessionUnavailableMessage(new Date(), kind, sessionLabels)}
         actionHref="/dashboard"
         actionLabel="Back to Home"
       />

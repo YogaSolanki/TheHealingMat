@@ -30,14 +30,12 @@ import {
 } from "@/lib/member-access";
 import {
   findRunningSession,
+  formatSlotList,
   isSunday,
   isSessionSlotRunning,
   sessionUnavailableMessage,
-  sundayQaSlots,
-  trialSessionSlots,
-  weekdayEveningSlots,
-  weekdayMorningSlots,
 } from "@/lib/member-session-schedule";
+import { useSessionTimings } from "@/lib/session-timings-store";
 import { SITE_MAPS_URL } from "@/lib/site-contact";
 import { sessionStore, useMyReferrals, updateMemberAuthCache } from "@/lib/session-store";
 
@@ -93,6 +91,12 @@ function formatDashboardDate(date: Date, compact = false) {
 
 export function MemberDashboard({ user }: MemberDashboardProps) {
   const { access, loading } = useMemberAccess();
+  const {
+    labels: sessionLabels,
+    morning: morningSlots,
+    special: specialSlots,
+    evening: eveningSlots,
+  } = useSessionTimings();
   const nameGreeting = greetingForName(user.fullName);
   const now = new Date();
   const todayLabel = formatDashboardDate(now);
@@ -108,7 +112,12 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const running =
     isExpired || isScheduledTrial || isUnaffiliated
       ? null
-      : findRunningSession(now, sessionKind);
+      : findRunningSession(now, sessionKind, sessionLabels);
+  const specialSessionLabel = specialSlots[0] ?? null;
+  const trialSlotSubtitle = formatSlotList(sessionLabels) || "Session times";
+  const sundaySlotSubtitle = formatSlotList(sessionLabels)
+    ? `Sunday · ${formatSlotList(sessionLabels)}`
+    : "Sunday sessions";
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const [startingTrial, setStartingTrial] = useState(false);
   const [activeOrientation, setActiveOrientation] =
@@ -133,9 +142,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
 
   function handleJoin() {
     if (isExpired || isScheduledTrial || isUnaffiliated) return;
-    const current = findRunningSession(new Date(), sessionKind);
+    const current = findRunningSession(new Date(), sessionKind, sessionLabels);
     if (!current) {
-      setSessionNotice(sessionUnavailableMessage(new Date(), sessionKind));
+      setSessionNotice(
+        sessionUnavailableMessage(new Date(), sessionKind, sessionLabels),
+      );
       return;
     }
     setSessionNotice(null);
@@ -150,9 +161,9 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
       return;
     }
     if (!isTrial) return;
-    if (!isSessionSlotRunning(slotLabel, new Date(), "trial")) {
+    if (!isSessionSlotRunning(slotLabel, new Date(), "trial", sessionLabels)) {
       setSessionNotice(
-        `The ${slotLabel} session is not running right now. ${sessionUnavailableMessage(new Date(), "trial")}`,
+        `The ${slotLabel} session is not running right now. ${sessionUnavailableMessage(new Date(), "trial", sessionLabels)}`,
       );
       return;
     }
@@ -402,7 +413,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   title="Trial Sessions"
                   subtitle="Join opens on your start date"
                 />
-                {trialSessionSlots.map((slot) => (
+                {sessionLabels.map((slot) => (
                   <TrialSessionJoinRow
                     key={slot}
                     icon={sunIcon}
@@ -425,9 +436,9 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   </span>
                 }
                 title="Trial Sessions"
-                subtitle="7:00 AM and 7:00 PM"
+                subtitle={trialSlotSubtitle}
               />
-              {trialSessionSlots.map((slot) => (
+              {sessionLabels.map((slot) => (
                 <TrialSessionJoinRow
                   key={slot}
                   icon={sunIcon}
@@ -437,7 +448,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 />
               ))}
               <p className="mt-4 text-[13px] leading-relaxed text-[#6b7c6e]">
-                Trial access includes these two session times. Regular membership sessions
+                Trial access includes these session times. Regular membership sessions
                 become available when your membership starts.
               </p>
             </div>
@@ -464,12 +475,12 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   </span>
                 }
                 title="Q&A & Guidance"
-                subtitle="Sunday · 8:00 AM and 7:00 PM"
+                subtitle={sundaySlotSubtitle}
               />
               <SessionRow
                 icon={sunIcon}
                 label="Sunday Sessions"
-                slots={[...sundayQaSlots]}
+                slots={sessionLabels}
                 tint="bg-[#F4F8F2]"
                 liveSlot={running?.label}
                 onJoin={handleJoin}
@@ -506,22 +517,26 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   subtitle="(Monday to Saturday)"
                 />
 
-                <SessionRow
-                  icon={sunIcon}
-                  label="Morning Sessions"
-                  slots={[...weekdayMorningSlots]}
-                  tint="bg-[#F4F8F2]"
-                  liveSlot={running?.label}
-                  onJoin={handleJoin}
-                />
-                <SessionRow
-                  icon={moonIcon}
-                  label="Evening Sessions"
-                  slots={[...weekdayEveningSlots]}
-                  tint="bg-[#F7F7F5]"
-                  liveSlot={running?.label}
-                  onJoin={handleJoin}
-                />
+                {morningSlots.length > 0 ? (
+                  <SessionRow
+                    icon={sunIcon}
+                    label="Morning Sessions"
+                    slots={morningSlots}
+                    tint="bg-[#F4F8F2]"
+                    liveSlot={running?.label}
+                    onJoin={handleJoin}
+                  />
+                ) : null}
+                {eveningSlots.length > 0 ? (
+                  <SessionRow
+                    icon={moonIcon}
+                    label="Evening Sessions"
+                    slots={eveningSlots}
+                    tint="bg-[#F7F7F5]"
+                    liveSlot={running?.label}
+                    onJoin={handleJoin}
+                  />
+                ) : null}
               </div>
 
               <div className="border-t border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-t-0">
@@ -531,7 +546,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                       <StarIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </span>
                   }
-                  title="11:30 AM Special Session"
+                  title={
+                    specialSessionLabel
+                      ? `${specialSessionLabel} Special Session`
+                      : "Special Session"
+                  }
                   subtitle="(Monday to Saturday)"
                 />
 

@@ -38,8 +38,6 @@ export const INDIA_STATES = [
   "West Bengal",
 ] as const;
 
-export const PREFERRED_CLASS_TIMES = ["6:30 AM", "7:30 AM", "8:30 AM"] as const;
-
 export const GENDER_OPTIONS = [
   { value: "male", label: "Male" },
   { value: "female", label: "Female" },

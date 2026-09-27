@@ -582,6 +582,23 @@ export async function getMyMembership(
   return parseJson<MembershipAccessResponse>(response);
 }
 
+export type PublicSessionTiming = {
+  id: string;
+  label: string;
+  sortOrder: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Active class start times from Admin → Settings → Session timings. */
+export async function listSessionTimings(): Promise<PublicSessionTiming[]> {
+  const response = await fetch(`${API_URL}/session-timings`, {
+    cache: "no-store",
+  });
+  return parseJson<PublicSessionTiming[]>(response);
+}
+
 export async function getLiveSessionUrl(
   accessToken: string,
   options?: { slot?: string | null },

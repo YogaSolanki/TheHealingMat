@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { SettingsModule } from '../settings/settings.module';
 import { User } from '../users/user.entity';
 import { OrientationSlot } from './orientation-slot.entity';
 import { TrialCohort } from './trial-cohort.entity';
@@ -17,6 +18,7 @@ import { TrialsService } from './trials.service';
       TrialRegistration,
       User,
     ]),
+    SettingsModule,
   ],
   controllers: [TrialsController],
   providers: [TrialsService, TrialSeedService, TrialMessagingService],
