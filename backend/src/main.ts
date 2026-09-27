@@ -19,7 +19,10 @@ function parseOrigins(...values: Array<string | undefined>) {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // rawBody required for Razorpay webhook signature verification
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
   const config = app.get(ConfigService);
 
   const uploadsRoot = join(process.cwd(), 'uploads');

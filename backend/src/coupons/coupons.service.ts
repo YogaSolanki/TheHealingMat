@@ -188,32 +188,22 @@ export class CouponsService {
 
   /**
    * Validate a coupon can be applied by this member right now.
-   * Throws BadRequestException with a clear reason if not.
+   * Always returns a generic error — never leak why it failed.
    */
   async assertRedeemable(coupon: Coupon, userId: string) {
-    if (!coupon.active) {
-      throw new BadRequestException('This coupon is no longer active.');
-    }
-    if (coupon.expiresAt && coupon.expiresAt.getTime() <= Date.now()) {
-      throw new BadRequestException('This coupon has expired.');
-    }
-    if (coupon.usageCount >= coupon.maxUses) {
-      throw new BadRequestException(
-        'This coupon has reached its usage limit.',
-      );
-    }
-    if (coupon.assignedUserId && coupon.assignedUserId !== userId) {
-      throw new BadRequestException(
-        'This coupon is assigned to another member.',
-      );
-    }
+    const invalid = () => {
+      throw new BadRequestException('Invalid coupon');
+    };
+
+    if (!coupon.active) invalid();
+    if (coupon.expiresAt && coupon.expiresAt.getTime() <= Date.now()) invalid();
+    if (coupon.usageCount >= coupon.maxUses) invalid();
+    if (coupon.assignedUserId && coupon.assignedUserId !== userId) invalid();
 
     const alreadyUsed = await this.redemptions.exists({
       where: { couponId: coupon.id, userId },
     });
-    if (alreadyUsed) {
-      throw new BadRequestException('You have already used this coupon.');
-    }
+    if (alreadyUsed) invalid();
 
     return coupon;
   }

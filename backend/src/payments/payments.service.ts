@@ -58,6 +58,8 @@ export class PaymentsService {
     private readonly memberships: Repository<Membership>,
     @InjectRepository(TrialRegistration)
     private readonly trials: Repository<TrialRegistration>,
+    @InjectRepository(User)
+    private readonly users: Repository<User>,
   ) {
     const keyId = this.keyId();
     const keySecret = this.keySecret();
@@ -247,24 +249,10 @@ export class PaymentsService {
       throw new BadRequestException('Payment signature mismatch.');
     }
 
-    if (order.status === 'paid') {
-      const existing = await this.memberships.findOne({
-        where: { paymentOrderId: order.id },
-      });
-      return {
-        success: true,
-        membership: existing ? this.toPublicMembership(existing) : null,
-      };
-    }
-
-    order.status = 'paid';
-    order.razorpayPaymentId = dto.razorpay_payment_id;
-    await this.orders.save(order);
-
-    const membership =
-      order.planMonths != null
-        ? await this.activateMembership(user, order)
-        : null;
+    const membership = await this.fulfillPaidOrder(
+      order,
+      dto.razorpay_payment_id,
+    );
 
     return {
       success: true,
@@ -272,7 +260,114 @@ export class PaymentsService {
     };
   }
 
+  /**
+   * Razorpay webhook: activates membership without relying on the browser.
+   * Always ack with 200 after a valid signature so Razorpay does not retry forever.
+   */
+  async handleRazorpayWebhook(input: {
+    rawBody?: Buffer;
+    signature?: string;
+    payload: Record<string, unknown>;
+  }) {
+    const secret = this.webhookSecret();
+    if (!secret) {
+      this.logger.warn(
+        'RAZORPAY_WEBHOOK_SECRET is not set — ignoring webhook.',
+      );
+      throw new ServiceUnavailableException(
+        'Razorpay webhook is not configured.',
+      );
+    }
+
+    const raw =
+      input.rawBody?.toString('utf8') ||
+      JSON.stringify(input.payload ?? {});
+    if (!this.webhookSignaturesMatch(raw, input.signature || '')) {
+      throw new BadRequestException('Invalid webhook signature.');
+    }
+
+    const event = String(input.payload?.event || '');
+    const paymentHints = this.extractWebhookPaymentHints(input.payload);
+
+    if (!paymentHints.orderId && !paymentHints.paymentId) {
+      this.logger.debug(`Ignoring Razorpay event without order/payment: ${event}`);
+      return { received: true, handled: false };
+    }
+
+    try {
+      if (paymentHints.orderId) {
+        const order = await this.orders.findOne({
+          where: { razorpayOrderId: paymentHints.orderId },
+        });
+        if (!order) {
+          this.logger.warn(
+            `Webhook ${event}: no local order for ${paymentHints.orderId}`,
+          );
+          return { received: true, handled: false };
+        }
+
+        let paymentId = paymentHints.paymentId;
+        if (!paymentId) {
+          paymentId = await this.findCapturedPaymentIdForOrder(
+            order.razorpayOrderId,
+            order.amountPaise,
+          );
+        }
+        if (!paymentId) {
+          this.logger.warn(
+            `Webhook ${event}: order ${order.razorpayOrderId} has no captured payment yet`,
+          );
+          return { received: true, handled: false };
+        }
+
+        const matches = await this.razorpayPaymentMatchesOrder(
+          order.razorpayOrderId,
+          paymentId,
+          order.amountPaise,
+        );
+        if (!matches && order.status !== 'paid') {
+          this.logger.warn(
+            `Webhook ${event}: payment ${paymentId} did not match order ${order.razorpayOrderId}`,
+          );
+          return { received: true, handled: false };
+        }
+
+        await this.fulfillPaidOrder(order, paymentId);
+        return { received: true, handled: true };
+      }
+
+      // payment.captured without order_id in payload — look up payment then order
+      if (paymentHints.paymentId) {
+        const payment = await this.fetchRazorpayPayment(paymentHints.paymentId);
+        const orderId = String(payment.order_id || '');
+        if (!orderId) {
+          return { received: true, handled: false };
+        }
+        const order = await this.orders.findOne({
+          where: { razorpayOrderId: orderId },
+        });
+        if (!order) {
+          return { received: true, handled: false };
+        }
+        await this.fulfillPaidOrder(order, paymentHints.paymentId);
+        return { received: true, handled: true };
+      }
+    } catch (err) {
+      this.logger.error(
+        `Webhook ${event} fulfill failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      // Still 200 so Razorpay does not hammer retries for permanent errors;
+      // reconcile on next membership/me will retry via API poll.
+    }
+
+    return { received: true, handled: false };
+  }
+
   async getMyAccess(user: User) {
+    // Recover memberships when the browser never called /verify-payment.
+    await this.reconcileOpenOrdersForUser(user.id);
     await this.expireEnded(user.id);
     const now = new Date();
     const rows = await this.memberships.find({
@@ -453,13 +548,111 @@ export class PaymentsService {
     return this.activateMembership(user, order);
   }
 
-  private async activateMembership(user: User, order: PaymentOrder) {
+  /**
+   * Mark order paid and activate membership. Idempotent for verify + webhook races.
+   * Skips the "already scheduled" purchase guard — payment is already confirmed.
+   */
+  private async fulfillPaidOrder(order: PaymentOrder, paymentId: string) {
+    if (order.status !== 'paid') {
+      order.status = 'paid';
+      order.razorpayPaymentId = paymentId;
+      await this.orders.save(order);
+    } else if (!order.razorpayPaymentId && paymentId) {
+      order.razorpayPaymentId = paymentId;
+      await this.orders.save(order);
+    }
+
+    const existing = await this.memberships.findOne({
+      where: { paymentOrderId: order.id },
+    });
+    if (existing) return existing;
+
+    if (order.planMonths == null) return null;
+
+    const user = await this.users.findOne({ where: { id: order.userId } });
+    if (!user) {
+      this.logger.error(
+        `Cannot fulfill order ${order.id}: user ${order.userId} not found`,
+      );
+      return null;
+    }
+
+    return this.activateMembership(user, order, { skipPurchaseCheck: true });
+  }
+
+  /**
+   * Poll Razorpay for open local orders and activate if payment already captured.
+   * Covers the case where checkout succeeded but /verify-payment never ran and
+   * the webhook was missed or not configured yet.
+   */
+  private async reconcileOpenOrdersForUser(userId: string) {
+    const open = await this.orders.find({
+      where: { userId, status: 'created' },
+      order: { createdAt: 'DESC' },
+      take: 8,
+    });
+
+    for (const order of open) {
+      try {
+        const paymentId = await this.findCapturedPaymentIdForOrder(
+          order.razorpayOrderId,
+          order.amountPaise,
+        );
+        if (!paymentId) continue;
+        await this.fulfillPaidOrder(order, paymentId);
+      } catch (err) {
+        this.logger.warn(
+          `Reconcile failed for order ${order.razorpayOrderId}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+
+    // Paid in DB but membership insert never finished (crash between saves).
+    const paid = await this.orders.find({
+      where: { userId, status: 'paid' },
+      order: { createdAt: 'DESC' },
+      take: 5,
+    });
+    for (const order of paid) {
+      if (order.planMonths == null) continue;
+      const existing = await this.memberships.findOne({
+        where: { paymentOrderId: order.id },
+      });
+      if (existing) continue;
+      try {
+        const paymentId =
+          order.razorpayPaymentId ||
+          (await this.findCapturedPaymentIdForOrder(
+            order.razorpayOrderId,
+            order.amountPaise,
+          ));
+        if (!paymentId) continue;
+        await this.fulfillPaidOrder(order, paymentId);
+      } catch (err) {
+        this.logger.warn(
+          `Reconcile paid-order failed for ${order.razorpayOrderId}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+  }
+
+  private async activateMembership(
+    user: User,
+    order: PaymentOrder,
+    options?: { skipPurchaseCheck?: boolean },
+  ) {
     if (order.planMonths == null) {
       throw new BadRequestException('This order is not a membership purchase.');
     }
 
     await this.expireEnded(user.id);
-    await this.assertCanPurchase(user.id);
+    if (!options?.skipPurchaseCheck) {
+      await this.assertCanPurchase(user.id);
+    }
 
     const plan =
       (await this.membershipPlans.findByMonths(order.planMonths)) ??
@@ -906,7 +1099,7 @@ export class PaymentsService {
     if (wantsCoupon) {
       const coupon = await this.coupons.findByCode(trimmed);
       if (!coupon) {
-        throw new BadRequestException('This coupon code is not valid.');
+        throw new BadRequestException('Invalid coupon');
       }
       await this.coupons.assertRedeemable(coupon, user.id);
       appliedCoupon = coupon.code;
@@ -915,9 +1108,7 @@ export class PaymentsService {
       } else if (currency === 'INR') {
         discountPaise = coupon.discountValue * 100;
       } else {
-        throw new BadRequestException(
-          'This fixed-amount coupon is only valid for Indian (INR) pricing.',
-        );
+        throw new BadRequestException('Invalid coupon');
       }
       discountLabel = coupon.discountLabel || `${coupon.discountValue} off`;
     } else if (
@@ -1008,12 +1199,7 @@ export class PaymentsService {
     amountPaise: number,
   ) {
     try {
-      const client = this.requireClient();
-      const payment = (await client.payments.fetch(paymentId)) as {
-        order_id?: string | null;
-        status?: string;
-        amount?: number;
-      };
+      const payment = await this.fetchRazorpayPayment(paymentId);
       const status = String(payment.status || '');
       const paidStatuses = new Set(['authorized', 'captured']);
       return (
@@ -1024,6 +1210,90 @@ export class PaymentsService {
     } catch {
       return false;
     }
+  }
+
+  private async fetchRazorpayPayment(paymentId: string) {
+    const client = this.requireClient();
+    return (await client.payments.fetch(paymentId)) as {
+      id?: string;
+      order_id?: string | null;
+      status?: string;
+      amount?: number;
+    };
+  }
+
+  private async findCapturedPaymentIdForOrder(
+    orderId: string,
+    amountPaise: number,
+  ): Promise<string | null> {
+    try {
+      const client = this.requireClient();
+      const result = (await client.orders.fetchPayments(orderId)) as {
+        items?: Array<{
+          id?: string;
+          status?: string;
+          amount?: number;
+        }>;
+      };
+      const paidStatuses = new Set(['authorized', 'captured']);
+      const match = (result.items || []).find(
+        (item) =>
+          paidStatuses.has(String(item.status || '')) &&
+          Number(item.amount) === amountPaise &&
+          Boolean(item.id),
+      );
+      return match?.id ? String(match.id) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private extractWebhookPaymentHints(payload: Record<string, unknown>): {
+    orderId: string | null;
+    paymentId: string | null;
+  } {
+    const root =
+      payload && typeof payload.payload === 'object' && payload.payload
+        ? (payload.payload as Record<string, unknown>)
+        : payload;
+
+    const entityOf = (key: string) => {
+      const wrap = root?.[key];
+      if (!wrap || typeof wrap !== 'object') return null;
+      const entity = (wrap as { entity?: Record<string, unknown> }).entity;
+      return entity && typeof entity === 'object' ? entity : null;
+    };
+
+    const payment = entityOf('payment');
+    const order = entityOf('order');
+    const invoice = entityOf('invoice');
+
+    const paymentId =
+      (payment?.id != null ? String(payment.id) : null) ||
+      (invoice?.payment_id != null ? String(invoice.payment_id) : null) ||
+      null;
+
+    const orderId =
+      (order?.id != null ? String(order.id) : null) ||
+      (payment?.order_id != null ? String(payment.order_id) : null) ||
+      (invoice?.order_id != null ? String(invoice.order_id) : null) ||
+      null;
+
+    return { orderId, paymentId };
+  }
+
+  private webhookSignaturesMatch(rawBody: string, received: string) {
+    const secret = this.webhookSecret();
+    if (!secret || !received) return false;
+    const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
+    const left = Buffer.from(expected);
+    const right = Buffer.from(received);
+    if (left.length !== right.length) return false;
+    return timingSafeEqual(left, right);
+  }
+
+  private webhookSecret() {
+    return this.config.get<string>('RAZORPAY_WEBHOOK_SECRET')?.trim() || '';
   }
 
   private async createRazorpayInvoice(input: {

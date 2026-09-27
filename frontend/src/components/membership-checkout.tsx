@@ -266,7 +266,6 @@ export function MembershipCheckoutPanel({
     setError(null);
     setPromoBusy(true);
 
-    let couponError: string | null = null;
     try {
       try {
         const next = await quoteMembership(token, {
@@ -279,25 +278,17 @@ export function MembershipCheckoutPanel({
         setCouponInput(next.couponCode ?? code);
         setApplyReferralDiscount(false);
         return;
-      } catch (err: unknown) {
-        couponError =
-          err instanceof Error ? err.message : "This coupon code is not valid.";
+      } catch {
+        // Fall through — try as referral when eligible, else show Invalid coupon.
       }
 
       // Already referred — coupon only; do not try linking another referral.
       if (referralAvailable) {
-        setError(couponError || "This coupon code is not valid.");
+        setError("Invalid coupon");
         return;
       }
 
       // Unknown / invalid coupon → try as a referral code (allowed later, not only at trial).
-      const looksLikeUnknownCode =
-        /not valid|invalid|does not exist|no coupon/i.test(couponError || "");
-      if (!looksLikeUnknownCode && couponError) {
-        setError(couponError);
-        return;
-      }
-
       try {
         const referralResult = await applyReferralCode(token, code);
         setUser(referralResult.user);
@@ -311,7 +302,7 @@ export function MembershipCheckoutPanel({
         setAppliedCoupon("");
         setCouponInput("");
       } catch {
-        setError(couponError || "This coupon or referral code is not valid.");
+        setError("Invalid coupon");
       }
     } finally {
       setPromoBusy(false);
