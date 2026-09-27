@@ -8,8 +8,11 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  Req,
   StreamableFile,
+  type RawBodyRequest,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -76,5 +79,26 @@ export class PaymentsController {
   @HttpCode(200)
   verifyPayment(@CurrentUser() user: User, @Body() dto: VerifyPaymentDto) {
     return this.payments.verifyPayment(user, dto);
+  }
+
+  /**
+   * Razorpay server-to-server webhook.
+   * Activates membership even if the browser never reaches /verify-payment.
+   * Configure in Razorpay Dashboard → Webhooks →
+   * URL: {API_PUBLIC_URL}/payments/razorpay/webhook
+   * Events: payment.captured, order.paid, invoice.paid
+   */
+  @Public()
+  @Post('payments/razorpay/webhook')
+  @HttpCode(200)
+  razorpayWebhook(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers('x-razorpay-signature') signature?: string,
+  ) {
+    return this.payments.handleRazorpayWebhook({
+      rawBody: req.rawBody,
+      signature,
+      payload: req.body as Record<string, unknown>,
+    });
   }
 }

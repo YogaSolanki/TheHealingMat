@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CouponsModule } from '../coupons/coupons.module';
 import { SettingsModule } from '../settings/settings.module';
 import { TrialRegistration } from '../trials/trial-registration.entity';
+import { User } from '../users/user.entity';
 import { Membership } from './membership.entity';
 import { MembershipOfferPrice } from './membership-offer-price.entity';
 import { MembershipOffer } from './membership-offer.entity';
@@ -25,6 +26,7 @@ import { PaymentsService } from './payments.service';
       MembershipOffer,
       MembershipOfferPrice,
       TrialRegistration,
+      User,
     ]),
   ],
   controllers: [PaymentsController, MembershipOffersAdminController],
