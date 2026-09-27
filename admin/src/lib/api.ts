@@ -268,7 +268,7 @@ export type CreateAdminMembershipInput = {
   status?: "active" | "scheduled";
   startsAt?: string;
   paymentOrderId?: string;
-  razorpayInvoiceId?: string;
+  paymentRef?: string;
   amountPaidPaise?: number;
   currency?: string;
 };

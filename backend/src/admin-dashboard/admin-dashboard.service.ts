@@ -12,6 +12,7 @@ import { Coupon } from '../coupons/coupon.entity';
 import { Membership } from '../payments/membership.entity';
 import { MembershipPlansService } from '../payments/membership-plans.service';
 import { PaymentOrder } from '../payments/payment-order.entity';
+import { PaymentsService } from '../payments/payments.service';
 import { RewardRedemptionRequest } from '../referrals/reward-redemption-request.entity';
 import { OrientationSlot } from '../trials/orientation-slot.entity';
 import { TrialCohort } from '../trials/trial-cohort.entity';
@@ -30,6 +31,7 @@ export class AdminDashboardService {
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
     private readonly membershipPlans: MembershipPlansService,
+    private readonly payments: PaymentsService,
     @InjectRepository(User)
     private readonly users: Repository<User>,
     @InjectRepository(TrialRegistration)
@@ -446,10 +448,22 @@ export class AdminDashboardService {
       await this.paymentOrders.save(payment);
     }
 
-    const razorpayInvoiceId =
-      dto.razorpayInvoiceId?.trim() ||
-      payment?.razorpayInvoiceId ||
-      null;
+    const paymentRef =
+      dto.paymentRef?.trim() || payment?.razorpayPaymentId || null;
+
+    let razorpayInvoiceId = payment?.razorpayInvoiceId ?? null;
+    let razorpayInvoiceUrl = payment?.razorpayInvoiceUrl ?? null;
+    let razorpayPaymentId = paymentRef;
+
+    if (paymentRef?.startsWith('pay_')) {
+      const resolved =
+        await this.payments.resolveRazorpayPaymentInvoice(paymentRef);
+      if (resolved) {
+        razorpayPaymentId = resolved.paymentId;
+        if (resolved.invoiceId) razorpayInvoiceId = resolved.invoiceId;
+        if (resolved.invoiceUrl) razorpayInvoiceUrl = resolved.invoiceUrl;
+      }
+    }
 
     const membership = await this.memberships.save(
       this.memberships.create({
@@ -464,9 +478,9 @@ export class AdminDashboardService {
         startsAt,
         endsAt,
         paymentOrderId: payment?.id ?? `admin-manual-${randomUUID()}`,
-        razorpayPaymentId: payment?.razorpayPaymentId ?? null,
+        razorpayPaymentId,
         razorpayInvoiceId,
-        razorpayInvoiceUrl: payment?.razorpayInvoiceUrl ?? null,
+        razorpayInvoiceUrl,
       }),
     );
 

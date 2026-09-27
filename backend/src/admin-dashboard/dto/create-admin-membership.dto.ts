@@ -33,12 +33,15 @@ export class CreateAdminMembershipDto {
   @IsUUID()
   paymentOrderId?: string;
 
-  /** Razorpay invoice id pasted by admin (e.g. inv_…). */
+  /**
+   * Optional payment reference shown on the auto PDF invoice.
+   * If this is a Razorpay payment id (pay_…), we also try to attach any linked Razorpay invoice.
+   */
   @IsOptional()
   @IsString()
-  @MinLength(3)
-  @MaxLength(80)
-  razorpayInvoiceId?: string;
+  @MinLength(2)
+  @MaxLength(120)
+  paymentRef?: string;
 
   @IsOptional()
   @IsInt()

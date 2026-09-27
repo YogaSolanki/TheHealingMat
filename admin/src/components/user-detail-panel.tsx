@@ -53,7 +53,7 @@ type NewMembershipForm = {
   status: "active" | "scheduled";
   startsAt: string;
   paymentOrderId: string;
-  razorpayInvoiceId: string;
+  paymentRef: string;
 };
 
 type PendingSave =
@@ -78,7 +78,7 @@ function emptyNewMembershipForm(
     status: "active",
     startsAt,
     paymentOrderId: "",
-    razorpayInvoiceId: "",
+    paymentRef: "",
   };
 }
 function formatMoney(paise: number, currency: string) {
@@ -392,8 +392,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                 ).toISOString()
               : undefined,
           paymentOrderId: newMembershipForm.paymentOrderId || undefined,
-          razorpayInvoiceId:
-            newMembershipForm.razorpayInvoiceId.trim() || undefined,
+          paymentRef: newMembershipForm.paymentRef.trim() || undefined,
         });
         applyDetail(next);
         invalidateCached(DASHBOARD_CACHE_KEYS.users);
@@ -1004,22 +1003,23 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                 </div>
               )}
               <label className={`${labelClass} sm:col-span-2`}>
-                Razorpay invoice ID (optional)
+                Payment reference (optional)
                 <input
-                  value={newMembershipForm.razorpayInvoiceId}
+                  value={newMembershipForm.paymentRef}
                   onChange={(e) =>
                     setNewMembershipForm({
                       ...newMembershipForm,
-                      razorpayInvoiceId: e.target.value,
+                      paymentRef: e.target.value,
                     })
                   }
                   className={inputClass}
                   disabled={fieldsLocked}
-                  placeholder="inv_…"
+                  placeholder="pay_… / UTR / bank transfer note"
                 />
                 <span className="mt-1 block text-xs font-normal text-[#8a978c]">
-                  Paste the invoice id from Razorpay if you want it saved on this
-                  membership.
+                  A Healing Mat invoice PDF is created automatically. If you paste
+                  a Razorpay payment id (pay_…), we also attach any linked Razorpay
+                  invoice when available.
                 </span>
               </label>
             </div>
