@@ -1,40 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { memberPrimaryBtnClass } from "@/components/member-dashboard/member-button-styles";
 import { getLiveSessionUrl } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
 import { useMemberAccess } from "@/lib/member-access";
-import {
-  findRunningSession,
-  formatSlotList,
-  sessionUnavailableMessage,
-  type SessionAccessKind,
-} from "@/lib/member-session-schedule";
+import { formatSlotList } from "@/lib/member-session-schedule";
 import { useTodaySessions } from "@/lib/today-sessions-store";
 
 export function MemberJoinPage() {
   const { access, loading: accessLoading } = useMemberAccess();
   const { labels: sessionLabels, ready: todayReady } = useTodaySessions();
   const [liveUrl, setLiveUrl] = useState<string | null>(null);
+  const [liveSlot, setLiveSlot] = useState<string | null>(null);
+  const [nextCopy, setNextCopy] = useState<string | null>(null);
   const [urlLoading, setUrlLoading] = useState(true);
   const [urlError, setUrlError] = useState<string | null>(null);
 
-  const kind: SessionAccessKind =
-    access.state === "trial" || access.state === "scheduled" ? "trial" : "member";
   const accessOk =
     !accessLoading &&
     (access.state === "trial" || access.state === "active");
-  const running = useMemo(
-    () =>
-      accessOk && sessionLabels.length > 0
-        ? findRunningSession(new Date(), kind, sessionLabels)
-        : null,
-    [accessOk, kind, sessionLabels],
-  );
 
   useEffect(() => {
+    if (accessLoading) return;
+    if (!accessOk) {
+      setUrlLoading(false);
+      return;
+    }
+
     const token = getStoredToken();
     if (!token) {
       setUrlLoading(false);
@@ -45,15 +39,31 @@ export function MemberJoinPage() {
     let cancelled = false;
     setUrlLoading(true);
     setUrlError(null);
-    void getLiveSessionUrl(token, { slot: running?.label ?? null })
+    void getLiveSessionUrl(token, { at: new Date().toISOString() })
       .then((result) => {
         if (cancelled) return;
         setLiveUrl(result.url);
+        setLiveSlot(result.slot);
+        if (!result.url && result.next) {
+          setNextCopy(
+            result.next.when === "tomorrow"
+              ? `No session is currently running. The next session starts at ${result.next.label} tomorrow.`
+              : `No session is currently running. The next session starts at ${result.next.label}.`,
+          );
+        } else if (!result.url && result.slot) {
+          setNextCopy(
+            `The ${result.slot} session is live, but its class link has not been published yet.`,
+          );
+        } else {
+          setNextCopy(null);
+        }
       })
       .catch((err: unknown) => {
         if (cancelled) return;
         setUrlError(
-          err instanceof Error ? err.message : "Unable to load the live session link.",
+          err instanceof Error
+            ? err.message
+            : "Unable to load the live session link.",
         );
       })
       .finally(() => {
@@ -63,10 +73,10 @@ export function MemberJoinPage() {
     return () => {
       cancelled = true;
     };
-  }, [running?.label]);
+  }, [accessOk, accessLoading]);
 
   const loading = accessLoading || urlLoading || !todayReady;
-  const canRedirect = accessOk && Boolean(running) && Boolean(liveUrl);
+  const canRedirect = accessOk && Boolean(liveUrl);
 
   useEffect(() => {
     if (!canRedirect || !liveUrl) return;
@@ -136,26 +146,16 @@ export function MemberJoinPage() {
   if (!liveUrl) {
     return (
       <StateCard
-        title="Live session link is not set yet"
-        body="The class join link has not been published. Please try again shortly, or contact support if this continues."
-        actionHref="/dashboard"
-        actionLabel="Back to Home"
-      />
-    );
-  }
-
-  if (!running) {
-    return (
-      <StateCard
         title={
-          sessionLabels.length === 0
-            ? "No sessions scheduled today"
+          liveSlot
+            ? "Live session link is not set yet"
             : "No session is currently running."
         }
         body={
-          sessionLabels.length === 0
+          nextCopy ??
+          (sessionLabels.length === 0
             ? "There are no classes scheduled for today in Class Management. Please check back later."
-            : sessionUnavailableMessage(new Date(), kind, sessionLabels)
+            : "Please check back at the next scheduled session time.")
         }
         actionHref="/dashboard"
         actionLabel="Back to Home"

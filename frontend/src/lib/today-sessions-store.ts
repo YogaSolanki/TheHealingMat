@@ -9,6 +9,7 @@ import {
 } from "@/lib/member-session-schedule";
 
 const STORAGE_KEY = "thm_today_sessions_v2";
+const SESSION_TIMEZONE = "Asia/Kolkata";
 
 export type TodaySessionsSnapshot = {
   labels: string[];
@@ -39,13 +40,13 @@ const EMPTY: TodaySessionsSnapshot = {
 };
 
 /** Match backend Class Management day (Asia/Kolkata). */
-function todayIsoLocal() {
+export function todayIsoLocal(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
+    timeZone: SESSION_TIMEZONE,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date());
+  }).format(now);
 }
 
 function fromLabels(
@@ -68,7 +69,6 @@ function uniqueSortedLabels(labels: string[]) {
   const seen = new Set<string>();
   const unique: string[] = [];
   for (const raw of labels) {
-    // Collapse odd whitespace so "2:00 AM" / "2:00  AM" don't duplicate chips.
     const label = raw.trim().replace(/\s+/g, " ");
     if (!label) continue;
     const key = label.toLowerCase();
@@ -88,7 +88,6 @@ function readCache(): CachePayload | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CachePayload;
     if (!parsed?.date || !Array.isArray(parsed.labels)) return null;
-    // Drop cache when the calendar day rolls over.
     if (parsed.date !== todayIsoLocal()) {
       window.sessionStorage.removeItem(STORAGE_KEY);
       return null;
@@ -108,6 +107,14 @@ function readCache(): CachePayload | null {
 function writeCache(payload: CachePayload) {
   if (typeof window === "undefined") return;
   window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+}
+
+/** Milliseconds until the next Asia/Kolkata midnight (+ tiny buffer). */
+function msUntilNextIstMidnight(now = new Date()) {
+  const today = todayIsoLocal(now);
+  const next = new Date(`${today}T00:00:00+05:30`);
+  next.setTime(next.getTime() + 24 * 60 * 60 * 1000 + 250);
+  return Math.max(1000, next.getTime() - now.getTime());
 }
 
 class TodaySessionsStore {
@@ -156,16 +163,39 @@ class TodaySessionsStore {
     for (const listener of this.listeners) listener();
   }
 
+  /** True when stored schedule is for a different calendar day than now. */
+  isStaleForToday() {
+    const today = todayIsoLocal();
+    return !this.date || this.date !== today;
+  }
+
+  /**
+   * If the calendar day rolled over (or cache is for another day),
+   * force-fetch today's Class Management slots.
+   */
+  ensureCurrentDay() {
+    if (!this.isStaleForToday() && this.ready) {
+      return Promise.resolve(this.labels);
+    }
+    return this.ensure({ force: true });
+  }
+
   /** Load once from cache/memory; network only on miss or force refresh. */
-  async ensure(options?: { force?: boolean }): Promise<string[]> {
+  async ensure(options?: {
+    force?: boolean;
+    /** Fetch without flipping `refreshing` (no skeleton UI). */
+    silent?: boolean;
+  }): Promise<string[]> {
     const force = options?.force === true;
+    const silent = options?.silent === true;
+    const today = todayIsoLocal();
 
     if (!force) {
-      if (this.ready && this.date === todayIsoLocal()) {
+      if (this.ready && this.date === today) {
         return this.labels;
       }
       const cached = readCache();
-      if (cached) {
+      if (cached && cached.date === today) {
         this.labels = uniqueSortedLabels(cached.labels);
         this.date = cached.date;
         this.dayLabel = cached.dayLabel;
@@ -180,7 +210,7 @@ class TodaySessionsStore {
     const token = getStoredToken();
     if (!token) {
       this.labels = [];
-      this.date = todayIsoLocal();
+      this.date = today;
       this.dayLabel = null;
       this.ready = true;
       this.refreshing = false;
@@ -188,8 +218,10 @@ class TodaySessionsStore {
       return this.labels;
     }
 
-    this.refreshing = true;
-    this.emit();
+    if (!silent) {
+      this.refreshing = true;
+      this.emit();
+    }
 
     this.inflight = getTodaySessions(token)
       .then((data) => {
@@ -199,7 +231,7 @@ class TodaySessionsStore {
             .filter((label): label is string => Boolean(label)),
         );
         this.labels = labels;
-        this.date = data.date ?? todayIsoLocal();
+        this.date = data.date ?? today;
         this.dayLabel = data.dayLabel ?? null;
         this.ready = true;
         writeCache({
@@ -211,10 +243,10 @@ class TodaySessionsStore {
         return this.labels;
       })
       .catch(() => {
-        // Keep existing cache/memory on refresh failure.
-        if (!this.ready) {
+        // Keep existing cache/memory on refresh failure — but only if still same day.
+        if (!this.ready || this.isStaleForToday()) {
           this.labels = [];
-          this.date = todayIsoLocal();
+          this.date = today;
           this.dayLabel = null;
           this.ready = true;
         }
@@ -222,7 +254,7 @@ class TodaySessionsStore {
         return this.labels;
       })
       .finally(() => {
-        this.refreshing = false;
+        if (!silent) this.refreshing = false;
         this.inflight = null;
         this.emit();
       });
@@ -233,12 +265,18 @@ class TodaySessionsStore {
   refresh() {
     return this.ensure({ force: true });
   }
+
+  /** Force-fetch today's slots without showing the skeleton loader. */
+  refreshSilent() {
+    return this.ensure({ force: true, silent: true });
+  }
 }
 
 export const todaySessionsStore = new TodaySessionsStore();
 
 export function useTodaySessions(enabled = true): TodaySessionsSnapshot & {
   refresh: () => Promise<string[]>;
+  refreshSilent: () => Promise<string[]>;
 } {
   const snapshot = useSyncExternalStore(
     todaySessionsStore.subscribe,
@@ -248,12 +286,38 @@ export function useTodaySessions(enabled = true): TodaySessionsSnapshot & {
 
   useEffect(() => {
     if (!enabled) return;
-    // Cache-first — does not hit the network when today's slots are already stored.
+
     void todaySessionsStore.ensure();
+
+    function syncDay() {
+      void todaySessionsStore.ensureCurrentDay();
+    }
+
+    function onVisibility() {
+      if (document.visibilityState === "visible") syncDay();
+    }
+
+    window.addEventListener("focus", syncDay);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    let midnightTimer = window.setTimeout(function scheduleNext() {
+      syncDay();
+      midnightTimer = window.setTimeout(scheduleNext, msUntilNextIstMidnight());
+    }, msUntilNextIstMidnight());
+
+    const pollTimer = window.setInterval(syncDay, 60_000);
+
+    return () => {
+      window.removeEventListener("focus", syncDay);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.clearTimeout(midnightTimer);
+      window.clearInterval(pollTimer);
+    };
   }, [enabled]);
 
   return {
     ...snapshot,
     refresh: () => todaySessionsStore.refresh(),
+    refreshSilent: () => todaySessionsStore.refreshSilent(),
   };
 }

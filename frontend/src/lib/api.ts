@@ -624,16 +624,23 @@ export async function getTodaySessions(
 
 export async function getLiveSessionUrl(
   accessToken: string,
-  options?: { slot?: string | null },
-): Promise<{ url: string | null }> {
-  const query = options?.slot
-    ? `?slot=${encodeURIComponent(options.slot)}`
-    : "";
+  options?: { at?: string | null },
+): Promise<{
+  url: string | null;
+  slot: string | null;
+  next: { label: string; when: "today" | "tomorrow" } | null;
+}> {
+  const at = options?.at?.trim() || new Date().toISOString();
+  const query = `?at=${encodeURIComponent(at)}`;
   const response = await fetch(`${API_URL}/sessions/live${query}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
   });
-  return parseJson<{ url: string | null }>(response);
+  return parseJson<{
+    url: string | null;
+    slot: string | null;
+    next: { label: string; when: "today" | "tomorrow" } | null;
+  }>(response);
 }
 
 export async function createRazorpayOrder(

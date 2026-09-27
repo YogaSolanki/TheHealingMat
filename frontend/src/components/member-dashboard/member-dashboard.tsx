@@ -16,7 +16,7 @@ import { OrientationVideoModal } from "@/components/member-dashboard/orientation
 import { PersonalSessionLinkPopup } from "@/components/member-dashboard/personal-session-link-popup";
 import { SessionNoticePopup } from "@/components/member-dashboard/session-notice-popup";
 import { TrialWelcomePopup } from "@/components/member-dashboard/trial-welcome-popup";
-import { startFreeTrial, type PublicUser } from "@/lib/api";
+import { getLiveSessionUrl, startFreeTrial, type PublicUser } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
 import {
   readCheckoutIntent,
@@ -34,7 +34,6 @@ import {
   findRunningSession,
   formatSlotList,
   isSunday,
-  sessionUnavailableMessage,
 } from "@/lib/member-session-schedule";
 import { useTodaySessions } from "@/lib/today-sessions-store";
 import { SITE_MAPS_URL } from "@/lib/site-contact";
@@ -83,11 +82,17 @@ function CalendarMaskIcon() {
 
 function formatDashboardDate(date: Date, compact = false) {
   return date.toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
     weekday: compact ? "short" : "long",
     day: "numeric",
     month: compact ? "short" : "long",
     year: "numeric",
   });
+}
+
+function formatDashboardDateFromIso(iso: string | null, compact = false) {
+  if (!iso) return formatDashboardDate(new Date(), compact);
+  return formatDashboardDate(new Date(`${iso}T12:00:00+05:30`), compact);
 }
 
 export function MemberDashboard({ user }: MemberDashboardProps) {
@@ -97,14 +102,16 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     morning: morningSlots,
     special: specialSlots,
     evening: eveningSlots,
+    date: todaySessionsDate,
     ready: todaySessionsReady,
     refreshing: todaySessionsRefreshing,
     refresh: refreshTodaySessions,
+    refreshSilent: refreshTodaySessionsSilent,
   } = useTodaySessions();
   const nameGreeting = greetingForName(user.fullName);
   const now = new Date();
-  const todayLabel = formatDashboardDate(now);
-  const todayLabelCompact = formatDashboardDate(now, true);
+  const todayLabel = formatDashboardDateFromIso(todaySessionsDate);
+  const todayLabelCompact = formatDashboardDateFromIso(todaySessionsDate, true);
   const sunday = isSunday(now);
   const membershipKnown = !loading;
   const isUnaffiliated = membershipKnown && access.state === "pending";
@@ -127,12 +134,13 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
       ? "No sessions scheduled today"
       : "Sunday sessions";
   const hasTodaySessions = sessionLabels.length > 0;
-  const showTodaySessionsSkeleton =
-    !todaySessionsReady || todaySessionsRefreshing;
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const dismissSessionNotice = useCallback(() => {
     setSessionNotice(null);
   }, []);
+  const [joiningSession, setJoiningSession] = useState(false);
+  const showTodaySessionsSkeleton =
+    !todaySessionsReady || todaySessionsRefreshing;
   const [startingTrial, setStartingTrial] = useState(false);
   const [activeOrientation, setActiveOrientation] =
     useState<OrientationVideoCard | null>(null);
@@ -154,29 +162,65 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     window.open(link, "_blank", "noopener,noreferrer");
   }
 
-  function handleJoin() {
-    if (isExpired || isUnaffiliated) return;
+  async function handleJoin() {
+    if (isExpired || isUnaffiliated || joiningSession) return;
     if (isScheduledTrial) {
       setSessionNotice(
         `Your session link will become active when your trial starts on ${access.trialStartsOnLabel ?? "the cohort date"}.`,
       );
       return;
     }
-    if (sessionLabels.length === 0) {
-      setSessionNotice(
-        "No sessions are scheduled for today. Please check back later or contact support.",
-      );
+
+    const token = getStoredToken();
+    if (!token) {
+      setSessionNotice("Please sign in again to join the session.");
       return;
     }
-    const current = findRunningSession(new Date(), sessionKind, sessionLabels);
-    if (!current) {
-      setSessionNotice(
-        sessionUnavailableMessage(new Date(), sessionKind, sessionLabels),
-      );
-      return;
-    }
+
+    setJoiningSession(true);
     setSessionNotice(null);
-    openPersonalSessionLink();
+    try {
+      // Refresh today's slots quietly (no skeleton) so the card stays current.
+      const [, result] = await Promise.all([
+        refreshTodaySessionsSilent(),
+        getLiveSessionUrl(token, { at: new Date().toISOString() }),
+      ]);
+      const url = result.url?.trim() || null;
+
+      // Open whenever Class Management returned a live meeting URL.
+      if (url) {
+        window.open(url, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      if (result.slot) {
+        setSessionNotice(
+          `The ${result.slot} session is live, but its class link has not been published yet. Please try again shortly or contact support.`,
+        );
+        return;
+      }
+
+      if (result.next) {
+        setSessionNotice(
+          result.next.when === "tomorrow"
+            ? `No session is currently running. The next session starts at ${result.next.label} tomorrow.`
+            : `No session is currently running. The next session starts at ${result.next.label}.`,
+        );
+        return;
+      }
+
+      setSessionNotice(
+        "No session is currently running. Check today’s schedule and join when a class is live.",
+      );
+    } catch (err) {
+      setSessionNotice(
+        err instanceof Error
+          ? err.message
+          : "Unable to open the live session link. Please try again.",
+      );
+    } finally {
+      setJoiningSession(false);
+    }
   }
 
   function handleCompleteMembership() {
@@ -346,7 +390,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   setSessionNotice(null);
                   void refreshTodaySessions();
                 }}
-                disabled={todaySessionsRefreshing}
+                disabled={todaySessionsRefreshing || joiningSession}
                 title="Refresh today's session timings"
                 aria-label="Refresh today's session timings"
                 className="ml-0.5 inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#1f6b3a] transition hover:bg-[#eef6f0] disabled:cursor-wait disabled:opacity-55"
@@ -477,10 +521,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 join={
                   <button
                     type="button"
-                    onClick={handleJoin}
+                    onClick={() => void handleJoin()}
+                    disabled={joiningSession}
                     className={`${memberPrimaryBtnSmClass} w-full justify-center px-5 py-2.5 text-[13px] sm:w-auto sm:min-w-[100px]`}
                   >
-                    Join
+                    {joiningSession ? "Joining…" : "Join"}
                   </button>
                 }
               />
@@ -524,10 +569,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 join={
                   <button
                     type="button"
-                    onClick={handleJoin}
+                    onClick={() => void handleJoin()}
+                    disabled={joiningSession}
                     className={`${memberPrimaryBtnSmClass} w-full justify-center px-5 py-2.5 text-[13px] sm:w-auto sm:min-w-[100px]`}
                   >
-                    Join
+                    {joiningSession ? "Joining…" : "Join"}
                   </button>
                 }
               />
@@ -546,10 +592,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   const joinSessionButton = (
                     <button
                       type="button"
-                      onClick={handleJoin}
+                      onClick={() => void handleJoin()}
+                      disabled={joiningSession}
                       className={`${memberPrimaryBtnClass} w-full justify-center px-5 py-3 text-[14px] sm:w-auto sm:min-w-[148px] sm:px-6 sm:py-3.5 sm:text-[15px]`}
                     >
-                      Join Session
+                      {joiningSession ? "Joining…" : "Join Session"}
                     </button>
                   );
 
@@ -630,10 +677,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                         <div className="mt-3 flex justify-center sm:mt-4">
                           <button
                             type="button"
-                            onClick={handleJoin}
+                            onClick={() => void handleJoin()}
+                            disabled={joiningSession}
                             className={`${memberPrimaryBtnClass} w-full max-w-[420px] justify-center px-8 py-3.5 text-[15px] sm:px-10 sm:py-4 sm:text-[16px]`}
                           >
-                            Join Session
+                            {joiningSession ? "Joining…" : "Join Session"}
                           </button>
                         </div>
                       ) : null}

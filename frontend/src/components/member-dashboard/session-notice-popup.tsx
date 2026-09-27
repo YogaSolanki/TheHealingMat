@@ -15,22 +15,67 @@ const CLOSE_MS = 220;
 
 function splitNotice(message: string) {
   const trimmed = message.trim();
-  const match = trimmed.match(
-    /^(No session is currently running\.?)\s*(.*)$/i,
+
+  const nextMatch = trimmed.match(
+    /^No session is currently running\.?\s*The next session starts at (.+?)(?:\s+(tomorrow))?\.?$/i,
   );
-  if (match) {
+  if (nextMatch) {
+    const when = nextMatch[2] ? " tomorrow" : "";
     return {
-      title: match[1].replace(/\.$/, ""),
-      body: match[2].trim() || null,
+      title: "No session is running right now",
+      body: `The next session starts at ${nextMatch[1]}${when}.`,
     };
   }
-  if (trimmed.toLowerCase().startsWith("no sessions are scheduled")) {
+
+  if (/^No session is currently running/i.test(trimmed)) {
+    const rest = trimmed.replace(/^No session is currently running\.?\s*/i, "").trim();
+    return {
+      title: "No session is running right now",
+      body:
+        rest ||
+        "Check today’s schedule and join when a class is live.",
+    };
+  }
+
+  if (/^no sessions are scheduled/i.test(trimmed)) {
     return {
       title: "No sessions scheduled today",
+      body: "There are no classes on today’s schedule yet. Please check back later.",
+    };
+  }
+
+  if (/class link has not been published/i.test(trimmed)) {
+    return {
+      title: "Class link not ready yet",
       body: trimmed,
     };
   }
-  return { title: "Session update", body: trimmed };
+
+  if (/personal session link is not available/i.test(trimmed)) {
+    return {
+      title: "Session link unavailable",
+      body: trimmed,
+    };
+  }
+
+  if (/please sign in/i.test(trimmed)) {
+    return {
+      title: "Sign in required",
+      body: trimmed,
+    };
+  }
+
+  if (/trial starts/i.test(trimmed) || /session link will become active/i.test(trimmed)) {
+    return {
+      title: "Session not open yet",
+      body: trimmed,
+    };
+  }
+
+  return {
+    title: "Session update",
+    body: trimmed,
+  };
 }
 
 export function SessionNoticePopup({
@@ -108,7 +153,7 @@ export function SessionNoticePopup({
       />
 
       <div
-        className={`auth-modal-panel relative z-10 w-full max-w-[420px] rounded-[24px] border border-[#e6ebe3] bg-white px-5 pt-5 pb-5 shadow-[0_24px_60px_rgba(31,107,58,0.18)] sm:max-w-[440px] sm:px-6 sm:pt-6 sm:pb-6 ${
+        className={`auth-modal-panel relative z-10 w-full max-w-[400px] rounded-[24px] border border-[#e6ebe3] bg-white px-5 pt-5 pb-5 shadow-[0_24px_60px_rgba(31,107,58,0.18)] sm:px-6 sm:pt-6 sm:pb-6 ${
           exiting ? "is-exiting" : ""
         }`}
       >
@@ -129,14 +174,6 @@ export function SessionNoticePopup({
               </p>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            aria-label="Close"
-            className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-[#d7e0d6] text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#eef6f0]"
-          >
-            <CloseIcon className="h-4 w-4" />
-          </button>
         </div>
 
         <div className="mt-5 flex justify-end">
@@ -164,19 +201,6 @@ function ClockNoticeIcon({ className }: { className?: string }) {
         strokeWidth="1.7"
         strokeLinecap="round"
         strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function CloseIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
-      <path
-        d="M7 7l10 10M17 7 7 17"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
       />
     </svg>
   );
