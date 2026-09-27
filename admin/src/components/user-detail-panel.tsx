@@ -119,6 +119,44 @@ function formatDateOnly(value: Date | string) {
     year: "numeric",
   }).format(date);
 }
+
+function membershipStatusOrder(status: AdminUserMembership["status"]) {
+  if (status === "active") return 0;
+  if (status === "scheduled") return 1;
+  return 2;
+}
+
+function membershipRoleLabel(
+  membership: AdminUserMembership,
+  activeId: string | null,
+  scheduledId: string | null,
+) {
+  if (membership.id === activeId) return "Current membership";
+  if (membership.id === scheduledId) return "Scheduled renew";
+  if (membership.status === "expired") return "Past membership";
+  if (membership.status === "scheduled") return "Scheduled renew";
+  if (membership.status === "active") return "Current membership";
+  return "Membership";
+}
+
+function membershipStatusBadge(status: AdminUserMembership["status"]) {
+  if (status === "active") {
+    return {
+      label: "Active now",
+      className: "bg-[#e8f2ea] text-[#1f6b3a]",
+    };
+  }
+  if (status === "scheduled") {
+    return {
+      label: "Renew scheduled",
+      className: "bg-[#fff4e8] text-[#8a5a2f]",
+    };
+  }
+  return {
+    label: "Expired",
+    className: "bg-[#f0f2ef] text-[#6b7468]",
+  };
+}
 function formatMoney(paise: number, currency: string) {
   const amount = paise / 100;
   try {
@@ -1215,7 +1253,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                 ? canAdd
                   ? "Add a membership to grant access"
                   : "Upgrade the current plan, or renew once after it ends"
-                : "Membership history"}
+                : "Current plan, scheduled renew, and past memberships"}
             </p>
           </div>
           {editing ? (
@@ -1391,6 +1429,52 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           </div>
         ) : null}
 
+        {(activeMembership || scheduledMembership) ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-[#1f6b3a]/25 bg-[#f3faf5] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#1f6b3a]">
+                Current membership
+              </p>
+              {activeMembership ? (
+                <>
+                  <p className="mt-1.5 text-sm font-semibold text-[#243028]">
+                    {activeMembership.planName}
+                  </p>
+                  <p className="mt-1 text-xs text-[#5f6f64]">
+                    {activeMembership.planMonths} months · Active now · Ends{" "}
+                    {formatDateOnly(activeMembership.endsAt)}
+                  </p>
+                </>
+              ) : (
+                <p className="mt-1.5 text-sm text-[#8a978c]">No active plan</p>
+              )}
+            </div>
+            <div className="rounded-2xl border border-[#e8d4a8] bg-[#fffdf5] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#8a5a2f]">
+                Next renew
+              </p>
+              {scheduledMembership ? (
+                <>
+                  <p className="mt-1.5 text-sm font-semibold text-[#243028]">
+                    {scheduledMembership.planName}
+                  </p>
+                  <p className="mt-1 text-xs text-[#5f6f64]">
+                    {scheduledMembership.planMonths} months · Starts{" "}
+                    {formatDateOnly(scheduledMembership.startsAt)} · Ends{" "}
+                    {formatDateOnly(scheduledMembership.endsAt)}
+                  </p>
+                </>
+              ) : (
+                <p className="mt-1.5 text-sm text-[#8a978c]">
+                  {activeMembership
+                    ? "No renew scheduled yet"
+                    : "No upcoming renew"}
+                </p>
+              )}
+            </div>
+          </div>
+        ) : null}
+
         {detail.memberships.length === 0 ? (
           <p className={`${cardClass} text-sm text-[#8a978c]`}>
             No memberships yet.
@@ -1399,7 +1483,14 @@ export function UserDetailPanel({ userId }: { userId: string }) {
               : " Click the edit icon to add a membership."}
           </p>
         ) : (
-          detail.memberships.map((membership) => {
+          [...detail.memberships]
+            .sort(
+              (a, b) =>
+                membershipStatusOrder(a.status) -
+                  membershipStatusOrder(b.status) ||
+                new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime(),
+            )
+            .map((membership) => {
             const form = membershipForms[membership.id];
             if (!form) return null;
             const savingThis = savingMembershipId === membership.id;
@@ -1415,18 +1506,33 @@ export function UserDetailPanel({ userId }: { userId: string }) {
               ((membershipComposer === "renew" ||
                 membershipComposer === "upgrade") &&
                 !isActionTarget);
+            const roleLabel = membershipRoleLabel(
+              membership,
+              activeMembership?.id ?? null,
+              scheduledMembership?.id ?? null,
+            );
+            const statusBadge = membershipStatusBadge(membership.status);
+            const isCurrent = activeMembership?.id === membership.id;
+            const isRenewCard = scheduledMembership?.id === membership.id;
             return (
               <div
                 key={membership.id}
                 className={`${cardClass}${
                   isActionTarget
                     ? " ring-2 ring-[#1f6b3a]/35 border-[#1f6b3a]/40"
-                    : ""
+                    : isCurrent
+                      ? " border-[#1f6b3a]/30"
+                      : isRenewCard
+                        ? " border-[#e8d4a8]"
+                        : ""
                 }`}
               >
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <p className="text-sm font-semibold text-[#243028]">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-[#8a978c]">
+                      {roleLabel}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-[#243028]">
                       {membership.planName}
                     </p>
                     {isUpgradeTarget ? (
@@ -1439,9 +1545,16 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                         Edit this plan, then schedule renew after it ends
                       </p>
                     ) : null}
+                    {!editing && isRenewCard ? (
+                      <p className="mt-0.5 text-xs text-[#8a5a2f]">
+                        Begins automatically when the current plan ends
+                      </p>
+                    ) : null}
                   </div>
-                  <span className="rounded-md bg-[#e8f2ea] px-2 py-0.5 text-[11px] font-medium capitalize text-[#1f6b3a]">
-                    {membership.status}
+                  <span
+                    className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${statusBadge.className}`}
+                  >
+                    {statusBadge.label}
                   </span>
                 </div>
 
@@ -1535,6 +1648,50 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                       >
                         Cancel
                       </button>
+                    </div>
+                  </>
+                ) : !editing ? (
+                  <>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <InfoTile
+                        label="Duration"
+                        value={`${membership.planMonths} months`}
+                      />
+                      <InfoTile
+                        label={isRenewCard ? "Starts" : "Started"}
+                        value={formatDateOnly(membership.startsAt)}
+                      />
+                      <InfoTile
+                        label="Ends"
+                        value={formatDateOnly(membership.endsAt)}
+                      />
+                    </div>
+                    <div className="mt-3 grid gap-2 rounded-xl bg-[#f7faf6] px-3.5 py-3 text-xs text-[#5f6f64] sm:grid-cols-2">
+                      <p>
+                        Paid{" "}
+                        <span className="font-semibold text-[#243028]">
+                          {formatMoney(
+                            membership.amountPaidPaise,
+                            membership.currency,
+                          )}
+                        </span>
+                        {membership.discountPaise > 0
+                          ? ` (discount ${formatMoney(membership.discountPaise, membership.currency)})`
+                          : ""}
+                      </p>
+                      <p>
+                        Payment ref: {membership.razorpayPaymentId ?? "—"}
+                      </p>
+                      {membership.razorpayInvoiceUrl ? (
+                        <a
+                          href={membership.razorpayInvoiceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-semibold text-[#1f6b3a] hover:underline sm:col-span-2"
+                        >
+                          View invoice
+                        </a>
+                      ) : null}
                     </div>
                   </>
                 ) : (
