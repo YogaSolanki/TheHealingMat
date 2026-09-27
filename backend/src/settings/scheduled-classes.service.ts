@@ -38,6 +38,22 @@ function todayIsoDate() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
+/** Max calendar days ahead admins may schedule (today + 6 = 7 days). */
+const MAX_SCHEDULE_AHEAD_DAYS = 6;
+
+function assertWithinScheduleWindow(classDate: string) {
+  const today = todayIsoDate();
+  const max = shiftIsoDate(today, MAX_SCHEDULE_AHEAD_DAYS);
+  if (classDate < today) {
+    throw new BadRequestException('Cannot schedule a class on a past date.');
+  }
+  if (classDate > max) {
+    throw new BadRequestException(
+      'Classes can only be scheduled within the next 7 days.',
+    );
+  }
+}
+
 /** Shift a YYYY-MM-DD calendar date by `days` (can be negative). */
 function shiftIsoDate(isoDate: string, days: number) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
@@ -52,8 +68,8 @@ function shiftIsoDate(isoDate: string, days: number) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-/** Keep classes for 2 days after they occur, then remove from DB. */
-const CLASS_RETENTION_DAYS = 2;
+/** Past calendar days are removed as soon as a new day starts (classDate < today). */
+const CLASS_RETENTION_DAYS = 0;
 
 @Injectable()
 export class ScheduledClassesService implements OnModuleInit {
@@ -65,6 +81,11 @@ export class ScheduledClassesService implements OnModuleInit {
 
   async onModuleInit() {
     await this.purgeExpiredClasses();
+    // Hourly sweep so yesterday's classes (and links) leave the DB even if
+    // no admin request hits this service after midnight.
+    setInterval(() => {
+      void this.purgeExpiredClasses();
+    }, 60 * 60 * 1000);
   }
 
   async list(options?: { from?: string }) {
@@ -90,11 +111,7 @@ export class ScheduledClassesService implements OnModuleInit {
     const dayLabel = dayLabelFromDate(classDate);
     const meetingUrl = dto.meetingUrl.trim();
 
-    if (classDate < todayIsoDate()) {
-      throw new BadRequestException(
-        'Cannot schedule a class on a past date.',
-      );
-    }
+    assertWithinScheduleWindow(classDate);
 
     const clash = await this.classes.findOne({
       where: { classDate, sessionTimingId: timing.id },
@@ -141,11 +158,7 @@ export class ScheduledClassesService implements OnModuleInit {
       row.meetingUrl = dto.meetingUrl.trim();
     }
 
-    if (row.classDate < todayIsoDate()) {
-      throw new BadRequestException(
-        'Cannot move a class onto a past date.',
-      );
-    }
+    assertWithinScheduleWindow(row.classDate);
 
     const clash = await this.classes.findOne({
       where: {
@@ -197,7 +210,7 @@ export class ScheduledClassesService implements OnModuleInit {
     return withUrl?.meetingUrl?.trim() || null;
   }
 
-  /** Delete classes older than retention window (class date + 2 days). */
+  /** Delete classes whose calendar day has ended (classDate before today). */
   async purgeExpiredClasses() {
     const cutoff = shiftIsoDate(todayIsoDate(), -CLASS_RETENTION_DAYS);
     await this.classes

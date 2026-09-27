@@ -290,6 +290,7 @@ export type UpdateAdminUserInput = {
   state?: string | null;
   preferredClassTime?: string | null;
   hasUsedFreeTrial?: boolean;
+  password?: string;
 };
 
 export type UpdateAdminMembershipInput = {
@@ -302,6 +303,7 @@ export type UpdateAdminMembershipInput = {
 
 export type CreateAdminMembershipInput = {
   planMonths: number;
+  mode?: "add" | "renew";
   status?: "active" | "scheduled";
   startsAt?: string;
   paymentOrderId?: string;

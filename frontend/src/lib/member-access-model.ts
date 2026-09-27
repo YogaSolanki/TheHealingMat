@@ -25,6 +25,8 @@ export type MemberAccess = {
   hasScheduledMembership: boolean;
   scheduledPlanName: string | null;
   scheduledStartsOnLabel: string | null;
+  /** False for admin-manual grants — hide download invoice. */
+  invoiceDownloadable: boolean;
 };
 
 export function membershipStatusLabel(state: MemberAccessState) {
@@ -116,6 +118,7 @@ export function emptyMemberAccess(
     hasScheduledMembership: false,
     scheduledPlanName: null,
     scheduledStartsOnLabel: null,
+    invoiceDownloadable: false,
   };
 }
 
@@ -176,5 +179,6 @@ export function mapMembershipAccess(data: MembershipAccessResponse): MemberAcces
   );
   access.paymentDateLabel = formatLongDate(membership.paidAt);
   access.transactionRef = membership.razorpayPaymentId;
+  access.invoiceDownloadable = membership.invoiceDownloadable !== false;
   return access;
 }

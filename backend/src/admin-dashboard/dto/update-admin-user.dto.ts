@@ -10,6 +10,12 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MESSAGE,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_PATTERN,
+} from '../../auth/dto/password.rules';
 import { Gender } from '../../users/enums/gender.enum';
 import { Region } from '../../users/enums/region.enum';
 
@@ -63,4 +69,13 @@ export class UpdateAdminUserDto {
   @IsOptional()
   @IsBoolean()
   hasUsedFreeTrial?: boolean;
+
+  /** When provided, replaces the member’s login password. */
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null && value !== undefined && value !== '')
+  @IsString()
+  @MinLength(PASSWORD_MIN_LENGTH, { message: PASSWORD_MESSAGE })
+  @MaxLength(PASSWORD_MAX_LENGTH, { message: PASSWORD_MESSAGE })
+  @Matches(PASSWORD_PATTERN, { message: PASSWORD_MESSAGE })
+  password?: string;
 }

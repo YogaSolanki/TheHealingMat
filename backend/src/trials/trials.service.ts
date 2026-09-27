@@ -10,6 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../users/user.entity';
 import { TrialStatus } from '../users/enums/trial-status.enum';
+import { buildMemberAccessLink } from '../common/frontend-url';
 import {
   FREE_TRIAL_DAYS,
   cohortLabelForStart,
@@ -344,10 +345,9 @@ export class TrialsService {
   }
 
   private buildAccessLink(token: string): string {
-    const base = this.config.get<string>(
-      'FRONTEND_URL',
-      'http://localhost:3000',
+    return buildMemberAccessLink(
+      this.config.get<string>('FRONTEND_URL'),
+      token,
     );
-    return `${base.replace(/\/$/, '')}/u/${token}`;
   }
 }

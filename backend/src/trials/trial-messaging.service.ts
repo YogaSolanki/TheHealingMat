@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { LessThanOrEqual, IsNull, Repository } from 'typeorm';
 import { sendResendEmail } from '../mail/resend';
 import { sendMsg91WhatsAppTemplate } from '../sms/msg91-whatsapp';
+import { resolveFrontendBaseUrl } from '../common/frontend-url';
 import { User } from '../users/user.entity';
 import { TrialStatus } from '../users/enums/trial-status.enum';
 import {
@@ -144,8 +145,10 @@ export class TrialMessagingService implements OnModuleInit, OnModuleDestroy {
   }
 
   private memberAreaUrl(): string {
-    const base = this.config.get<string>('FRONTEND_URL', 'http://localhost:3000');
-    return `${base.replace(/\/$/, '')}/dashboard`;
+    const base = resolveFrontendBaseUrl(
+      this.config.get<string>('FRONTEND_URL'),
+    );
+    return `${base}/dashboard`;
   }
 
   private async deliver(
