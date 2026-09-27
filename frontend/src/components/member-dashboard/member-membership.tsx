@@ -31,11 +31,15 @@ export function MemberMembershipPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.location.hash !== "#current-membership") return;
+    const hash = window.location.hash;
+    if (hash !== "#current-membership" && hash !== "#membership-plans") return;
+
+    const targetId =
+      hash === "#membership-plans" ? "membership-plans" : "current-membership";
 
     const scroll = () => {
       document
-        .getElementById("current-membership")
+        .getElementById(targetId)
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
     };
 
@@ -63,6 +67,8 @@ export function MemberMembershipPage() {
             ? `Your membership has ended. Renew to continue daily yoga sessions.`
             : `Your membership is active. Valid until ${access.validUntilLabel ?? "—"}.`;
 
+  // Trial / pending: normal purchase journey (pick plan + start date in checkout).
+  // Active paid: renew after current term.
   const renewStartMode: CheckoutStartMode =
     access.state === "active" ? "after_current" : "now";
   const planTitle = loading
@@ -73,15 +79,18 @@ export function MemberMembershipPage() {
         ? "No plan yet"
         : access.planName;
   const primaryCtaLabel = isTrialLike
-    ? "Start Membership"
+    ? "Join Membership"
     : isPending
       ? "Complete Membership"
       : "Renew Membership";
 
   function scrollToPlans() {
-    document
-      .getElementById("membership-plans")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const el = document.getElementById("membership-plans");
+    if (!el) return;
+    if (window.location.hash !== "#membership-plans") {
+      window.history.replaceState(null, "", "#membership-plans");
+    }
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function onDownloadInvoice() {
@@ -127,15 +136,29 @@ export function MemberMembershipPage() {
         {/* Current membership */}
         <section
           id="current-membership"
-          className="mb-5 scroll-mt-28 overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white px-4 py-5 sm:mb-6 sm:scroll-mt-32 sm:px-6 sm:py-6 lg:overflow-visible lg:px-8 lg:py-7"
+          className={`mb-5 scroll-mt-28 rounded-[22px] border border-[#e6ebe3] bg-white px-4 py-5 sm:mb-6 sm:scroll-mt-32 sm:px-6 sm:py-6 lg:px-8 lg:py-7 ${
+            isTrialLike ? "overflow-hidden" : "overflow-hidden lg:overflow-visible"
+          }`}
         >
           <p className="text-[14px] font-semibold text-[#1f6b3a] sm:text-[15px]">
             Current Membership
           </p>
 
-          <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-0">
-            <div className="flex min-w-0 flex-[1.15] items-start gap-3 sm:gap-4 lg:pr-7">
-              <span className="mt-0 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-14 sm:w-14 lg:mt-[22px]">
+          <div
+            className={`flex flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-0 ${
+              isTrialLike ? "mt-3 sm:mt-3.5" : "mt-5"
+            }`}
+          >
+            <div
+              className={`flex min-w-0 flex-[1.15] items-start gap-3 sm:gap-4 lg:pr-7${
+                isTrialLike ? " lg:items-center" : ""
+              }`}
+            >
+              <span
+                className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-14 sm:w-14${
+                  isTrialLike ? "" : " lg:mt-[22px]"
+                }`}
+              >
                 <Image
                   src={yogaMenIcon}
                   alt=""
@@ -145,7 +168,9 @@ export function MemberMembershipPage() {
                 />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="hidden h-[22px] lg:block" aria-hidden="true" />
+                {!isTrialLike ? (
+                  <div className="hidden h-[22px] lg:block" aria-hidden="true" />
+                ) : null}
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <h2 className="text-[16px] font-bold text-[#243028] sm:text-[17px]">
                     {planTitle}
@@ -164,13 +189,18 @@ export function MemberMembershipPage() {
 
             <MembershipColumnDivider />
 
-            <div className="min-w-0 flex-1 lg:px-7">
+            <div
+              className={`min-w-0 flex-1 lg:px-7${
+                isTrialLike ? " lg:flex lg:flex-col lg:justify-center" : ""
+              }`}
+            >
               <MembershipStat
                 icon={<GreenCalendarIcon />}
                 label="Start Date"
                 value={access.startDateLabel ?? "—"}
-                alignValueWithLabel
+                alignValueWithLabel={!isTrialLike}
               />
+              {!isTrialLike ? (
               <div className="mt-7 sm:mt-8">
                 <MembershipStat
                   icon={
@@ -191,7 +221,7 @@ export function MemberMembershipPage() {
                     {access.transactionRef ? ` · Ref ${access.transactionRef}` : ""}
                   </p>
                 ) : null}
-                {isTrialLike || isPending || loading ? null : (
+                {isPending || loading ? null : (
                   <div className="mt-2">
                     <button
                       type="button"
@@ -212,11 +242,16 @@ export function MemberMembershipPage() {
                   </div>
                 )}
               </div>
+              ) : null}
             </div>
 
             <MembershipColumnDivider />
 
-            <div className="min-w-0 flex-1 lg:px-7">
+            <div
+              className={`min-w-0 flex-1 lg:px-7${
+                isTrialLike ? " lg:flex lg:flex-col lg:justify-center" : ""
+              }`}
+            >
               <MembershipStat
                 icon={<GreenCalendarIcon />}
                 label="Valid Until"
@@ -227,8 +262,9 @@ export function MemberMembershipPage() {
                       ? access.trialEndsOnLabel ?? "—"
                       : access.validUntilLabel ?? "—"
                 }
-                alignValueWithLabel
+                alignValueWithLabel={!isTrialLike}
               />
+              {!isTrialLike ? (
               <div className="mt-7 sm:mt-8">
                 <MembershipStat
                   icon={
@@ -244,27 +280,42 @@ export function MemberMembershipPage() {
                   value={access.discount}
                 />
               </div>
+              ) : null}
             </div>
 
             <MembershipColumnDivider />
 
-            <div className="flex justify-center pt-1 lg:flex-none lg:flex-col lg:justify-end lg:pt-0 lg:pl-7">
+            <div
+              className={`flex justify-center pt-1 lg:flex-none lg:flex-col lg:pt-0 lg:pl-7 ${
+                isTrialLike ||
+                (access.hasScheduledMembership && access.state !== "expired")
+                  ? "lg:justify-center"
+                  : "lg:justify-end"
+              }`}
+            >
               <div className="relative flex w-full flex-col items-center sm:w-auto">
                 <Image
                   src={yogaGirlIcon}
                   alt=""
                   width={160}
                   height={160}
-                  className="pointer-events-none mb-3 h-28 w-28 object-contain sm:h-36 sm:w-36 lg:absolute lg:bottom-full lg:left-1/2 lg:mb-2 lg:h-40 lg:w-40 lg:-translate-x-1/2"
+                  className={
+                    isTrialLike ||
+                    (access.hasScheduledMembership && access.state !== "expired")
+                      ? "pointer-events-none mb-2 h-20 w-20 object-contain sm:h-24 sm:w-24"
+                      : "pointer-events-none mb-3 h-28 w-28 object-contain sm:h-36 sm:w-36 lg:absolute lg:bottom-full lg:left-1/2 lg:mb-2 lg:h-40 lg:w-40 lg:-translate-x-1/2"
+                  }
                 />
-                <button
-                  type="button"
-                  onClick={scrollToPlans}
-                  className={`${memberPrimaryBtnClass} w-full px-5 py-3 text-[14px] sm:w-auto sm:min-w-[190px] sm:text-[15px]`}
-                >
-                  {primaryCtaLabel}
-                  <ChevronRightIcon className="h-4 w-4" />
-                </button>
+                {access.hasScheduledMembership && access.state !== "expired" ? null : (
+                  <button
+                    type="button"
+                    onClick={scrollToPlans}
+                    className={`${memberPrimaryBtnClass} w-full px-5 py-3 text-[14px] sm:w-auto sm:min-w-[190px] sm:text-[15px]`}
+                  >
+                    {primaryCtaLabel}
+                    <ChevronRightIcon className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -333,7 +384,8 @@ export function MemberMembershipPage() {
         </section>
         ) : null}
 
-        {/* Renewal info */}
+        {/* Renewal info — paid / pending / expired only (not trial, not when next is already scheduled) */}
+        {!isTrialLike && !access.hasScheduledMembership ? (
         <section className="mb-2 rounded-[18px] border border-[#ebe6dc] bg-[#F7F3EA] px-4 py-4 sm:mb-4 sm:px-6 sm:py-4">
           <div className="flex min-w-0 items-start gap-3 sm:items-center">
             <InfoIcon className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#C4A574] sm:mt-0" />
@@ -355,16 +407,20 @@ export function MemberMembershipPage() {
             </div>
           </div>
         </section>
+        ) : null}
       </div>
 
-      <MembershipSection
-        variant={
-          access.state === "active" || access.state === "expired"
-            ? "renew"
-            : "public"
-        }
-        startMode={renewStartMode}
-      />
+      {!access.hasScheduledMembership || access.state === "expired" ? (
+        <MembershipSection
+          variant={
+            access.state === "active" || access.state === "expired"
+              ? "renew"
+              : "public"
+          }
+          startMode={renewStartMode}
+          showMarketing={false}
+        />
+      ) : null}
     </div>
   );
 }

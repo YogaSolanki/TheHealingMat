@@ -7,6 +7,7 @@ import { memberPrimaryBtnClass } from "@/components/member-dashboard/member-butt
 import { MemberSelect } from "@/components/member-dashboard/member-select";
 import { InlineDobEditor } from "@/components/member-dashboard/inline-dob-editor";
 import { useMemberDashboard } from "@/components/member-dashboard/member-dashboard-provider";
+import { PersonalSessionLinkPopup } from "@/components/member-dashboard/personal-session-link-popup";
 import { SiteLoader } from "@/components/site-loader";
 import {
   getMyCoupons,
@@ -77,6 +78,7 @@ export function MemberAccountPage() {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
   const [couponsOpen, setCouponsOpen] = useState(false);
+  const [sessionLinkOpen, setSessionLinkOpen] = useState(false);
   const [assignedCoupons, setAssignedCoupons] = useState<MemberCoupon[]>([]);
   const [couponsLoading, setCouponsLoading] = useState(false);
   const [couponsLoaded, setCouponsLoaded] = useState(false);
@@ -454,6 +456,29 @@ export function MemberAccountPage() {
             ) : null}
           </section>
 
+          {user.accessLink?.trim() ? (
+            <section className="overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white shadow-[0_10px_32px_rgba(31,107,58,0.05)]">
+              <button
+                type="button"
+                onClick={() => setSessionLinkOpen(true)}
+                className="flex w-full cursor-pointer items-center gap-4 px-4 py-5 text-left transition hover:bg-[#fafbf9] sm:px-6 sm:py-5"
+              >
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-12 sm:w-12">
+                  <LinkChainIcon className="h-5 w-5 text-[#1f6b3a]" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] font-bold text-[#243028] sm:text-[16px]">
+                    Your Personal Session Link
+                  </span>
+                  <span className="mt-1 block text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
+                    Use this link to join your scheduled yoga sessions.
+                  </span>
+                </span>
+                <ChevronRightIcon className="h-5 w-5 shrink-0 text-[#8a9a8d]" />
+              </button>
+            </section>
+          ) : null}
+
           <section className="overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white shadow-[0_10px_32px_rgba(31,107,58,0.05)]">
             <div className="border-b border-[#eef2ee] px-4 py-5 sm:px-6 sm:py-6">
               <CardHeading
@@ -526,6 +551,12 @@ export function MemberAccountPage() {
         onClose={() => setChangePasswordOpen(false)}
         onUpdated={updateUser}
         onSuccess={(message) => setPasswordToast(message)}
+      />
+
+      <PersonalSessionLinkPopup
+        open={sessionLinkOpen}
+        link={user.accessLink}
+        onClose={() => setSessionLinkOpen(false)}
       />
 
       {passwordToast
@@ -738,6 +769,26 @@ function TagIcon({ className }: { className?: string }) {
         strokeLinejoin="round"
       />
       <circle cx="16.2" cy="7.8" r="1.2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function LinkChainIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path
+        d="M9.5 14.5 14.5 9.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M11 7.5 12.2 6.3a3.5 3.5 0 0 1 5 5L16 12.5M13 16.5 11.8 17.7a3.5 3.5 0 0 1-5-5L8 11.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

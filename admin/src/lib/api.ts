@@ -157,6 +157,138 @@ export function deleteAdminUser(token: string, id: string) {
   ).then(() => undefined);
 }
 
+export function deleteAllAdminUsers(token: string) {
+  return authJson<{ success: boolean; deletedCount: number }>(
+    "DELETE",
+    "/admin/users",
+    token,
+  );
+}
+
+export type AdminUserDetail = {
+  profile: {
+    id: string;
+    fullName: string;
+    region: string;
+    mobile: string | null;
+    email: string | null;
+    dateOfBirth: string | null;
+    gender: string | null;
+    state: string | null;
+    preferredClassTime: string | null;
+    referralCode: string;
+    accessLink: string;
+    accessLinkToken: string;
+    hasUsedFreeTrial: boolean;
+    passwordSetByUser: boolean;
+    referredByUserId: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+  referredBy: {
+    id: string;
+    fullName: string;
+    referralCode: string;
+  } | null;
+  referralCount: number;
+  trial: {
+    id: string;
+    status: string;
+    trialStartsAt: string;
+    trialEndsAt: string;
+    registeredAt: string;
+    cohortLabel: string | null;
+    orientationLabel: string | null;
+  } | null;
+  memberships: AdminUserMembership[];
+  payments: AdminUserPayment[];
+};
+
+export type AdminUserMembership = {
+  id: string;
+  planMonths: number;
+  planName: string;
+  listPricePaise: number;
+  discountPaise: number;
+  amountPaidPaise: number;
+  currency: string;
+  status: "active" | "scheduled" | "expired";
+  startsAt: string;
+  endsAt: string;
+  paymentOrderId: string;
+  razorpayPaymentId: string | null;
+  razorpayInvoiceId: string | null;
+  razorpayInvoiceUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminUserPayment = {
+  id: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string | null;
+  razorpayInvoiceId: string | null;
+  razorpayInvoiceUrl: string | null;
+  amountPaise: number;
+  currency: string;
+  receipt: string;
+  planMonths: number | null;
+  couponCode: string | null;
+  startMode: string;
+  startsOn: string | null;
+  listPricePaise: number;
+  discountPaise: number;
+  status: "created" | "paid" | "failed";
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type UpdateAdminUserInput = {
+  fullName?: string;
+  region?: string;
+  email?: string | null;
+  mobile?: string | null;
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  state?: string | null;
+  preferredClassTime?: string | null;
+  hasUsedFreeTrial?: boolean;
+};
+
+export type UpdateAdminMembershipInput = {
+  status?: "active" | "scheduled" | "expired";
+  startsAt?: string;
+  endsAt?: string;
+  planMonths?: number;
+  planName?: string;
+};
+
+export function getAdminUserDetail(token: string, id: string) {
+  return authGet<AdminUserDetail>(`/admin/users/${id}`, token);
+}
+
+export function updateAdminUser(
+  token: string,
+  id: string,
+  body: UpdateAdminUserInput,
+) {
+  return authJson<AdminUserDetail>("PATCH", `/admin/users/${id}`, token, body);
+}
+
+export function updateAdminUserMembership(
+  token: string,
+  userId: string,
+  membershipId: string,
+  body: UpdateAdminMembershipInput,
+) {
+  return authJson<AdminUserDetail>(
+    "PATCH",
+    `/admin/users/${userId}/memberships/${membershipId}`,
+    token,
+    body,
+  );
+}
+
 export type AdminContentItem = {
   id: string;
   slug: string;
@@ -346,12 +478,27 @@ export type AdminMembershipPlan = {
   name: string;
   listPricePaise: number;
   perDayRupees: number;
+  listPriceUsdCents: number;
+  perDayUsdCents: number;
   featured: boolean;
   perk: string | null;
   active: boolean;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+};
+
+export type MembershipPlanInput = {
+  months?: number;
+  name?: string;
+  priceRupees?: number;
+  perDayRupees?: number;
+  priceUsd?: number;
+  perDayUsdCents?: number;
+  featured?: boolean;
+  perk?: string | null;
+  active?: boolean;
+  sortOrder?: number;
 };
 
 export type AdminMembershipOfferPrice = {
@@ -391,6 +538,19 @@ export function listAdminMembershipPlans(token: string) {
     "GET",
     "/admin/membership-plans",
     token,
+  );
+}
+
+export function updateAdminMembershipPlan(
+  token: string,
+  id: string,
+  body: MembershipPlanInput,
+) {
+  return authJson<AdminMembershipPlan>(
+    "PATCH",
+    `/admin/membership-plans/${id}`,
+    token,
+    body,
   );
 }
 
@@ -440,6 +600,7 @@ export type AdminReferralMilestone = {
   referralCount: number;
   rewardTitle: string;
   rewardDescription: string;
+  imageUrl: string | null;
   active: boolean;
   sortOrder: number;
   createdAt: string;
@@ -450,6 +611,7 @@ export type MilestoneInput = {
   referralCount?: number;
   rewardTitle?: string;
   rewardDescription?: string;
+  imageUrl?: string | null;
   active?: boolean;
   sortOrder?: number;
 };
@@ -475,6 +637,7 @@ export type AdminRewardRedemption = {
     referralCount: number;
     rewardTitle: string;
     rewardDescription: string;
+    imageUrl: string | null;
   };
 };
 
@@ -517,6 +680,42 @@ export function deleteAdminReferralMilestone(token: string, id: string) {
     `/admin/referral-milestones/${id}`,
     token,
   ).then(() => undefined);
+}
+
+/** Resolve a stored milestone image path to an absolute URL. */
+export function mediaUrl(path: string | null | undefined) {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  const origin = API_URL.replace(/\/api\/?$/, "");
+  return `${origin}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+export async function uploadAdminReferralMilestoneImage(
+  token: string,
+  id: string,
+  file: File,
+) {
+  const body = new FormData();
+  body.append("image", file);
+  const response = await fetch(`${API_URL}/admin/referral-milestones/${id}/image`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body,
+  });
+  const payload = (await response.json().catch(() => ({}))) as ApiErrorBody &
+    Partial<AdminReferralMilestone>;
+  if (!response.ok) {
+    throw new Error(readErrorMessage(payload, "Unable to upload image."));
+  }
+  return payload as AdminReferralMilestone;
+}
+
+export function clearAdminReferralMilestoneImage(token: string, id: string) {
+  return authJson<AdminReferralMilestone>(
+    "DELETE",
+    `/admin/referral-milestones/${id}/image`,
+    token,
+  );
 }
 
 export function listAdminRewardRedemptions(
@@ -567,6 +766,117 @@ export function updateAdminSettings(
   return authJson<AdminSiteSettings>("PATCH", "/admin/settings", token, body);
 }
 
+export type AdminSessionTiming = {
+  id: string;
+  label: string;
+  sortOrder: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminScheduledClass = {
+  id: string;
+  classDate: string;
+  dayLabel: string;
+  sessionTimingId: string;
+  sessionTimeLabel: string;
+  meetingUrl: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function listAdminSessionTimings(
+  token: string,
+  options?: { activeOnly?: boolean },
+) {
+  const query = options?.activeOnly ? "?activeOnly=1" : "";
+  return authJson<AdminSessionTiming[]>(
+    "GET",
+    `/admin/session-timings${query}`,
+    token,
+  );
+}
+
+export function createAdminSessionTiming(
+  token: string,
+  body: { label: string; sortOrder?: number; active?: boolean },
+) {
+  return authJson<AdminSessionTiming>(
+    "POST",
+    "/admin/session-timings",
+    token,
+    body,
+  );
+}
+
+export function updateAdminSessionTiming(
+  token: string,
+  id: string,
+  body: { label?: string; sortOrder?: number; active?: boolean },
+) {
+  return authJson<AdminSessionTiming>(
+    "PATCH",
+    `/admin/session-timings/${id}`,
+    token,
+    body,
+  );
+}
+
+export function deleteAdminSessionTiming(token: string, id: string) {
+  return authJson<{ success: boolean }>(
+    "DELETE",
+    `/admin/session-timings/${id}`,
+    token,
+  ).then(() => undefined);
+}
+
+export function listAdminScheduledClasses(
+  token: string,
+  options?: { from?: string },
+) {
+  const query = options?.from
+    ? `?from=${encodeURIComponent(options.from)}`
+    : "";
+  return authJson<AdminScheduledClass[]>(
+    "GET",
+    `/admin/classes${query}`,
+    token,
+  );
+}
+
+export function createAdminScheduledClass(
+  token: string,
+  body: { classDate: string; sessionTimingId: string; meetingUrl: string },
+) {
+  return authJson<AdminScheduledClass>("POST", "/admin/classes", token, body);
+}
+
+export function updateAdminScheduledClass(
+  token: string,
+  id: string,
+  body: {
+    classDate?: string;
+    sessionTimingId?: string;
+    meetingUrl?: string;
+  },
+) {
+  return authJson<AdminScheduledClass>(
+    "PATCH",
+    `/admin/classes/${id}`,
+    token,
+    body,
+  );
+}
+
+export function deleteAdminScheduledClass(token: string, id: string) {
+  return authJson<{ success: boolean }>(
+    "DELETE",
+    `/admin/classes/${id}`,
+    token,
+  ).then(() => undefined);
+}
+
 export function listAdminVideos(token: string) {
   return authJson<AdminContentItem[]>("GET", "/admin/videos", token);
 }
@@ -584,4 +894,38 @@ export function deleteAdminVideo(token: string, id: string) {
   return authJson<{ success: boolean }>("DELETE", `/admin/videos/${id}`, token).then(
     () => undefined,
   );
+}
+
+export function listAdminOrientationVideos(token: string) {
+  return authJson<AdminContentItem[]>("GET", "/admin/orientation-videos", token);
+}
+export function createAdminOrientationVideo(
+  token: string,
+  body: Record<string, unknown>,
+) {
+  return authJson<AdminContentItem>(
+    "POST",
+    "/admin/orientation-videos",
+    token,
+    body,
+  );
+}
+export function updateAdminOrientationVideo(
+  token: string,
+  id: string,
+  body: Record<string, unknown>,
+) {
+  return authJson<AdminContentItem>(
+    "PATCH",
+    `/admin/orientation-videos/${id}`,
+    token,
+    body,
+  );
+}
+export function deleteAdminOrientationVideo(token: string, id: string) {
+  return authJson<{ success: boolean }>(
+    "DELETE",
+    `/admin/orientation-videos/${id}`,
+    token,
+  ).then(() => undefined);
 }

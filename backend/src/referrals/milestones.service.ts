@@ -1,3 +1,6 @@
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs';
+import { extname, join } from 'path';
+import { randomUUID } from 'crypto';
 import {
   BadRequestException,
   Injectable,
@@ -27,12 +30,14 @@ const DEFAULT_MILESTONES: {
   {
     referralCount: 5,
     rewardTitle: 'Starter Wellness Gift',
-    rewardDescription: 'A curated thank-you gift for your first 5 successful referrals.',
+    rewardDescription:
+      'A curated thank-you gift for your first 5 successful referrals.',
   },
   {
     referralCount: 10,
     rewardTitle: 'Healing Mat Bundle',
-    rewardDescription: 'Exclusive merch bundle for reaching 10 successful referrals.',
+    rewardDescription:
+      'Exclusive merch bundle for reaching 10 successful referrals.',
   },
   {
     referralCount: 15,
@@ -61,6 +66,9 @@ const DEFAULT_MILESTONES: {
   },
 ];
 
+const MILESTONE_UPLOAD_DIR = join(process.cwd(), 'uploads', 'milestones');
+const ALLOWED_IMAGE_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+
 export type MemberMilestoneStatus =
   | 'locked'
   | 'unlocked'
@@ -81,12 +89,17 @@ export class MilestonesService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    if (!existsSync(MILESTONE_UPLOAD_DIR)) {
+      mkdirSync(MILESTONE_UPLOAD_DIR, { recursive: true });
+    }
+
     const count = await this.milestones.count();
     if (count > 0) return;
     await this.milestones.save(
       DEFAULT_MILESTONES.map((row, index) =>
         this.milestones.create({
           ...row,
+          imageUrl: null,
           active: true,
           sortOrder: index,
         }),
@@ -115,6 +128,7 @@ export class MilestonesService implements OnModuleInit {
         referralCount: dto.referralCount,
         rewardTitle: dto.rewardTitle.trim(),
         rewardDescription: (dto.rewardDescription ?? '').trim(),
+        imageUrl: this.normalizeImageUrl(dto.imageUrl),
         active: dto.active ?? true,
         sortOrder: dto.sortOrder ?? dto.referralCount,
       }),
@@ -141,9 +155,52 @@ export class MilestonesService implements OnModuleInit {
     if (dto.rewardDescription != null) {
       row.rewardDescription = dto.rewardDescription.trim();
     }
+    if (dto.imageUrl !== undefined) {
+      const next = this.normalizeImageUrl(dto.imageUrl);
+      if (next !== row.imageUrl) {
+        this.deleteLocalImage(row.imageUrl);
+        row.imageUrl = next;
+      }
+    }
     if (dto.active != null) row.active = dto.active;
     if (dto.sortOrder != null) row.sortOrder = dto.sortOrder;
 
+    return this.toAdminMilestone(await this.milestones.save(row));
+  }
+
+  async setMilestoneImage(id: string, file: Express.Multer.File | undefined) {
+    if (!file) {
+      throw new BadRequestException('Image file is required.');
+    }
+
+    const ext = extname(file.originalname || '').toLowerCase();
+    if (!ALLOWED_IMAGE_EXT.has(ext)) {
+      throw new BadRequestException(
+        'Upload a JPG, PNG, WEBP, or GIF image.',
+      );
+    }
+
+    const row = await this.milestones.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('Milestone not found.');
+
+    if (!existsSync(MILESTONE_UPLOAD_DIR)) {
+      mkdirSync(MILESTONE_UPLOAD_DIR, { recursive: true });
+    }
+
+    const filename = `${randomUUID()}${ext}`;
+    const absolutePath = join(MILESTONE_UPLOAD_DIR, filename);
+    writeFileSync(absolutePath, file.buffer);
+
+    this.deleteLocalImage(row.imageUrl);
+    row.imageUrl = `/uploads/milestones/${filename}`;
+    return this.toAdminMilestone(await this.milestones.save(row));
+  }
+
+  async clearMilestoneImage(id: string) {
+    const row = await this.milestones.findOne({ where: { id } });
+    if (!row) throw new NotFoundException('Milestone not found.');
+    this.deleteLocalImage(row.imageUrl);
+    row.imageUrl = null;
     return this.toAdminMilestone(await this.milestones.save(row));
   }
 
@@ -158,6 +215,7 @@ export class MilestonesService implements OnModuleInit {
         'Cannot delete a milestone with pending redemption requests. Resolve them first.',
       );
     }
+    this.deleteLocalImage(row.imageUrl);
     await this.milestones.remove(row);
     return { success: true };
   }
@@ -196,6 +254,7 @@ export class MilestonesService implements OnModuleInit {
           referralCount: milestone.referralCount,
           rewardTitle: milestone.rewardTitle,
           rewardDescription: milestone.rewardDescription,
+          imageUrl: milestone.imageUrl,
           status,
           canRedeem: status === 'unlocked',
           requestId: request?.id ?? null,
@@ -297,12 +356,14 @@ export class MilestonesService implements OnModuleInit {
               referralCount: milestone.referralCount,
               rewardTitle: milestone.rewardTitle,
               rewardDescription: milestone.rewardDescription,
+              imageUrl: milestone.imageUrl,
             }
           : {
               id: row.milestoneId,
               referralCount: row.referralCount,
               rewardTitle: 'Removed milestone',
               rewardDescription: '',
+              imageUrl: null as string | null,
             },
       };
     });
@@ -333,7 +394,6 @@ export class MilestonesService implements OnModuleInit {
     if (request?.status === 'fulfilled') return 'fulfilled';
     if (request?.status === 'pending') return 'pending';
     if (request?.status === 'rejected') {
-      // Allow re-request after rejection once still eligible.
       return successfulCount >= referralCount ? 'unlocked' : 'locked';
     }
     if (successfulCount >= referralCount) return 'unlocked';
@@ -346,10 +406,31 @@ export class MilestonesService implements OnModuleInit {
       referralCount: row.referralCount,
       rewardTitle: row.rewardTitle,
       rewardDescription: row.rewardDescription,
+      imageUrl: row.imageUrl,
       active: row.active,
       sortOrder: row.sortOrder,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
+  }
+
+  private normalizeImageUrl(value?: string | null) {
+    if (value == null) return null;
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  }
+
+  private deleteLocalImage(imageUrl: string | null | undefined) {
+    if (!imageUrl?.startsWith('/uploads/milestones/')) return;
+    const filename = imageUrl.slice('/uploads/milestones/'.length);
+    if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      return;
+    }
+    const absolutePath = join(MILESTONE_UPLOAD_DIR, filename);
+    try {
+      if (existsSync(absolutePath)) unlinkSync(absolutePath);
+    } catch {
+      // Ignore cleanup failures for missing/locked files.
+    }
   }
 }

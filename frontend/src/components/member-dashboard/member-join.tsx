@@ -39,7 +39,7 @@ export function MemberJoinPage() {
     let cancelled = false;
     setUrlLoading(true);
     setUrlError(null);
-    void getLiveSessionUrl(token)
+    void getLiveSessionUrl(token, { slot: running?.label ?? null })
       .then((result) => {
         if (cancelled) return;
         setLiveUrl(result.url);
@@ -57,7 +57,7 @@ export function MemberJoinPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [running?.label]);
 
   const loading = accessLoading || urlLoading;
   const canRedirect = accessOk && Boolean(running) && Boolean(liveUrl);

@@ -8,12 +8,14 @@ export const DASHBOARD_CACHE_KEYS = {
   overview: "dashboard:overview",
   users: "dashboard:users",
   coupons: "dashboard:coupons",
+  membershipPlans: "dashboard:membership-plans",
   membershipOffers: "dashboard:membership-offers",
   referralMilestones: "dashboard:referral-milestones",
   rewardRedemptions: "dashboard:reward-redemptions",
   resources: "content:resources",
   articles: "content:articles",
   videos: "content:videos",
+  orientation: "content:orientation",
 } as const;
 
 export function getCached<T>(key: string): T | undefined {

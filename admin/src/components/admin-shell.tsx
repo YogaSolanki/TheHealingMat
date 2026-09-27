@@ -36,8 +36,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
     "Dashboard";
 
   return (
-    <div className="flex min-h-dvh bg-[#fbf9f5]">
-      <aside className="sticky top-0 hidden h-dvh w-[300px] min-w-[300px] shrink-0 flex-col border-r border-[#e6ebe3] bg-[#f4f8f2] px-5 py-7 text-[#243028] md:flex">
+    <div className="flex h-dvh overflow-hidden bg-[#fbf9f5]">
+      <aside className="hidden h-full w-[300px] min-w-[300px] shrink-0 flex-col overflow-hidden border-r border-[#e6ebe3] bg-[#f4f8f2] px-5 py-7 text-[#243028] md:flex">
         <SidebarBody pathname={pathname} onSignOut={signOut} />
       </aside>
 
@@ -49,7 +49,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             aria-label="Close menu"
             onClick={() => setMenuOpen(false)}
           />
-          <aside className="relative z-50 flex h-full w-[300px] flex-col border-r border-[#e6ebe3] bg-[#f4f8f2] px-5 py-7 text-[#243028]">
+          <aside className="relative z-50 flex h-full w-[300px] flex-col overflow-hidden border-r border-[#e6ebe3] bg-[#f4f8f2] px-5 py-7 text-[#243028]">
             <SidebarBody
               pathname={pathname}
               onSignOut={signOut}
@@ -59,8 +59,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       ) : null}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 items-center gap-3 border-b border-[#e6ebe3] bg-white px-5 sm:px-8">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header className="flex h-16 shrink-0 items-center gap-3 border-b border-[#e6ebe3] bg-white px-5 sm:px-8">
           <button
             type="button"
             className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e8f2ea] text-[#1f6b3a] md:hidden"
@@ -100,7 +100,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <div className="flex-1 px-5 py-6 sm:px-8">
+        <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-8">
           <AdminSessionProvider value={{ admin }}>
             <PageTransition>{children}</PageTransition>
           </AdminSessionProvider>
@@ -123,7 +123,7 @@ function SidebarBody({
     <>
       <Link
         href="/dashboard"
-        className="mb-10 block px-1"
+        className="mb-10 block shrink-0 px-1"
         onClick={onNavigate}
         aria-label="The Healing Mat admin dashboard"
       >
@@ -138,7 +138,7 @@ function SidebarBody({
         />
       </Link>
 
-      <nav className="flex flex-1 flex-col gap-1.5">
+      <nav className="scrollbar-hide flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
         {ADMIN_NAV.map((item) => {
           const active = isNavActive(pathname, item.href);
           return (
@@ -160,7 +160,7 @@ function SidebarBody({
         })}
       </nav>
 
-      <div className="mt-6 border-t border-[#e6ebe3] pt-4">
+      <div className="mt-6 shrink-0 border-t border-[#e6ebe3] pt-4">
         <button
           type="button"
           onClick={onSignOut}

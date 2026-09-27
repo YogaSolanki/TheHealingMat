@@ -90,6 +90,7 @@ export function ChangePasswordModal({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [otp, setOtp] = useState("");
   const [challengeId, setChallengeId] = useState("");
   const [destinationMasked, setDestinationMasked] = useState<string | null>(null);
@@ -611,17 +612,29 @@ export function ChangePasswordModal({
                       Forgot password?
                     </button>
                   </div>
-                  <input
-                    id="current-password"
-                    required
-                    type="password"
-                    value={currentPassword}
-                    onChange={(event) => setCurrentPassword(event.target.value)}
-                    className={fieldClassPlain}
-                    placeholder="Enter current password"
-                    autoComplete="current-password"
-                    maxLength={72}
-                  />
+                  <div className="relative">
+                    <input
+                      id="current-password"
+                      required
+                      type={showCurrentPassword ? "text" : "password"}
+                      value={currentPassword}
+                      onChange={(event) => setCurrentPassword(event.target.value)}
+                      className={`${fieldClassPlain} pr-11`}
+                      placeholder="Enter current password"
+                      autoComplete="current-password"
+                      maxLength={72}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword((v) => !v)}
+                      aria-label={
+                        showCurrentPassword ? "Hide password" : "Show password"
+                      }
+                      className="absolute inset-y-0 right-1.5 inline-flex h-auto w-9 cursor-pointer items-center justify-center rounded-lg text-[#8a968c] transition hover:bg-[#f6f8f5] hover:text-[#1f6b3a]"
+                    >
+                      {showCurrentPassword ? <EyeOffIcon /> : <EyeIcon />}
+                    </button>
+                  </div>
                 </div>
 
                 <PasswordField

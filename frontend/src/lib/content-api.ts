@@ -47,7 +47,7 @@ async function fetchJson<T>(path: string): Promise<T> {
     cache: "no-store",
   });
   if (!response.ok) {
-    throw new Error(`Failed to load ${path}`);
+    throw new Error("Something went wrong. Please try again.");
   }
   return response.json() as Promise<T>;
 }
@@ -70,4 +70,14 @@ export function fetchVideos() {
 
 export function fetchVideo(slug: string) {
   return fetchJson<ApiHealthVideo>(`/videos/${slug}`);
+}
+
+export type ApiOrientationVideo = ApiHealthVideo;
+
+export function fetchOrientationVideos() {
+  return fetchJson<ApiOrientationVideo[]>("/orientation-videos");
+}
+
+export function fetchOrientationVideo(slug: string) {
+  return fetchJson<ApiOrientationVideo>(`/orientation-videos/${slug}`);
 }

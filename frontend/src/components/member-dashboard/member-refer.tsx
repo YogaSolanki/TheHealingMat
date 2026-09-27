@@ -11,12 +11,13 @@ import {
 import { useMemberDashboard } from "@/components/member-dashboard/member-dashboard-provider";
 import { SiteLoader } from "@/components/site-loader";
 import {
-  getMyMilestones,
+  mediaUrl,
   requestMilestoneRedeem,
   type MemberMilestone,
   type ReferralStatus,
 } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
+import { useMyMilestones } from "@/lib/milestones-store";
 import { useMyReferrals } from "@/lib/session-store";
 import { FaWhatsapp } from "react-icons/fa";
 
@@ -135,8 +136,11 @@ export function MemberReferPage() {
   const readyMadeMessage = `Join me on The Healing Mat! Your friend gets 14 days of FREE yoga classes + ${referralDiscountPercent}% OFF membership. Use my referral code ${referralCode} or sign up here: ${referralLink}`;
   const [copiedField, setCopiedField] = useState<"code" | "link" | "message" | null>(null);
   const [messageOpen, setMessageOpen] = useState(false);
-  const [milestones, setMilestones] = useState<MemberMilestone[]>([]);
-  const [loadingMilestones, setLoadingMilestones] = useState(true);
+  const {
+    milestones,
+    loading: loadingMilestones,
+    refresh: refreshMilestones,
+  } = useMyMilestones();
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] =
@@ -147,27 +151,6 @@ export function MemberReferPage() {
   const desktopScrollRef = useRef<HTMLDivElement>(null);
   const loadMoreLockRef = useRef(false);
   const lastScrollLoadRef = useRef(0);
-
-  const loadMilestones = async () => {
-    const token = getStoredToken();
-    if (!token) {
-      setLoadingMilestones(false);
-      return;
-    }
-    setLoadingMilestones(true);
-    try {
-      const data = await getMyMilestones(token);
-      setMilestones(data.milestones);
-    } catch {
-      setMilestones([]);
-    } finally {
-      setLoadingMilestones(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadMilestones();
-  }, []);
 
   useEffect(() => {
     setVisibleCount(REFERRAL_PAGE_SIZE);
@@ -201,7 +184,7 @@ export function MemberReferPage() {
     setRedeemingId(milestone.id);
     try {
       await requestMilestoneRedeem(token, milestone.id);
-      await loadMilestones();
+      await refreshMilestones();
     } catch (err: unknown) {
       setRedeemError(
         err instanceof Error ? err.message : "Unable to submit redemption request.",
@@ -568,6 +551,7 @@ export function MemberReferPage() {
                     count={milestone.referralCount}
                     rewardTitle={milestone.rewardTitle}
                     rewardDescription={milestone.rewardDescription}
+                    imageUrl={milestone.imageUrl}
                     isActive={isActive}
                     canRedeem={milestone.canRedeem}
                     status={status}
@@ -866,6 +850,7 @@ function MilestoneRow({
   count,
   rewardTitle,
   rewardDescription,
+  imageUrl,
   status,
   isActive,
   canRedeem,
@@ -875,6 +860,7 @@ function MilestoneRow({
   count: number;
   rewardTitle: string;
   rewardDescription: string;
+  imageUrl: string | null;
   status: "completed" | "unlocked" | "upcoming" | "requested";
   isActive: boolean;
   canRedeem: boolean;
@@ -884,10 +870,11 @@ function MilestoneRow({
   const isCompleted = status === "completed";
   const isRequested = status === "requested";
   const rewardLabel = rewardTitle || "Reward configured by Admin";
+  const imageSrc = mediaUrl(imageUrl);
 
   return (
     <div
-      className={`grid gap-3 px-4 py-4 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:gap-4 sm:px-6 ${
+      className={`grid gap-3 px-4 py-4 sm:grid-cols-[auto_auto_1fr_auto] sm:items-center sm:gap-4 sm:px-6 ${
         isActive && canRedeem ? "bg-[#F4F8F2]" : ""
       }`}
     >
@@ -909,6 +896,17 @@ function MilestoneRow({
         </div>
       </div>
 
+      <div className="hidden h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-[#e8eee6] bg-[#f7faf6] sm:block">
+        {imageSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imageSrc} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center text-[#c5d0c4]">
+            <GiftIcon className="h-5 w-5" />
+          </span>
+        )}
+      </div>
+
       <div className="hidden min-w-0 sm:block">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-[14px] font-bold text-[#243028] sm:text-[15px]">
@@ -925,16 +923,28 @@ function MilestoneRow({
         ) : null}
       </div>
 
-      <div className="sm:hidden">
-        <p className="flex items-center gap-1.5 text-[13px] text-[#6b7c6e]">
-          <GiftIcon className="h-4 w-4 shrink-0 text-[#8a968c]" />
-          {rewardLabel}
-        </p>
-        {rewardDescription ? (
-          <p className="mt-0.5 text-[12px] leading-snug text-[#8a968c]">
-            {rewardDescription}
+      <div className="flex items-start gap-3 sm:hidden">
+        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-[#e8eee6] bg-[#f7faf6]">
+          {imageSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageSrc} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center text-[#c5d0c4]">
+              <GiftIcon className="h-5 w-5" />
+            </span>
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 text-[13px] text-[#6b7c6e]">
+            <GiftIcon className="h-4 w-4 shrink-0 text-[#8a968c]" />
+            {rewardLabel}
           </p>
-        ) : null}
+          {rewardDescription ? (
+            <p className="mt-0.5 text-[12px] leading-snug text-[#8a968c]">
+              {rewardDescription}
+            </p>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex w-full justify-stretch sm:w-auto sm:justify-end">

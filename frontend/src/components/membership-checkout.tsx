@@ -8,9 +8,11 @@ import {
   type MembershipCheckoutDetailsValue,
 } from "@/components/membership-checkout-details";
 import {
+  applyReferralCode,
   createRazorpayOrder,
   downloadMembershipInvoice,
   getMyCoupons,
+  getMyMembership,
   quoteMembership,
   verifyRazorpayPayment,
   type MemberCoupon,
@@ -36,10 +38,20 @@ import {
   formatMembershipMoney,
   membershipPlansStore,
 } from "@/lib/membership-plans-store";
-import { sessionStore } from "@/lib/session-store";
+import { sessionStore, updateMemberAuthCache } from "@/lib/session-store";
 
 const PAYMENT_INCOMPLETE =
   "Payment was not completed. Please try again to start or renew your membership.";
+
+/** Calendar day after membership endsAt (YYYY-MM-DD) — earliest renew start. */
+function nextStartIsoFromEndsAt(endsAt: string): string {
+  const end = new Date(endsAt);
+  end.setHours(0, 0, 0, 0);
+  end.setDate(end.getDate() + 1);
+  const month = String(end.getMonth() + 1).padStart(2, "0");
+  const day = String(end.getDate()).padStart(2, "0");
+  return `${end.getFullYear()}-${month}-${day}`;
+}
 
 type RazorpaySuccess = {
   razorpay_payment_id: string;
@@ -109,6 +121,7 @@ export function MembershipCheckoutPanel({
   const { openAuth } = useAuthModal();
 
   const [user, setUser] = useState<PublicUser | null>(null);
+  const [renewMinStartsOn, setRenewMinStartsOn] = useState<string | null>(null);
   const [step, setStep] = useState<"details" | "payment">("details");
   const [stepAnim, setStepAnim] = useState<"fade" | "forward" | "back">("fade");
   const [startsOn, setStartsOn] = useState<string | null>(null);
@@ -121,6 +134,7 @@ export function MembershipCheckoutPanel({
   const [assignedCoupons, setAssignedCoupons] = useState<MemberCoupon[]>([]);
   const [paying, setPaying] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [promoBusy, setPromoBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [paidMembershipId, setPaidMembershipId] = useState<string | null>(null);
@@ -140,6 +154,7 @@ export function MembershipCheckoutPanel({
     setStep("details");
     setStepAnim("fade");
     setStartsOn(null);
+    setRenewMinStartsOn(null);
   }, [planMonths]);
 
   useEffect(() => {
@@ -164,12 +179,28 @@ export function MembershipCheckoutPanel({
     let cancelled = false;
 
     Promise.all([
-      sessionStore.ensureUser(),
+      sessionStore.ensureUser({ force: true }),
+      getMyMembership(token).catch(() => null),
       getMyCoupons(token).catch(() => ({ coupons: [] })),
     ])
-      .then(async ([me, mine]) => {
+      .then(async ([me, membershipAccess, mine]) => {
         if (cancelled) return;
         setUser(me);
+
+        if (membershipAccess?.state === "active" && membershipAccess.current?.endsAt) {
+          setRenewMinStartsOn(
+            nextStartIsoFromEndsAt(membershipAccess.current.endsAt),
+          );
+        } else if (
+          startMode === "after_current" &&
+          membershipAccess?.trial?.endsAt
+        ) {
+          setRenewMinStartsOn(
+            nextStartIsoFromEndsAt(membershipAccess.trial.endsAt),
+          );
+        } else {
+          setRenewMinStartsOn(null);
+        }
 
         const assigned = mine.coupons ?? [];
         setAssignedCoupons(assigned);
@@ -200,9 +231,12 @@ export function MembershipCheckoutPanel({
   );
 
   const referralAvailable = Boolean(user?.wasReferred);
+  const referredByName = user?.referredByName?.trim() || null;
   const hasAssignedCoupons = assignedCoupons.length > 0;
   const couponLocked = Boolean(appliedCoupon);
   const referralLocked = applyReferralDiscount;
+  const referralDiscountPercent =
+    quote.referralDiscountPercent ?? 20;
 
   async function onDetailsContinue(value: MembershipCheckoutDetailsValue) {
     setStartsOn(value.startsOn);
@@ -215,35 +249,80 @@ export function MembershipCheckoutPanel({
     setStep("payment");
   }
 
-  async function applyCoupon(codeOverride?: string) {
+  async function applyPromoCode(codeOverride?: string) {
     const token = getStoredToken();
-    if (!token) return;
+    if (!token || promoBusy) return;
+    if (referralLocked) return;
     const code = (codeOverride ?? couponInput).trim();
     if (!code) {
-      setError("Enter a coupon code to apply.");
+      setError(
+        referralAvailable
+          ? "Enter a coupon code to apply."
+          : "Enter a coupon or referral code to apply.",
+      );
       return;
     }
     if (codeOverride) setCouponInput(code);
     setError(null);
+    setPromoBusy(true);
+
+    let couponError: string | null = null;
     try {
-      const next = await quoteMembership(token, {
-        planMonths,
-        couponCode: code,
-        applyReferralDiscount: false,
-      });
-      setQuote(next);
-      setAppliedCoupon(next.couponCode ?? code);
-      setCouponInput(next.couponCode ?? code);
-      setApplyReferralDiscount(false);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "This coupon code is not valid.");
+      try {
+        const next = await quoteMembership(token, {
+          planMonths,
+          couponCode: code,
+          applyReferralDiscount: false,
+        });
+        setQuote(next);
+        setAppliedCoupon(next.couponCode ?? code);
+        setCouponInput(next.couponCode ?? code);
+        setApplyReferralDiscount(false);
+        return;
+      } catch (err: unknown) {
+        couponError =
+          err instanceof Error ? err.message : "This coupon code is not valid.";
+      }
+
+      // Already referred — coupon only; do not try linking another referral.
+      if (referralAvailable) {
+        setError(couponError || "This coupon code is not valid.");
+        return;
+      }
+
+      // Unknown / invalid coupon → try as a referral code (allowed later, not only at trial).
+      const looksLikeUnknownCode =
+        /not valid|invalid|does not exist|no coupon/i.test(couponError || "");
+      if (!looksLikeUnknownCode && couponError) {
+        setError(couponError);
+        return;
+      }
+
+      try {
+        const referralResult = await applyReferralCode(token, code);
+        setUser(referralResult.user);
+        updateMemberAuthCache(referralResult.user);
+        const next = await quoteMembership(token, {
+          planMonths,
+          applyReferralDiscount: true,
+        });
+        setQuote(next);
+        setApplyReferralDiscount(true);
+        setAppliedCoupon("");
+        setCouponInput("");
+      } catch {
+        setError(couponError || "This coupon or referral code is not valid.");
+      }
+    } finally {
+      setPromoBusy(false);
     }
   }
 
-  async function removeCoupon() {
+  async function removePromoCode() {
     const token = getStoredToken();
-    if (!token) return;
+    if (!token || promoBusy) return;
     setError(null);
+    setPromoBusy(true);
     try {
       const next = await quoteMembership(token, {
         planMonths,
@@ -254,20 +333,18 @@ export function MembershipCheckoutPanel({
       setCouponInput("");
       setApplyReferralDiscount(false);
     } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "Unable to remove coupon.",
-      );
+      setError(err instanceof Error ? err.message : "Unable to remove code.");
+    } finally {
+      setPromoBusy(false);
     }
   }
 
   async function setReferralDiscountOptIn(nextValue: boolean) {
     const token = getStoredToken();
-    if (!token) return;
-    if (nextValue && appliedCoupon) {
-      setError("Remove the coupon first to use the referral discount.");
-      return;
-    }
+    if (!token || promoBusy) return;
+    if (nextValue && couponLocked) return;
     setError(null);
+    setPromoBusy(true);
 
     setApplyReferralDiscount(nextValue);
     try {
@@ -283,8 +360,12 @@ export function MembershipCheckoutPanel({
     } catch (err: unknown) {
       setApplyReferralDiscount(false);
       setError(
-        err instanceof Error ? err.message : "Unable to update referral discount.",
+        err instanceof Error
+          ? err.message
+          : "Unable to update referral discount.",
       );
+    } finally {
+      setPromoBusy(false);
     }
   }
 
@@ -350,12 +431,23 @@ export function MembershipCheckoutPanel({
         !applyReferralDiscount
           ? appliedCoupon || couponInput.trim() || undefined
           : undefined;
+      const applyReferral = applyReferralDiscount && !couponCode;
+
+      // Re-confirm payable amount from the backend before charging.
+      const confirmedQuote = await quoteMembership(token, {
+        planMonths,
+        couponCode,
+        applyReferralDiscount: applyReferral,
+      });
+      setQuote(confirmedQuote);
+
       const order = await createRazorpayOrder(token, {
         planMonths,
         couponCode,
         startMode,
         ...(startsOn ? { startsOn } : {}),
-        applyReferralDiscount: applyReferralDiscount && !couponCode,
+        applyReferralDiscount: applyReferral,
+        expectedAmountPaise: confirmedQuote.amountPaise,
       });
 
       if (order.skipCheckout) {
@@ -367,6 +459,16 @@ export function MembershipCheckoutPanel({
         throw new Error("Unable to start payment.");
       }
 
+      // Keep UI in sync with the amount the order was created for.
+      setQuote((prev) => ({
+        ...prev,
+        amountPaise: order.amount,
+        currency:
+          order.currency === "USD" || order.currency === "INR"
+            ? order.currency
+            : prev.currency,
+      }));
+
       const razorpayOrderId = String(order.order_id);
 
       const checkout = new window.Razorpay({
@@ -374,7 +476,7 @@ export function MembershipCheckoutPanel({
         amount: order.amount,
         currency: order.currency,
         name: "The Healing Mat",
-        description: quote.planName,
+        description: confirmedQuote.planName,
         order_id: razorpayOrderId,
         prefill: {
           name: user?.fullName,
@@ -525,6 +627,8 @@ export function MembershipCheckoutPanel({
           <MembershipCheckoutDetails
             user={user}
             planName={quote.planName}
+            minStartsOn={renewMinStartsOn ?? undefined}
+            isRenewAfterCurrent={Boolean(renewMinStartsOn)}
             onContinue={(value) => void onDetailsContinue(value)}
             onClose={() => {
               closeCheckoutModal();
@@ -582,8 +686,7 @@ export function MembershipCheckoutPanel({
               {quote.planName}
             </h1>
             <p className="mt-2 text-[14px] text-[#5f6f64] sm:text-[15px]">
-              Complete payment to start or renew your membership. Access is granted
-              only after a successful payment.
+              Complete payment to start or renew your membership.
             </p>
 
             <dl className="mt-6 space-y-2 rounded-[16px] border border-[#e6ebe3] bg-[#F4F8F2] px-4 py-4 text-[14px]">
@@ -623,27 +726,88 @@ export function MembershipCheckoutPanel({
               </div>
             </dl>
 
-            <div className="mt-5">
-              <p className="text-[13px] font-semibold text-[#243028]">Coupon</p>
-              <p className="mt-0.5 text-[12px] font-medium text-[#6b7c6e]">
-                {referralAvailable
-                  ? "Apply one coupon, or use referral discount — not both."
-                  : "Apply one coupon code to your plan."}
-              </p>
+            <div className="mt-5 space-y-4">
+              {referralAvailable && !couponLocked ? (
+                <label
+                  className={`flex items-start gap-2.5 rounded-[14px] border border-[#dce8dd] bg-[#F4F8F2] px-3.5 py-3 text-left ${
+                    paying || verifying || promoBusy
+                      ? "cursor-not-allowed opacity-60"
+                      : "cursor-pointer"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={applyReferralDiscount}
+                    disabled={paying || verifying || promoBusy}
+                    onChange={(event) =>
+                      void setReferralDiscountOptIn(event.target.checked)
+                    }
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#b7cbb8] text-[#1f6b3a] focus:ring-[#1f6b3a]/20 disabled:cursor-not-allowed"
+                  />
+                  <span className="min-w-0 leading-snug">
+                    <span className="block text-[13px] font-semibold text-[#243028]">
+                      {referredByName
+                        ? `You were referred by ${referredByName}.`
+                        : "You were referred."}
+                    </span>
+                    <span className="mt-0.5 block text-[12px] text-[#6b7c6e]">
+                      {applyReferralDiscount
+                        ? `${referralDiscountPercent}% referral discount applied.`
+                        : `Apply your ${referralDiscountPercent}% referral discount.`}
+                    </span>
+                  </span>
+                </label>
+              ) : null}
 
-              {hasAssignedCoupons ? (
-                <div className="mt-2">
-                  <ul className="space-y-2">
-                    {assignedCoupons.map((coupon) => {
-                      const isApplied = appliedCoupon === coupon.code;
-                      return (
+              {couponLocked ? (
+                <div className="flex items-center gap-3 rounded-[14px] border border-[#1f6b3a] bg-[#F4F8F2] px-3.5 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12px] font-medium text-[#6b7c6e]">
+                      Coupon applied
+                    </p>
+                    <p className="mt-0.5 font-mono text-[13px] font-bold tracking-wide text-[#243028]">
+                      {appliedCoupon}
+                    </p>
+                    {referralAvailable ? (
+                      <p className="mt-1 text-[12px] text-[#6b7c6e]">
+                        Remove this coupon to use your referral discount instead.
+                      </p>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={paying || verifying || promoBusy}
+                    onClick={() => void removePromoCode()}
+                    className="inline-flex shrink-0 items-center justify-center gap-1.5 cursor-pointer rounded-full border border-[#c96a63] px-3 py-1.5 text-[11px] font-bold text-[#9b3b32] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {promoBusy ? <ButtonLoader tone="brand" size="sm" /> : null}
+                    {promoBusy ? "Removing…" : "Remove"}
+                  </button>
+                </div>
+              ) : !referralLocked ? (
+                <div>
+                  <p className="text-[13px] font-semibold text-[#243028]">
+                    {referralAvailable
+                      ? "Have a coupon code?"
+                      : "Have a coupon or referral code?"}
+                  </p>
+                  {referralAvailable ? (
+                    <p className="mt-1 text-[12px] leading-snug text-[#6b7c6e]">
+                      You can use either a coupon or your referral discount, not
+                      both.
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-[12px] leading-snug text-[#6b7c6e]">
+                      Enter a coupon or referral code below.
+                    </p>
+                  )}
+
+                  {hasAssignedCoupons ? (
+                    <ul className="mt-3 space-y-2">
+                      {assignedCoupons.map((coupon) => (
                         <li
                           key={coupon.id}
-                          className={`flex items-center gap-3 rounded-[12px] border px-3 py-2.5 ${
-                            isApplied
-                              ? "border-[#1f6b3a]"
-                              : "border-[#e4ebe3]"
-                          }`}
+                          className="flex items-center gap-3 rounded-[12px] border border-[#e4ebe3] px-3 py-2.5"
                         >
                           <div className="min-w-0 flex-1">
                             <p className="truncate font-mono text-[12px] font-bold tracking-wide text-[#243028]">
@@ -653,109 +817,53 @@ export function MembershipCheckoutPanel({
                               {coupon.discountLabel}
                             </p>
                           </div>
-                          {isApplied ? (
-                            <button
-                              type="button"
-                              disabled={paying || verifying}
-                              onClick={() => void removeCoupon()}
-                              className="shrink-0 cursor-pointer rounded-full border border-[#c96a63] px-3 py-1.5 text-[11px] font-bold text-[#9b3b32] disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              Remove
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={
-                                paying ||
-                                verifying ||
-                                referralLocked ||
-                                couponLocked
-                              }
-                              onClick={() => void applyCoupon(coupon.code)}
-                              className="shrink-0 cursor-pointer rounded-full border border-[#1f6b3a] px-3 py-1.5 text-[11px] font-bold text-[#1f6b3a] disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              Apply
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            disabled={paying || verifying || promoBusy}
+                            onClick={() => void applyPromoCode(coupon.code)}
+                            className="shrink-0 cursor-pointer rounded-full border border-[#1f6b3a] px-3 py-1.5 text-[11px] font-bold text-[#1f6b3a] disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Apply
+                          </button>
                         </li>
-                      );
-                    })}
-                  </ul>
+                      ))}
+                    </ul>
+                  ) : null}
+
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      value={couponInput}
+                      onChange={(event) => setCouponInput(event.target.value)}
+                      disabled={paying || verifying || promoBusy}
+                      className="min-w-0 flex-1 rounded-[12px] border border-[#d7e5d9] bg-white px-3 py-2.5 text-[14px] font-medium text-[#243028] outline-none focus:border-[#1f6b3a] disabled:opacity-60"
+                      placeholder={
+                        referralAvailable
+                          ? "Enter coupon code"
+                          : "Enter coupon or referral code"
+                      }
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void applyPromoCode()}
+                      disabled={paying || verifying || promoBusy}
+                      className="inline-flex min-w-[5.5rem] items-center justify-center gap-1.5 cursor-pointer rounded-[12px] border border-[#1f6b3a] px-3 py-2.5 text-[13px] font-bold text-[#1f6b3a] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {promoBusy ? <ButtonLoader tone="brand" size="sm" /> : null}
+                      {promoBusy ? "Applying…" : "Apply"}
+                    </button>
+                  </div>
+
+                  {!referralAvailable &&
+                  applyReferralDiscount &&
+                  !appliedCoupon ? (
+                    <p className="mt-2 text-[12px] font-medium text-[#1f6b3a]">
+                      Referral discount applied
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
-
-              <p className="mt-3 text-[12px] font-semibold text-[#243028]">
-                {hasAssignedCoupons ? "Or enter another code" : "Enter coupon code"}
-              </p>
-              <div className="mt-1.5 flex gap-2">
-                <input
-                  value={couponInput}
-                  onChange={(event) => setCouponInput(event.target.value)}
-                  disabled={
-                    paying || verifying || referralLocked || couponLocked
-                  }
-                  className="min-w-0 flex-1 rounded-[12px] border border-[#d7e5d9] bg-white px-3 py-2.5 text-[14px] font-medium text-[#243028] outline-none focus:border-[#1f6b3a] disabled:opacity-60"
-                  placeholder="Enter code"
-                  autoComplete="off"
-                />
-                {couponLocked ? (
-                  <button
-                    type="button"
-                    onClick={() => void removeCoupon()}
-                    disabled={paying || verifying}
-                    className="cursor-pointer rounded-[12px] border border-[#c96a63] bg-[#fff7f6] px-3 py-2.5 text-[13px] font-bold text-[#9b3b32] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Remove
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => void applyCoupon()}
-                    disabled={paying || verifying || referralLocked}
-                    className="cursor-pointer rounded-[12px] border border-[#1f6b3a] px-3 py-2.5 text-[13px] font-bold text-[#1f6b3a] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Apply
-                  </button>
-                )}
-              </div>
-
-              {appliedCoupon &&
-              !assignedCoupons.some((c) => c.code === appliedCoupon) ? (
-                <p className="mt-2 text-[12px] font-medium text-[#1f6b3a]">
-                  Applied: {appliedCoupon}
-                </p>
-              ) : null}
             </div>
-
-            {referralAvailable ? (
-              <label
-                className={`mt-4 flex items-start gap-2.5 rounded-[14px] border border-[#dce8dd] bg-[#F4F8F2] px-3.5 py-3 text-left ${
-                  couponLocked
-                    ? "cursor-not-allowed opacity-70"
-                    : "cursor-pointer"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={applyReferralDiscount}
-                  disabled={paying || verifying || couponLocked}
-                  onChange={(event) =>
-                    void setReferralDiscountOptIn(event.target.checked)
-                  }
-                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#b7cbb8] text-[#1f6b3a] focus:ring-[#1f6b3a]/20 disabled:cursor-not-allowed disabled:opacity-60"
-                />
-                <span className="text-[13px] leading-snug text-[#3d4a3c]">
-                  <span className="font-semibold text-[#1f6b3a]">
-                    Apply {quote.referralDiscountPercent ?? 20}% referral discount
-                  </span>
-                  <span className="mt-0.5 block text-[12px] text-[#6b7c6e]">
-                    {couponLocked
-                      ? "Remove the coupon above to enable referral discount."
-                      : "Cannot be combined with a coupon."}
-                  </span>
-                </span>
-              </label>
-            ) : null}
 
             {error ? (
               <p className="mt-4 rounded-[12px] border border-[#f0d4d0] bg-[#fff6f5] px-3 py-2.5 text-[13px] text-[#9b3b32]">
@@ -765,7 +873,7 @@ export function MembershipCheckoutPanel({
 
             <button
               type="button"
-              disabled={paying || verifying}
+              disabled={paying || verifying || promoBusy}
               onClick={() => void onPay()}
               className="btn-primary mt-6 inline-flex w-full items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white disabled:opacity-60"
             >

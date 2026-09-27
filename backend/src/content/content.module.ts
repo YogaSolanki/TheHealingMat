@@ -6,11 +6,17 @@ import { ContentSeedService } from './content-seed.service';
 import { ContentService } from './content.service';
 import { HealthArticle } from './health-article.entity';
 import { HealthVideo } from './health-video.entity';
+import { OrientationVideo } from './orientation-video.entity';
 import { ResourceGuide } from './resource-guide.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ResourceGuide, HealthArticle, HealthVideo]),
+    TypeOrmModule.forFeature([
+      ResourceGuide,
+      HealthArticle,
+      HealthVideo,
+      OrientationVideo,
+    ]),
   ],
   controllers: [ContentPublicController, ContentAdminController],
   providers: [ContentService, ContentSeedService],

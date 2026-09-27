@@ -104,6 +104,14 @@ export class PaymentsService {
         dto.couponCode,
         dto.applyReferralDiscount === true,
       );
+      if (
+        dto.expectedAmountPaise != null &&
+        dto.expectedAmountPaise !== quote.amountPaise
+      ) {
+        throw new BadRequestException(
+          'The membership price was updated. Please review the new amount and try again.',
+        );
+      }
       if (quote.amountPaise === 0) {
         const membership = await this.fulfillZeroAmount(
           user,
@@ -276,8 +284,14 @@ export class PaymentsService {
     const scheduled =
       rows.find((row) => row.status === 'scheduled' && row.startsAt > now) ??
       null;
+
+    // Keep trial usable until a future paid membership begins (covers older purchases too).
+    if (scheduled) {
+      await this.extendTrialUntilMembership(user.id, scheduled.startsAt);
+    }
+
     const trial = await this.trials.findOne({ where: { userId: user.id } });
-    if (trial) {
+    if (trial && trial.status !== TrialStatus.Completed) {
       const nowMs = now.getTime();
       if (nowMs > trial.trialEndsAt.getTime()) {
         if (trial.status !== TrialStatus.Expired) {
@@ -296,11 +310,20 @@ export class PaymentsService {
     }
 
     const trialActive =
-      trial && now >= trial.trialStartsAt && now <= trial.trialEndsAt
+      trial &&
+      trial.status !== TrialStatus.Completed &&
+      trial.status !== TrialStatus.Expired &&
+      now >= trial.trialStartsAt &&
+      now <= trial.trialEndsAt
         ? trial
         : null;
     const trialScheduled =
-      trial && now < trial.trialStartsAt ? trial : null;
+      trial &&
+      trial.status !== TrialStatus.Completed &&
+      trial.status !== TrialStatus.Expired &&
+      now < trial.trialStartsAt
+        ? trial
+        : null;
 
     const lastExpired =
       rows.find((row) => row.status === 'expired') ?? null;
@@ -471,6 +494,15 @@ export class PaymentsService {
       }),
     );
 
+    if (status === 'active') {
+      // Paid access begins now — close any prior active term and end the trial.
+      await this.supersedeOtherActiveMemberships(user.id, membership.id);
+      await this.completeTrialForMembership(user.id);
+    } else if (status === 'scheduled') {
+      // Keep trial access until the paid membership start date.
+      await this.extendTrialUntilMembership(user.id, startsAt);
+    }
+
     await this.coupons
       .recordRedemption({
         code: order.couponCode,
@@ -629,42 +661,67 @@ export class PaymentsService {
     const active = await this.findActive(userId);
     const trial = await this.trials.findOne({ where: { userId } });
     const trialStillRunning =
-      trial && now <= trial.trialEndsAt ? trial : null;
+      trial &&
+      trial.status !== TrialStatus.Completed &&
+      trial.status !== TrialStatus.Expired &&
+      now <= trial.trialEndsAt
+        ? trial
+        : null;
+    const chosenStart = this.parseStartsOn(startsOn);
 
+    // Renew while a paid membership is still active → schedule after it
+    // (or activate immediately if the handoff date is already due).
     if (active) {
-      const startsAt = active.endsAt;
+      const earliest = this.dayAfter(active.endsAt);
+      const startsAt = this.laterDate(earliest, chosenStart);
+      if (startsAt.getTime() <= now.getTime()) {
+        return {
+          status: 'active' as const,
+          startsAt: now,
+          endsAt: this.membershipEndsAt(now, months),
+        };
+      }
       return {
         status: 'scheduled' as const,
         startsAt,
-        endsAt: this.addMonths(startsAt, months),
+        endsAt: this.membershipEndsAt(startsAt, months),
       };
     }
 
+    // Explicit "after trial" purchases cannot start before the trial ends.
     if (startMode === 'after_current' && trialStillRunning) {
       const startsAt = this.laterDate(
         trialStillRunning.trialEndsAt,
-        this.parseStartsOn(startsOn),
+        chosenStart,
       );
+      if (startsAt.getTime() <= now.getTime()) {
+        return {
+          status: 'active' as const,
+          startsAt: now,
+          endsAt: this.membershipEndsAt(now, months),
+        };
+      }
       return {
         status: 'scheduled' as const,
         startsAt,
-        endsAt: this.addMonths(startsAt, months),
+        endsAt: this.membershipEndsAt(startsAt, months),
       };
     }
 
-    const chosenStart = this.parseStartsOn(startsOn);
-    if (chosenStart && chosenStart > now) {
+    // Trial / pending: today (or no date) starts membership now and ends trial.
+    // A future calendar date keeps the trial until that day.
+    if (chosenStart && !this.isOnOrBeforeCalendarDay(chosenStart, now)) {
       return {
         status: 'scheduled' as const,
-        startsAt: chosenStart,
-        endsAt: this.addMonths(chosenStart, months),
+        startsAt: this.startOfLocalDay(chosenStart),
+        endsAt: this.membershipEndsAt(this.startOfLocalDay(chosenStart), months),
       };
     }
 
     return {
       status: 'active' as const,
       startsAt: now,
-      endsAt: this.addMonths(now, months),
+      endsAt: this.membershipEndsAt(now, months),
     };
   }
 
@@ -730,7 +787,82 @@ export class PaymentsService {
     for (const row of starting) {
       row.status = 'active';
     }
-    if (starting.length) await this.memberships.save(starting);
+    if (starting.length) {
+      await this.memberships.save(starting);
+      // Handoff from prior term / trial → paid member home.
+      for (const row of starting) {
+        await this.supersedeOtherActiveMemberships(userId, row.id);
+      }
+      await this.completeTrialForMembership(userId);
+    }
+  }
+
+  /** End an in-progress/scheduled trial when paid membership access begins. */
+  private async completeTrialForMembership(userId: string) {
+    const trial = await this.trials.findOne({ where: { userId } });
+    if (!trial) return;
+    if (trial.status === TrialStatus.Completed) return;
+
+    const now = new Date();
+    if (trial.trialEndsAt > now) {
+      trial.trialEndsAt = now;
+    }
+    trial.status = TrialStatus.Completed;
+    await this.trials.save(trial);
+  }
+
+  /**
+   * When a paid membership is scheduled for a future date during a trial,
+   * keep trial access until that start date so Trial Home continues.
+   */
+  private async extendTrialUntilMembership(
+    userId: string,
+    membershipStartsAt: Date,
+  ) {
+    const trial = await this.trials.findOne({ where: { userId } });
+    if (!trial) return;
+    // Completed means paid access already began — do not revive.
+    if (trial.status === TrialStatus.Completed) return;
+
+    const keepUntil = new Date(membershipStartsAt.getTime() - 1);
+    if (trial.trialEndsAt.getTime() >= keepUntil.getTime()) {
+      // Still long enough; ensure status is not stuck on expired.
+      if (
+        trial.status === TrialStatus.Expired &&
+        keepUntil.getTime() >= Date.now()
+      ) {
+        const now = new Date();
+        trial.status =
+          now >= trial.trialStartsAt
+            ? TrialStatus.Active
+            : TrialStatus.Scheduled;
+        await this.trials.save(trial);
+      }
+      return;
+    }
+
+    trial.trialEndsAt = keepUntil;
+    const now = new Date();
+    trial.status =
+      now >= trial.trialStartsAt ? TrialStatus.Active : TrialStatus.Scheduled;
+    await this.trials.save(trial);
+  }
+
+  /** Expire other active memberships when a new one becomes current. */
+  private async supersedeOtherActiveMemberships(
+    userId: string,
+    keepMembershipId: string,
+  ) {
+    const now = new Date();
+    const actives = await this.memberships.find({
+      where: { userId, status: 'active' },
+    });
+    const others = actives.filter((row) => row.id !== keepMembershipId);
+    for (const row of others) {
+      row.status = 'expired';
+      if (row.endsAt > now) row.endsAt = now;
+    }
+    if (others.length) await this.memberships.save(others);
   }
 
   private async buildQuote(
@@ -1073,6 +1205,40 @@ export class PaymentsService {
     const next = new Date(date.getTime());
     next.setMonth(next.getMonth() + months);
     return next;
+  }
+
+  /**
+   * Last inclusive day of a membership term: start + N months − 1 day
+   * (e.g. 27 Sep 2026 for 12 months → valid until 26 Sep 2027).
+   * End-of-day so the full last calendar day remains accessible.
+   */
+  private membershipEndsAt(startsAt: Date, months: number) {
+    const ends = this.addMonths(startsAt, months);
+    ends.setDate(ends.getDate() - 1);
+    ends.setHours(23, 59, 59, 999);
+    return ends;
+  }
+
+  /** Day after a term ends — used as the next membership start. */
+  private dayAfter(date: Date) {
+    const next = new Date(date.getTime());
+    next.setDate(next.getDate() + 1);
+    next.setHours(0, 0, 0, 0);
+    return next;
+  }
+
+  private startOfLocalDay(date: Date) {
+    const next = new Date(date.getTime());
+    next.setHours(0, 0, 0, 0);
+    return next;
+  }
+
+  /** True when `date`'s calendar day is today or earlier. */
+  private isOnOrBeforeCalendarDay(date: Date, now: Date) {
+    return (
+      this.startOfLocalDay(date).getTime() <=
+      this.startOfLocalDay(now).getTime()
+    );
   }
 
   private razorpayStatus(error: unknown) {

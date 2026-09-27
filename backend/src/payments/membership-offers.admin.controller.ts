@@ -14,6 +14,7 @@ import {
   CreateMembershipOfferDto,
   UpdateMembershipOfferDto,
 } from './dto/membership-offer.dto';
+import { UpdateMembershipPlanDto } from './dto/membership-plan.dto';
 import { MembershipOffersService } from './membership-offers.service';
 import { MembershipPlansService } from './membership-plans.service';
 
@@ -25,10 +26,18 @@ export class MembershipOffersAdminController {
     private readonly plans: MembershipPlansService,
   ) {}
 
-  /** Base 3/6/12 plans (static catalog used when building an offer). */
+  /** Base membership plans shown on the public site (edit only — catalog is seeded). */
   @Get('membership-plans')
   listPlans() {
     return this.plans.listAdmin();
+  }
+
+  @Patch('membership-plans/:id')
+  updatePlan(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateMembershipPlanDto,
+  ) {
+    return this.plans.update(id, dto);
   }
 
   @Get('membership-offers')

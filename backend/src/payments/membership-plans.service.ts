@@ -9,10 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Region } from '../users/enums/region.enum';
-import {
-  CreateMembershipPlanDto,
-  UpdateMembershipPlanDto,
-} from './dto/membership-plan.dto';
+import { UpdateMembershipPlanDto } from './dto/membership-plan.dto';
 import { MembershipPlan } from './membership-plan.entity';
 import { DEFAULT_MEMBERSHIP_PLANS } from './membership-plans';
 import { MembershipOffersService } from './membership-offers.service';
@@ -87,32 +84,6 @@ export class MembershipPlansService implements OnModuleInit {
     return this.plans.findOne({ where: { months } });
   }
 
-  async create(dto: CreateMembershipPlanDto) {
-    const months = dto.months;
-    if (await this.plans.exists({ where: { months } })) {
-      throw new ConflictException(
-        `A plan for ${months} months already exists.`,
-      );
-    }
-
-    const defaults = DEFAULT_MEMBERSHIP_PLANS.find((row) => row.months === months);
-
-    const plan = this.plans.create({
-      months,
-      name: dto.name.trim(),
-      listPricePaise: dto.priceRupees * 100,
-      perDayRupees: dto.perDayRupees,
-      listPriceUsdCents: defaults?.listPriceUsdCents ?? 0,
-      perDayUsdCents: defaults?.perDayUsdCents ?? 0,
-      featured: dto.featured ?? false,
-      perk: this.normalizePerk(dto.perk),
-      active: dto.active ?? true,
-      sortOrder: dto.sortOrder ?? months,
-    });
-
-    return this.plans.save(plan);
-  }
-
   async update(id: string, dto: UpdateMembershipPlanDto) {
     const plan = await this.plans.findOne({ where: { id } });
     if (!plan) throw new NotFoundException('Membership plan not found.');
@@ -129,19 +100,14 @@ export class MembershipPlansService implements OnModuleInit {
     if (dto.name != null) plan.name = dto.name.trim();
     if (dto.priceRupees != null) plan.listPricePaise = dto.priceRupees * 100;
     if (dto.perDayRupees != null) plan.perDayRupees = dto.perDayRupees;
+    if (dto.priceUsd != null) plan.listPriceUsdCents = dto.priceUsd * 100;
+    if (dto.perDayUsdCents != null) plan.perDayUsdCents = dto.perDayUsdCents;
     if (dto.featured != null) plan.featured = dto.featured;
     if (dto.perk !== undefined) plan.perk = this.normalizePerk(dto.perk);
     if (dto.active != null) plan.active = dto.active;
     if (dto.sortOrder != null) plan.sortOrder = dto.sortOrder;
 
     return this.plans.save(plan);
-  }
-
-  async remove(id: string) {
-    const plan = await this.plans.findOne({ where: { id } });
-    if (!plan) throw new NotFoundException('Membership plan not found.');
-    await this.plans.remove(plan);
-    return { success: true as const };
   }
 
   toPublic(

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
+import { ClassManagementCard } from "@/components/class-management-card";
 import { PulseIcon, StarIcon, UsersIcon } from "@/components/icons";
 import { PanelLoader } from "@/components/panel-loader";
 import { ReloadButton } from "@/components/reload-button";
@@ -16,18 +16,6 @@ import {
   hasCached,
   setCached,
 } from "@/lib/dashboard-cache";
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(value));
-}
-
-function regionLabel(region: string) {
-  return region.replaceAll("_", " ");
-}
 
 const cardClass =
   "rounded-2xl border border-[#e6ebe3] bg-white p-5 shadow-[0_4px_16px_rgba(21,32,25,0.03)]";
@@ -166,64 +154,7 @@ export function DashboardHome() {
         </section>
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-[#e6ebe3] bg-white shadow-[0_4px_16px_rgba(21,32,25,0.03)]">
-        <div className="flex items-center justify-between px-5 py-4">
-          <div>
-            <h3 className="text-sm font-semibold text-[#243028]">
-              Recent users
-            </h3>
-            <p className="mt-0.5 text-xs text-[#8a978c]">
-              Latest permanent accounts
-            </p>
-          </div>
-          <Link
-            href="/dashboard/users"
-            className="text-sm font-medium text-[#1f6b3a] hover:underline"
-          >
-            View all
-          </Link>
-        </div>
-        <div className="border-t border-[#f4f7f4]">
-          {data.recentUsers.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-[#8a978c]">
-              No users yet.
-            </p>
-          ) : (
-            <ul className="divide-y divide-[#f4f7f4]">
-              {data.recentUsers.map((user) => {
-                const contact = user.mobile ?? user.email ?? "—";
-                return (
-                  <li
-                    key={user.id}
-                    className="flex items-center gap-3 px-5 py-3.5"
-                  >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e8f2ea] text-xs font-semibold text-[#1f6b3a]">
-                      {user.fullName.charAt(0).toUpperCase()}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-sm font-medium text-[#243028]">
-                          {user.fullName}
-                        </p>
-                        <p className="shrink-0 text-xs text-[#8a978c]">
-                          {formatDate(user.createdAt)}
-                        </p>
-                      </div>
-                      <p className="mt-0.5 truncate text-xs text-[#5f6f64]">
-                        <span className="capitalize">
-                          {regionLabel(user.region)}
-                        </span>
-                        <span className="text-[#c5ccc5]"> · </span>
-                        <span title={contact}>{contact}</span>
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      </section>
+      <ClassManagementCard />
     </div>
   );
 }

@@ -12,6 +12,7 @@ type AuthLoginModalProps = {
   onClose: () => void;
   initialMode?: "login" | "signup" | "forgot";
   signupIntent?: AuthSignupIntent;
+  initialReferralCode?: string;
   initialError?: string | null;
 };
 
@@ -22,6 +23,7 @@ export function AuthLoginModal({
   onClose,
   initialMode = "login",
   signupIntent = "trial",
+  initialReferralCode = "",
   initialError = null,
 }: AuthLoginModalProps) {
   const [mounted, setMounted] = useState(false);
@@ -103,15 +105,17 @@ export function AuthLoginModal({
       >
         {isTrialSignup ? (
           <TrialSignupCard
-            key={`signup-${signupIntent}-${initialError ?? ""}`}
+            key={`signup-${signupIntent}-${initialReferralCode}-${initialError ?? ""}`}
             intent={signupIntent}
+            initialReferralCode={initialReferralCode}
             initialError={initialError}
             onClose={handleClose}
           />
         ) : (
           <AuthTrialCard
-            key={`${initialMode}-${initialError ?? ""}`}
+            key={`${initialMode}-${initialReferralCode}-${initialError ?? ""}`}
             initialMode={initialMode}
+            initialReferralCode={initialReferralCode}
             initialError={initialError}
             onClose={handleClose}
           />

@@ -30,6 +30,22 @@ function resolveApiUrl() {
 
 export const API_URL = resolveApiUrl();
 
+/** Resolve stored media path (e.g. /uploads/…) to an absolute URL. */
+export function mediaUrl(path: string | null | undefined) {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  const origin =
+    API_URL.startsWith("http://") || API_URL.startsWith("https://")
+      ? API_URL.replace(/\/api\/?$/, "")
+      : typeof window !== "undefined"
+        ? window.location.origin
+        : (process.env.BACKEND_URL ?? "http://localhost:4000").replace(
+            /\/$/,
+            "",
+          );
+  return `${origin}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 export type HealthResponse = {
   status: "ok" | "degraded";
   service: string;
@@ -56,6 +72,8 @@ export type PublicUser = {
   hasPassword: boolean;
   /** True when this account was created via a referral link. */
   wasReferred?: boolean;
+  /** Referrer's display name when the account was referred. */
+  referredByName?: string | null;
   role: string;
 };
 
@@ -124,19 +142,62 @@ export type TrialAccountResponse = {
   };
 };
 
+const USER_FACING_GENERIC_ERROR = "Something went wrong. Please try again.";
+
+function isTechnicalErrorMessage(message: string, status?: number) {
+  if (status != null && status >= 500) return true;
+  const trimmed = message.trim();
+  if (!trimmed) return true;
+  return (
+    /^request failed(\s*\(\d+\))?$/i.test(trimmed) ||
+    /internal server error/i.test(trimmed) ||
+    /status code\s*5\d\d/i.test(trimmed) ||
+    /failed to fetch|networkerror|load failed|network request failed/i.test(
+      trimmed,
+    )
+  );
+}
+
+/** Safe copy for UI / toasts — never exposes raw 5xx / network noise. */
+export function toUserFacingError(
+  err: unknown,
+  fallback = USER_FACING_GENERIC_ERROR,
+) {
+  if (!(err instanceof Error)) return fallback;
+  const message = err.message.trim();
+  if (!message || isTechnicalErrorMessage(message)) return fallback;
+  // Nest default for bare 401 responses.
+  if (/^unauthorized$/i.test(message)) return "Invalid credentials";
+  return message;
+}
+
+function readResponseErrorMessage(
+  data: unknown,
+  status: number,
+  fallback = USER_FACING_GENERIC_ERROR,
+) {
+  const raw =
+    typeof data === "object" &&
+    data &&
+    "message" in data &&
+    (data as { message?: string | string[] }).message
+      ? Array.isArray((data as { message: string | string[] }).message)
+        ? (data as { message: string[] }).message.join(", ")
+        : String((data as { message: string }).message)
+      : "";
+  if (!raw.trim() || isTechnicalErrorMessage(raw, status)) {
+    return fallback;
+  }
+  if (status === 401 && /^unauthorized$/i.test(raw.trim())) {
+    return "Invalid credentials";
+  }
+  return raw.trim();
+}
+
 async function parseJson<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message =
-      typeof data === "object" &&
-      data &&
-      "message" in data &&
-      (data as { message?: string | string[] }).message
-        ? Array.isArray((data as { message: string | string[] }).message)
-          ? (data as { message: string[] }).message.join(", ")
-          : String((data as { message: string }).message)
-        : `Request failed (${response.status})`;
-    throw new Error(message);
+    throw new Error(readResponseErrorMessage(data, response.status));
   }
   return data as T;
 }
@@ -521,8 +582,12 @@ export async function getMyMembership(
 
 export async function getLiveSessionUrl(
   accessToken: string,
+  options?: { slot?: string | null },
 ): Promise<{ url: string | null }> {
-  const response = await fetch(`${API_URL}/sessions/live`, {
+  const query = options?.slot
+    ? `?slot=${encodeURIComponent(options.slot)}`
+    : "";
+  const response = await fetch(`${API_URL}/sessions/live${query}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
   });
@@ -540,6 +605,8 @@ export async function createRazorpayOrder(
     startMode?: "now" | "after_current";
     startsOn?: string;
     applyReferralDiscount?: boolean;
+    /** Latest quoted payable amount; server rejects if price changed. */
+    expectedAmountPaise?: number;
   },
 ): Promise<CreateOrderResponse> {
   const response = await fetch(`${API_URL}/create-order`, {
@@ -582,10 +649,9 @@ export async function downloadMembershipInvoice(
     const body = (await response.json().catch(() => ({}))) as {
       message?: string | string[];
     };
-    const message = Array.isArray(body.message)
-      ? body.message[0]
-      : body.message;
-    throw new Error(message || "Unable to download invoice.");
+    throw new Error(
+      readResponseErrorMessage(body, response.status, "Unable to download invoice."),
+    );
   }
 
   const contentType = response.headers.get("Content-Type") || "";
@@ -656,6 +722,7 @@ export type MemberMilestone = {
   referralCount: number;
   rewardTitle: string;
   rewardDescription: string;
+  imageUrl: string | null;
   status: MemberMilestoneStatus;
   canRedeem: boolean;
   requestId: string | null;

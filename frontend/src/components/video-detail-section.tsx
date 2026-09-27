@@ -9,7 +9,15 @@ import type { HealthVideo } from "@/lib/health-videos";
 
 const cream = "#FBF9F5";
 
-export function VideoDetailSection({ video }: { video: HealthVideo }) {
+type VideoDetailSectionProps = {
+  video: HealthVideo;
+  breadcrumbRoot?: { label: string; href: string };
+};
+
+export function VideoDetailSection({
+  video,
+  breadcrumbRoot,
+}: VideoDetailSectionProps) {
   const source = video.videoUrl?.trim() || null;
   const playerSrc = toVideoEmbedUrl(source);
   const youtube = isYoutubeEmbedUrl(playerSrc);
@@ -22,10 +30,15 @@ export function VideoDetailSection({ video }: { video: HealthVideo }) {
         <div className="mb-5 sm:mb-6">
           <GuidesBreadcrumb
             guidesHash="videos"
-            items={[
-              { label: "Health Videos", href: "/videos" },
-              { label: video.title },
-            ]}
+            root={breadcrumbRoot}
+            items={
+              breadcrumbRoot
+                ? [{ label: video.title }]
+                : [
+                    { label: "Health Videos", href: "/videos" },
+                    { label: video.title },
+                  ]
+            }
           />
         </div>
 

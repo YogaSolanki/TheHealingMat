@@ -14,6 +14,7 @@ import {
   mapMembershipAccess,
   type MemberAccess,
 } from "@/lib/member-access-model";
+import { milestonesStore } from "@/lib/milestones-store";
 
 const USER_STORAGE_KEY = "thm_public_user";
 const ACCESS_STORAGE_KEY = "thm_member_access";
@@ -247,6 +248,7 @@ class SessionStore {
     writeJson(USER_STORAGE_KEY, null);
     writeJson(ACCESS_STORAGE_KEY, null);
     writeJson(REFERRALS_STORAGE_KEY, null);
+    milestonesStore.clear();
     this.emit();
   }
 

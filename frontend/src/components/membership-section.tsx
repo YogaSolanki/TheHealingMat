@@ -226,18 +226,25 @@ const sessionPillars: {
 export function MembershipSection({
   variant = "public",
   startMode = "now",
+  showMarketing = true,
 }: {
   variant?: MembershipSectionVariant;
   startMode?: CheckoutStartMode;
+  /** Public marketing blocks (week schedule, benefits, trial CTA). Off for logged-in My Membership. */
+  showMarketing?: boolean;
 } = {}) {
   return (
     <div className={variant === "renew" ? "w-full bg-[#FBF9F5]" : "w-full bg-white"}>
       <PlansBlock variant={variant} startMode={startMode} />
       <CouponStrip />
-      <WeekBlock />
-      <BenefitsBlock />
-      <DailySessionsBlock />
-      {variant === "public" ? <StillNotSureCta /> : null}
+      {showMarketing ? (
+        <>
+          <WeekBlock />
+          <BenefitsBlock />
+          <DailySessionsBlock />
+          {variant === "public" ? <StillNotSureCta /> : null}
+        </>
+      ) : null}
     </div>
   );
 }
@@ -250,7 +257,7 @@ function PlansBlock({
   startMode: CheckoutStartMode;
 }) {
   const isRenew = variant === "renew";
-  const { data, ready, error } = useMembershipPlans();
+  const { data, error } = useMembershipPlans();
   const plans = data.plans.map(toPlanCard);
   const liveOffer = data.offer;
 
@@ -289,11 +296,7 @@ function PlansBlock({
             : "sm:grid-cols-3"
         }`}
       >
-        {!ready && plans.length === 0 ? (
-          <p className="col-span-full py-10 text-center text-sm text-[#8a978c]">
-            Loading plans…
-          </p>
-        ) : error && plans.length === 0 ? (
+        {plans.length === 0 && error ? (
           <p className="col-span-full py-10 text-center text-sm text-[#8a2f2f]">
             {error}
           </p>

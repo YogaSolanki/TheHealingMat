@@ -9,6 +9,7 @@ import {
   deleteAdminReferralMilestone,
   listAdminReferralMilestones,
   listAdminRewardRedemptions,
+  mediaUrl,
   updateAdminReferralMilestone,
   updateAdminRewardRedemption,
   type AdminRedemptionStatus,
@@ -31,6 +32,7 @@ type MilestoneForm = {
   rewardDescription: string;
   active: boolean;
   sortOrder: string;
+  imageUrl: string;
 };
 
 const inputClass =
@@ -42,6 +44,7 @@ const emptyForm = (): MilestoneForm => ({
   rewardDescription: "",
   active: true,
   sortOrder: "",
+  imageUrl: "",
 });
 
 function formatWhen(iso: string | null) {
@@ -64,7 +67,11 @@ export function RewardsPanel() {
     () => getCached(DASHBOARD_CACHE_KEYS.rewardRedemptions) ?? [],
   );
   const [loading, setLoading] = useState(
-    !hasCached(DASHBOARD_CACHE_KEYS.referralMilestones),
+    () =>
+      !(
+        hasCached(DASHBOARD_CACHE_KEYS.referralMilestones) &&
+        hasCached(DASHBOARD_CACHE_KEYS.rewardRedemptions)
+      ),
   );
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<MilestoneForm>(emptyForm);
@@ -143,6 +150,7 @@ export function RewardsPanel() {
       rewardDescription: row.rewardDescription,
       active: row.active,
       sortOrder: String(row.sortOrder),
+      imageUrl: row.imageUrl ?? "",
     });
     setTab("milestones");
   }
@@ -168,10 +176,17 @@ export function RewardsPanel() {
       return;
     }
 
+    const imageUrl = form.imageUrl.trim() || null;
+    if (imageUrl && !/^https?:\/\//i.test(imageUrl) && !imageUrl.startsWith("/")) {
+      setError("Reward image must be a full URL (https://…) or leave it blank.");
+      return;
+    }
+
     const body: MilestoneInput = {
       referralCount,
       rewardTitle: form.rewardTitle.trim(),
       rewardDescription: form.rewardDescription.trim(),
+      imageUrl,
       active: form.active,
       sortOrder: Number.isInteger(sortOrder) ? sortOrder : referralCount,
     };
@@ -184,6 +199,7 @@ export function RewardsPanel() {
       } else {
         await createAdminReferralMilestone(token, body);
       }
+
       resetForm();
       await load(true);
     } catch (err: unknown) {
@@ -315,6 +331,49 @@ export function RewardsPanel() {
                 }
               />
             </label>
+
+            <div className="mt-3">
+              <label className="block text-xs font-semibold text-[#5f6f64]">
+                Reward image URL
+                <input
+                  className={inputClass}
+                  type="url"
+                  inputMode="url"
+                  placeholder="https://example.com/reward.png"
+                  value={form.imageUrl}
+                  onChange={(e) =>
+                    setForm((current) => ({
+                      ...current,
+                      imageUrl: e.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <div className="mt-2 flex items-start gap-3">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#e2e8df] bg-[#f7faf6]">
+                  {form.imageUrl.trim() ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={mediaUrl(form.imageUrl.trim()) ?? form.imageUrl.trim()}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display =
+                          "none";
+                      }}
+                    />
+                  ) : (
+                    <span className="px-2 text-center text-[10px] font-medium text-[#8a968c]">
+                      No image
+                    </span>
+                  )}
+                </div>
+                <p className="min-w-0 flex-1 pt-1 text-[11px] leading-snug text-[#8a968c]">
+                  Paste a public image link (HTTPS). Leave blank for no image.
+                </p>
+              </div>
+            </div>
+
             <label className="mt-3 block text-xs font-semibold text-[#5f6f64]">
               Sort order
               <input
@@ -368,6 +427,7 @@ export function RewardsPanel() {
             <table className="min-w-full text-left text-sm">
               <thead className="bg-[#f7faf6] text-[11px] font-bold tracking-wide text-[#6b7c6e] uppercase">
                 <tr>
+                  <th className="px-4 py-3">Image</th>
                   <th className="px-4 py-3">Count</th>
                   <th className="px-4 py-3">Reward</th>
                   <th className="px-4 py-3">Status</th>
@@ -378,15 +438,33 @@ export function RewardsPanel() {
                 {milestones.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={4}
+                      colSpan={5}
                       className="px-4 py-10 text-center text-[#6b7c6e]"
                     >
                       No milestones yet.
                     </td>
                   </tr>
                 ) : (
-                  milestones.map((row) => (
+                  milestones.map((row) => {
+                    const thumb = mediaUrl(row.imageUrl);
+                    return (
                     <tr key={row.id} className="border-t border-[#eef2ee]">
+                      <td className="px-4 py-3">
+                        <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-[#e8eee6] bg-[#f7faf6]">
+                          {thumb ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={thumb}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-[9px] font-medium text-[#8a968c]">
+                              —
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 font-bold text-[#243028]">
                         {row.referralCount}
                       </td>
@@ -426,7 +504,8 @@ export function RewardsPanel() {
                         </button>
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>

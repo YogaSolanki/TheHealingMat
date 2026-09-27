@@ -13,6 +13,8 @@ export type MemberAccess = {
   planName: string;
   startDateLabel: string | null;
   validUntilLabel: string | null;
+  /** Raw ISO for countdown math (current or last membership endsAt). */
+  validUntilIso: string | null;
   trialStartsOnLabel: string | null;
   trialEndsOnLabel: string | null;
   expiredOnLabel: string | null;
@@ -39,6 +41,14 @@ export function greetingForName(fullName: string, now = new Date()) {
   const period =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   return `${period}, ${name}`;
+}
+
+/** Supporting line under the greeting — matches morning / afternoon / evening. */
+export function daypartYogaMessage(now = new Date()) {
+  const hour = now.getHours();
+  if (hour < 12) return "Let’s begin your day with yoga.";
+  if (hour < 17) return "Take a little time for yourself with yoga.";
+  return "Let’s end your day with yoga.";
 }
 
 function formatLongDate(iso: string | null | undefined) {
@@ -95,6 +105,7 @@ export function emptyMemberAccess(
           : "Membership",
     startDateLabel: null,
     validUntilLabel: null,
+    validUntilIso: null,
     trialStartsOnLabel: null,
     trialEndsOnLabel: null,
     expiredOnLabel: null,
@@ -141,6 +152,7 @@ export function mapMembershipAccess(data: MembershipAccessResponse): MemberAcces
     access.planName = "Your Trial";
     access.startDateLabel = formatLongDate(data.trial?.startsAt);
     access.validUntilLabel = formatLongDate(data.trial?.endsAt);
+    access.validUntilIso = data.trial?.endsAt ?? null;
     return access;
   }
 
@@ -150,6 +162,7 @@ export function mapMembershipAccess(data: MembershipAccessResponse): MemberAcces
   access.planName = membership.planName;
   access.startDateLabel = formatLongDate(membership.startsAt);
   access.validUntilLabel = formatLongDate(membership.endsAt);
+  access.validUntilIso = membership.endsAt;
   access.expiredOnLabel =
     state === "expired" ? formatLongDate(membership.endsAt) : null;
   access.amountPaid = formatMoney(

@@ -36,12 +36,12 @@ export function SiteToast({
 
   return createPortal(
     <div
-      className="pointer-events-none fixed inset-x-0 top-4 z-[220] flex justify-center px-4 sm:top-6"
+      className="pointer-events-none fixed inset-x-0 top-5 z-[220] flex justify-center px-5 sm:top-7 sm:px-6"
       role="status"
       aria-live="polite"
     >
       <div
-        className={`pointer-events-auto inline-flex max-w-[min(92vw,420px)] items-center gap-2.5 rounded-[14px] border bg-white px-4 py-3 text-[13px] font-semibold shadow-[0_12px_36px_rgba(31,107,58,0.18)] sm:text-[14px] ${
+        className={`pointer-events-auto inline-flex max-w-[min(92vw,420px)] items-center gap-3 rounded-[14px] border bg-white px-4 py-3.5 text-[13px] font-semibold shadow-[0_12px_36px_rgba(31,107,58,0.18)] sm:gap-3.5 sm:px-5 sm:py-4 sm:text-[14px] ${
           isError
             ? "border-[#f0c9c9] text-[#8a2f2f]"
             : "border-[#cfe3d4] text-[#1f6b3a]"
@@ -74,7 +74,7 @@ export function SiteToast({
             </svg>
           )}
         </span>
-        <span className="min-w-0 leading-snug">{message}</span>
+        <span className="min-w-0 pr-0.5 leading-snug tracking-wide">{message}</span>
       </div>
     </div>,
     document.body,

@@ -93,4 +93,27 @@ export class ContentAdminController {
   deleteVideo(@Param('id', ParseUUIDPipe) id: string) {
     return this.content.deleteVideo(id);
   }
+
+  @Get('orientation-videos')
+  listOrientationVideos() {
+    return this.content.listOrientationVideos(false);
+  }
+
+  @Post('orientation-videos')
+  createOrientationVideo(@Body() dto: CreateVideoDto) {
+    return this.content.createOrientationVideo(dto);
+  }
+
+  @Patch('orientation-videos/:id')
+  updateOrientationVideo(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateVideoDto,
+  ) {
+    return this.content.updateOrientationVideo(id, dto);
+  }
+
+  @Delete('orientation-videos/:id')
+  deleteOrientationVideo(@Param('id', ParseUUIDPipe) id: string) {
+    return this.content.deleteOrientationVideo(id);
+  }
 }

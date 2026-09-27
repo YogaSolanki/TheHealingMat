@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   requestOtp,
   verifyOtp,
+  toUserFacingError,
   type PublicUser,
   type Region,
 } from "@/lib/api";
@@ -28,10 +29,6 @@ import {
 import { ButtonLoader } from "@/components/site-loader";
 import { SiteToast } from "@/components/site-toast";
 import { TermsAcceptanceField } from "@/components/terms-acceptance-field";
-import {
-  captureReferralCode,
-  getCapturedReferralCode,
-} from "@/lib/referral-storage";
 import {
   clearCheckoutIntent,
   readCheckoutIntent,
@@ -66,18 +63,20 @@ function formatCountdown(totalSeconds: number) {
 
 type TrialSignupCardProps = {
   intent?: AuthSignupIntent;
+  initialReferralCode?: string;
   initialError?: string | null;
   onClose?: () => void;
 };
 
 export function TrialSignupCard({
   intent = "trial",
+  initialReferralCode = "",
   initialError = null,
   onClose,
 }: TrialSignupCardProps) {
   const isMembership = intent === "membership";
   const router = useRouter();
-  const { showAuthToast } = useAuthModal();
+  const { showAuthToast, openAuth } = useAuthModal();
   const [step, setStep] = useState<"identity" | "otp">("identity");
   const [region, setRegion] = useState<Region | null>(null);
   const [fullName, setFullName] = useState("");
@@ -95,17 +94,12 @@ export function TrialSignupCard({
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [referralCodeInput, setReferralCodeInput] = useState(
-    () => getCapturedReferralCode() ?? "",
+    () => initialReferralCode.trim(),
   );
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
-
-  useEffect(() => {
-    const captured = getCapturedReferralCode();
-    if (!captured) return;
-    setReferralCodeInput((current) => current.trim() || captured);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -212,6 +206,10 @@ export function TrialSignupCard({
       setError("Please accept the Terms & Conditions and Privacy Policy to continue.");
       return;
     }
+    if (isMembership && !ageConfirmed) {
+      setError("Please confirm that you are 18 years of age or older.");
+      return;
+    }
 
     if (activeRegion === "india") {
       const digits = mobile.replace(/\D/g, "").slice(-10);
@@ -239,7 +237,8 @@ export function TrialSignupCard({
         expiresIn: result.expiresIn,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Request failed");
+      const message = toUserFacingError(err);
+      showAuthToast(message, "error");
     } finally {
       setLoading(false);
     }
@@ -263,7 +262,8 @@ export function TrialSignupCard({
         expiresIn: result.expiresIn,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not resend OTP");
+      setStep("identity");
+      showAuthToast(toUserFacingError(err, "Could not resend OTP"), "error");
     } finally {
       setLoading(false);
     }
@@ -280,9 +280,7 @@ export function TrialSignupCard({
 
     setLoading(true);
     try {
-      const referralCode =
-        referralCodeInput.trim() || getCapturedReferralCode() || "";
-      if (referralCode) captureReferralCode(referralCode);
+      const referralCode = isMembership ? "" : referralCodeInput.trim();
       const result = await verifyOtp({
         challengeId,
         code: otp,
@@ -292,7 +290,7 @@ export function TrialSignupCard({
       });
       await afterAuth(result.accessToken, result.user);
     } catch (err) {
-      setToast(err instanceof Error ? err.message : "OTP verification failed");
+      showAuthToast(toUserFacingError(err, "OTP verification failed"), "error");
     } finally {
       setLoading(false);
     }
@@ -308,6 +306,7 @@ export function TrialSignupCard({
   const mobileDigits = mobile.replace(/\D/g, "").slice(0, 10);
   const canSubmitIdentity =
     termsAccepted &&
+    (!isMembership || ageConfirmed) &&
     isValidFullName(fullName) &&
     (isIndia
       ? mobileDigits.length === 10
@@ -367,7 +366,7 @@ export function TrialSignupCard({
       ) : null}
 
       {error ? (
-        <p className="mb-2 rounded-[12px] bg-[#fdecec] px-3 py-2 text-[13px] text-[#8a2f2f]">
+        <p className="mb-3 rounded-[12px] bg-[#fdecec] px-3.5 py-2.5 text-[13px] leading-snug text-[#8a2f2f]">
           {error}
         </p>
       ) : null}
@@ -386,12 +385,12 @@ export function TrialSignupCard({
           <>
             <h2 className="mt-2 font-serif text-[1.35rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.45rem]">
               {isMembership
-                ? "Start Your Membership"
+                ? "Welcome to Your THM Membership"
                 : "14 Days of Free Yoga Classes"}
             </h2>
-            <p className="mx-auto mt-1 max-w-[280px] text-[12px] leading-snug text-[#6d8474]">
+            <p className="mx-auto mt-1 max-w-[300px] text-[12px] leading-snug text-[#6d8474]">
               {isMembership
-                ? "Create your account to continue with your chosen plan."
+                ? "A simple step towards making better health part of your everyday life."
                 : "Start your journey to better health and well-being."}
             </p>
           </>
@@ -482,21 +481,26 @@ export function TrialSignupCard({
             )}
           </div>
 
+          {!isMembership ? (
+            <div>
+              <label className={labelClass} htmlFor="trial-referral-code">
+                Have a referral code?
+              </label>
+              <input
+                id="trial-referral-code"
+                value={referralCodeInput}
+                onChange={(e) => setReferralCodeInput(e.target.value)}
+                className={`${fieldClass} px-3.5`}
+                placeholder="Enter code (optional)"
+                autoComplete="off"
+                maxLength={64}
+                spellCheck={false}
+                disabled={loading}
+              />
+            </div>
+          ) : null}
+
           <div>
-            <label className={labelClass} htmlFor="trial-referral-code">
-              Have a referral code?
-            </label>
-            <input
-              id="trial-referral-code"
-              value={referralCodeInput}
-              onChange={(e) => setReferralCodeInput(e.target.value)}
-              className={`${fieldClass} px-3.5`}
-              placeholder="Enter code (optional)"
-              autoComplete="off"
-              maxLength={64}
-              spellCheck={false}
-              disabled={loading}
-            />
             {isIndia ? (
               <button
                 type="button"
@@ -524,6 +528,25 @@ export function TrialSignupCard({
             )}
           </div>
 
+          {isMembership ? (
+            <label
+              htmlFor="membership-age-confirm"
+              className="flex cursor-pointer items-start gap-2 rounded-[10px] border border-[#e2e8df] bg-[#f7faf7] px-2.5 py-1.5 text-left"
+            >
+              <input
+                id="membership-age-confirm"
+                type="checkbox"
+                checked={ageConfirmed}
+                disabled={loading}
+                onChange={(event) => setAgeConfirmed(event.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-[#b7cbb8] text-[#1f6b3a] focus:ring-[#1f6b3a]/20"
+              />
+              <span className="text-[12px] leading-snug text-[#3d4a3c]">
+                I confirm that I am 18 years of age or older.
+              </span>
+            </label>
+          ) : null}
+
           <TermsAcceptanceField
             id="trial-signup-terms"
             checked={termsAccepted}
@@ -540,11 +563,24 @@ export function TrialSignupCard({
               <ButtonLoader />
             ) : (
               <>
-                {isMembership ? "Continue to Membership" : "Start My Free Trial"}
+                {isMembership
+                  ? "Continue to Verification"
+                  : "Start My Free Trial"}
                 <span aria-hidden="true">→</span>
               </>
             )}
           </button>
+
+          <p className="text-center text-[12.5px] text-[#6b7c6e]">
+            Already have an account?{" "}
+            <button
+              type="button"
+              onClick={() => openAuth("login")}
+              className="cursor-pointer font-semibold text-[#1f6b3a] underline-offset-2 hover:underline"
+            >
+              Log in
+            </button>
+          </p>
 
           <p className="flex items-center justify-center gap-1.5 text-[11px] text-[#8a968c]">
             <ShieldCheckIcon />
