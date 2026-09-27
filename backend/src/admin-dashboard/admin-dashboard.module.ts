@@ -6,6 +6,7 @@ import { PaymentsModule } from '../payments/payments.module';
 import { OrientationSlot } from '../trials/orientation-slot.entity';
 import { TrialCohort } from '../trials/trial-cohort.entity';
 import { TrialRegistration } from '../trials/trial-registration.entity';
+import { TrialsModule } from '../trials/trials.module';
 import { OtpChallenge } from '../users/otp-challenge.entity';
 import { User } from '../users/user.entity';
 import { AdminDashboardController } from './admin-dashboard.controller';
@@ -14,6 +15,7 @@ import { AdminDashboardService } from './admin-dashboard.service';
 @Module({
   imports: [
     PaymentsModule,
+    TrialsModule,
     TypeOrmModule.forFeature([
       User,
       TrialRegistration,
