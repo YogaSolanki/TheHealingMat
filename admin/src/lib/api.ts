@@ -290,6 +290,7 @@ export type UpdateAdminUserInput = {
   state?: string | null;
   preferredClassTime?: string | null;
   hasUsedFreeTrial?: boolean;
+  password?: string;
 };
 
 export type UpdateAdminMembershipInput = {

@@ -1169,6 +1169,7 @@ export class PaymentsService {
   }
 
   private toPublicMembership(membership: Membership) {
+    const adminManual = membership.paymentOrderId.startsWith('admin-manual-');
     return {
       id: membership.id,
       planName: membership.planName,
@@ -1184,6 +1185,8 @@ export class PaymentsService {
       razorpayInvoiceId: membership.razorpayInvoiceId,
       razorpayInvoiceUrl: membership.razorpayInvoiceUrl,
       paidAt: membership.createdAt.toISOString(),
+      /** False for admin-granted memberships (no Razorpay checkout invoice). */
+      invoiceDownloadable: !adminManual,
     };
   }
 

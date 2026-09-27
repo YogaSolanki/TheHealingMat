@@ -509,6 +509,8 @@ export type PublicMembership = {
   razorpayInvoiceId?: string | null;
   razorpayInvoiceUrl?: string | null;
   paidAt: string;
+  /** False when membership was granted manually by admin. */
+  invoiceDownloadable?: boolean;
 };
 
 export type MembershipAccessResponse = {

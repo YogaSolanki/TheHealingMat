@@ -24,6 +24,10 @@ import {
 import { sendResendEmail } from '../mail/resend';
 import { sendAiSensyOtp } from '../sms/aisensy-whatsapp';
 import { detectVisitorRegion as detectVisitorRegionFromRequest } from '../common/visitor-region';
+import {
+  buildMemberAccessLink,
+  resolveFrontendBaseUrl,
+} from '../common/frontend-url';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -1008,17 +1012,14 @@ export class AuthService {
   }
 
   private buildAccessLink(token: string): string {
-    const base = this.config.get<string>(
-      'FRONTEND_URL',
-      'http://localhost:3000',
+    return buildMemberAccessLink(
+      this.config.get<string>('FRONTEND_URL'),
+      token,
     );
-    return `${base.replace(/\/$/, '')}/u/${token}`;
   }
 
   private frontendBaseUrl() {
-    return this.config
-      .get<string>('FRONTEND_URL', 'http://localhost:3000')
-      .replace(/\/$/, '');
+    return resolveFrontendBaseUrl(this.config.get<string>('FRONTEND_URL'));
   }
 
   private googleCallbackUrl() {

@@ -221,7 +221,7 @@ export function MemberMembershipPage() {
                     {access.transactionRef ? ` · Ref ${access.transactionRef}` : ""}
                   </p>
                 ) : null}
-                {isPending || loading ? null : (
+                {isPending || loading || !access.invoiceDownloadable ? null : (
                   <div className="mt-2">
                     <button
                       type="button"

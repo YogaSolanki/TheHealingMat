@@ -11,7 +11,7 @@ import { randomBytes, randomUUID } from 'crypto';
 import { DataSource, In, Not, Repository } from 'typeorm';
 import { CouponRedemption } from '../coupons/coupon-redemption.entity';
 import { Coupon } from '../coupons/coupon.entity';
-import { isValidPassword } from '../auth/dto/password.rules';
+import { isValidPassword, PASSWORD_MESSAGE } from '../auth/dto/password.rules';
 import { Membership } from '../payments/membership.entity';
 import { MembershipPlansService } from '../payments/membership-plans.service';
 import { PaymentOrder } from '../payments/payment-order.entity';
@@ -26,6 +26,7 @@ import {
   buildReferralCode,
   isUniqueViolation,
 } from '../users/account-identity';
+import { buildMemberAccessLink } from '../common/frontend-url';
 import { Region } from '../users/enums/region.enum';
 import { TrialStatus } from '../users/enums/trial-status.enum';
 import { OtpChallenge } from '../users/otp-challenge.entity';
@@ -545,6 +546,20 @@ export class AdminDashboardService {
       );
     }
 
+    const nextPassword = dto.password?.trim();
+    if (nextPassword) {
+      if (!isValidPassword(nextPassword)) {
+        throw new BadRequestException(PASSWORD_MESSAGE);
+      }
+      const passwordHash = await bcrypt.hash(nextPassword, BCRYPT_ROUNDS);
+      await this.users
+        .createQueryBuilder()
+        .update(User)
+        .set({ passwordHash, passwordSetByUser: true })
+        .where('id = :id', { id })
+        .execute();
+    }
+
     await this.users.save(user);
     return this.getUserDetail(id);
   }
@@ -916,11 +931,10 @@ export class AdminDashboardService {
   }
 
   private buildAccessLink(token: string): string {
-    const base = this.config.get<string>(
-      'FRONTEND_URL',
-      'http://localhost:3000',
+    return buildMemberAccessLink(
+      this.config.get<string>('FRONTEND_URL'),
+      token,
     );
-    return `${base.replace(/\/$/, '')}/u/${token}`;
   }
 
   private normalizeMobile(mobile: string): string {

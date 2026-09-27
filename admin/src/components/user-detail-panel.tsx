@@ -38,6 +38,8 @@ type ProfileForm = {
   state: string;
   preferredClassTime: string;
   hasUsedFreeTrial: boolean;
+  password: string;
+  confirmPassword: string;
 };
 
 type MembershipForm = {
@@ -132,6 +134,8 @@ function profileFromDetail(detail: AdminUserDetail): ProfileForm {
     state: p.state ?? "",
     preferredClassTime: p.preferredClassTime ?? "",
     hasUsedFreeTrial: p.hasUsedFreeTrial,
+    password: "",
+    confirmPassword: "",
   };
 }
 
@@ -192,6 +196,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     null,
   );
   const [membershipCreated, setMembershipCreated] = useState(false);
+  const [accessLinkCopied, setAccessLinkCopied] = useState(false);
 
   const token = useMemo(
     () =>
@@ -295,6 +300,30 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   function requestSaveProfile(event: FormEvent) {
     event.preventDefault();
     if (!editing || !profileForm || savingProfile) return;
+
+    const nextPassword = profileForm.password.trim();
+    if (nextPassword || profileForm.confirmPassword.trim()) {
+      if (nextPassword.length < 8) {
+        setError(
+          "Password must be 8–72 characters and include uppercase, lowercase, and a number.",
+        );
+        return;
+      }
+      if (
+        !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(nextPassword) ||
+        nextPassword.length > 72
+      ) {
+        setError(
+          "Password must be 8–72 characters and include uppercase, lowercase, and a number.",
+        );
+        return;
+      }
+      if (nextPassword !== profileForm.confirmPassword.trim()) {
+        setError("Password and confirm password do not match.");
+        return;
+      }
+    }
+
     setPendingSave({ type: "profile" });
   }
 
@@ -360,6 +389,9 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           state: profileForm.state || null,
           preferredClassTime: profileForm.preferredClassTime || null,
           hasUsedFreeTrial: profileForm.hasUsedFreeTrial,
+          ...(profileForm.password.trim()
+            ? { password: profileForm.password.trim() }
+            : {}),
         });
         applyDetail(next);
         invalidateCached(DASHBOARD_CACHE_KEYS.users);
@@ -771,49 +803,99 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             Has used free trial
           </label>
 
-          <div className="grid gap-3 rounded-xl bg-[#f7faf6] p-4 text-sm text-[#5f6f64] sm:col-span-2 sm:grid-cols-2">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-[#8a978c]">
-                Referral code
-              </p>
-              <p className="mt-1 font-semibold text-[#243028]">
+          <div className="space-y-3 rounded-xl bg-[#f7faf6] p-4 text-sm sm:col-span-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="shrink-0 text-[#8a978c]">Referral code</span>
+              <span className="text-right font-semibold text-[#243028]">
                 {detail.profile.referralCode}
-              </p>
+              </span>
             </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-[#8a978c]">
-                Access link
-              </p>
-              <a
-                href={detail.profile.accessLink}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-1 block truncate font-semibold text-[#1f6b3a] hover:underline"
-              >
-                {detail.profile.accessLink}
-              </a>
+
+            <div className="space-y-1.5 border-t border-[#e6ebe3] pt-3">
+              <span className="text-[#8a978c]">Access link</span>
+              <div className="flex items-start gap-2">
+                <a
+                  href={detail.profile.accessLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="min-w-0 flex-1 break-all font-semibold text-[#1f6b3a] hover:underline"
+                >
+                  {detail.profile.accessLink}
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(detail.profile.accessLink)
+                      .then(() => {
+                        setAccessLinkCopied(true);
+                        window.setTimeout(() => setAccessLinkCopied(false), 1500);
+                      });
+                  }}
+                  className="shrink-0 rounded-lg border border-[#d7e0d6] bg-white px-2.5 py-1 text-xs font-semibold text-[#1f6b3a] transition hover:bg-[#e8f2ea]"
+                >
+                  {accessLinkCopied ? "Copied" : "Copy"}
+                </button>
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-[#8a978c]">
-                Referred by
-              </p>
-              <p className="mt-1 font-semibold text-[#243028]">
+
+            <div className="flex items-center justify-between gap-3 border-t border-[#e6ebe3] pt-3">
+              <span className="shrink-0 text-[#8a978c]">Referred by</span>
+              <span className="text-right font-semibold text-[#243028]">
                 {detail.referredBy
                   ? `${detail.referredBy.fullName} (${detail.referredBy.referralCode})`
                   : "—"}
-              </p>
+              </span>
             </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-[#8a978c]">
-                Password
-              </p>
-              <p className="mt-1 font-semibold text-[#243028]">
-                {detail.profile.passwordSetByUser
-                  ? "Set by member"
-                  : "Auto-generated / not changed"}
-              </p>
+
+            <div className="flex items-center justify-between gap-3 border-t border-[#e6ebe3] pt-3">
+              <span className="shrink-0 text-[#8a978c]">Password</span>
+              <span className="text-right font-semibold text-[#243028]">
+                {detail.profile.passwordSetByUser ? "Set" : "Not set by user"}
+              </span>
             </div>
           </div>
+
+          {editing ? (
+            <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2">
+              <label className={labelClass}>
+                New password
+                <input
+                  type="text"
+                  value={profileForm.password}
+                  onChange={(e) => {
+                    setProfileForm({
+                      ...profileForm,
+                      password: e.target.value,
+                    });
+                    setProfileSaved(false);
+                  }}
+                  className={inputClass}
+                  disabled={fieldsLocked}
+                  autoComplete="new-password"
+                  placeholder="Optional"
+                />
+              </label>
+              <label className={labelClass}>
+                Confirm password
+                <input
+                  type="text"
+                  value={profileForm.confirmPassword}
+                  onChange={(e) => {
+                    setProfileForm({
+                      ...profileForm,
+                      confirmPassword: e.target.value,
+                    });
+                    setProfileSaved(false);
+                  }}
+                  className={inputClass}
+                  disabled={fieldsLocked}
+                  autoComplete="new-password"
+                  placeholder="Optional"
+                />
+              </label>
+            </div>
+          ) : null}
 
           {editing ? (
             <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
