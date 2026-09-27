@@ -100,6 +100,12 @@ class SessionStore {
     this.clientAttached = true;
     this.hydrateFromStorage();
     this.emit();
+
+    // After a full page refresh, pull latest membership once so admin/plan
+    // updates show up. In-app dashboard tab switches reuse in-memory cache.
+    if (getStoredToken()) {
+      void this.ensureAccess({ force: true }).catch(() => null);
+    }
   }
 
   private hydrateFromStorage() {

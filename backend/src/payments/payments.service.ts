@@ -485,40 +485,34 @@ export class PaymentsService {
       }
     }
 
-    // Paid memberships: always prefer Razorpay's original invoice page.
+    // Prefer Razorpay's original invoice page when available.
     if (invoiceUrl) {
       return { type: 'razorpay' as const, url: invoiceUrl };
     }
 
-    // Free / zero-amount plans only — local PDF receipt (no Razorpay charge).
-    if (membership.amountPaidPaise === 0) {
-      const invoiceNo = `THM-${membership.id.slice(0, 8).toUpperCase()}`;
-      const pdf = buildMembershipInvoicePdf({
-        invoiceNo,
-        issuedAt: membership.createdAt,
-        memberName: user.fullName,
-        memberEmail: user.email,
-        memberMobile: user.mobile,
-        planName: membership.planName,
-        planMonths: membership.planMonths,
-        listPricePaise: membership.listPricePaise,
-        discountPaise: membership.discountPaise,
-        amountPaidPaise: membership.amountPaidPaise,
-        paymentRef: membership.razorpayPaymentId,
-        startsAt: membership.startsAt,
-        endsAt: membership.endsAt,
-      });
+    // Fallback: Healing Mat PDF receipt (admin grants, offline payments, free plans).
+    const invoiceNo = `THM-${membership.id.slice(0, 8).toUpperCase()}`;
+    const pdf = buildMembershipInvoicePdf({
+      invoiceNo,
+      issuedAt: membership.createdAt,
+      memberName: user.fullName,
+      memberEmail: user.email,
+      memberMobile: user.mobile,
+      planName: membership.planName,
+      planMonths: membership.planMonths,
+      listPricePaise: membership.listPricePaise,
+      discountPaise: membership.discountPaise,
+      amountPaidPaise: membership.amountPaidPaise,
+      paymentRef: membership.razorpayPaymentId,
+      startsAt: membership.startsAt,
+      endsAt: membership.endsAt,
+    });
 
-      return {
-        type: 'pdf' as const,
-        filename: `the-healing-mat-invoice-${invoiceNo}.pdf`,
-        pdf,
-      };
-    }
-
-    throw new NotFoundException(
-      'Razorpay invoice is not available for this membership. Complete a new payment to generate the original Razorpay invoice.',
-    );
+    return {
+      type: 'pdf' as const,
+      filename: `the-healing-mat-invoice-${invoiceNo}.pdf`,
+      pdf,
+    };
   }
 
   private async fulfillZeroAmount(
@@ -1219,7 +1213,48 @@ export class PaymentsService {
       order_id?: string | null;
       status?: string;
       amount?: number;
+      currency?: string;
+      invoice_id?: string | null;
     };
+  }
+
+  /**
+   * Look up a Razorpay payment and any linked invoice (for admin recovery).
+   */
+  async resolveRazorpayPaymentInvoice(paymentId: string) {
+    const cleaned = paymentId.trim();
+    if (!cleaned.startsWith('pay_')) {
+      return null;
+    }
+
+    try {
+      const payment = await this.fetchRazorpayPayment(cleaned);
+      const invoiceId =
+        payment.invoice_id != null ? String(payment.invoice_id).trim() : '';
+      let invoiceUrl: string | null = null;
+      if (invoiceId) {
+        try {
+          const invoice = await this.fetchRazorpayInvoice(invoiceId);
+          invoiceUrl = invoice.short_url ? String(invoice.short_url) : null;
+        } catch {
+          invoiceUrl = null;
+        }
+      }
+      return {
+        paymentId: String(payment.id || cleaned),
+        invoiceId: invoiceId || null,
+        invoiceUrl,
+        amountPaise:
+          payment.amount != null && Number.isFinite(Number(payment.amount))
+            ? Number(payment.amount)
+            : null,
+        currency: payment.currency
+          ? String(payment.currency).toUpperCase()
+          : null,
+      };
+    } catch {
+      return null;
+    }
   }
 
   private async findCapturedPaymentIdForOrder(

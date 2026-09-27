@@ -5,9 +5,13 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ReloadButton } from "@/components/reload-button";
 import {
   ADMIN_TOKEN_KEY,
+  activateAdminMembershipFromPayment,
+  createAdminUserMembership,
   getAdminUserDetail,
+  listAdminMembershipPlans,
   updateAdminUser,
   updateAdminUserMembership,
+  type AdminMembershipPlan,
   type AdminUserDetail,
   type AdminUserMembership,
 } from "@/lib/api";
@@ -44,10 +48,39 @@ type MembershipForm = {
   endsAt: string;
 };
 
+type NewMembershipForm = {
+  planMonths: string;
+  status: "active" | "scheduled";
+  startsAt: string;
+  paymentOrderId: string;
+  paymentRef: string;
+};
+
 type PendingSave =
   | { type: "profile" }
-  | { type: "membership"; membershipId: string };
+  | { type: "membership"; membershipId: string }
+  | { type: "create-membership" }
+  | { type: "activate-payment"; paymentOrderId: string };
 
+function emptyNewMembershipForm(
+  plans?: AdminMembershipPlan[],
+): NewMembershipForm {
+  const preferred =
+    plans?.find((p) => p.months === 3) ??
+    plans?.[0] ??
+    null;
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const startsAt = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
+  return {
+    planMonths: preferred ? String(preferred.months) : "3",
+    status: "active",
+    startsAt,
+    paymentOrderId: "",
+    paymentRef: "",
+  };
+}
 function formatMoney(paise: number, currency: string) {
   const amount = paise / 100;
   try {
@@ -137,10 +170,19 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   const [membershipForms, setMembershipForms] = useState<
     Record<string, MembershipForm>
   >({});
+  const [newMembershipForm, setNewMembershipForm] = useState<NewMembershipForm>(
+    emptyNewMembershipForm,
+  );
+  const [catalogPlans, setCatalogPlans] = useState<AdminMembershipPlan[]>([]);
+  const [showAssignPlan, setShowAssignPlan] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingMembershipId, setSavingMembershipId] = useState<string | null>(
+    null,
+  );
+  const [savingNewMembership, setSavingNewMembership] = useState(false);
+  const [activatingPaymentId, setActivatingPaymentId] = useState<string | null>(
     null,
   );
   const [pendingSave, setPendingSave] = useState<PendingSave | null>(null);
@@ -149,6 +191,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   const [membershipSavedId, setMembershipSavedId] = useState<string | null>(
     null,
   );
+  const [membershipCreated, setMembershipCreated] = useState(false);
 
   const token = useMemo(
     () =>
@@ -168,6 +211,21 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     setMembershipForms(forms);
   }, []);
 
+  const loadCatalogPlans = useCallback(async () => {
+    if (!token) return;
+    try {
+      const plans = await listAdminMembershipPlans(token);
+      const sorted = [...plans].sort(
+        (a, b) => a.sortOrder - b.sortOrder || a.months - b.months,
+      );
+      setCatalogPlans(sorted);
+      return sorted;
+    } catch {
+      setCatalogPlans([]);
+      return [] as AdminMembershipPlan[];
+    }
+  }, [token]);
+
   const load = useCallback(async () => {
     if (!token) {
       setError("Please sign in again.");
@@ -177,10 +235,15 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     setLoading(true);
     setError(null);
     setEditing(false);
+    setShowAssignPlan(false);
     setPendingSave(null);
     try {
-      const next = await getAdminUserDetail(token, userId);
+      const [next, plans] = await Promise.all([
+        getAdminUserDetail(token, userId),
+        loadCatalogPlans(),
+      ]);
       applyDetail(next);
+      setNewMembershipForm(emptyNewMembershipForm(plans));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load user.");
       setDetail(null);
@@ -188,12 +251,13 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [token, userId, applyDetail]);
+  }, [token, userId, applyDetail, loadCatalogPlans]);
 
   useEffect(() => {
     setDetail(null);
     setProfileForm(null);
     setEditing(false);
+    setShowAssignPlan(false);
     setPendingSave(null);
     void load();
   }, [load]);
@@ -202,18 +266,29 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     if (!detail) return;
     applyDetail(detail);
     setEditing(true);
+    setShowAssignPlan(detail.memberships.length === 0);
+    setNewMembershipForm(emptyNewMembershipForm(catalogPlans));
     setProfileSaved(false);
     setMembershipSavedId(null);
+    setMembershipCreated(false);
     setError(null);
+    if (catalogPlans.length === 0) {
+      void loadCatalogPlans().then((plans) => {
+        setNewMembershipForm(emptyNewMembershipForm(plans));
+      });
+    }
   }
 
   function cancelEditMode() {
     if (!detail) return;
     applyDetail(detail);
     setEditing(false);
+    setShowAssignPlan(false);
+    setNewMembershipForm(emptyNewMembershipForm(catalogPlans));
     setPendingSave(null);
     setProfileSaved(false);
     setMembershipSavedId(null);
+    setMembershipCreated(false);
     setError(null);
   }
 
@@ -235,6 +310,34 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     }
 
     setPendingSave({ type: "membership", membershipId });
+  }
+
+  function requestCreateMembership() {
+    if (!editing || savingNewMembership) return;
+    const planMonths = Number(newMembershipForm.planMonths);
+    if (!Number.isInteger(planMonths) || planMonths < 1) {
+      setError("Select a valid plan.");
+      return;
+    }
+    if (newMembershipForm.status === "scheduled") {
+      if (!newMembershipForm.startsAt) {
+        setError("Start date is required for a scheduled membership.");
+        return;
+      }
+      const startDay = new Date(`${newMembershipForm.startsAt}T00:00:00`);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (Number.isNaN(startDay.getTime()) || startDay.getTime() <= today.getTime()) {
+        setError("Scheduled start date must be in the future.");
+        return;
+      }
+    }
+    setPendingSave({ type: "create-membership" });
+  }
+
+  function requestActivatePayment(paymentOrderId: string) {
+    if (!editing || activatingPaymentId) return;
+    setPendingSave({ type: "activate-payment", paymentOrderId });
   }
 
   async function confirmPendingSave() {
@@ -263,10 +366,76 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         invalidateCached(DASHBOARD_CACHE_KEYS.overview);
         setProfileSaved(true);
         setEditing(false);
+        setShowAssignPlan(false);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to save profile.");
       } finally {
         setSavingProfile(false);
+      }
+      return;
+    }
+
+    if (pendingSave.type === "create-membership") {
+      const planMonths = Number(newMembershipForm.planMonths);
+      setSavingNewMembership(true);
+      setError(null);
+      setMembershipCreated(false);
+      setPendingSave(null);
+      try {
+        const next = await createAdminUserMembership(token, userId, {
+          planMonths,
+          status: newMembershipForm.status,
+          startsAt:
+            newMembershipForm.status === "scheduled"
+              ? new Date(
+                  `${newMembershipForm.startsAt}T00:00:00`,
+                ).toISOString()
+              : undefined,
+          paymentOrderId: newMembershipForm.paymentOrderId || undefined,
+          paymentRef: newMembershipForm.paymentRef.trim() || undefined,
+        });
+        applyDetail(next);
+        invalidateCached(DASHBOARD_CACHE_KEYS.users);
+        invalidateCached(DASHBOARD_CACHE_KEYS.overview);
+        setMembershipCreated(true);
+        setShowAssignPlan(false);
+        setNewMembershipForm(emptyNewMembershipForm(catalogPlans));
+        setEditing(false);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Unable to assign membership.",
+        );
+      } finally {
+        setSavingNewMembership(false);
+      }
+      return;
+    }
+
+    if (pendingSave.type === "activate-payment") {
+      const paymentOrderId = pendingSave.paymentOrderId;
+      setActivatingPaymentId(paymentOrderId);
+      setError(null);
+      setPendingSave(null);
+      try {
+        const next = await activateAdminMembershipFromPayment(
+          token,
+          userId,
+          paymentOrderId,
+        );
+        applyDetail(next);
+        invalidateCached(DASHBOARD_CACHE_KEYS.users);
+        invalidateCached(DASHBOARD_CACHE_KEYS.overview);
+        setMembershipCreated(true);
+        setEditing(false);
+        setShowAssignPlan(false);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to activate membership from payment.",
+        );
+      } finally {
+        setActivatingPaymentId(null);
       }
       return;
     }
@@ -289,8 +458,11 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         endsAt: fromDateTimeLocal(form.endsAt),
       });
       applyDetail(next);
+      invalidateCached(DASHBOARD_CACHE_KEYS.users);
+      invalidateCached(DASHBOARD_CACHE_KEYS.overview);
       setMembershipSavedId(membershipId);
       setEditing(false);
+      setShowAssignPlan(false);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to save membership.",
@@ -328,8 +500,42 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     );
   }
 
-  const fieldsLocked = !editing || savingProfile || Boolean(savingMembershipId);
-  const confirmBusy = savingProfile || Boolean(savingMembershipId);
+  const fieldsLocked =
+    !editing ||
+    savingProfile ||
+    Boolean(savingMembershipId) ||
+    savingNewMembership ||
+    Boolean(activatingPaymentId);
+  const confirmBusy =
+    savingProfile ||
+    Boolean(savingMembershipId) ||
+    savingNewMembership ||
+    Boolean(activatingPaymentId);
+  const membershipPaymentIds = new Set(
+    detail.memberships.map((m) => m.paymentOrderId),
+  );
+  const recoverablePayments = detail.payments.filter(
+    (payment) =>
+      payment.planMonths != null &&
+      !membershipPaymentIds.has(payment.id) &&
+      (payment.status === "paid" || Boolean(payment.razorpayPaymentId)),
+  );
+  const selectedCatalogPlan =
+    catalogPlans.find(
+      (plan) => String(plan.months) === newMembershipForm.planMonths,
+    ) ?? null;
+  const assignPlanOptions: { id: string; months: number; name: string }[] =
+    catalogPlans.length > 0
+      ? catalogPlans.map((plan) => ({
+          id: plan.id,
+          months: plan.months,
+          name: plan.name,
+        }))
+      : [3, 6, 12].map((months) => ({
+          id: String(months),
+          months,
+          name: `${months}-Month Membership`,
+        }));
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
@@ -658,18 +864,184 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       </section>
 
       <section className="space-y-4">
-        <div>
-          <h2 className="text-sm font-semibold text-[#243028]">Memberships</h2>
-          <p className="mt-0.5 text-xs text-[#8a978c]">
-            {editing
-              ? "Edit plan details and access window"
-              : "Membership history"}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-[#243028]">Memberships</h2>
+            <p className="mt-0.5 text-xs text-[#8a978c]">
+              {editing
+                ? "Edit an existing plan, or assign one if checkout failed to activate"
+                : "Membership history"}
+            </p>
+          </div>
+          {editing ? (
+            <button
+              type="button"
+              onClick={() => {
+                setShowAssignPlan((open) => !open);
+                setMembershipCreated(false);
+                setError(null);
+              }}
+              disabled={confirmBusy}
+              className="inline-flex h-10 items-center justify-center rounded-full border border-[#1f6b3a]/30 bg-[#e8f2ea] px-4 text-sm font-semibold text-[#1f6b3a] transition hover:bg-[#dceadf] disabled:opacity-60"
+            >
+              {showAssignPlan ? "Hide assign form" : "Assign plan"}
+            </button>
+          ) : null}
         </div>
+
+        {membershipCreated ? (
+          <p className="rounded-xl bg-[#e8f2ea] px-3.5 py-2.5 text-sm font-medium text-[#1f6b3a]">
+            Membership assigned successfully.
+          </p>
+        ) : null}
+
+        {editing && showAssignPlan ? (
+          <div className={cardClass}>
+            <h3 className="text-sm font-semibold text-[#243028]">
+              Assign membership plan
+            </h3>
+            <p className="mt-1 text-xs text-[#8a978c]">
+              Use this when a payment succeeded but membership was never created,
+              or to grant access manually.
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <label className={labelClass}>
+                Plan
+                <select
+                  value={newMembershipForm.planMonths}
+                  onChange={(e) =>
+                    setNewMembershipForm({
+                      ...newMembershipForm,
+                      planMonths: e.target.value,
+                    })
+                  }
+                  className={inputClass}
+                  disabled={fieldsLocked}
+                >
+                  {assignPlanOptions.map((plan) => (
+                    <option key={plan.id ?? plan.months} value={plan.months}>
+                      {plan.months} months
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div>
+                <p className={labelClass}>Plan name</p>
+                <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
+                  {selectedCatalogPlan?.name ??
+                    `${newMembershipForm.planMonths}-Month Membership`}
+                </p>
+              </div>
+              <label className={labelClass}>
+                Status
+                <select
+                  value={newMembershipForm.status}
+                  onChange={(e) =>
+                    setNewMembershipForm({
+                      ...newMembershipForm,
+                      status: e.target.value as NewMembershipForm["status"],
+                    })
+                  }
+                  className={inputClass}
+                  disabled={fieldsLocked}
+                >
+                  <option value="active">Active (start now)</option>
+                  <option value="scheduled">Scheduled</option>
+                </select>
+              </label>
+              <label className={labelClass}>
+                Link payment (optional)
+                <select
+                  value={newMembershipForm.paymentOrderId}
+                  onChange={(e) =>
+                    setNewMembershipForm({
+                      ...newMembershipForm,
+                      paymentOrderId: e.target.value,
+                    })
+                  }
+                  className={inputClass}
+                  disabled={fieldsLocked}
+                >
+                  <option value="">None — manual grant</option>
+                  {detail.payments
+                    .filter((p) => !membershipPaymentIds.has(p.id))
+                    .map((payment) => (
+                      <option key={payment.id} value={payment.id}>
+                        {formatDateTime(payment.createdAt)} ·{" "}
+                        {formatMoney(payment.amountPaise, payment.currency)} ·{" "}
+                        {payment.status}
+                        {payment.planMonths ? ` · ${payment.planMonths} mo` : ""}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              {newMembershipForm.status === "scheduled" ? (
+                <label className={labelClass}>
+                  Starts on
+                  <input
+                    type="date"
+                    value={newMembershipForm.startsAt}
+                    onChange={(e) =>
+                      setNewMembershipForm({
+                        ...newMembershipForm,
+                        startsAt: e.target.value,
+                      })
+                    }
+                    className={inputClass}
+                    disabled={fieldsLocked}
+                  />
+                  <span className="mt-1 block text-xs font-normal text-[#8a978c]">
+                    End date is calculated from the plan duration.
+                  </span>
+                </label>
+              ) : (
+                <div>
+                  <p className={labelClass}>Starts</p>
+                  <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
+                    Now — end date from plan duration
+                  </p>
+                </div>
+              )}
+              <label className={`${labelClass} sm:col-span-2`}>
+                Payment reference (optional)
+                <input
+                  value={newMembershipForm.paymentRef}
+                  onChange={(e) =>
+                    setNewMembershipForm({
+                      ...newMembershipForm,
+                      paymentRef: e.target.value,
+                    })
+                  }
+                  className={inputClass}
+                  disabled={fieldsLocked}
+                  placeholder="pay_… / UTR / bank transfer note"
+                />
+                <span className="mt-1 block text-xs font-normal text-[#8a978c]">
+                  A Healing Mat invoice PDF is created automatically. If you paste
+                  a Razorpay payment id (pay_…), we also attach any linked Razorpay
+                  invoice when available.
+                </span>
+              </label>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={requestCreateMembership}
+                disabled={fieldsLocked}
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-[#1f6b3a] px-5 text-sm font-bold text-white disabled:opacity-60"
+              >
+                {savingNewMembership ? "Assigning…" : "Assign membership"}
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {detail.memberships.length === 0 ? (
           <p className={`${cardClass} text-sm text-[#8a978c]`}>
             No memberships yet.
+            {editing
+              ? " Use Assign plan above to grant access."
+              : " Click the edit icon to assign a plan."}
           </p>
         ) : (
           detail.memberships.map((membership) => {
@@ -842,6 +1214,46 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
       <section className={cardClass}>
         <h2 className="text-sm font-semibold text-[#243028]">Payments</h2>
+        {recoverablePayments.length > 0 && editing ? (
+          <div className="mt-3 rounded-xl border border-[#f0d9b5] bg-[#fff8ef] px-3.5 py-3">
+            <p className="text-sm font-semibold text-[#8a5a2f]">
+              Payments without membership
+            </p>
+            <p className="mt-1 text-xs text-[#8a5a2f]/90">
+              These look paid (or captured) but never created a membership. Activate
+              to fix.
+            </p>
+            <ul className="mt-3 space-y-2">
+              {recoverablePayments.map((payment) => {
+                const activating = activatingPaymentId === payment.id;
+                return (
+                  <li
+                    key={payment.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/80 px-3 py-2"
+                  >
+                    <div className="text-sm text-[#5f6f64]">
+                      <span className="font-semibold text-[#243028]">
+                        {formatMoney(payment.amountPaise, payment.currency)}
+                      </span>
+                      {" · "}
+                      {payment.planMonths ? `${payment.planMonths} mo` : "—"}
+                      {" · "}
+                      {formatDateTime(payment.createdAt)}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => requestActivatePayment(payment.id)}
+                      disabled={fieldsLocked}
+                      className="inline-flex h-9 items-center justify-center rounded-lg bg-[#1f6b3a] px-3 text-xs font-bold text-white disabled:opacity-60"
+                    >
+                      {activating ? "Activating…" : "Activate membership"}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
         {detail.payments.length === 0 ? (
           <p className="mt-3 text-sm text-[#8a978c]">No payment orders yet.</p>
         ) : (
@@ -868,6 +1280,14 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                     </td>
                     <td className="px-2 py-3 capitalize text-[#5f6f64]">
                       {payment.status}
+                      {!membershipPaymentIds.has(payment.id) &&
+                      payment.planMonths != null &&
+                      (payment.status === "paid" ||
+                        Boolean(payment.razorpayPaymentId)) ? (
+                        <span className="ml-1 text-[11px] font-medium text-[#8a5a2f]">
+                          (no membership)
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-2 py-3 text-[#5f6f64]">
                       {payment.planMonths
@@ -922,7 +1342,11 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             <p className="mt-2 text-sm leading-relaxed text-[#5f6f64]">
               {pendingSave.type === "profile"
                 ? "This will update this member’s profile details."
-                : "This will update this member’s membership plan and dates."}{" "}
+                : pendingSave.type === "create-membership"
+                  ? "This will assign a membership plan to this member."
+                  : pendingSave.type === "activate-payment"
+                    ? "This will create a membership from the selected payment order."
+                    : "This will update this member’s membership plan and dates."}{" "}
               Continue?
             </p>
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

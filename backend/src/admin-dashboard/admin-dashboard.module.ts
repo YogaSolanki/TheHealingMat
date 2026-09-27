@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Membership } from '../payments/membership.entity';
 import { PaymentOrder } from '../payments/payment-order.entity';
+import { PaymentsModule } from '../payments/payments.module';
 import { OrientationSlot } from '../trials/orientation-slot.entity';
 import { TrialCohort } from '../trials/trial-cohort.entity';
 import { TrialRegistration } from '../trials/trial-registration.entity';
@@ -12,6 +13,7 @@ import { AdminDashboardService } from './admin-dashboard.service';
 
 @Module({
   imports: [
+    PaymentsModule,
     TypeOrmModule.forFeature([
       User,
       TrialRegistration,

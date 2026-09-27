@@ -35,6 +35,6 @@ import { PaymentsService } from './payments.service';
     MembershipPlansService,
     MembershipOffersService,
   ],
-  exports: [MembershipPlansService, MembershipOffersService],
+  exports: [MembershipPlansService, MembershipOffersService, PaymentsService],
 })
 export class PaymentsModule {}
