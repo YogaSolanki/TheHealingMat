@@ -10,6 +10,7 @@ import {
 } from "react";
 import { PanelLoader } from "@/components/panel-loader";
 import { ReloadButton } from "@/components/reload-button";
+import { AdminConfirmDialog } from "@/components/admin-confirm-dialog";
 import {
   ADMIN_TOKEN_KEY,
   assignAdminCoupon,
@@ -57,6 +58,9 @@ export function CouponsPanel() {
   const [assignTarget, setAssignTarget] = useState<AdminCoupon | null>(null);
   const [referralCode, setReferralCode] = useState("");
   const [assigning, setAssigning] = useState(false);
+  const [pendingDeleteCoupon, setPendingDeleteCoupon] =
+    useState<AdminCoupon | null>(null);
+  const [deletingCoupon, setDeletingCoupon] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   const canGenerate =
@@ -236,18 +240,28 @@ export function CouponsPanel() {
 
   async function onDelete(coupon: AdminCoupon) {
     setMenuOpenId(null);
-    if (!window.confirm(`Delete coupon “${coupon.code}”?`)) return;
+    setPendingDeleteCoupon(coupon);
+  }
+
+  async function confirmDeleteCoupon() {
+    const coupon = pendingDeleteCoupon;
+    if (!coupon || deletingCoupon) return;
     const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
     if (!token) {
       setError("Please sign in again.");
+      setPendingDeleteCoupon(null);
       return;
     }
+    setDeletingCoupon(true);
     setError(null);
     try {
       await deleteAdminCoupon(token, coupon.id);
+      setPendingDeleteCoupon(null);
       await load({ force: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete coupon");
+    } finally {
+      setDeletingCoupon(false);
     }
   }
 
@@ -306,6 +320,21 @@ export function CouponsPanel() {
 
   return (
     <section className="flex min-h-[calc(100dvh-7rem)] flex-col gap-4">
+      <AdminConfirmDialog
+        open={Boolean(pendingDeleteCoupon)}
+        title="Delete coupon?"
+        description={
+          pendingDeleteCoupon
+            ? `Delete coupon “${pendingDeleteCoupon.code}”? This cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete coupon"
+        busy={deletingCoupon}
+        onCancel={() => {
+          if (!deletingCoupon) setPendingDeleteCoupon(null);
+        }}
+        onConfirm={() => void confirmDeleteCoupon()}
+      />
       {error ? (
         <p className="shrink-0 rounded-2xl bg-white px-5 py-4 text-sm text-[#8a2f2f] shadow-sm">
           {error}

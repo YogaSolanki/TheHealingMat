@@ -24,6 +24,8 @@ type MemberSelectProps = {
   className?: string;
   /** Compact menu for tight layouts like checkout. */
   size?: "md" | "sm";
+  /** Fires when the menu opens (e.g. load preferred session timings). */
+  onOpen?: () => void;
 };
 
 type MenuPosition = {
@@ -41,6 +43,7 @@ export function MemberSelect({
   placeholder = "Select an option",
   className = "",
   size = "md",
+  onOpen,
 }: MemberSelectProps) {
   const compact = size === "sm";
   const [open, setOpen] = useState(false);
@@ -56,6 +59,11 @@ export function MemberSelect({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  function openMenu() {
+    if (!open) onOpen?.();
+    setOpen(true);
+  }
 
   useLayoutEffect(() => {
     if (!open) {
@@ -133,7 +141,7 @@ export function MemberSelect({
   function onTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
     if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      setOpen(true);
+      openMenu();
     }
   }
 
@@ -218,7 +226,10 @@ export function MemberSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => {
+          if (open) setOpen(false);
+          else openMenu();
+        }}
         onKeyDown={onTriggerKeyDown}
         className={`relative flex w-full cursor-pointer items-center border border-[#d7e0d6] bg-white text-left font-semibold outline-none transition hover:border-[#b7cbb8] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 ${
           compact

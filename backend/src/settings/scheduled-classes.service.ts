@@ -32,10 +32,70 @@ function dayLabelFromDate(isoDate: string) {
   return date.toLocaleDateString('en-US', { weekday: 'long' });
 }
 
-function todayIsoDate() {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+/** Calendar "today" in Asia/Kolkata (class schedule business timezone). */
+function todayIsoDate(now = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
+}
+
+const SESSION_DURATION_MINUTES = 60;
+const SPECIAL_SESSION_DURATION_MINUTES = 30;
+const JOIN_EARLY_MINUTES = 15;
+/** Ignore client clocks that are wildly wrong; fall back to server time. */
+const CLIENT_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
+function parseSlotLabelMinutes(label: string): number | null {
+  const match = label
+    .trim()
+    .replace(/\s+/g, ' ')
+    .match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const period = match[3].toUpperCase();
+  if (period === 'PM' && hours !== 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
+
+function durationForMinutes(minutes: number) {
+  const hour = Math.floor(minutes / 60);
+  return hour >= 11 && hour < 12
+    ? SPECIAL_SESSION_DURATION_MINUTES
+    : SESSION_DURATION_MINUTES;
+}
+
+function istMinutesSinceMidnight(now: Date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(now);
+  let hours = Number(parts.find((p) => p.type === 'hour')?.value ?? 0);
+  const minutes = Number(parts.find((p) => p.type === 'minute')?.value ?? 0);
+  // Some engines report midnight as 24.
+  if (hours === 24) hours = 0;
+  return hours * 60 + minutes;
+}
+
+/**
+ * Prefer client `at` when it is a valid time close to the server clock.
+ * Always evaluate the join window in Asia/Kolkata.
+ */
+function resolveAt(atIso?: string | null) {
+  const serverNow = new Date();
+  if (!atIso?.trim()) return serverNow;
+  const parsed = new Date(atIso);
+  if (Number.isNaN(parsed.getTime())) return serverNow;
+  if (Math.abs(parsed.getTime() - serverNow.getTime()) > CLIENT_CLOCK_SKEW_MS) {
+    return serverNow;
+  }
+  return parsed;
 }
 
 /** Max calendar days ahead admins may schedule (today + 6 = 7 days). */
@@ -184,30 +244,136 @@ export class ScheduledClassesService implements OnModuleInit {
   }
 
   /**
-   * Prefer today's class matching `preferredLabel` (running slot),
-   * else any class scheduled for today, else null.
+   * Resolve the live meeting URL from today's Class Management schedule
+   * using the current clock (client `at` if within skew, else server IST).
+   * Only returns a URL when that scheduled class still exists and has a meeting link.
+   * Never trusts a client-provided slot label or a global fallback URL.
    */
-  async findLiveMeetingUrl(preferredLabel?: string | null) {
+  async findLiveSessionAt(atIso?: string | null) {
     await this.purgeExpiredClasses();
 
-    const today = todayIsoDate();
+    const at = resolveAt(atIso);
+    const day = todayIsoDate(at);
+    const minutesNow = istMinutesSinceMidnight(at);
     const todays = await this.classes.find({
+      where: { classDate: day },
+      order: { sessionTimeLabel: 'ASC' },
+    });
+
+    if (todays.length === 0) {
+      return {
+        url: null as string | null,
+        slot: null as string | null,
+        next: null as { label: string; when: 'today' | 'tomorrow' } | null,
+      };
+    }
+
+    const allSlots = todays
+      .map((row) => {
+        const minutes = parseSlotLabelMinutes(row.sessionTimeLabel);
+        if (minutes == null) return null;
+        return {
+          label: row.sessionTimeLabel,
+          minutes,
+          durationMinutes: durationForMinutes(minutes),
+          meetingUrl: row.meetingUrl?.trim() || null,
+        };
+      })
+      .filter(
+        (
+          slot,
+        ): slot is {
+          label: string;
+          minutes: number;
+          durationMinutes: number;
+          meetingUrl: string | null;
+        } => slot != null,
+      )
+      .sort((a, b) => a.minutes - b.minutes);
+
+    const running = allSlots.find((slot) => {
+      const openAt = slot.minutes - JOIN_EARLY_MINUTES;
+      const closeAt = slot.minutes + slot.durationMinutes;
+      return minutesNow >= openAt && minutesNow < closeAt;
+    });
+
+    if (running) {
+      return {
+        url: running.meetingUrl,
+        slot: running.label,
+        next: null as { label: string; when: 'today' | 'tomorrow' } | null,
+      };
+    }
+
+    const upcomingToday = allSlots.find(
+      (slot) => slot.minutes - JOIN_EARLY_MINUTES > minutesNow,
+    );
+    if (upcomingToday) {
+      return {
+        url: null as string | null,
+        slot: null as string | null,
+        next: { label: upcomingToday.label, when: 'today' as const },
+      };
+    }
+
+    return {
+      url: null as string | null,
+      slot: null as string | null,
+      next: allSlots[0]
+        ? { label: allSlots[0].label, when: 'tomorrow' as const }
+        : null,
+    };
+  }
+
+  /** @deprecated Prefer findLiveSessionAt — kept for any leftover callers. */
+  async findLiveMeetingUrl(preferredLabel?: string | null) {
+    const live = await this.findLiveSessionAt(null);
+    if (preferredLabel?.trim() && live.slot) {
+      if (
+        live.slot.toLowerCase() === preferredLabel.trim().toLowerCase()
+      ) {
+        return live.url;
+      }
+    }
+    return live.url;
+  }
+
+  /** Session times actually scheduled for today (Class Management). */
+  async listToday() {
+    await this.purgeExpiredClasses();
+    const today = todayIsoDate();
+    const todays = await this.listTodayRows();
+    const seen = new Set<string>();
+    const sessions: {
+      id: string;
+      sessionTimingId: string;
+      sessionTimeLabel: string;
+    }[] = [];
+
+    for (const row of todays) {
+      const key = row.sessionTimeLabel.trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      sessions.push({
+        id: row.id,
+        sessionTimingId: row.sessionTimingId,
+        sessionTimeLabel: row.sessionTimeLabel,
+      });
+    }
+
+    return {
+      date: today,
+      dayLabel: dayLabelFromDate(today),
+      sessions,
+    };
+  }
+
+  private async listTodayRows() {
+    const today = todayIsoDate();
+    return this.classes.find({
       where: { classDate: today },
       order: { sessionTimeLabel: 'ASC' },
     });
-    if (todays.length === 0) return null;
-
-    if (preferredLabel) {
-      const exact = todays.find(
-        (row) =>
-          row.sessionTimeLabel.toLowerCase() ===
-          preferredLabel.trim().toLowerCase(),
-      );
-      if (exact?.meetingUrl?.trim()) return exact.meetingUrl.trim();
-    }
-
-    const withUrl = todays.find((row) => row.meetingUrl?.trim());
-    return withUrl?.meetingUrl?.trim() || null;
   }
 
   /** Delete classes whose calendar day has ended (classDate before today). */

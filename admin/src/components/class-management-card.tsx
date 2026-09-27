@@ -2,11 +2,13 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { AdminConfirmDialog } from "@/components/admin-confirm-dialog";
 import { PanelLoader } from "@/components/panel-loader";
 import { ReloadButton } from "@/components/reload-button";
 import {
   ADMIN_TOKEN_KEY,
   createAdminScheduledClass,
+  deleteAdminScheduledClass,
   listAdminScheduledClasses,
   listAdminSessionTimings,
   updateAdminScheduledClass,
@@ -118,6 +120,7 @@ export function ClassManagementCard() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
 
   const token = useMemo(
     () =>
@@ -407,8 +410,50 @@ export function ClassManagementCard() {
     }
   }
 
+  async function onRemoveSlot() {
+    if (!token || !editingId || saving) return;
+    setConfirmRemoveOpen(true);
+  }
+
+  async function confirmRemoveSlot() {
+    if (!token || !editingId || saving) return;
+
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    try {
+      await deleteAdminScheduledClass(token, editingId);
+      syncClassesCache(classes.filter((item) => item.id !== editingId));
+      setConfirmRemoveOpen(false);
+      resetForm(true);
+      setSaved(true);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Unable to remove scheduled class.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const removeSlotLabel =
+    classes.find((item) => item.id === editingId)?.sessionTimeLabel ??
+    "this slot";
+
   return (
     <section className="rounded-2xl border border-[#e6ebe3] bg-white p-5 shadow-[0_4px_16px_rgba(21,32,25,0.03)] sm:p-6">
+      <AdminConfirmDialog
+        open={confirmRemoveOpen}
+        title="Remove scheduled slot?"
+        description={`Remove ${removeSlotLabel} on ${selectedDay?.displayDate ?? selectedDate}? Members will no longer see this session for that day.`}
+        confirmLabel="Remove slot"
+        busy={saving}
+        onCancel={() => {
+          if (!saving) setConfirmRemoveOpen(false);
+        }}
+        onConfirm={() => void confirmRemoveSlot()}
+      />
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-[#243028]">
@@ -669,6 +714,16 @@ export function ClassManagementCard() {
                           ? "Update slot"
                           : "Save slot"}
                     </button>
+                    {editingId ? (
+                      <button
+                        type="button"
+                        onClick={() => void onRemoveSlot()}
+                        disabled={saving}
+                        className="inline-flex h-11 items-center justify-center rounded-xl border border-[#ead9d9] bg-white px-4 text-sm font-semibold text-[#8a2f2f] hover:bg-[#faf4f4] disabled:opacity-60"
+                      >
+                        Remove slot
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => resetForm(true)}

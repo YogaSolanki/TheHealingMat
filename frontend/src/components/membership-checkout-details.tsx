@@ -10,7 +10,7 @@ import {
 } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
 import { INDIA_STATES } from "@/lib/india-states";
-import { preferredClassTimeOptions } from "@/lib/member-session-schedule";
+import { useSessionTimings } from "@/lib/session-timings-store";
 import { updateMemberAuthCache } from "@/lib/session-store";
 
 export type MembershipCheckoutDetailsValue = {
@@ -66,6 +66,8 @@ export function MembershipCheckoutDetails({
   const [startsOn, setStartsOn] = useState(minStart);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const { preferredOptions, loading: timingsLoading, ensure: ensureSessionTimings } =
+    useSessionTimings(false);
 
   useEffect(() => {
     setStartsOn((prev) => (prev < minStart ? minStart : prev));
@@ -75,14 +77,17 @@ export function MembershipCheckoutDetails({
     () => INDIA_STATES.map((name) => ({ value: name, label: name })),
     [],
   );
-  const timeOptions = useMemo(
-    () =>
-      preferredClassTimeOptions.map((slot) => ({
-        value: slot,
-        label: slot,
-      })),
-    [],
-  );
+  const timeOptions = useMemo(() => {
+    const options = preferredOptions.map((slot) => ({
+      value: slot,
+      label: slot,
+    }));
+    const current = preferredClassTime.trim();
+    if (current && !preferredOptions.includes(current)) {
+      options.unshift({ value: current, label: current });
+    }
+    return options;
+  }, [preferredOptions, preferredClassTime]);
 
   const maxStart = addMonthsIso(minStart, 6);
   const canContinue =
@@ -190,9 +195,14 @@ export function MembershipCheckoutDetails({
             value={preferredClassTime}
             onChange={setPreferredClassTime}
             options={timeOptions}
-            placeholder="Select preferred time"
+            placeholder={
+              timingsLoading ? "Loading times…" : "Select preferred time"
+            }
             size="sm"
             className="!max-w-none"
+            onOpen={() => {
+              void ensureSessionTimings();
+            }}
           />
         </div>
 

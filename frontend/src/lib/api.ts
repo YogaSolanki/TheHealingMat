@@ -582,18 +582,65 @@ export async function getMyMembership(
   return parseJson<MembershipAccessResponse>(response);
 }
 
+export type PublicSessionTiming = {
+  id: string;
+  label: string;
+  sortOrder: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Active class start times from Admin → Settings → Session timings. */
+export async function listSessionTimings(): Promise<PublicSessionTiming[]> {
+  const response = await fetch(`${API_URL}/session-timings`, {
+    cache: "no-store",
+  });
+  return parseJson<PublicSessionTiming[]>(response);
+}
+
+export type TodaySessionSlot = {
+  id: string;
+  sessionTimingId: string;
+  sessionTimeLabel: string;
+};
+
+export type TodaySessionsResponse = {
+  date: string;
+  dayLabel: string;
+  sessions: TodaySessionSlot[];
+};
+
+/** Session times scheduled for today via Admin → Class Management. */
+export async function getTodaySessions(
+  accessToken: string,
+): Promise<TodaySessionsResponse> {
+  const response = await fetch(`${API_URL}/sessions/today`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  return parseJson<TodaySessionsResponse>(response);
+}
+
 export async function getLiveSessionUrl(
   accessToken: string,
-  options?: { slot?: string | null },
-): Promise<{ url: string | null }> {
-  const query = options?.slot
-    ? `?slot=${encodeURIComponent(options.slot)}`
-    : "";
+  options?: { at?: string | null },
+): Promise<{
+  url: string | null;
+  slot: string | null;
+  next: { label: string; when: "today" | "tomorrow" } | null;
+}> {
+  const at = options?.at?.trim() || new Date().toISOString();
+  const query = `?at=${encodeURIComponent(at)}`;
   const response = await fetch(`${API_URL}/sessions/live${query}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
   });
-  return parseJson<{ url: string | null }>(response);
+  return parseJson<{
+    url: string | null;
+    slot: string | null;
+    next: { label: string; when: "today" | "tomorrow" } | null;
+  }>(response);
 }
 
 export async function createRazorpayOrder(

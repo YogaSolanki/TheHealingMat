@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import calendarIcon from "@/assets/calander-icon.png";
 import crownIcon from "@/assets/crown.png";
 import leafRight from "@/assets/leaf-right.png";
@@ -11,10 +11,12 @@ import sunIcon from "@/assets/sun.png";
 import yogaMenIcon from "@/assets/yoga-men.png";
 import { openCheckoutModal } from "@/components/checkout-modal-provider";
 import { memberPrimaryBtnClass, memberPrimaryBtnSmClass, memberOutlineBtnClass, memberOutlineBtnSmClass } from "@/components/member-dashboard/member-button-styles";
+import { TodayYogaSessionsSkeleton } from "@/components/member-dashboard/member-dashboard-skeleton";
 import { OrientationVideoModal } from "@/components/member-dashboard/orientation-video-modal";
 import { PersonalSessionLinkPopup } from "@/components/member-dashboard/personal-session-link-popup";
+import { SessionNoticePopup } from "@/components/member-dashboard/session-notice-popup";
 import { TrialWelcomePopup } from "@/components/member-dashboard/trial-welcome-popup";
-import { startFreeTrial, type PublicUser } from "@/lib/api";
+import { getLiveSessionUrl, startFreeTrial, type PublicUser } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
 import {
   readCheckoutIntent,
@@ -30,14 +32,10 @@ import {
 } from "@/lib/member-access";
 import {
   findRunningSession,
+  formatSlotList,
   isSunday,
-  isSessionSlotRunning,
-  sessionUnavailableMessage,
-  sundayQaSlots,
-  trialSessionSlots,
-  weekdayEveningSlots,
-  weekdayMorningSlots,
 } from "@/lib/member-session-schedule";
+import { useTodaySessions } from "@/lib/today-sessions-store";
 import { SITE_MAPS_URL } from "@/lib/site-contact";
 import { sessionStore, useMyReferrals, updateMemberAuthCache } from "@/lib/session-store";
 
@@ -84,6 +82,7 @@ function CalendarMaskIcon() {
 
 function formatDashboardDate(date: Date, compact = false) {
   return date.toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
     weekday: compact ? "short" : "long",
     day: "numeric",
     month: compact ? "short" : "long",
@@ -91,12 +90,28 @@ function formatDashboardDate(date: Date, compact = false) {
   });
 }
 
+function formatDashboardDateFromIso(iso: string | null, compact = false) {
+  if (!iso) return formatDashboardDate(new Date(), compact);
+  return formatDashboardDate(new Date(`${iso}T12:00:00+05:30`), compact);
+}
+
 export function MemberDashboard({ user }: MemberDashboardProps) {
   const { access, loading } = useMemberAccess();
+  const {
+    labels: sessionLabels,
+    morning: morningSlots,
+    special: specialSlots,
+    evening: eveningSlots,
+    date: todaySessionsDate,
+    ready: todaySessionsReady,
+    refreshing: todaySessionsRefreshing,
+    refresh: refreshTodaySessions,
+    refreshSilent: refreshTodaySessionsSilent,
+  } = useTodaySessions();
   const nameGreeting = greetingForName(user.fullName);
   const now = new Date();
-  const todayLabel = formatDashboardDate(now);
-  const todayLabelCompact = formatDashboardDate(now, true);
+  const todayLabel = formatDashboardDateFromIso(todaySessionsDate);
+  const todayLabelCompact = formatDashboardDateFromIso(todaySessionsDate, true);
   const sunday = isSunday(now);
   const membershipKnown = !loading;
   const isUnaffiliated = membershipKnown && access.state === "pending";
@@ -108,8 +123,24 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const running =
     isExpired || isScheduledTrial || isUnaffiliated
       ? null
-      : findRunningSession(now, sessionKind);
+      : findRunningSession(now, sessionKind, sessionLabels);
+  const specialSessionLabel = specialSlots[0] ?? null;
+  const trialSlotSubtitle =
+    formatSlotList(sessionLabels) ||
+    (todaySessionsReady ? "No sessions scheduled today" : "Session times");
+  const sundaySlotSubtitle = formatSlotList(sessionLabels)
+    ? `Sunday · ${formatSlotList(sessionLabels)}`
+    : todaySessionsReady
+      ? "No sessions scheduled today"
+      : "Sunday sessions";
+  const hasTodaySessions = sessionLabels.length > 0;
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+  const dismissSessionNotice = useCallback(() => {
+    setSessionNotice(null);
+  }, []);
+  const [joiningSession, setJoiningSession] = useState(false);
+  const showTodaySessionsSkeleton =
+    !todaySessionsReady || todaySessionsRefreshing;
   const [startingTrial, setStartingTrial] = useState(false);
   const [activeOrientation, setActiveOrientation] =
     useState<OrientationVideoCard | null>(null);
@@ -131,33 +162,65 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     window.open(link, "_blank", "noopener,noreferrer");
   }
 
-  function handleJoin() {
-    if (isExpired || isScheduledTrial || isUnaffiliated) return;
-    const current = findRunningSession(new Date(), sessionKind);
-    if (!current) {
-      setSessionNotice(sessionUnavailableMessage(new Date(), sessionKind));
-      return;
-    }
-    setSessionNotice(null);
-    openPersonalSessionLink();
-  }
-
-  function handleTrialSlotJoin(slotLabel: string) {
+  async function handleJoin() {
+    if (isExpired || isUnaffiliated || joiningSession) return;
     if (isScheduledTrial) {
       setSessionNotice(
         `Your session link will become active when your trial starts on ${access.trialStartsOnLabel ?? "the cohort date"}.`,
       );
       return;
     }
-    if (!isTrial) return;
-    if (!isSessionSlotRunning(slotLabel, new Date(), "trial")) {
-      setSessionNotice(
-        `The ${slotLabel} session is not running right now. ${sessionUnavailableMessage(new Date(), "trial")}`,
-      );
+
+    const token = getStoredToken();
+    if (!token) {
+      setSessionNotice("Please sign in again to join the session.");
       return;
     }
+
+    setJoiningSession(true);
     setSessionNotice(null);
-    openPersonalSessionLink();
+    try {
+      // Refresh today's slots quietly (no skeleton) so the card stays current.
+      const [, result] = await Promise.all([
+        refreshTodaySessionsSilent(),
+        getLiveSessionUrl(token, { at: new Date().toISOString() }),
+      ]);
+      const url = result.url?.trim() || null;
+
+      // Open whenever Class Management returned a live meeting URL.
+      if (url) {
+        window.open(url, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      if (result.slot) {
+        setSessionNotice(
+          `The ${result.slot} session is live, but its class link has not been published yet. Please try again shortly or contact support.`,
+        );
+        return;
+      }
+
+      if (result.next) {
+        setSessionNotice(
+          result.next.when === "tomorrow"
+            ? `No session is currently running. The next session starts at ${result.next.label} tomorrow.`
+            : `No session is currently running. The next session starts at ${result.next.label}.`,
+        );
+        return;
+      }
+
+      setSessionNotice(
+        "No session is currently running. Check today’s schedule and join when a class is live.",
+      );
+    } catch (err) {
+      setSessionNotice(
+        err instanceof Error
+          ? err.message
+          : "Unable to open the live session link. Please try again.",
+      );
+    } finally {
+      setJoiningSession(false);
+    }
   }
 
   function handleCompleteMembership() {
@@ -206,6 +269,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
           trialEndsOnLabel={access.trialEndsOnLabel}
         />
       ) : null}
+      <SessionNoticePopup
+        open={Boolean(sessionNotice)}
+        message={sessionNotice ?? ""}
+        onClose={dismissSessionNotice}
+      />
       <div className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-8 sm:px-6 sm:pt-8 sm:pb-10 lg:px-6 lg:pb-10 xl:px-8">
         {/* Greeting + membership status */}
         <section
@@ -316,17 +384,23 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
               <Image src={calendarIcon} alt="" width={20} height={20} className="mt-0.5 h-5 w-5 shrink-0 object-contain sm:mt-0" />
               <span className="min-w-0 break-words sm:hidden">{todayLabelCompact}</span>
               <span className="hidden min-w-0 break-words sm:inline">{todayLabel}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSessionNotice(null);
+                  void refreshTodaySessions();
+                }}
+                disabled={todaySessionsRefreshing || joiningSession}
+                title="Refresh today's session timings"
+                aria-label="Refresh today's session timings"
+                className="ml-0.5 inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#1f6b3a] transition hover:bg-[#eef6f0] disabled:cursor-wait disabled:opacity-55"
+              >
+                <RefreshIcon
+                  className={`h-4 w-4 ${todaySessionsRefreshing ? "animate-spin" : ""}`}
+                />
+              </button>
             </div>
           </div>
-
-          {sessionNotice ? (
-            <div className="border-b border-[#eef2ee] bg-[#F7F3EA] px-4 py-3 sm:px-6">
-              <p className="flex items-start gap-2 text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
-                <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-[#C4A574]" />
-                {sessionNotice}
-              </p>
-            </div>
-          ) : null}
 
           {isUnaffiliated ? (
             <div className="px-4 py-6 sm:px-6 sm:py-8">
@@ -383,6 +457,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 Renew Membership
               </Link>
             </div>
+          ) : showTodaySessionsSkeleton ? (
+            <TodayYogaSessionsSkeleton />
           ) : isScheduledTrial ? (
             <div className="px-4 py-6 sm:px-6 sm:py-8">
               <p className="text-[16px] font-bold text-[#1f6b3a] sm:text-[18px]">
@@ -402,14 +478,22 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   title="Trial Sessions"
                   subtitle="Join opens on your start date"
                 />
-                {trialSessionSlots.map((slot) => (
-                  <TrialSessionJoinRow
-                    key={slot}
-                    icon={sunIcon}
-                    label={`${slot} Session`}
-                    joinDisabled
-                  />
-                ))}
+                <SessionTimingBlock
+                  icon={sunIcon}
+                  label="Today's session timings"
+                  slots={sessionLabels}
+                  tint="bg-[#F4F8F2]"
+                  emptyLabel="No sessions scheduled for today"
+                  join={
+                    <button
+                      type="button"
+                      disabled
+                      className={`${memberPrimaryBtnSmClass} w-full justify-center px-5 py-2.5 text-[13px] sm:w-auto sm:min-w-[100px] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none disabled:hover:filter-none`}
+                    >
+                      Join
+                    </button>
+                  }
+                />
               </div>
             </div>
           ) : isTrial ? (
@@ -425,20 +509,29 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   </span>
                 }
                 title="Trial Sessions"
-                subtitle="7:00 AM and 7:00 PM"
+                subtitle={trialSlotSubtitle}
               />
-              {trialSessionSlots.map((slot) => (
-                <TrialSessionJoinRow
-                  key={slot}
-                  icon={sunIcon}
-                  label={`${slot} Session`}
-                  live={running?.label === slot}
-                  onJoin={() => handleTrialSlotJoin(slot)}
-                />
-              ))}
+              <SessionTimingBlock
+                icon={sunIcon}
+                label="Today's session timings"
+                slots={sessionLabels}
+                tint="bg-[#F4F8F2]"
+                liveSlot={running?.label}
+                emptyLabel="No sessions scheduled for today"
+                join={
+                  <button
+                    type="button"
+                    onClick={() => void handleJoin()}
+                    disabled={joiningSession}
+                    className={`${memberPrimaryBtnSmClass} w-full justify-center px-5 py-2.5 text-[13px] sm:w-auto sm:min-w-[100px]`}
+                  >
+                    {joiningSession ? "Joining…" : "Join"}
+                  </button>
+                }
+              />
               <p className="mt-4 text-[13px] leading-relaxed text-[#6b7c6e]">
-                Trial access includes these two session times. Regular membership sessions
-                become available when your membership starts.
+                Trial access includes today&apos;s scheduled session times. Regular membership
+                sessions become available when your membership starts.
               </p>
             </div>
           ) : sunday ? (
@@ -464,15 +557,25 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   </span>
                 }
                 title="Q&A & Guidance"
-                subtitle="Sunday · 8:00 AM and 7:00 PM"
+                subtitle={sundaySlotSubtitle}
               />
-              <SessionRow
+              <SessionTimingBlock
                 icon={sunIcon}
                 label="Sunday Sessions"
-                slots={[...sundayQaSlots]}
+                slots={sessionLabels}
                 tint="bg-[#F4F8F2]"
                 liveSlot={running?.label}
-                onJoin={handleJoin}
+                emptyLabel="No sessions scheduled for today"
+                join={
+                  <button
+                    type="button"
+                    onClick={() => void handleJoin()}
+                    disabled={joiningSession}
+                    className={`${memberPrimaryBtnSmClass} w-full justify-center px-5 py-2.5 text-[13px] sm:w-auto sm:min-w-[100px]`}
+                  >
+                    {joiningSession ? "Joining…" : "Join"}
+                  </button>
+                }
               />
               <p className="mt-4 flex items-start gap-2 text-[12px] leading-snug text-[#6b7c6e] sm:text-[13px]">
                 <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-[#8a968c]" />
@@ -482,46 +585,109 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
           ) : (
             <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
               <div className="border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-r">
-                <SectionHeading
-                  icon={
-                    <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-7 sm:w-7">
-                      <span
-                        aria-hidden="true"
-                        className="block h-3.5 w-3.5 sm:h-4 sm:w-4"
-                        style={{
-                          backgroundColor: "#1f6b3a",
-                          WebkitMaskImage: `url(${calendarIcon.src})`,
-                          WebkitMaskSize: "contain",
-                          WebkitMaskRepeat: "no-repeat",
-                          WebkitMaskPosition: "center",
-                          maskImage: `url(${calendarIcon.src})`,
-                          maskSize: "contain",
-                          maskRepeat: "no-repeat",
-                          maskPosition: "center",
-                        }}
-                      />
-                    </span>
-                  }
-                  title="Regular Yoga Sessions"
-                  subtitle="(Monday to Saturday)"
-                />
+                {(() => {
+                  const hasMorning = morningSlots.length > 0;
+                  const hasEvening = eveningSlots.length > 0;
+                  const bothPeriods = hasMorning && hasEvening;
+                  const joinSessionButton = (
+                    <button
+                      type="button"
+                      onClick={() => void handleJoin()}
+                      disabled={joiningSession}
+                      className={`${memberPrimaryBtnClass} w-full justify-center px-5 py-3 text-[14px] sm:w-auto sm:min-w-[148px] sm:px-6 sm:py-3.5 sm:text-[15px]`}
+                    >
+                      {joiningSession ? "Joining…" : "Join Session"}
+                    </button>
+                  );
 
-                <SessionRow
-                  icon={sunIcon}
-                  label="Morning Sessions"
-                  slots={[...weekdayMorningSlots]}
-                  tint="bg-[#F4F8F2]"
-                  liveSlot={running?.label}
-                  onJoin={handleJoin}
-                />
-                <SessionRow
-                  icon={moonIcon}
-                  label="Evening Sessions"
-                  slots={[...weekdayEveningSlots]}
-                  tint="bg-[#F7F7F5]"
-                  liveSlot={running?.label}
-                  onJoin={handleJoin}
-                />
+                  return (
+                    <>
+                      <div
+                        className={`mb-4 flex flex-wrap items-start gap-3 ${
+                          bothPeriods ? "justify-between" : ""
+                        }`}
+                      >
+                        <SectionHeading
+                          className="mb-0 flex min-w-0 flex-1 items-start gap-2.5"
+                          icon={
+                            <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-7 sm:w-7">
+                              <span
+                                aria-hidden="true"
+                                className="block h-3.5 w-3.5 sm:h-4 sm:w-4"
+                                style={{
+                                  backgroundColor: "#1f6b3a",
+                                  WebkitMaskImage: `url(${calendarIcon.src})`,
+                                  WebkitMaskSize: "contain",
+                                  WebkitMaskRepeat: "no-repeat",
+                                  WebkitMaskPosition: "center",
+                                  maskImage: `url(${calendarIcon.src})`,
+                                  maskSize: "contain",
+                                  maskRepeat: "no-repeat",
+                                  maskPosition: "center",
+                                }}
+                              />
+                            </span>
+                          }
+                          title="Regular Yoga Sessions"
+                          subtitle="(Monday to Saturday)"
+                        />
+                        {bothPeriods ? joinSessionButton : null}
+                      </div>
+
+                      {!hasTodaySessions ? (
+                        <SessionTimingBlock
+                          icon={sunIcon}
+                          label="Today's session timings"
+                          slots={[]}
+                          tint="bg-[#F4F8F2]"
+                          emptyLabel="No sessions scheduled for today"
+                        />
+                      ) : !hasMorning && !hasEvening ? (
+                        <SessionTimingBlock
+                          icon={sunIcon}
+                          label="Today's session timings"
+                          slots={sessionLabels}
+                          tint="bg-[#F4F8F2]"
+                          liveSlot={running?.label}
+                        />
+                      ) : (
+                        <>
+                          {hasMorning ? (
+                            <SessionTimingBlock
+                              icon={sunIcon}
+                              label="Morning Sessions"
+                              slots={morningSlots}
+                              tint="bg-[#F4F8F2]"
+                              liveSlot={running?.label}
+                            />
+                          ) : null}
+                          {hasEvening ? (
+                            <SessionTimingBlock
+                              icon={moonIcon}
+                              label="Evening Sessions"
+                              slots={eveningSlots}
+                              tint="bg-[#F7F7F5]"
+                              liveSlot={running?.label}
+                            />
+                          ) : null}
+                        </>
+                      )}
+
+                      {!bothPeriods ? (
+                        <div className="mt-3 flex justify-center sm:mt-4">
+                          <button
+                            type="button"
+                            onClick={() => void handleJoin()}
+                            disabled={joiningSession}
+                            className={`${memberPrimaryBtnClass} w-full max-w-[420px] justify-center px-8 py-3.5 text-[15px] sm:px-10 sm:py-4 sm:text-[16px]`}
+                          >
+                            {joiningSession ? "Joining…" : "Join Session"}
+                          </button>
+                        </div>
+                      ) : null}
+                    </>
+                  );
+                })()}
               </div>
 
               <div className="border-t border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-t-0">
@@ -531,7 +697,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                       <StarIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </span>
                   }
-                  title="11:30 AM Special Session"
+                  title={
+                    specialSessionLabel
+                      ? `${specialSessionLabel} Special Session`
+                      : "Special Session"
+                  }
                   subtitle="(Monday to Saturday)"
                 />
 
@@ -547,9 +717,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   }
                   label="Today's Topic"
                   topic="Back Care & Spine Strength"
-                  actionLabel="Join"
                   tint="bg-[#F4F8F2]"
-                  onJoin={handleJoin}
                 />
                 <SpecialTopicRow
                   icon={
@@ -804,13 +972,19 @@ function SectionHeading({
   icon,
   title,
   subtitle,
+  className,
 }: {
   icon: ReactNode;
   title: string;
   subtitle: string;
+  className?: string;
 }) {
   return (
-    <div className="mb-4 flex items-start gap-2.5">
+    <div
+      className={
+        className ?? "mb-4 flex min-w-0 items-start gap-2.5"
+      }
+    >
       {icon}
       <div className="ml-1 min-w-0 sm:ml-2">
         <p className="block text-[15px] leading-snug font-bold text-[#3d4a3c] sm:text-[16px]">
@@ -828,16 +1002,12 @@ function SpecialTopicRow({
   icon,
   label,
   topic,
-  actionLabel,
   tint,
-  onJoin,
 }: {
   icon: ReactNode;
   label: string;
   topic: string;
-  actionLabel?: string;
   tint: string;
-  onJoin?: () => void;
 }) {
   return (
     <div
@@ -852,130 +1022,84 @@ function SpecialTopicRow({
           </p>
         </div>
       </div>
-
-      {actionLabel ? (
-        <button
-          type="button"
-          onClick={onJoin}
-          className={`${memberPrimaryBtnSmClass} w-full justify-center px-4 py-2 text-[12px] whitespace-nowrap sm:w-auto sm:px-5 sm:py-1.5 sm:text-[13px]`}
-        >
-          {actionLabel}
-        </button>
-      ) : null}
     </div>
   );
 }
 
-function TrialSessionJoinRow({
-  icon,
-  label,
-  onJoin,
-  joinDisabled = false,
-  live = false,
-}: {
-  icon: typeof sunIcon;
-  label: string;
-  onJoin?: () => void;
-  joinDisabled?: boolean;
-  live?: boolean;
-}) {
-  return (
-    <div
-      className={`mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[14px] px-3 py-3 sm:px-4 sm:py-3.5 ${
-        live ? "bg-[#eef6f0]" : "bg-[#F4F8F2]"
-      }`}
-    >
-      <div className="flex min-w-0 flex-1 items-center gap-2.5">
-        <Image
-          src={icon}
-          alt=""
-          width={32}
-          height={32}
-          className="h-8 w-8 shrink-0 object-contain sm:h-9 sm:w-9"
-        />
-        <span className="min-w-0 text-[14px] font-bold leading-snug text-[#3d4a3c] sm:text-[15px]">
-          {label}
-          {live ? (
-            <span className="ml-2 text-[11px] font-bold tracking-wide text-[#1f6b3a] uppercase">
-              Live
-            </span>
-          ) : null}
-        </span>
-      </div>
-      <button
-        type="button"
-        onClick={onJoin}
-        disabled={joinDisabled || !onJoin}
-        className={`${memberPrimaryBtnSmClass} w-full justify-center px-4 py-2 text-[12px] whitespace-nowrap sm:w-auto sm:min-w-[88px] sm:px-5 sm:py-1.5 sm:text-[13px] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none disabled:hover:filter-none`}
-      >
-        Join
-      </button>
-    </div>
-  );
-}
-
-function SessionRow({
+/** Compact timing chips — optional Join sits in the same row (2 columns). */
+function SessionTimingBlock({
   icon,
   label,
   slots,
   tint,
-  onJoin,
   liveSlot,
-  joinDisabled = false,
-  joinLabel = "Join",
+  join,
+  className,
+  emptyLabel,
 }: {
   icon: typeof sunIcon;
   label: string;
   slots: string[];
   tint: string;
-  onJoin?: () => void;
   liveSlot?: string;
-  joinDisabled?: boolean;
-  joinLabel?: string;
+  join?: ReactNode;
+  className?: string;
+  emptyLabel?: string;
 }) {
+  const showEmpty = slots.length === 0;
+
   return (
     <div
-      className={`mb-3 flex flex-col gap-3 rounded-[14px] px-3 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2 sm:px-4 sm:py-3.5 ${tint}`}
+      className={`mb-3 flex flex-col gap-3 rounded-[14px] px-3 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-4 sm:py-3.5 ${tint} ${className ?? ""}`}
     >
-      <div className="flex min-w-0 items-center gap-2.5">
-        <Image
-          src={icon}
-          alt=""
-          width={32}
-          height={32}
-          className="h-8 w-8 shrink-0 object-contain sm:h-9 sm:w-9"
-        />
-        <span className="min-w-0 text-[14px] font-bold leading-snug text-[#3d4a3c] sm:text-[15px]">
-          {label}
-        </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Image
+            src={icon}
+            alt=""
+            width={32}
+            height={32}
+            className="h-8 w-8 shrink-0 object-contain sm:h-9 sm:w-9"
+          />
+          <span className="min-w-0 text-[14px] font-bold leading-snug text-[#3d4a3c] sm:text-[15px]">
+            {label}
+          </span>
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:justify-end sm:gap-2">
+          {showEmpty ? (
+            <span className="rounded-[10px] bg-white/80 px-2.5 py-1 text-[12px] font-semibold text-[#6b7c6e] sm:px-3 sm:py-1.5 sm:text-[13px]">
+              {emptyLabel ?? "No sessions scheduled"}
+            </span>
+          ) : (
+            Array.from(
+              new Map(
+                slots.map((slot) => [
+                  slot.trim().replace(/\s+/g, " ").toLowerCase(),
+                  slot.trim().replace(/\s+/g, " "),
+                ]),
+              ).values(),
+            ).map((slot) => {
+              const live = liveSlot === slot;
+              return (
+                <span
+                  key={slot}
+                  className={`rounded-[10px] border px-2.5 py-1 text-[12px] font-bold whitespace-nowrap sm:px-3 sm:py-1.5 sm:text-[13px] ${
+                    live
+                      ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
+                      : "border-transparent bg-white text-[#1f6b3a]"
+                  }`}
+                >
+                  {slot}
+                  {live ? <span className="sr-only"> (live now)</span> : null}
+                </span>
+              );
+            })
+          )}
+        </div>
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:justify-end sm:gap-2.5">
-        {slots.map((slot) => {
-          const live = liveSlot === slot;
-          return (
-            <span
-              key={slot}
-              className={`rounded-[12px] border px-2.5 py-1 text-[12px] font-bold whitespace-nowrap sm:px-3 sm:py-1.5 sm:text-[13px] ${
-                live
-                  ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
-                  : "border-transparent bg-white text-[#1f6b3a]"
-              }`}
-            >
-              {slot}
-              {live ? <span className="sr-only"> (now)</span> : null}
-            </span>
-          );
-        })}
-        <button
-          type="button"
-          onClick={onJoin}
-          disabled={joinDisabled || !onJoin}
-          className={`${memberPrimaryBtnSmClass} w-full justify-center px-4 py-2 text-[12px] whitespace-nowrap sm:w-auto sm:px-5 sm:py-1.5 sm:text-[13px] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:shadow-none disabled:hover:filter-none`}
-        >
-          {joinLabel}
-        </button>
-      </div>
+      {join ? <div className="w-full shrink-0 sm:w-auto">{join}</div> : null}
     </div>
   );
 }
@@ -1051,6 +1175,26 @@ function InfoIcon({ className }: { className?: string }) {
     <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
       <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
       <path d="M12 10.5V16M12 8v-.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function RefreshIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path
+        d="M19.5 12a7.5 7.5 0 1 1-2.05-5.2"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M19.5 4.5v4.2h-4.2"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

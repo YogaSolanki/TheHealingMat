@@ -5,6 +5,7 @@ import { ScheduledClass } from './scheduled-class.entity';
 import { ScheduledClassesService } from './scheduled-classes.service';
 import { SessionTiming } from './session-timing.entity';
 import { SessionTimingsAdminController } from './session-timings-admin.controller';
+import { SessionTimingsPublicController } from './session-timings-public.controller';
 import { SessionTimingsService } from './session-timings.service';
 import { SettingsAdminController } from './settings-admin.controller';
 import { SettingsService } from './settings.service';
@@ -18,6 +19,7 @@ import { SiteSettings } from './site-settings.entity';
   controllers: [
     SettingsAdminController,
     SessionTimingsAdminController,
+    SessionTimingsPublicController,
     ClassesAdminController,
     SessionsController,
   ],

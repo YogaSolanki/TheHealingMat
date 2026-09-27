@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import type { ReactNode } from "react";
 import anytimeIcon from "@/assets/anytime.png";
@@ -27,12 +29,7 @@ import {
   formatMembershipPerDay,
   useMembershipPlans,
 } from "@/lib/membership-plans-store";
-import {
-  specialSessionLabel,
-  weekdayEveningSlots,
-  weekdayMorningSlots,
-  sundayQaSlots,
-} from "@/lib/member-session-schedule";
+import { useSessionTimings } from "@/lib/session-timings-store";
 
 const cream = "#FBF9F5";
 
@@ -74,11 +71,6 @@ function toPlanCard(plan: PublicMembershipPlan): PlanCardModel {
     offerBadge: plan.offer?.badge ?? null,
   };
 }
-
-const morningSlots = [...weekdayMorningSlots];
-const eveningSlots = [...weekdayEveningSlots];
-const sundaySlots = [...sundayQaSlots];
-const specialSlot = specialSessionLabel;
 
 const membershipBenefits: {
   key: string;
@@ -463,6 +455,14 @@ function CouponStrip() {
 }
 
 function WeekBlock() {
+  const {
+    labels: sessionLabels,
+    morning: morningSlots,
+    evening: eveningSlots,
+    special: specialSlots,
+  } = useSessionTimings(false);
+  const specialSlot = specialSlots[0] ?? null;
+
   return (
     <section className="mx-auto w-full max-w-[1440px] px-4 py-4 sm:px-6 sm:py-5 lg:px-6 xl:px-8">
       <h2 className="text-center font-serif text-[1.45rem] leading-tight font-bold tracking-tight text-black sm:text-[1.7rem]">
@@ -538,12 +538,20 @@ function WeekBlock() {
                   Special Session
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  <span className="rounded-[12px] bg-[#FFF4DC] px-2 py-1 text-[11px] font-bold whitespace-nowrap text-[#9A6B12] sm:text-[12px]">
-                    {specialSlot} – 12:00 PM
-                  </span>
-                  <span className="rounded-[12px] bg-[#FFF8EB] px-2 py-1 text-[11px] font-bold whitespace-nowrap text-[#9A6B12] sm:text-[12px]">
-                    30 minutes
-                  </span>
+                  {specialSlot ? (
+                    <>
+                      <span className="rounded-[12px] bg-[#FFF4DC] px-2 py-1 text-[11px] font-bold whitespace-nowrap text-[#9A6B12] sm:text-[12px]">
+                        {specialSlot} – 12:00 PM
+                      </span>
+                      <span className="rounded-[12px] bg-[#FFF8EB] px-2 py-1 text-[11px] font-bold whitespace-nowrap text-[#9A6B12] sm:text-[12px]">
+                        30 minutes
+                      </span>
+                    </>
+                  ) : (
+                    <span className="rounded-[12px] bg-[#FFF8EB] px-2 py-1 text-[11px] font-bold whitespace-nowrap text-[#9A6B12] sm:text-[12px]">
+                      Announced in Member Area
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -610,7 +618,7 @@ function WeekBlock() {
                 Sunday Sessions
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {sundaySlots.map((slot) => (
+                {sessionLabels.map((slot) => (
                   <span
                     key={slot}
                     className="rounded-[12px] bg-[#E8F0E4] px-2 py-1 text-[11px] font-bold whitespace-nowrap text-[#1f6b3a] sm:text-[12px]"
@@ -663,6 +671,9 @@ function BenefitsBlock() {
 }
 
 function DailySessionsBlock() {
+  const { special } = useSessionTimings(false);
+  const specialSlot = special[0] ?? null;
+
   return (
     <section className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 sm:py-6 lg:px-6 xl:px-8">
       <h2 className="text-center font-serif text-[1.45rem] font-bold tracking-tight text-black sm:text-[1.7rem]">
@@ -705,8 +716,9 @@ function DailySessionsBlock() {
           ★
         </span>
         <span>
-          Special sessions run Monday–Saturday from {specialSlot} to 12:00 PM
-          (30 minutes), with a different health and wellness topic each day.
+          {specialSlot
+            ? `Special sessions run Monday–Saturday from ${specialSlot} to 12:00 PM (30 minutes), with a different health and wellness topic each day.`
+            : "Special sessions run Monday–Saturday with a different health and wellness topic each day."}
           <br className="hidden sm:block" />
           Current and upcoming topics are announced in your Member Area.
         </span>

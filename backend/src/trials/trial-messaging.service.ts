@@ -5,6 +5,7 @@ import { LessThanOrEqual, IsNull, Repository } from 'typeorm';
 import { sendResendEmail } from '../mail/resend';
 import { sendMsg91WhatsAppTemplate } from '../sms/msg91-whatsapp';
 import { resolveFrontendBaseUrl } from '../common/frontend-url';
+import { SessionTimingsService } from '../settings/session-timings.service';
 import { User } from '../users/user.entity';
 import { TrialStatus } from '../users/enums/trial-status.enum';
 import {
@@ -26,6 +27,7 @@ export class TrialMessagingService implements OnModuleInit, OnModuleDestroy {
     private readonly registrations: Repository<TrialRegistration>,
     @InjectRepository(User)
     private readonly users: Repository<User>,
+    private readonly sessionTimings: SessionTimingsService,
   ) {}
 
   onModuleInit() {
@@ -53,13 +55,14 @@ export class TrialMessagingService implements OnModuleInit, OnModuleDestroy {
     const endLabel = formatTrialDateForMessage(registration.trialEndsAt);
     const name = user.fullName?.trim().split(/\s+/)[0] || 'there';
     const memberArea = this.memberAreaUrl();
+    const sessionTimes = await this.formatSessionTimes();
 
     const text =
       `Welcome to The Healing Mat, ${name}!\n\n` +
       `Your 14-Day Free Trial starts on ${startLabel}.\n` +
       `Your trial runs until ${endLabel}.\n\n` +
       `You can join your sessions from the Member Area:\n${memberArea}\n\n` +
-      `Session times once your trial starts: 7:00 AM and 7:00 PM.`;
+      `Session times once your trial starts: ${sessionTimes.labelList}.`;
 
     await this.deliver(user, {
       kind: 'welcome',
@@ -83,17 +86,24 @@ export class TrialMessagingService implements OnModuleInit, OnModuleDestroy {
     const endLabel = formatTrialDateForMessage(registration.trialEndsAt);
     const name = user.fullName?.trim().split(/\s+/)[0] || 'there';
     const memberArea = this.memberAreaUrl();
+    const sessionTimes = await this.formatSessionTimes();
 
     const text =
       `Hi ${name}, your The Healing Mat free trial starts on ${startLabel}.\n\n` +
       `Join your sessions from the Member Area:\n${memberArea}\n\n` +
-      `Session times: 7:00 AM and 7:00 PM.\n` +
+      `Session times: ${sessionTimes.labelList}.\n` +
       `Your trial runs until ${endLabel}.`;
 
     await this.deliver(user, {
       kind: 'reminder',
       text,
-      bodyValues: [name, startLabel, '7:00 AM', '7:00 PM', memberArea],
+      bodyValues: [
+        name,
+        startLabel,
+        sessionTimes.primary,
+        sessionTimes.secondary,
+        memberArea,
+      ],
       templateEnv: 'MSG91_WHATSAPP_TEMPLATE_REMINDER',
       emailSubject: 'Your free trial starts soon — The Healing Mat',
     });
@@ -246,5 +256,38 @@ export class TrialMessagingService implements OnModuleInit, OnModuleDestroy {
       subject,
       text,
     });
+  }
+
+  private async formatSessionTimes() {
+    try {
+      const rows = await this.sessionTimings.list(false);
+      const labels = rows.map((row) => row.label).filter(Boolean);
+      if (labels.length > 0) {
+        const morning = labels.find((label) => /AM$/i.test(label));
+        const evening = [...labels].reverse().find((label) => /PM$/i.test(label));
+        return {
+          labelList: this.joinLabels(labels),
+          primary: morning ?? labels[0],
+          secondary: evening ?? labels[labels.length - 1] ?? labels[0],
+        };
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Unable to load session timings for trial message: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+    return {
+      labelList: 'see Member Area for current times',
+      primary: 'Member Area',
+      secondary: 'schedule',
+    };
+  }
+
+  private joinLabels(labels: string[]) {
+    if (labels.length === 1) return labels[0];
+    if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+    return `${labels.slice(0, -1).join(', ')}, and ${labels[labels.length - 1]}`;
   }
 }
