@@ -6,10 +6,12 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  Post,
 } from '@nestjs/common';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
 import { AdminDashboardService } from './admin-dashboard.service';
+import { CreateAdminMembershipDto } from './dto/create-admin-membership.dto';
 import { UpdateAdminMembershipDto } from './dto/update-admin-membership.dto';
 import { UpdateAdminUserDto } from './dto/update-admin-user.dto';
 
@@ -39,6 +41,22 @@ export class AdminDashboardController {
     @Body() dto: UpdateAdminUserDto,
   ) {
     return this.dashboard.updateUser(id, dto);
+  }
+
+  @Post('users/:id/memberships')
+  createMembership(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateAdminMembershipDto,
+  ) {
+    return this.dashboard.createMembership(id, dto);
+  }
+
+  @Post('users/:id/payments/:paymentOrderId/activate-membership')
+  activateMembershipFromPayment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('paymentOrderId', ParseUUIDPipe) paymentOrderId: string,
+  ) {
+    return this.dashboard.activateMembershipFromPayment(id, paymentOrderId);
   }
 
   @Patch('users/:id/memberships/:membershipId')

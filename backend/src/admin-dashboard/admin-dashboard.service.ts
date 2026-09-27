@@ -5,10 +5,12 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
+import { randomUUID } from 'crypto';
 import { DataSource, In, Not, Repository } from 'typeorm';
 import { CouponRedemption } from '../coupons/coupon-redemption.entity';
 import { Coupon } from '../coupons/coupon.entity';
 import { Membership } from '../payments/membership.entity';
+import { MembershipPlansService } from '../payments/membership-plans.service';
 import { PaymentOrder } from '../payments/payment-order.entity';
 import { RewardRedemptionRequest } from '../referrals/reward-redemption-request.entity';
 import { OrientationSlot } from '../trials/orientation-slot.entity';
@@ -18,6 +20,7 @@ import { Region } from '../users/enums/region.enum';
 import { TrialStatus } from '../users/enums/trial-status.enum';
 import { OtpChallenge } from '../users/otp-challenge.entity';
 import { User } from '../users/user.entity';
+import { CreateAdminMembershipDto } from './dto/create-admin-membership.dto';
 import { UpdateAdminMembershipDto } from './dto/update-admin-membership.dto';
 import { UpdateAdminUserDto } from './dto/update-admin-user.dto';
 
@@ -26,6 +29,7 @@ export class AdminDashboardService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
+    private readonly membershipPlans: MembershipPlansService,
     @InjectRepository(User)
     private readonly users: Repository<User>,
     @InjectRepository(TrialRegistration)
@@ -360,6 +364,157 @@ export class AdminDashboardService {
     return this.getUserDetail(id);
   }
 
+  async createMembership(userId: string, dto: CreateAdminMembershipDto) {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    const plan =
+      (await this.membershipPlans.findByMonths(dto.planMonths)) ?? null;
+    if (!plan) {
+      throw new BadRequestException(
+        `No membership plan found for ${dto.planMonths} months.`,
+      );
+    }
+    const planName = plan.name;
+
+    let payment: PaymentOrder | null = null;
+    if (dto.paymentOrderId) {
+      payment = await this.paymentOrders.findOne({
+        where: { id: dto.paymentOrderId, userId },
+      });
+      if (!payment) {
+        throw new NotFoundException('Payment order not found for this user.');
+      }
+      const existing = await this.memberships.findOne({
+        where: { paymentOrderId: payment.id },
+      });
+      if (existing) {
+        throw new BadRequestException(
+          'This payment order already has a membership. Edit that membership instead.',
+        );
+      }
+    }
+
+    const status = dto.status ?? 'active';
+    const now = new Date();
+    let startsAt: Date;
+
+    if (status === 'active') {
+      startsAt = this.startOfLocalDay(now);
+    } else {
+      if (!dto.startsAt) {
+        throw new BadRequestException(
+          'startsAt is required when status is scheduled.',
+        );
+      }
+      startsAt = new Date(dto.startsAt);
+      if (Number.isNaN(startsAt.getTime())) {
+        throw new BadRequestException('startsAt must be a valid date.');
+      }
+      startsAt = this.startOfLocalDay(startsAt);
+      if (startsAt.getTime() <= this.startOfLocalDay(now).getTime()) {
+        throw new BadRequestException(
+          'Scheduled start date must be in the future. Use active to start now.',
+        );
+      }
+    }
+
+    const endsAt = this.membershipEndsAt(startsAt, dto.planMonths);
+    if (endsAt.getTime() <= startsAt.getTime()) {
+      throw new BadRequestException('endsAt must be after startsAt.');
+    }
+
+    const currency =
+      dto.currency?.toUpperCase() ||
+      payment?.currency ||
+      (user.region === Region.OutsideIndia ? 'USD' : 'INR');
+    const listPricePaise =
+      payment?.listPricePaise ??
+      (currency === 'USD'
+        ? (plan.listPriceUsdCents ?? 0)
+        : (plan.listPricePaise ?? 0));
+    const discountPaise = payment?.discountPaise ?? 0;
+    const amountPaidPaise =
+      dto.amountPaidPaise ??
+      payment?.amountPaise ??
+      Math.max(0, listPricePaise - discountPaise);
+
+    if (payment && payment.status !== 'paid') {
+      payment.status = 'paid';
+      await this.paymentOrders.save(payment);
+    }
+
+    const razorpayInvoiceId =
+      dto.razorpayInvoiceId?.trim() ||
+      payment?.razorpayInvoiceId ||
+      null;
+
+    const membership = await this.memberships.save(
+      this.memberships.create({
+        userId,
+        planMonths: dto.planMonths,
+        planName,
+        listPricePaise,
+        discountPaise,
+        amountPaidPaise,
+        currency,
+        status,
+        startsAt,
+        endsAt,
+        paymentOrderId: payment?.id ?? `admin-manual-${randomUUID()}`,
+        razorpayPaymentId: payment?.razorpayPaymentId ?? null,
+        razorpayInvoiceId,
+        razorpayInvoiceUrl: payment?.razorpayInvoiceUrl ?? null,
+      }),
+    );
+
+    if (status === 'active') {
+      await this.supersedeOtherActiveMemberships(userId, membership.id);
+      await this.completeTrialForMembership(userId);
+    }
+
+    return this.getUserDetail(userId);
+  }
+
+  /**
+   * Recover a paid (or captured) order that never created a membership row.
+   */
+  async activateMembershipFromPayment(
+    userId: string,
+    paymentOrderId: string,
+  ) {
+    const payment = await this.paymentOrders.findOne({
+      where: { id: paymentOrderId, userId },
+    });
+    if (!payment) {
+      throw new NotFoundException('Payment order not found for this user.');
+    }
+    if (payment.planMonths == null) {
+      throw new BadRequestException(
+        'This payment order is not a membership purchase.',
+      );
+    }
+
+    const existing = await this.memberships.findOne({
+      where: { paymentOrderId: payment.id },
+    });
+    if (existing) {
+      throw new BadRequestException(
+        'This payment order already has a membership. Edit that membership instead.',
+      );
+    }
+
+    return this.createMembership(userId, {
+      planMonths: payment.planMonths,
+      paymentOrderId: payment.id,
+      amountPaidPaise: payment.amountPaise,
+      currency: payment.currency,
+      status: 'active',
+    });
+  }
+
   async updateMembership(
     userId: string,
     membershipId: string,
@@ -393,7 +548,62 @@ export class AdminDashboardService {
     }
 
     await this.memberships.save(membership);
+
+    if (membership.status === 'active') {
+      await this.supersedeOtherActiveMemberships(userId, membership.id);
+      await this.completeTrialForMembership(userId);
+    }
+
     return this.getUserDetail(userId);
+  }
+
+  private async supersedeOtherActiveMemberships(
+    userId: string,
+    keepMembershipId: string,
+  ) {
+    const now = new Date();
+    const actives = await this.memberships.find({
+      where: { userId, status: 'active' },
+    });
+    const others = actives.filter((row) => row.id !== keepMembershipId);
+    for (const row of others) {
+      row.status = 'expired';
+      if (row.endsAt > now) row.endsAt = now;
+    }
+    if (others.length) await this.memberships.save(others);
+  }
+
+  private async completeTrialForMembership(userId: string) {
+    const trial = await this.trials.findOne({ where: { userId } });
+    if (!trial) return;
+    if (trial.status === TrialStatus.Completed) return;
+
+    const now = new Date();
+    if (trial.trialEndsAt > now) {
+      trial.trialEndsAt = now;
+    }
+    trial.status = TrialStatus.Completed;
+    await this.trials.save(trial);
+  }
+
+  private addMonths(date: Date, months: number) {
+    const next = new Date(date.getTime());
+    next.setMonth(next.getMonth() + months);
+    return next;
+  }
+
+  /** Last inclusive day of a membership term (matches payments service). */
+  private membershipEndsAt(startsAt: Date, months: number) {
+    const ends = this.addMonths(startsAt, months);
+    ends.setDate(ends.getDate() - 1);
+    ends.setHours(23, 59, 59, 999);
+    return ends;
+  }
+
+  private startOfLocalDay(date: Date) {
+    const next = new Date(date.getTime());
+    next.setHours(0, 0, 0, 0);
+    return next;
   }
 
   async deleteUser(id: string) {

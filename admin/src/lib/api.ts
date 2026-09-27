@@ -263,6 +263,16 @@ export type UpdateAdminMembershipInput = {
   planName?: string;
 };
 
+export type CreateAdminMembershipInput = {
+  planMonths: number;
+  status?: "active" | "scheduled";
+  startsAt?: string;
+  paymentOrderId?: string;
+  razorpayInvoiceId?: string;
+  amountPaidPaise?: number;
+  currency?: string;
+};
+
 export function getAdminUserDetail(token: string, id: string) {
   return authGet<AdminUserDetail>(`/admin/users/${id}`, token);
 }
@@ -273,6 +283,31 @@ export function updateAdminUser(
   body: UpdateAdminUserInput,
 ) {
   return authJson<AdminUserDetail>("PATCH", `/admin/users/${id}`, token, body);
+}
+
+export function createAdminUserMembership(
+  token: string,
+  userId: string,
+  body: CreateAdminMembershipInput,
+) {
+  return authJson<AdminUserDetail>(
+    "POST",
+    `/admin/users/${userId}/memberships`,
+    token,
+    body,
+  );
+}
+
+export function activateAdminMembershipFromPayment(
+  token: string,
+  userId: string,
+  paymentOrderId: string,
+) {
+  return authJson<AdminUserDetail>(
+    "POST",
+    `/admin/users/${userId}/payments/${paymentOrderId}/activate-membership`,
+    token,
+  );
 }
 
 export function updateAdminUserMembership(
