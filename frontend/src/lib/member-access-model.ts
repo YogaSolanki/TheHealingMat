@@ -26,9 +26,8 @@ export type MemberAccess = {
   scheduledMembershipId: string | null;
   scheduledPlanName: string | null;
   scheduledStartsOnLabel: string | null;
-  /** False for admin-manual grants — hide download invoice. */
   invoiceDownloadable: boolean;
-  /** False for admin-manual scheduled grants — hide next-membership invoice download. */
+  /** Whether the scheduled membership has a downloadable invoice. */
   scheduledInvoiceDownloadable: boolean;
 };
 

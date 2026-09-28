@@ -44,8 +44,8 @@ export class CreateAdminMembershipDto {
   paymentOrderId?: string;
 
   /**
-   * Optional payment reference shown on the auto PDF invoice.
-   * If this is a Razorpay payment id (pay_…), we also try to attach any linked Razorpay invoice.
+   * Payment reference for the invoice (Razorpay pay_… / UTR / bank note).
+   * Required when amount paid is greater than zero.
    */
   @IsOptional()
   @IsString()
@@ -53,6 +53,38 @@ export class CreateAdminMembershipDto {
   @MaxLength(120)
   paymentRef?: string;
 
+  /**
+   * How the customer paid (UPI, Bank transfer, Razorpay, Cash, etc.).
+   * Required when amount paid is greater than zero.
+   */
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(80)
+  paymentMethod?: string;
+
+  /**
+   * Admin-only note: why this membership was created manually.
+   * Required for all admin-created memberships.
+   */
+  @IsString()
+  @MinLength(3)
+  @MaxLength(1000)
+  adminNote: string;
+
+  /** List / catalogue price in minor units (paise / cents). */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  listPricePaise?: number;
+
+  /** Discount in minor units. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  discountPaise?: number;
+
+  /** Final amount paid in minor units. Required for invoice when > 0. */
   @IsOptional()
   @IsInt()
   @Min(0)
@@ -63,4 +95,14 @@ export class CreateAdminMembershipDto {
   @MinLength(3)
   @MaxLength(3)
   currency?: string;
+
+  /**
+   * Billing state (India) or country (outside India) when the profile lacks one.
+   * Stored on the user for invoice / future GST.
+   */
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  billingLocation?: string;
 }

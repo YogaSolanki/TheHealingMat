@@ -55,6 +55,12 @@ type NewMembershipForm = {
   planMonths: string;
   paymentOrderId: string;
   paymentRef: string;
+  paymentMethod: string;
+  adminNote: string;
+  listPriceMajor: string;
+  discountMajor: string;
+  amountPaidMajor: string;
+  billingLocation: string;
 };
 
 type UpgradeForm = {
@@ -70,17 +76,37 @@ type PendingSave =
   | { type: "upgrade-membership"; membershipId: string }
   | { type: "activate-payment"; paymentOrderId: string };
 
+const PAYMENT_METHOD_OPTIONS = [
+  "UPI",
+  "Bank transfer",
+  "Razorpay",
+  "Cash",
+  "Other",
+] as const;
+
 function emptyNewMembershipForm(
   plans?: AdminMembershipPlan[],
+  currency: string = "INR",
 ): NewMembershipForm {
   const preferred =
-    plans?.find((p) => p.months === 3) ??
-    plans?.[0] ??
-    null;
+    plans?.find((p) => p.months === 3) ?? plans?.[0] ?? null;
+  const listMinor =
+    preferred == null
+      ? 0
+      : currency === "USD"
+        ? preferred.listPriceUsdCents
+        : preferred.listPricePaise;
+  const major = (listMinor / 100).toFixed(currency === "USD" ? 2 : 0);
   return {
     planMonths: preferred ? String(preferred.months) : "3",
     paymentOrderId: "",
     paymentRef: "",
+    paymentMethod: "",
+    adminNote: "",
+    listPriceMajor: major,
+    discountMajor: "0",
+    amountPaidMajor: major,
+    billingLocation: "",
   };
 }
 
@@ -167,8 +193,42 @@ function formatMoney(paise: number, currency: string) {
       maximumFractionDigits: 2,
     }).format(amount);
   } catch {
-    return `${currency} ${amount.toFixed(2)}`;
+    return `${currency} ${(paise / 100).toFixed(2)}`;
   }
+}
+
+function majorToMinorUnits(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n * 100);
+}
+
+function catalogListMinor(
+  plan: AdminMembershipPlan | null | undefined,
+  currency: string,
+) {
+  if (!plan) return 0;
+  return currency === "USD" ? plan.listPriceUsdCents : plan.listPricePaise;
+}
+
+function applyPlanPrices(
+  form: NewMembershipForm,
+  plans: AdminMembershipPlan[],
+  planMonths: string,
+  currency: string,
+): NewMembershipForm {
+  const plan = plans.find((p) => String(p.months) === planMonths) ?? null;
+  const listMinor = catalogListMinor(plan, currency);
+  const major = (listMinor / 100).toFixed(currency === "USD" ? 2 : 0);
+  return {
+    ...form,
+    planMonths,
+    listPriceMajor: major,
+    amountPaidMajor: major,
+    discountMajor: "0",
+  };
 }
 
 function formatDateTime(value: string) {
@@ -384,7 +444,9 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         loadPreferredClassTimes(),
       ]);
       applyDetail(next);
-      setNewMembershipForm(emptyNewMembershipForm(plans));
+      const currency =
+        next.profile.region === "outside_india" ? "USD" : "INR";
+      setNewMembershipForm(emptyNewMembershipForm(plans, currency));
       const active =
         next.memberships.find((m) => m.status === "active") ?? null;
       setUpgradeForm(emptyUpgradeForm(active, plans));
@@ -413,7 +475,9 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     setEditing(true);
     setMembershipComposer(null);
     setUpgradeTargetId(null);
-    setNewMembershipForm(emptyNewMembershipForm(catalogPlans));
+    const currency =
+      detail.profile.region === "outside_india" ? "USD" : "INR";
+    setNewMembershipForm(emptyNewMembershipForm(catalogPlans, currency));
     const active =
       detail.memberships.find((m) => m.status === "active") ?? null;
     setUpgradeForm(emptyUpgradeForm(active, catalogPlans));
@@ -424,7 +488,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     setError(null);
     if (catalogPlans.length === 0) {
       void loadCatalogPlans().then((plans) => {
-        setNewMembershipForm(emptyNewMembershipForm(plans));
+        setNewMembershipForm(emptyNewMembershipForm(plans, currency));
         setUpgradeForm(emptyUpgradeForm(active, plans));
       });
     }
@@ -436,7 +500,9 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     setEditing(false);
     setMembershipComposer(null);
     setUpgradeTargetId(null);
-    setNewMembershipForm(emptyNewMembershipForm(catalogPlans));
+    const currency =
+      detail.profile.region === "outside_india" ? "USD" : "INR";
+    setNewMembershipForm(emptyNewMembershipForm(catalogPlans, currency));
     const active =
       detail.memberships.find((m) => m.status === "active") ?? null;
     setUpgradeForm(emptyUpgradeForm(active, catalogPlans));
@@ -449,19 +515,28 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   }
 
   function openMembershipComposer(mode: Exclude<MembershipComposer, null>) {
+    const currency =
+      detail?.profile.region === "outside_india" ? "USD" : "INR";
     setMembershipComposer((current) => {
       const next = current === mode ? null : mode;
-      if (next === "renew" && detail) {
-        const active =
-          detail.memberships.find((m) => m.status === "active") ?? null;
-        if (active) {
-          setNewMembershipForm((form) => ({
-            ...form,
-            planMonths: String(active.planMonths),
-            paymentOrderId: "",
-            paymentRef: "",
-          }));
+      if (next === "add" || next === "renew") {
+        const base = emptyNewMembershipForm(catalogPlans, currency);
+        if (next === "renew" && detail) {
+          const active =
+            detail.memberships.find((m) => m.status === "active") ?? null;
+          if (active) {
+            base.planMonths = String(active.planMonths);
+            const plan = catalogPlans.find((p) => p.months === active.planMonths);
+            const listMinor = catalogListMinor(plan, currency);
+            const major = (listMinor / 100).toFixed(currency === "USD" ? 2 : 0);
+            base.listPriceMajor = major;
+            base.amountPaidMajor = major;
+          }
         }
+        if (!detail?.profile.state?.trim()) {
+          base.billingLocation = "";
+        }
+        setNewMembershipForm(base);
       }
       if (next !== "upgrade") {
         setUpgradeTargetId(null);
@@ -481,7 +556,9 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     if (!editing) {
       applyDetail(detail);
       setEditing(true);
-      setNewMembershipForm(emptyNewMembershipForm(catalogPlans));
+      const currency =
+        detail.profile.region === "outside_india" ? "USD" : "INR";
+      setNewMembershipForm(emptyNewMembershipForm(catalogPlans, currency));
       setProfileSaved(false);
       setMembershipSavedId(null);
     }
@@ -569,12 +646,54 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   }
 
   function requestCreateMembership(mode: "add" | "renew") {
-    if (!editing || savingNewMembership) return;
+    if (!editing || savingNewMembership || !detail) return;
     const planMonths = Number(newMembershipForm.planMonths);
     if (!Number.isInteger(planMonths) || planMonths < 1) {
       showError("Select a valid plan.");
       return;
     }
+    if (newMembershipForm.adminNote.trim().length < 3) {
+      showError("Admin note is required (why this membership was created).");
+      return;
+    }
+
+    const listPricePaise = majorToMinorUnits(newMembershipForm.listPriceMajor);
+    const discountPaise = majorToMinorUnits(newMembershipForm.discountMajor);
+    const amountPaidPaise = majorToMinorUnits(newMembershipForm.amountPaidMajor);
+    if (listPricePaise == null || discountPaise == null || amountPaidPaise == null) {
+      showError("Enter valid list price, discount, and amount paid.");
+      return;
+    }
+    if (discountPaise > listPricePaise) {
+      showError("Discount cannot exceed list price.");
+      return;
+    }
+    if (amountPaidPaise > listPricePaise) {
+      showError("Amount paid cannot exceed list price.");
+      return;
+    }
+    if (amountPaidPaise > 0) {
+      if (!newMembershipForm.paymentMethod.trim()) {
+        showError("Payment method is required for paid memberships.");
+        return;
+      }
+      if (!newMembershipForm.paymentRef.trim()) {
+        showError("Payment reference is required for paid memberships.");
+        return;
+      }
+    }
+    if (
+      !detail.profile.state?.trim() &&
+      newMembershipForm.billingLocation.trim().length < 2
+    ) {
+      showError(
+        detail.profile.region === "outside_india"
+          ? "Enter the member’s country for the invoice."
+          : "Enter the member’s state for the invoice.",
+      );
+      return;
+    }
+
     setPendingSave({ type: "create-membership", mode });
   }
 
@@ -640,6 +759,23 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     if (pendingSave.type === "create-membership") {
       const mode = pendingSave.mode;
       const planMonths = Number(newMembershipForm.planMonths);
+      const currency =
+        detail?.profile.region === "outside_india" ? "USD" : "INR";
+      const listPricePaise = majorToMinorUnits(newMembershipForm.listPriceMajor);
+      const discountPaise = majorToMinorUnits(newMembershipForm.discountMajor);
+      const amountPaidPaise = majorToMinorUnits(
+        newMembershipForm.amountPaidMajor,
+      );
+      if (
+        listPricePaise == null ||
+        discountPaise == null ||
+        amountPaidPaise == null
+      ) {
+        showError("Enter valid list price, discount, and amount paid.");
+        setPendingSave(null);
+        return;
+      }
+
       setSavingNewMembership(true);
       setError(null);
       setMembershipCreated(false);
@@ -653,6 +789,14 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           status: mode === "renew" ? "scheduled" : "active",
           paymentOrderId: newMembershipForm.paymentOrderId || undefined,
           paymentRef: newMembershipForm.paymentRef.trim() || undefined,
+          paymentMethod: newMembershipForm.paymentMethod.trim() || undefined,
+          adminNote: newMembershipForm.adminNote.trim(),
+          listPricePaise,
+          discountPaise,
+          amountPaidPaise,
+          currency,
+          billingLocation:
+            newMembershipForm.billingLocation.trim() || undefined,
         });
         applyDetail(next);
         invalidateCached(DASHBOARD_CACHE_KEYS.users);
@@ -660,12 +804,16 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         setMembershipCreated(true);
         const successMessage =
           mode === "renew"
-            ? "Renewal scheduled successfully."
-            : "Membership added successfully.";
+            ? amountPaidPaise > 0
+              ? "Renewal scheduled and invoice created."
+              : "Renewal scheduled successfully."
+            : amountPaidPaise > 0
+              ? "Membership added and invoice created."
+              : "Membership added successfully.";
         setMembershipActionMessage(successMessage);
         showSuccess(successMessage);
         setMembershipComposer(null);
-        setNewMembershipForm(emptyNewMembershipForm(catalogPlans));
+        setNewMembershipForm(emptyNewMembershipForm(catalogPlans, currency));
         const active =
           next.memberships.find((m) => m.status === "active") ?? null;
         setUpgradeForm(emptyUpgradeForm(active, catalogPlans));
@@ -852,6 +1000,12 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     Boolean(savingMembershipId) ||
     savingNewMembership ||
     Boolean(activatingPaymentId);
+  const membershipCurrency =
+    detail.profile.region === "outside_india" ? "USD" : "INR";
+  const needsBillingLocation = !detail.profile.state?.trim();
+  const billingLocationLabel =
+    detail.profile.region === "outside_india" ? "Country" : "State";
+  const moneySuffix = membershipCurrency === "USD" ? "USD" : "INR";
   const baselineProfile = profileFromDetail(detail);
   const profileDirty = Boolean(
     profileForm && isProfileDirty(profileForm, baselineProfile),
@@ -1398,7 +1552,9 @@ export function UserDetailPanel({ userId }: { userId: string }) {
               Add membership
             </h3>
             <p className="mt-1 text-xs text-[#8a978c]">
-              Starts now as active. End date is calculated from the plan duration.
+              Starts now as active. End date is calculated from the plan
+              duration. Paid memberships issue a sequential invoice the member
+              can download.
             </p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className={labelClass}>
@@ -1406,10 +1562,14 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                 <select
                   value={newMembershipForm.planMonths}
                   onChange={(e) =>
-                    setNewMembershipForm({
-                      ...newMembershipForm,
-                      planMonths: e.target.value,
-                    })
+                    setNewMembershipForm(
+                      applyPlanPrices(
+                        newMembershipForm,
+                        catalogPlans,
+                        e.target.value,
+                        membershipCurrency,
+                      ),
+                    )
                   }
                   className={inputClass}
                   disabled={fieldsLocked}
@@ -1438,12 +1598,35 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                 Link payment (optional)
                 <select
                   value={newMembershipForm.paymentOrderId}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const paymentOrderId = e.target.value;
+                    const payment =
+                      detail.payments.find((p) => p.id === paymentOrderId) ??
+                      null;
+                    if (!payment) {
+                      setNewMembershipForm({
+                        ...newMembershipForm,
+                        paymentOrderId: "",
+                      });
+                      return;
+                    }
+                    const major = (n: number) =>
+                      (n / 100).toFixed(
+                        membershipCurrency === "USD" ? 2 : 0,
+                      );
                     setNewMembershipForm({
                       ...newMembershipForm,
-                      paymentOrderId: e.target.value,
-                    })
-                  }
+                      paymentOrderId,
+                      listPriceMajor: major(payment.listPricePaise),
+                      discountMajor: major(payment.discountPaise),
+                      amountPaidMajor: major(payment.amountPaise),
+                      paymentMethod: "Online (Razorpay)",
+                      paymentRef: payment.razorpayPaymentId ?? "",
+                      planMonths: payment.planMonths
+                        ? String(payment.planMonths)
+                        : newMembershipForm.planMonths,
+                    });
+                  }}
                   className={inputClass}
                   disabled={fieldsLocked}
                 >
@@ -1460,8 +1643,81 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                     ))}
                 </select>
               </label>
-              <label className={`${labelClass} sm:col-span-2`}>
-                Payment reference (optional)
+              <label className={labelClass}>
+                List price ({moneySuffix})
+                <input
+                  type="number"
+                  min={0}
+                  step={membershipCurrency === "USD" ? "0.01" : "1"}
+                  value={newMembershipForm.listPriceMajor}
+                  onChange={(e) =>
+                    setNewMembershipForm({
+                      ...newMembershipForm,
+                      listPriceMajor: e.target.value,
+                    })
+                  }
+                  className={inputClass}
+                  disabled={fieldsLocked}
+                />
+              </label>
+              <label className={labelClass}>
+                Discount ({moneySuffix})
+                <input
+                  type="number"
+                  min={0}
+                  step={membershipCurrency === "USD" ? "0.01" : "1"}
+                  value={newMembershipForm.discountMajor}
+                  onChange={(e) =>
+                    setNewMembershipForm({
+                      ...newMembershipForm,
+                      discountMajor: e.target.value,
+                    })
+                  }
+                  className={inputClass}
+                  disabled={fieldsLocked}
+                />
+              </label>
+              <label className={labelClass}>
+                Amount paid ({moneySuffix})
+                <input
+                  type="number"
+                  min={0}
+                  step={membershipCurrency === "USD" ? "0.01" : "1"}
+                  value={newMembershipForm.amountPaidMajor}
+                  onChange={(e) =>
+                    setNewMembershipForm({
+                      ...newMembershipForm,
+                      amountPaidMajor: e.target.value,
+                    })
+                  }
+                  className={inputClass}
+                  disabled={fieldsLocked}
+                />
+              </label>
+              <label className={labelClass}>
+                Payment method
+                <select
+                  value={newMembershipForm.paymentMethod}
+                  onChange={(e) =>
+                    setNewMembershipForm({
+                      ...newMembershipForm,
+                      paymentMethod: e.target.value,
+                    })
+                  }
+                  className={inputClass}
+                  disabled={fieldsLocked}
+                >
+                  <option value="">Select method</option>
+                  {PAYMENT_METHOD_OPTIONS.map((method) => (
+                    <option key={method} value={method}>
+                      {method}
+                    </option>
+                  ))}
+                  <option value="Online (Razorpay)">Online (Razorpay)</option>
+                </select>
+              </label>
+              <label className={labelClass}>
+                Payment reference
                 <input
                   value={newMembershipForm.paymentRef}
                   onChange={(e) =>
@@ -1473,6 +1729,52 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   className={inputClass}
                   disabled={fieldsLocked}
                   placeholder="pay_… / UTR / bank transfer note"
+                />
+              </label>
+              {needsBillingLocation ? (
+                <label className={labelClass}>
+                  {billingLocationLabel} (for invoice)
+                  <input
+                    value={newMembershipForm.billingLocation}
+                    onChange={(e) =>
+                      setNewMembershipForm({
+                        ...newMembershipForm,
+                        billingLocation: e.target.value,
+                      })
+                    }
+                    className={inputClass}
+                    disabled={fieldsLocked}
+                    placeholder={
+                      detail.profile.region === "outside_india"
+                        ? "Country shown on invoice"
+                        : "State shown on invoice"
+                    }
+                  />
+                </label>
+              ) : (
+                <div>
+                  <p className={labelClass}>
+                    {billingLocationLabel} (invoice)
+                  </p>
+                  <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
+                    {detail.profile.state}
+                  </p>
+                </div>
+              )}
+              <label className={`${labelClass} sm:col-span-2`}>
+                Admin note (required)
+                <textarea
+                  value={newMembershipForm.adminNote}
+                  onChange={(e) =>
+                    setNewMembershipForm({
+                      ...newMembershipForm,
+                      adminNote: e.target.value,
+                    })
+                  }
+                  className="mt-1.5 min-h-24 w-full resize-y rounded-xl border border-[#e2e8df] bg-white px-3.5 py-2.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 disabled:cursor-default disabled:bg-[#f7faf6] disabled:text-[#5f6f64]"
+                  disabled={fieldsLocked}
+                  placeholder="Why this membership was created manually (admin only)"
+                  required
                 />
               </label>
             </div>
@@ -1779,8 +2081,31 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                           : ""}
                       </p>
                       <p>
-                        Payment ref: {membership.razorpayPaymentId ?? "—"}
+                        Payment:{" "}
+                        {membership.paymentMethod
+                          ? `${membership.paymentMethod}`
+                          : "—"}
+                        {membership.razorpayPaymentId
+                          ? ` · ${membership.razorpayPaymentId}`
+                          : ""}
                       </p>
+                      {membership.invoiceNumber ? (
+                        <p className="sm:col-span-2">
+                          Invoice:{" "}
+                          <span className="font-semibold text-[#243028]">
+                            {membership.invoiceNumber}
+                          </span>
+                          {membership.invoiceCategory
+                            ? ` (${membership.invoiceCategory})`
+                            : ""}
+                        </p>
+                      ) : null}
+                      {membership.adminNote ? (
+                        <p className="sm:col-span-2 rounded-lg bg-[#fff8ef] px-2.5 py-2 text-[#8a5a2f]">
+                          <span className="font-semibold">Admin note: </span>
+                          {membership.adminNote}
+                        </p>
+                      ) : null}
                       {membership.razorpayInvoiceUrl ? (
                         <a
                           href={membership.razorpayInvoiceUrl}
@@ -1788,7 +2113,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                           rel="noreferrer"
                           className="font-semibold text-[#1f6b3a] hover:underline sm:col-span-2"
                         >
-                          View invoice
+                          View Razorpay invoice
                         </a>
                       ) : null}
                     </div>
@@ -1814,8 +2139,9 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                         Renew after this plan
                       </h3>
                       <p className="mt-1 text-xs text-[#8a978c]">
-                        Current membership is not changed. The renew starts the day
-                        after it ends. Only one renew can be scheduled.
+                        Current membership is not changed. The renew starts the
+                        day after it ends. Paid renewals issue a sequential
+                        invoice.
                       </p>
                       <div className="mt-4 grid gap-4 sm:grid-cols-2">
                         <label className={labelClass}>
@@ -1823,10 +2149,14 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                           <select
                             value={newMembershipForm.planMonths}
                             onChange={(e) =>
-                              setNewMembershipForm({
-                                ...newMembershipForm,
-                                planMonths: e.target.value,
-                              })
+                              setNewMembershipForm(
+                                applyPlanPrices(
+                                  newMembershipForm,
+                                  catalogPlans,
+                                  e.target.value,
+                                  membershipCurrency,
+                                ),
+                              )
                             }
                             className={inputClass}
                             disabled={fieldsLocked}
@@ -1847,8 +2177,80 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                             {renewStartsAt ? formatDateOnly(renewStartsAt) : "—"}
                           </p>
                         </div>
+                        <label className={labelClass}>
+                          List price ({moneySuffix})
+                          <input
+                            type="number"
+                            min={0}
+                            step={membershipCurrency === "USD" ? "0.01" : "1"}
+                            value={newMembershipForm.listPriceMajor}
+                            onChange={(e) =>
+                              setNewMembershipForm({
+                                ...newMembershipForm,
+                                listPriceMajor: e.target.value,
+                              })
+                            }
+                            className={inputClass}
+                            disabled={fieldsLocked}
+                          />
+                        </label>
+                        <label className={labelClass}>
+                          Discount ({moneySuffix})
+                          <input
+                            type="number"
+                            min={0}
+                            step={membershipCurrency === "USD" ? "0.01" : "1"}
+                            value={newMembershipForm.discountMajor}
+                            onChange={(e) =>
+                              setNewMembershipForm({
+                                ...newMembershipForm,
+                                discountMajor: e.target.value,
+                              })
+                            }
+                            className={inputClass}
+                            disabled={fieldsLocked}
+                          />
+                        </label>
+                        <label className={labelClass}>
+                          Amount paid ({moneySuffix})
+                          <input
+                            type="number"
+                            min={0}
+                            step={membershipCurrency === "USD" ? "0.01" : "1"}
+                            value={newMembershipForm.amountPaidMajor}
+                            onChange={(e) =>
+                              setNewMembershipForm({
+                                ...newMembershipForm,
+                                amountPaidMajor: e.target.value,
+                              })
+                            }
+                            className={inputClass}
+                            disabled={fieldsLocked}
+                          />
+                        </label>
+                        <label className={labelClass}>
+                          Payment method
+                          <select
+                            value={newMembershipForm.paymentMethod}
+                            onChange={(e) =>
+                              setNewMembershipForm({
+                                ...newMembershipForm,
+                                paymentMethod: e.target.value,
+                              })
+                            }
+                            className={inputClass}
+                            disabled={fieldsLocked}
+                          >
+                            <option value="">Select method</option>
+                            {PAYMENT_METHOD_OPTIONS.map((method) => (
+                              <option key={method} value={method}>
+                                {method}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
                         <label className={`${labelClass} sm:col-span-2`}>
-                          Payment reference (optional)
+                          Payment reference
                           <input
                             value={newMembershipForm.paymentRef}
                             onChange={(e) =>
@@ -1860,6 +2262,43 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                             className={inputClass}
                             disabled={fieldsLocked}
                             placeholder="pay_… / UTR / bank transfer note"
+                          />
+                        </label>
+                        {needsBillingLocation ? (
+                          <label className={`${labelClass} sm:col-span-2`}>
+                            {billingLocationLabel} (for invoice)
+                            <input
+                              value={newMembershipForm.billingLocation}
+                              onChange={(e) =>
+                                setNewMembershipForm({
+                                  ...newMembershipForm,
+                                  billingLocation: e.target.value,
+                                })
+                              }
+                              className={inputClass}
+                              disabled={fieldsLocked}
+                              placeholder={
+                                detail.profile.region === "outside_india"
+                                  ? "Country shown on invoice"
+                                  : "State shown on invoice"
+                              }
+                            />
+                          </label>
+                        ) : null}
+                        <label className={`${labelClass} sm:col-span-2`}>
+                          Admin note (required)
+                          <textarea
+                            value={newMembershipForm.adminNote}
+                            onChange={(e) =>
+                              setNewMembershipForm({
+                                ...newMembershipForm,
+                                adminNote: e.target.value,
+                              })
+                            }
+                            className="mt-1.5 min-h-24 w-full resize-y rounded-xl border border-[#e2e8df] bg-white px-3.5 py-2.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 disabled:cursor-default disabled:bg-[#f7faf6] disabled:text-[#5f6f64]"
+                            disabled={fieldsLocked}
+                            placeholder="Why this renew was created manually (admin only)"
+                            required
                           />
                         </label>
                       </div>
@@ -1963,9 +2402,26 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                         : ""}
                     </p>
                     <p>
-                      Razorpay payment:{" "}
-                      {membership.razorpayPaymentId ?? "—"}
+                      Payment:{" "}
+                      {membership.paymentMethod ?? "—"}
+                      {membership.razorpayPaymentId
+                        ? ` · ${membership.razorpayPaymentId}`
+                        : ""}
                     </p>
+                    {membership.invoiceNumber ? (
+                      <p>
+                        Invoice:{" "}
+                        <span className="font-semibold text-[#243028]">
+                          {membership.invoiceNumber}
+                        </span>
+                      </p>
+                    ) : null}
+                    {membership.adminNote ? (
+                      <p className="rounded-lg bg-[#fff8ef] px-2.5 py-2 text-[#8a5a2f]">
+                        <span className="font-semibold">Admin note: </span>
+                        {membership.adminNote}
+                      </p>
+                    ) : null}
                     {membership.razorpayInvoiceUrl ? (
                       <a
                         href={membership.razorpayInvoiceUrl}
@@ -1973,7 +2429,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                         rel="noreferrer"
                         className="font-semibold text-[#1f6b3a] hover:underline"
                       >
-                        View invoice
+                        View Razorpay invoice
                       </a>
                     ) : null}
                   </div>

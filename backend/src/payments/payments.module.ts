@@ -4,6 +4,9 @@ import { CouponsModule } from '../coupons/coupons.module';
 import { SettingsModule } from '../settings/settings.module';
 import { TrialRegistration } from '../trials/trial-registration.entity';
 import { User } from '../users/user.entity';
+import { Invoice } from './invoice.entity';
+import { InvoiceSequence } from './invoice-sequence.entity';
+import { InvoicesService } from './invoices.service';
 import { Membership } from './membership.entity';
 import { MembershipOfferPrice } from './membership-offer-price.entity';
 import { MembershipOffer } from './membership-offer.entity';
@@ -27,6 +30,8 @@ import { PaymentsService } from './payments.service';
       MembershipOfferPrice,
       TrialRegistration,
       User,
+      Invoice,
+      InvoiceSequence,
     ]),
   ],
   controllers: [PaymentsController, MembershipOffersAdminController],
@@ -34,7 +39,13 @@ import { PaymentsService } from './payments.service';
     PaymentsService,
     MembershipPlansService,
     MembershipOffersService,
+    InvoicesService,
   ],
-  exports: [MembershipPlansService, MembershipOffersService, PaymentsService],
+  exports: [
+    MembershipPlansService,
+    MembershipOffersService,
+    PaymentsService,
+    InvoicesService,
+  ],
 })
 export class PaymentsModule {}

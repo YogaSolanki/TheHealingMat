@@ -57,6 +57,14 @@ export class Membership {
   @Column({ type: 'varchar', nullable: true })
   razorpayInvoiceUrl: string | null;
 
+  /** How the membership was paid (e.g. UPI, Bank transfer, Razorpay). */
+  @Column({ type: 'varchar', nullable: true })
+  paymentMethod: string | null;
+
+  /** Admin-only note explaining a manual membership grant. */
+  @Column({ type: 'text', nullable: true })
+  adminNote: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
