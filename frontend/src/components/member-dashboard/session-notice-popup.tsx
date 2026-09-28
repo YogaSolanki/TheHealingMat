@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { memberPrimaryBtnSmClass } from "@/components/member-dashboard/member-button-styles";
+import { memberPrimaryBtnClass } from "@/components/member-dashboard/member-button-styles";
 import { lockBodyScroll } from "@/lib/body-scroll-lock";
 
 type SessionNoticePopupProps = {
@@ -13,9 +13,11 @@ type SessionNoticePopupProps = {
   actionLabel?: string;
 };
 
+export type SessionStatusTone = "link" | "clock" | "alert";
+
 const CLOSE_MS = 220;
 
-function splitNotice(message: string) {
+export function splitNotice(message: string) {
   const trimmed = message.trim();
 
   const nextMatch = trimmed.match(
@@ -26,16 +28,19 @@ function splitNotice(message: string) {
     return {
       title: "No session is running right now",
       body: `The next session starts at ${nextMatch[1]}${when}.`,
+      tone: "clock" as const,
     };
   }
 
   if (/^No session is currently running/i.test(trimmed)) {
-    const rest = trimmed.replace(/^No session is currently running\.?\s*/i, "").trim();
+    const rest = trimmed
+      .replace(/^No session is currently running\.?\s*/i, "")
+      .trim();
     return {
       title: "No session is running right now",
       body:
-        rest ||
-        "Check today’s schedule and join when a class is live.",
+        rest || "Check today’s schedule and join when a class is live.",
+      tone: "clock" as const,
     };
   }
 
@@ -43,6 +48,7 @@ function splitNotice(message: string) {
     return {
       title: "No sessions scheduled today",
       body: "There are no classes on today’s schedule yet. Please check back later.",
+      tone: "clock" as const,
     };
   }
 
@@ -50,6 +56,7 @@ function splitNotice(message: string) {
     return {
       title: "Class link not ready yet",
       body: trimmed,
+      tone: "alert" as const,
     };
   }
 
@@ -57,20 +64,37 @@ function splitNotice(message: string) {
     return {
       title: "Session link unavailable",
       body: trimmed,
+      tone: "link" as const,
     };
   }
 
-  if (/membership has expired/i.test(trimmed) || /renew your plan/i.test(trimmed)) {
+  if (/access link not found/i.test(trimmed) || /not valid/i.test(trimmed)) {
+    return {
+      title: "Access link not found",
+      body: trimmed,
+      tone: "link" as const,
+    };
+  }
+
+  if (
+    /membership has expired/i.test(trimmed) ||
+    /renew your plan/i.test(trimmed)
+  ) {
     return {
       title: "Membership expired",
       body: trimmed,
+      tone: "alert" as const,
     };
   }
 
-  if (/not active yet/i.test(trimmed) || /start a free trial or complete a membership/i.test(trimmed)) {
+  if (
+    /not active yet/i.test(trimmed) ||
+    /complete a membership to join classes/i.test(trimmed)
+  ) {
     return {
       title: "Session link not active",
       body: trimmed,
+      tone: "link" as const,
     };
   }
 
@@ -78,20 +102,82 @@ function splitNotice(message: string) {
     return {
       title: "Sign in required",
       body: trimmed,
+      tone: "alert" as const,
     };
   }
 
-  if (/trial starts/i.test(trimmed) || /session link will become active/i.test(trimmed)) {
+  if (
+    /trial starts/i.test(trimmed) ||
+    /session link will become active/i.test(trimmed)
+  ) {
     return {
       title: "Session not open yet",
       body: trimmed,
+      tone: "clock" as const,
     };
   }
 
   return {
     title: "Session update",
     body: trimmed,
+    tone: "clock" as const,
   };
+}
+
+/** Centered status card — Personal Session Link / join notices (image-2 style). */
+export function SessionStatusCard({
+  title,
+  body,
+  tone = "clock",
+  actionHref,
+  actionLabel,
+  onAction,
+  titleId,
+}: {
+  title: string;
+  body: string;
+  tone?: SessionStatusTone;
+  actionHref?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  titleId?: string;
+}) {
+  const label = actionLabel?.trim() || "Got it";
+  const btnClass = `${memberPrimaryBtnClass} min-w-[140px] justify-center px-5 py-3 text-[14px]`;
+
+  return (
+    <div className="w-full max-w-[440px] rounded-[24px] border border-[#e6ebe3] bg-white px-6 py-9 text-center shadow-[0_16px_40px_rgba(31,107,58,0.08)] sm:px-8 sm:py-10">
+      <span className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#FFF4DC] text-[#C58A1A]">
+        <StatusIcon tone={tone} className="h-7 w-7" />
+      </span>
+      <h2
+        id={titleId}
+        className="mt-5 font-serif text-[1.55rem] font-bold tracking-tight text-[#243028] sm:text-[1.7rem]"
+      >
+        {title}
+      </h2>
+      {body ? (
+        <p className="mx-auto mt-2.5 max-w-[34ch] text-[14px] leading-relaxed text-[#5f6f64] sm:text-[15px]">
+          {body}
+        </p>
+      ) : null}
+      <div className="mt-7 flex justify-center">
+        {actionHref?.trim() ? (
+          <a
+            href={actionHref.trim()}
+            className={btnClass}
+            onClick={onAction}
+          >
+            {label}
+          </a>
+        ) : (
+          <button type="button" onClick={onAction} className={btnClass}>
+            {label}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function SessionNoticePopup({
@@ -111,7 +197,7 @@ export function SessionNoticePopup({
     lastMessageRef.current = message;
   }
 
-  const { title, body } = splitNotice(lastMessageRef.current);
+  const { title, body, tone } = splitNotice(lastMessageRef.current);
 
   const handleClose = useCallback(() => {
     if (!exiting) onClose();
@@ -154,8 +240,6 @@ export function SessionNoticePopup({
 
   if (!mounted || !rendered) return null;
 
-  const primaryLabel = actionLabel?.trim() || "Got it";
-
   return createPortal(
     <div
       className={`fixed inset-0 z-[210] flex items-center justify-center overflow-y-auto px-4 py-6 ${
@@ -173,55 +257,80 @@ export function SessionNoticePopup({
       />
 
       <div
-        className={`auth-modal-panel relative z-10 w-full max-w-[400px] rounded-[24px] border border-[#e6ebe3] bg-white px-5 pt-5 pb-5 shadow-[0_24px_60px_rgba(31,107,58,0.18)] sm:px-6 sm:pt-6 sm:pb-6 ${
+        className={`auth-modal-panel relative z-10 w-full max-w-[440px] ${
           exiting ? "is-exiting" : ""
         }`}
       >
-        <div className="flex items-start gap-3.5">
-          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#FFF4DC] text-[#C58A1A]">
-            <ClockNoticeIcon className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 flex-1 pt-0.5">
-            <h2
-              id={titleId}
-              className="text-[16px] leading-snug font-bold text-[#243028] sm:text-[17px]"
-            >
-              {title}
-            </h2>
-            {body ? (
-              <p className="mt-1.5 text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
-                {body}
-              </p>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="mt-5 flex justify-end gap-2">
-          {actionHref?.trim() ? (
-            <a
-              href={actionHref.trim()}
-              className={`${memberPrimaryBtnSmClass} min-w-[108px] justify-center px-5 py-2.5 text-[13px]`}
-              onClick={handleClose}
-            >
-              {primaryLabel}
-            </a>
-          ) : (
-            <button
-              type="button"
-              onClick={handleClose}
-              className={`${memberPrimaryBtnSmClass} min-w-[108px] justify-center px-5 py-2.5 text-[13px]`}
-            >
-              {primaryLabel}
-            </button>
-          )}
-        </div>
+        <SessionStatusCard
+          title={title}
+          body={body}
+          tone={tone}
+          actionHref={actionHref}
+          actionLabel={actionLabel}
+          onAction={handleClose}
+          titleId={titleId}
+        />
       </div>
     </div>,
     document.body,
   );
 }
 
-function ClockNoticeIcon({ className }: { className?: string }) {
+function StatusIcon({
+  tone,
+  className,
+}: {
+  tone: SessionStatusTone;
+  className?: string;
+}) {
+  if (tone === "link") {
+    return (
+      <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+        <path
+          d="M9.5 7.5 8.2 6.2a3.75 3.75 0 0 0-5.3 5.3l1.8 1.8"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="m14.5 16.5 1.3 1.3a3.75 3.75 0 0 0 5.3-5.3l-1.8-1.8"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="m9 15 6-6"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+        />
+        <path
+          d="M7.5 11.5 6 13M17 10.5 18.5 9"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+
+  if (tone === "alert") {
+    return (
+      <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.25" stroke="currentColor" strokeWidth="1.7" />
+        <path
+          d="M12 8v5"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+        />
+        <circle cx="12" cy="16.25" r="1" fill="currentColor" />
+      </svg>
+    );
+  }
+
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
       <circle cx="12" cy="12" r="8.25" stroke="currentColor" strokeWidth="1.7" />
