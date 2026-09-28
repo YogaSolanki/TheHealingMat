@@ -19,6 +19,7 @@ import laptopImage from "@/assets/laptop.png";
 import leafRight from "@/assets/leaf-right.png";
 import mobileImage from "@/assets/mobile.png";
 import pdfIcon from "@/assets/pdf.png";
+import { useMemberAccess } from "@/lib/member-access";
 
 const cream = "#FBF9F5";
 
@@ -342,7 +343,7 @@ function VideosBand() {
 
 function ContentTrustStrip() {
   return (
-    <section className="w-full bg-white px-5 pt-10 sm:px-8 sm:pt-12 lg:px-8">
+    <section className="w-full bg-white px-5 pt-10 pb-10 sm:px-8 sm:pt-12 sm:pb-12 lg:px-8 lg:pb-14">
       <ul className="mx-auto grid w-full max-w-[1140px] grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 lg:gap-5">
         {contentTrustItems.map((item) => (
           <li
@@ -366,6 +367,12 @@ function ContentTrustStrip() {
 }
 
 function GuidanceCta() {
+  const { access } = useMemberAccess();
+  // Same rule as My Membership plans card: hide once a renew is scheduled.
+  if (access.hasScheduledMembership && access.state !== "expired") {
+    return null;
+  }
+
   return (
     <section className="w-full bg-white px-3 pt-8 pb-10 sm:px-4 sm:pt-10 sm:pb-12 lg:px-5 lg:pb-14 xl:px-6">
       <div

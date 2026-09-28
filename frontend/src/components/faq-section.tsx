@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import allAgeIcon from "@/assets/all-age.png";
 import calendarIcon from "@/assets/calander-icon.png";
 import leafRight from "@/assets/leaf-right.png";
@@ -10,7 +10,9 @@ import matBanner from "@/assets/home-banner-bg.png";
 import logoIcon from "@/assets/logo-icon.png";
 import simpleIcon from "@/assets/simple.png";
 import { StartTrialButton } from "@/components/start-trial-button";
+import { getStoredToken } from "@/lib/auth-storage";
 import { HOME_FAQ_ITEMS, type FaqItemData } from "@/lib/faq-content";
+import { useMemberAccess } from "@/lib/member-access";
 
 function FaqAccordionItem({
   item,
@@ -318,6 +320,22 @@ export function FaqStillHaveQuestion() {
 
 /** Footer CTA band for the FAQ page. */
 export function FaqTrialBanner() {
+  const { access } = useMemberAccess();
+  const [signedIn, setSignedIn] = useState(false);
+
+  useEffect(() => {
+    setSignedIn(Boolean(getStoredToken()));
+  }, []);
+
+  const hideForMember =
+    signedIn &&
+    (access.state === "active" ||
+      access.state === "expired" ||
+      access.state === "trial" ||
+      access.state === "scheduled");
+
+  if (hideForMember) return null;
+
   return (
     <section className="w-full bg-[#1f6b3a]">
       <div className="mx-auto flex w-full max-w-[1200px] flex-col items-center justify-between gap-4 px-5 py-5 text-center sm:flex-row sm:gap-6 sm:px-8 sm:py-6 sm:text-left">
