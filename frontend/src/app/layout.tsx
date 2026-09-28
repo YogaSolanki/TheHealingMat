@@ -27,7 +27,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${dmSans.variable} ${fraunces.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col items-center bg-white text-[#243028]">
+      <body
+        className="flex min-h-full flex-col items-center bg-white text-[#243028]"
+        suppressHydrationWarning
+      >
         <AuthModalProvider>
           <div className="site-shell flex min-h-full w-full flex-1 flex-col bg-[#FBF9F5]">
             <AppShell>

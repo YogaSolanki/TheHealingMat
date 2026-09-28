@@ -30,16 +30,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: JwtPayload): Promise<Admin | User> {
     const typ = payload.typ ?? 'admin';
+    const id = payload.sub?.trim();
+    // Avoid QueryFailedError 500 when `sub` is not a UUID (malformed token).
+    const uuidRe =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!id || !uuidRe.test(id)) {
+      throw new UnauthorizedException('Please sign in.');
+    }
 
     if (typ === 'user') {
-      const user = await this.users.findOne({ where: { id: payload.sub } });
+      const user = await this.users.findOne({ where: { id } });
       if (!user) {
         throw new UnauthorizedException('Please sign in.');
       }
       return user;
     }
 
-    const admin = await this.admins.findOne({ where: { id: payload.sub } });
+    const admin = await this.admins.findOne({ where: { id } });
     if (!admin) {
       throw new UnauthorizedException('Please sign in.');
     }

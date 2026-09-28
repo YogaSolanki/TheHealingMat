@@ -133,7 +133,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     () => (sunday ? sundayDisplaySlots : sessionLabels),
     [sunday, sundayDisplaySlots, sessionLabels],
   );
-  const [viewerTimeZone, setViewerTimeZone] = useState(getViewerTimeZone);
+  // Start as IST so SSR + first client paint match; sync real TZ after mount.
+  const [viewerTimeZone, setViewerTimeZone] = useState("Asia/Kolkata");
   useEffect(() => {
     function syncTimeZone() {
       setViewerTimeZone(getViewerTimeZone());
@@ -1250,7 +1251,12 @@ function SessionTimezoneNote({
   istDateIso: string | null;
 }) {
   const [open, setOpen] = useState(false);
-  const [timeZone, setTimeZone] = useState(getViewerTimeZone);
+  // IST on first paint (SSR-safe); refresh when opening the popup.
+  const [timeZone, setTimeZone] = useState("Asia/Kolkata");
+
+  useEffect(() => {
+    setTimeZone(getViewerTimeZone());
+  }, []);
 
   // Map from cache only: left = India time, right = this device timezone.
   const mappings = useMemo(
