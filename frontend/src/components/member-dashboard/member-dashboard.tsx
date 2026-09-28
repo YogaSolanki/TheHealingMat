@@ -595,18 +595,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
               </p>
             </div>
           ) : (
-            <div
-              className={`grid gap-0 ${
-                specialSlots.length > 0
-                  ? "lg:grid-cols-[1.15fr_0.85fr]"
-                  : "lg:grid-cols-1"
-              }`}
-            >
-              <div
-                className={`border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 ${
-                  specialSlots.length > 0 ? "lg:border-r" : ""
-                }`}
-              >
+            <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
+              <div className="border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-r">
                 {(() => {
                   const hasMorning = morningSlots.length > 0;
                   const hasEvening = eveningSlots.length > 0;
@@ -712,7 +702,6 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 })()}
               </div>
 
-              {specialSlots.length > 0 ? (
               <div className="border-t border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-t-0">
                 <SectionHeading
                   icon={
@@ -767,7 +756,6 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   tint="bg-[#F7F7F5]"
                 />
               </div>
-              ) : null}
             </div>
           )}
         </section>
