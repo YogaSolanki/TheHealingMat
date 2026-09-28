@@ -934,29 +934,8 @@ export class AuthService {
       this.config.get<string>('RESEND_FROM_EMAIL')?.trim() ||
       'The Healing Mat <onboarding@resend.dev>';
 
-    const purposeLabel =
-      input.purpose === 'signup'
-        ? 'sign up'
-        : input.purpose === 'password_reset'
-          ? 'password reset'
-          : 'sign in';
-
     const subject = `Your The Healing Mat verification code`;
-    const text = [
-      `Your The Healing Mat ${purposeLabel} code is: ${input.code}`,
-      '',
-      'This code expires in 10 minutes.',
-      'If you did not request this, you can ignore this email.',
-    ].join('\n');
-
-    const html = `
-      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #243028;">
-        <h2 style="color: #1f6b3a; margin: 0 0 12px;">Verification code</h2>
-        <p style="margin: 0 0 12px;">Use this code to ${purposeLabel} to The Healing Mat:</p>
-        <p style="font-size: 28px; letter-spacing: 6px; font-weight: 700; color: #1f6b3a; margin: 0 0 16px;">${input.code}</p>
-        <p style="margin: 0; color: #5f6f64; font-size: 13px;">This code expires in 10 minutes. If you did not request this, you can ignore this email.</p>
-      </div>
-    `;
+    const text = `Your OTP for The Healing Mat is ${input.code}. This OTP is valid for 10 minutes. Do not share it with anyone.`;
 
     try {
       await sendResendEmail({
@@ -965,7 +944,6 @@ export class AuthService {
         to: input.destination,
         subject,
         text,
-        html,
       });
     } catch (error) {
       const detail =
