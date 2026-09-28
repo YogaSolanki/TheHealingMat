@@ -19,7 +19,7 @@ import {
 import {
   getCachedPublicUser,
   sessionStore,
-  updateMemberAuthCache,
+  applyAuthenticatedSession,
 } from "@/lib/session-store";
 import trialIcon from "@/assets/trail.png";
 import {
@@ -153,7 +153,7 @@ export function TrialSignupCard({
 
   async function afterAuth(accessToken: string, authedUser: PublicUser) {
     setStoredToken(accessToken);
-    updateMemberAuthCache(authedUser);
+    applyAuthenticatedSession(authedUser);
     showAuthToast("Sign up successful");
 
     if (isMembership) {

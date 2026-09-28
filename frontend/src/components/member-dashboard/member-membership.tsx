@@ -10,7 +10,9 @@ import yogaMenIcon from "@/assets/yoga-men.png";
 import {
   memberPrimaryBtnClass,
 } from "@/components/member-dashboard/member-button-styles";
+import { MemberDashboardSkeleton } from "@/components/member-dashboard/member-dashboard-skeleton";
 import { MembershipSection } from "@/components/membership-section";
+import { useMemberDashboard } from "@/components/member-dashboard/member-dashboard-provider";
 import {
   downloadMembershipInvoice,
   getMyMembership,
@@ -25,6 +27,7 @@ import {
 import { sessionStore } from "@/lib/session-store";
 
 export function MemberMembershipPage() {
+  const { user } = useMemberDashboard();
   const { access, loading } = useMemberAccess();
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
@@ -88,6 +91,10 @@ export function MemberMembershipPage() {
     : isPending
       ? "Complete Membership"
       : "Renew Membership";
+
+  if (loading) {
+    return <MemberDashboardSkeleton />;
+  }
 
   function scrollToPlans() {
     const el = document.getElementById("membership-plans");
@@ -471,6 +478,7 @@ export function MemberMembershipPage() {
           }
           startMode={renewStartMode}
           showMarketing={false}
+          region={user.region}
         />
       ) : null}
     </div>

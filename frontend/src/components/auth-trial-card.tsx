@@ -27,7 +27,7 @@ import {
 import {
   getCachedPublicUser,
   sessionStore,
-  updateMemberAuthCache,
+  applyAuthenticatedSession,
 } from "@/lib/session-store";
 import trialIcon from "@/assets/trail.png";
 import { useAuthModal } from "@/components/auth-modal-provider";
@@ -420,7 +420,7 @@ export function AuthTrialCard({
 
   async function afterAuth(accessToken: string, authedUser: PublicUser) {
     setStoredToken(accessToken);
-    updateMemberAuthCache(authedUser);
+    applyAuthenticatedSession(authedUser);
     showAuthToast(
       mode === "signup" ? "Sign up successful" : "Login successful",
     );

@@ -11,7 +11,7 @@ import sunIcon from "@/assets/sun.png";
 import yogaMenIcon from "@/assets/yoga-men.png";
 import { openCheckoutModal } from "@/components/checkout-modal-provider";
 import { memberPrimaryBtnClass, memberPrimaryBtnSmClass, memberOutlineBtnClass, memberOutlineBtnSmClass } from "@/components/member-dashboard/member-button-styles";
-import { TodayYogaSessionsSkeleton } from "@/components/member-dashboard/member-dashboard-skeleton";
+import { TodayYogaSessionsSkeleton, MemberDashboardSkeleton } from "@/components/member-dashboard/member-dashboard-skeleton";
 import { OrientationVideoModal } from "@/components/member-dashboard/orientation-video-modal";
 import { PersonalSessionLinkPopup } from "@/components/member-dashboard/personal-session-link-popup";
 import { SessionNoticePopup } from "@/components/member-dashboard/session-notice-popup";
@@ -349,6 +349,10 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     : isExpired
       ? "Renew your membership to continue your daily yoga sessions."
       : daypartYogaMessage();
+
+  if (loading) {
+    return <MemberDashboardSkeleton />;
+  }
 
   return (
     <div className="w-full bg-[#FBF9F5]">

@@ -1099,23 +1099,37 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           </label>
 
           <label className={labelClass}>
-            State
-            <select
-              value={profileForm.state}
-              onChange={(e) => {
-                setProfileForm({ ...profileForm, state: e.target.value });
-                setProfileSaved(false);
-              }}
-              className={inputClass}
-              disabled={fieldsLocked}
-            >
-              <option value="">Not set</option>
-              {INDIA_STATES.map((state) => (
-                <option key={state} value={state}>
-                  {state}
-                </option>
-              ))}
-            </select>
+            {profileForm.region === "outside_india" ? "Country" : "State"}
+            {profileForm.region === "outside_india" ? (
+              <input
+                value={profileForm.state}
+                onChange={(e) => {
+                  setProfileForm({ ...profileForm, state: e.target.value });
+                  setProfileSaved(false);
+                }}
+                className={inputClass}
+                disabled={fieldsLocked}
+                placeholder="Enter country"
+                maxLength={120}
+              />
+            ) : (
+              <select
+                value={profileForm.state}
+                onChange={(e) => {
+                  setProfileForm({ ...profileForm, state: e.target.value });
+                  setProfileSaved(false);
+                }}
+                className={inputClass}
+                disabled={fieldsLocked}
+              >
+                <option value="">Not set</option>
+                {INDIA_STATES.map((state) => (
+                  <option key={state} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </select>
+            )}
           </label>
 
           <label className={labelClass}>

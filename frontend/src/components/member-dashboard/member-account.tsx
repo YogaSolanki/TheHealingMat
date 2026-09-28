@@ -314,7 +314,7 @@ export function MemberAccountPage() {
               />
               <EditableInfoRow
                 icon={<StateIcon className="h-5 w-5 text-[#1f6b3a]" />}
-                label="State"
+                label={user.region === "india" ? "State" : "Country"}
                 isEditing={isEditing}
                 value={user.state?.trim() || ""}
                 editContent={
@@ -337,8 +337,8 @@ export function MemberAccountPage() {
                       value={state}
                       onChange={(event) => setState(event.target.value)}
                       className={inlineFieldClass}
-                      placeholder="State / province"
-                      autoComplete="address-level1"
+                      placeholder="Enter your country"
+                      autoComplete="country-name"
                       maxLength={120}
                     />
                   )

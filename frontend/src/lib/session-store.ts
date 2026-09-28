@@ -472,6 +472,13 @@ export function updateMemberAuthCache(user: PublicUser) {
   sessionStore.setUser(user);
 }
 
+/** Login / signup: store user and clear membership cache so the dashboard waits on /memberships/me. */
+export function applyAuthenticatedSession(user: PublicUser) {
+  sessionStore.setUser(user);
+  sessionStore.invalidateAccess();
+  sessionStore.invalidateReferrals();
+}
+
 export function clearMemberAuthCache() {
   sessionStore.clear();
 }

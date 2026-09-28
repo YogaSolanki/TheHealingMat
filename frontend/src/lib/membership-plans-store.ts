@@ -210,6 +210,7 @@ class MembershipPlansStore {
   private region: Region | null = null;
   private hydrated = false;
   private inflight: Promise<MembershipPlansResponse> | null = null;
+  private inflightRegion: Region | null = null;
   private listeners = new Set<() => void>();
   private cachedSnapshot: PlansSnapshot = {
     data: baseResponseFor("india"),
@@ -263,15 +264,32 @@ class MembershipPlansStore {
   getServerSnapshot = (): PlansSnapshot => SERVER_SNAPSHOT;
 
   /**
-   * Resolve visitor region, then load matching catalog (INR or USD).
+   * Load INR/USD catalog for a region.
+   * Prefer the signed-in member’s account region when available; otherwise visitor region.
    */
   async refresh(preferredRegion?: Region): Promise<MembershipPlansResponse> {
     this.hydrate();
-    if (this.inflight) return this.inflight;
+    const region = preferredRegion ?? (await resolveVisitorRegion());
 
+    if (this.inflight && this.inflightRegion === region) {
+      return this.inflight;
+    }
+    if (this.inflight) {
+      await this.inflight.catch(() => null);
+    }
+
+    this.inflightRegion = region;
     this.inflight = (async () => {
-      const region = preferredRegion ?? (await resolveVisitorRegion());
       this.region = region;
+      const expectedCurrency: MembershipCurrency =
+        region === "outside_india" ? "USD" : "INR";
+      // Swap placeholder catalog immediately so UI does not keep showing the wrong currency.
+      if (this.data.currency !== expectedCurrency) {
+        this.data = baseResponseFor(region);
+        this.ready = true;
+        this.error = null;
+        this.emit();
+      }
 
       try {
         const response = await listMembershipPlans(region);
@@ -282,9 +300,7 @@ class MembershipPlansStore {
               : basePlansFor(region),
             offer: response.offer ?? null,
             region,
-            currency:
-              response.currency ??
-              (region === "outside_india" ? "USD" : "INR"),
+            currency: response.currency ?? expectedCurrency,
           },
           region,
         );
@@ -297,7 +313,7 @@ class MembershipPlansStore {
       } catch (err: unknown) {
         this.error =
           err instanceof Error ? err.message : "Unable to load membership plans.";
-        if (!this.ready || this.data.currency !== (region === "outside_india" ? "USD" : "INR")) {
+        if (!this.ready || this.data.currency !== expectedCurrency) {
           this.data = baseResponseFor(region);
           this.ready = true;
         }
@@ -306,6 +322,7 @@ class MembershipPlansStore {
       }
     })().finally(() => {
       this.inflight = null;
+      this.inflightRegion = null;
     });
 
     return this.inflight;
@@ -339,7 +356,7 @@ class MembershipPlansStore {
 
 export const membershipPlansStore = new MembershipPlansStore();
 
-export function useMembershipPlans() {
+export function useMembershipPlans(preferredRegion?: Region | null) {
   const snapshot = useSyncExternalStore(
     membershipPlansStore.subscribe,
     membershipPlansStore.getSnapshot,
@@ -347,8 +364,12 @@ export function useMembershipPlans() {
   );
 
   useEffect(() => {
-    void membershipPlansStore.refresh();
-  }, []);
+    const region =
+      preferredRegion === "india" || preferredRegion === "outside_india"
+        ? preferredRegion
+        : undefined;
+    void membershipPlansStore.refresh(region);
+  }, [preferredRegion]);
 
   return snapshot;
 }

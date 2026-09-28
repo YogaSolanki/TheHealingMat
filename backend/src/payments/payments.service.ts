@@ -462,7 +462,8 @@ export class PaymentsService {
 
     const currency =
       membership.currency?.toUpperCase() === 'USD' ? ('USD' as const) : ('INR' as const);
-    const isInternational = currency === 'USD';
+    // Billing location label follows account region (signup), not device location.
+    const isInternational = user.region === Region.OutsideIndia;
     const invoiceNo = buildInvoiceNumber({
       issuedAt: membership.createdAt,
       currency,
@@ -478,10 +479,11 @@ export class PaymentsService {
       ? 'Admin assigned'
       : 'Online (Razorpay)';
 
+    const location = user.state?.trim() || null;
     const memberLocation = isInternational
-      ? 'Outside India'
-      : user.state?.trim()
-        ? `${user.state.trim()}, India`
+      ? location
+      : location
+        ? `${location}, India`
         : 'India';
 
     const pdf = await buildMembershipInvoicePdf({
