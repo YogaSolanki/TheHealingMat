@@ -247,3 +247,157 @@ export function formatSlotList(labels: readonly string[]) {
   if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
   return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
 }
+
+/** Browser / device IANA timezone (falls back to IST). */
+export function getViewerTimeZone() {
+  try {
+    return (
+      Intl.DateTimeFormat().resolvedOptions().timeZone?.trim() ||
+      SESSION_TIMEZONE
+    );
+  } catch {
+    return SESSION_TIMEZONE;
+  }
+}
+
+export function isIndiaTimeZone(timeZone = getViewerTimeZone()) {
+  return timeZone === "Asia/Kolkata" || timeZone === "Asia/Calcutta";
+}
+
+export type IstLocalSlotMapping = {
+  istLabel: string;
+  localLabel: string;
+  /** Local calendar day relative to the IST schedule day. */
+  dayOffset: -1 | 0 | 1;
+};
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function formatHourMinuteLabel(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).formatToParts(date);
+  const hour = parts.find((p) => p.type === "hour")?.value;
+  const minute = parts.find((p) => p.type === "minute")?.value;
+  const dayPeriod = parts.find((p) => p.type === "dayPeriod")?.value;
+  if (!hour || !minute || !dayPeriod) {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+      .format(date)
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  return `${hour}:${minute} ${dayPeriod.toUpperCase()}`;
+}
+
+function calendarDayKey(date: Date, timeZone: string) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+/**
+ * Convert an India (Asia/Kolkata) session label like "7:00 PM" into the
+ * viewer's local clock label for the same instant.
+ */
+export function convertIstSlotToLocal(
+  istLabel: string,
+  options?: { timeZone?: string; istDateIso?: string | null },
+): IstLocalSlotMapping | null {
+  const minutes = parseSlotLabel(istLabel);
+  if (minutes == null) return null;
+
+  const timeZone = options?.timeZone?.trim() || getViewerTimeZone();
+  const istDate =
+    options?.istDateIso?.trim() ||
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: SESSION_TIMEZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  const instant = new Date(
+    `${istDate}T${pad2(hours)}:${pad2(mins)}:00+05:30`,
+  );
+  if (Number.isNaN(instant.getTime())) return null;
+
+  const localLabel = formatHourMinuteLabel(instant, timeZone);
+  const istDay = calendarDayKey(instant, SESSION_TIMEZONE);
+  const localDay = calendarDayKey(instant, timeZone);
+  let dayOffset: -1 | 0 | 1 = 0;
+  if (localDay > istDay) dayOffset = 1;
+  else if (localDay < istDay) dayOffset = -1;
+
+  return {
+    istLabel: istLabel.trim().replace(/\s+/g, " "),
+    localLabel,
+    dayOffset,
+  };
+}
+
+/** Map many IST labels → local labels, sorted by Indian clock time. */
+export function mapIstSlotsToLocal(
+  istLabels: readonly string[],
+  options?: { timeZone?: string; istDateIso?: string | null },
+): IstLocalSlotMapping[] {
+  const out: IstLocalSlotMapping[] = [];
+  const seen = new Set<string>();
+  for (const raw of istLabels) {
+    const mapped = convertIstSlotToLocal(raw, options);
+    if (!mapped) continue;
+    const key = mapped.istLabel.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(mapped);
+  }
+  return out.sort(
+    (a, b) =>
+      (parseSlotLabel(a.istLabel) ?? 0) - (parseSlotLabel(b.istLabel) ?? 0),
+  );
+}
+
+/**
+ * Labels to show on the dashboard: local clock outside India, IST inside India.
+ * Join / live windows still use the original IST labels under the hood.
+ */
+export function displaySlotLabels(
+  istLabels: readonly string[],
+  options?: { timeZone?: string; istDateIso?: string | null },
+): string[] {
+  const timeZone = options?.timeZone?.trim() || getViewerTimeZone();
+  if (isIndiaTimeZone(timeZone)) {
+    return [...istLabels];
+  }
+  return mapIstSlotsToLocal(istLabels, { ...options, timeZone }).map(
+    (row) => row.localLabel,
+  );
+}
+
+/** Convert a single IST label for UI (or return original in India). */
+export function displaySlotLabel(
+  istLabel: string | null | undefined,
+  options?: { timeZone?: string; istDateIso?: string | null },
+): string | null {
+  if (!istLabel?.trim()) return null;
+  const timeZone = options?.timeZone?.trim() || getViewerTimeZone();
+  if (isIndiaTimeZone(timeZone)) return istLabel.trim().replace(/\s+/g, " ");
+  return (
+    convertIstSlotToLocal(istLabel, { ...options, timeZone })?.localLabel ??
+    istLabel.trim().replace(/\s+/g, " ")
+  );
+}

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import calendarIcon from "@/assets/calander-icon.png";
 import crownIcon from "@/assets/crown.png";
 import leafRight from "@/assets/leaf-right.png";
@@ -31,9 +31,14 @@ import {
   useMemberAccess,
 } from "@/lib/member-access";
 import {
+  displaySlotLabel,
+  displaySlotLabels,
   findRunningSession,
   formatSlotList,
+  getViewerTimeZone,
+  isIndiaTimeZone,
   isSunday,
+  mapIstSlotsToLocal,
   sessionUnavailableMessage,
   splitSessionLabels,
 } from "@/lib/member-session-schedule";
@@ -123,6 +128,46 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const sundaySplit = splitSessionLabels(sundayDisplaySlots);
   const sundayMorningSlots = sundaySplit.morning;
   const sundayEveningSlots = sundaySplit.evening;
+  // Cached Class Management labels only (IST) — never fetch for timezone mapping.
+  const cachedIstSlotLabels = useMemo(
+    () => (sunday ? sundayDisplaySlots : sessionLabels),
+    [sunday, sundayDisplaySlots, sessionLabels],
+  );
+  const [viewerTimeZone, setViewerTimeZone] = useState(getViewerTimeZone);
+  useEffect(() => {
+    function syncTimeZone() {
+      setViewerTimeZone(getViewerTimeZone());
+    }
+    syncTimeZone();
+    window.addEventListener("focus", syncTimeZone);
+    document.addEventListener("visibilitychange", syncTimeZone);
+    return () => {
+      window.removeEventListener("focus", syncTimeZone);
+      document.removeEventListener("visibilitychange", syncTimeZone);
+    };
+  }, []);
+  const showLocalTimes = !isIndiaTimeZone(viewerTimeZone);
+  const slotDisplayOptions = useMemo(
+    () => ({
+      timeZone: viewerTimeZone,
+      istDateIso: todaySessionsDate,
+    }),
+    [viewerTimeZone, todaySessionsDate],
+  );
+  const toLocalSlots = useCallback(
+    (labels: readonly string[]) =>
+      showLocalTimes
+        ? displaySlotLabels(labels, slotDisplayOptions)
+        : [...labels],
+    [showLocalTimes, slotDisplayOptions],
+  );
+  const toLocalSlot = useCallback(
+    (label: string | null | undefined) =>
+      showLocalTimes
+        ? displaySlotLabel(label, slotDisplayOptions)
+        : label?.trim() || null,
+    [showLocalTimes, slotDisplayOptions],
+  );
   const specialLabelSet = useMemo(
     () => new Set(specialLabels.map((label) => label.trim().toLowerCase())),
     [specialLabels],
@@ -138,9 +183,10 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     isExpired || isScheduledTrial || isUnaffiliated
       ? null
       : findRunningSession(now, sessionKind, sessionLabels, specialLabelSet);
-  const specialSessionLabel = specialSlots[0] ?? null;
+  const specialSessionLabel = toLocalSlot(specialSlots[0] ?? null);
+  const liveSlotDisplay = toLocalSlot(running?.label ?? null);
   const trialSlotSubtitle =
-    formatSlotList(sessionLabels) ||
+    formatSlotList(toLocalSlots(sessionLabels)) ||
     (todaySessionsReady ? "No sessions scheduled today" : "Session times");
   const sundaySlotSubtitle = "Sunday";
   const hasTodaySessions = sessionLabels.length > 0;
@@ -217,7 +263,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
 
       if (liveSlot) {
         setSessionNotice(
-          `The ${liveSlot} session is live, but its class link has not been published yet. Please try again shortly or contact support.`,
+          `The ${toLocalSlot(liveSlot) ?? liveSlot} session is live, but its class link has not been published yet. Please try again shortly or contact support.`,
         );
         return;
       }
@@ -230,16 +276,29 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
       }
 
       if (result.next?.label) {
+        const nextLabel = toLocalSlot(result.next.label) ?? result.next.label;
         setSessionNotice(
           result.next.when === "tomorrow"
-            ? `No session is currently running. The next session starts at ${result.next.label} tomorrow.`
-            : `No session is currently running. The next session starts at ${result.next.label}.`,
+            ? `No session is currently running. The next session starts at ${nextLabel} tomorrow.`
+            : `No session is currently running. The next session starts at ${nextLabel}.`,
         );
         return;
       }
 
+      const fallback = sessionUnavailableMessage(
+        now,
+        sessionKind,
+        labels,
+        specialSet,
+      );
       setSessionNotice(
-        sessionUnavailableMessage(now, sessionKind, labels, specialSet),
+        showLocalTimes
+          ? fallback.replace(
+              /at ([0-9]{1,2}:[0-9]{2}\s?(?:AM|PM))/i,
+              (_, istLabel: string) =>
+                `at ${toLocalSlot(istLabel) ?? istLabel}`,
+            )
+          : fallback,
       );
     } catch (err) {
       setSessionNotice(
@@ -431,6 +490,15 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
             </div>
           </div>
 
+          {cachedIstSlotLabels.length > 0 ? (
+            <div className="border-b border-[#eef2ee] px-4 py-2.5 sm:px-6">
+              <SessionTimezoneNote
+                istLabels={cachedIstSlotLabels}
+                istDateIso={todaySessionsDate}
+              />
+            </div>
+          ) : null}
+
           {isUnaffiliated ? (
             <div className="px-4 py-6 sm:px-6 sm:py-8">
               <p className="text-[16px] font-bold text-[#243028] sm:text-[18px]">
@@ -510,7 +578,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 <SessionTimingBlock
                   icon={sunIcon}
                   label="Today's session timings"
-                  slots={sessionLabels}
+                  slots={toLocalSlots(sessionLabels)}
                   tint="bg-[#F4F8F2]"
                   emptyLabel="No sessions scheduled for today"
                   join={
@@ -543,9 +611,9 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
               <SessionTimingBlock
                 icon={sunIcon}
                 label="Today's session timings"
-                slots={sessionLabels}
+                slots={toLocalSlots(sessionLabels)}
                 tint="bg-[#F4F8F2]"
-                liveSlot={running?.label}
+                liveSlot={liveSlotDisplay ?? undefined}
                 emptyLabel="No sessions scheduled for today"
                 join={
                   <button
@@ -627,9 +695,9 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                         <SessionTimingBlock
                           icon={sunIcon}
                           label="Q&A Sessions"
-                          slots={sundayDisplaySlots}
+                          slots={toLocalSlots(sundayDisplaySlots)}
                           tint="bg-[#F4F8F2]"
-                          liveSlot={running?.label}
+                          liveSlot={liveSlotDisplay ?? undefined}
                         />
                       ) : (
                         <>
@@ -637,18 +705,18 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                             <SessionTimingBlock
                               icon={sunIcon}
                               label="Morning Q&A Sessions"
-                              slots={sundayMorningSlots}
+                              slots={toLocalSlots(sundayMorningSlots)}
                               tint="bg-[#F4F8F2]"
-                              liveSlot={running?.label}
+                              liveSlot={liveSlotDisplay ?? undefined}
                             />
                           ) : null}
                           {hasEvening ? (
                             <SessionTimingBlock
                               icon={moonIcon}
                               label="Evening Q&A Sessions"
-                              slots={sundayEveningSlots}
+                              slots={toLocalSlots(sundayEveningSlots)}
                               tint="bg-[#F7F7F5]"
-                              liveSlot={running?.label}
+                              liveSlot={liveSlotDisplay ?? undefined}
                             />
                           ) : null}
                         </>
@@ -790,9 +858,9 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                         <SessionTimingBlock
                           icon={sunIcon}
                           label="Today's session timings"
-                          slots={sessionLabels}
+                          slots={toLocalSlots(sessionLabels)}
                           tint="bg-[#F4F8F2]"
-                          liveSlot={running?.label}
+                          liveSlot={liveSlotDisplay ?? undefined}
                         />
                       ) : (
                         <>
@@ -800,18 +868,18 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                             <SessionTimingBlock
                               icon={sunIcon}
                               label="Morning Sessions"
-                              slots={morningSlots}
+                              slots={toLocalSlots(morningSlots)}
                               tint="bg-[#F4F8F2]"
-                              liveSlot={running?.label}
+                              liveSlot={liveSlotDisplay ?? undefined}
                             />
                           ) : null}
                           {hasEvening ? (
                             <SessionTimingBlock
                               icon={moonIcon}
                               label="Evening Sessions"
-                              slots={eveningSlots}
+                              slots={toLocalSlots(eveningSlots)}
                               tint="bg-[#F7F7F5]"
-                              liveSlot={running?.label}
+                              liveSlot={liveSlotDisplay ?? undefined}
                             />
                           ) : null}
                         </>
@@ -1165,6 +1233,111 @@ function SpecialTopicRow({
             {topic}
           </p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function SessionTimezoneNote({
+  istLabels,
+  istDateIso,
+}: {
+  /** Cached IST session labels from today's schedule store — no API fetch. */
+  istLabels: readonly string[];
+  istDateIso: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [timeZone, setTimeZone] = useState(getViewerTimeZone);
+
+  // Map from cache only: left = India time, right = this device timezone.
+  const mappings = useMemo(
+    () =>
+      mapIstSlotsToLocal(istLabels, {
+        timeZone,
+        istDateIso,
+      }),
+    [istLabels, timeZone, istDateIso],
+  );
+
+  const zoneLabel = useMemo(() => {
+    try {
+      return timeZone.replace(/_/g, " ").split("/").pop() ?? timeZone;
+    } catch {
+      return timeZone;
+    }
+  }, [timeZone]);
+
+  function openPopup() {
+    // Refresh timezone when opening (e.g. DevTools Sensors override).
+    setTimeZone(getViewerTimeZone());
+    setOpen(true);
+  }
+
+  if (mappings.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1.5 text-[12px] text-[#6b7c6e] sm:text-[13px]">
+      <span className="leading-snug">
+        Session times are based on Indian Standard Time (IST)
+      </span>
+      <div className="relative inline-flex shrink-0">
+        <button
+          type="button"
+          aria-label="Show Indian time and your local time"
+          aria-expanded={open}
+          onClick={() => (open ? setOpen(false) : openPopup())}
+          className="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-[#d5e0d6] bg-white text-[11px] font-bold text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#eef6f0]"
+        >
+          i
+        </button>
+
+        {open ? (
+          <>
+            <button
+              type="button"
+              aria-label="Close time comparison"
+              className="fixed inset-0 z-40 cursor-default bg-transparent"
+              onClick={() => setOpen(false)}
+            />
+            <div
+              role="dialog"
+              aria-label="Indian time to local time"
+              className="absolute top-0 left-[calc(100%+10px)] z-50 w-[min(calc(100vw-2rem),300px)] rounded-[14px] border border-[#e6ebe3] bg-white p-3 shadow-[0_12px_32px_rgba(31,107,58,0.14)]"
+            >
+              <p className="text-[12px] font-semibold text-[#3d4a3c]">
+                IND (IST) → your time ({zoneLabel})
+              </p>
+              <ul className="mt-2 max-h-[240px] space-y-1.5 overflow-y-auto">
+                {mappings.map((row) => (
+                  <li
+                    key={row.istLabel}
+                    className="flex items-center justify-between gap-3 rounded-[10px] bg-[#F7F7F5] px-2.5 py-1.5 text-[12px] font-semibold text-[#3d4a3c]"
+                  >
+                    <span className="whitespace-nowrap text-[#1f6b3a]">
+                      IND {row.istLabel}
+                    </span>
+                    <span className="text-[#8a968c]" aria-hidden="true">
+                      →
+                    </span>
+                    <span className="whitespace-nowrap text-right">
+                      {row.localLabel}
+                      {row.dayOffset === 1 ? (
+                        <span className="ml-1 text-[10px] font-medium text-[#8a968c]">
+                          (+1 day)
+                        </span>
+                      ) : null}
+                      {row.dayOffset === -1 ? (
+                        <span className="ml-1 text-[10px] font-medium text-[#8a968c]">
+                          (−1 day)
+                        </span>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   );
