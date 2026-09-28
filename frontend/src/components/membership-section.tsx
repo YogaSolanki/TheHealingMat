@@ -460,8 +460,10 @@ function WeekBlock() {
     morning: morningSlots,
     evening: eveningSlots,
     special: specialSlots,
+    sundayQa,
   } = useSessionTimings(false);
   const specialSlot = specialSlots[0] ?? null;
+  const sundaySlots = sundayQa.length > 0 ? sundayQa : sessionLabels;
 
   return (
     <section className="mx-auto w-full max-w-[1440px] px-4 py-4 sm:px-6 sm:py-5 lg:px-6 xl:px-8">
@@ -618,7 +620,7 @@ function WeekBlock() {
                 Sunday Sessions
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {sessionLabels.map((slot) => (
+                {sundaySlots.map((slot) => (
                   <span
                     key={slot}
                     className="rounded-[12px] bg-[#E8F0E4] px-2 py-1 text-[11px] font-bold whitespace-nowrap text-[#1f6b3a] sm:text-[12px]"

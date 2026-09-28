@@ -853,6 +853,8 @@ export type AdminSessionTiming = {
   label: string;
   sortOrder: number;
   active: boolean;
+  isSpecial: boolean;
+  isSundayQa: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -864,6 +866,10 @@ export type AdminScheduledClass = {
   sessionTimingId: string;
   sessionTimeLabel: string;
   meetingUrl: string;
+  /** Derived from the session timing’s special flag (Mon–Sat). */
+  isSpecial: boolean;
+  /** Derived from the session timing’s Sunday Q&A flag. */
+  isSundayQa: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -882,7 +888,12 @@ export function listAdminSessionTimings(
 
 export function createAdminSessionTiming(
   token: string,
-  body: { label: string; sortOrder?: number; active?: boolean },
+  body: {
+    label: string;
+    sortOrder?: number;
+    active?: boolean;
+    isSundayQa?: boolean;
+  },
 ) {
   return authJson<AdminSessionTiming>(
     "POST",
@@ -895,7 +906,12 @@ export function createAdminSessionTiming(
 export function updateAdminSessionTiming(
   token: string,
   id: string,
-  body: { label?: string; sortOrder?: number; active?: boolean },
+  body: {
+    label?: string;
+    sortOrder?: number;
+    active?: boolean;
+    isSundayQa?: boolean;
+  },
 ) {
   return authJson<AdminSessionTiming>(
     "PATCH",
@@ -929,7 +945,11 @@ export function listAdminScheduledClasses(
 
 export function createAdminScheduledClass(
   token: string,
-  body: { classDate: string; sessionTimingId: string; meetingUrl: string },
+  body: {
+    classDate: string;
+    sessionTimingId: string;
+    meetingUrl: string;
+  },
 ) {
   return authJson<AdminScheduledClass>("POST", "/admin/classes", token, body);
 }

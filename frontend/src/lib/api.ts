@@ -587,6 +587,8 @@ export type PublicSessionTiming = {
   label: string;
   sortOrder: number;
   active: boolean;
+  isSpecial?: boolean;
+  isSundayQa?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -603,6 +605,8 @@ export type TodaySessionSlot = {
   id: string;
   sessionTimingId: string;
   sessionTimeLabel: string;
+  isSpecial?: boolean;
+  isSundayQa?: boolean;
 };
 
 export type TodaySessionsResponse = {

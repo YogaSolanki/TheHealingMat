@@ -7,14 +7,16 @@ import {
   splitSessionLabels,
 } from "@/lib/member-session-schedule";
 
-const STORAGE_KEY = "thm_session_timings_v3";
+const STORAGE_KEY = "thm_session_timings_v4";
 
 export type SessionTimingsSnapshot = {
   labels: string[];
   morning: string[];
   special: string[];
   evening: string[];
-  /** Preferred class time dropdown options (all active timings). */
+  /** Sunday-only Q&A times from Settings. */
+  sundayQa: string[];
+  /** Preferred class time dropdown options (Mon–Sat active timings). */
   preferredOptions: string[];
   ready: boolean;
   /** True only after a successful API response (or hydrated cache). */
@@ -22,20 +24,29 @@ export type SessionTimingsSnapshot = {
   loading: boolean;
 };
 
-function fromLabels(
+type CachePayload = {
+  labels: string[];
+  specialLabels: string[];
+  sundayQa: string[];
+};
+
+function fromParts(
   labels: string[],
+  specialLabels: string[],
+  sundayQa: string[],
 ): Omit<SessionTimingsSnapshot, "ready" | "fromApi" | "loading"> {
-  const split = splitSessionLabels(labels);
+  const split = splitSessionLabels(labels, { specialLabels });
   return {
     labels,
     morning: split.morning,
     special: split.special,
     evening: split.evening,
+    sundayQa,
     preferredOptions: labels,
   };
 }
 
-const FALLBACK = fromLabels([...FALLBACK_SESSION_LABELS]);
+const FALLBACK = fromParts([...FALLBACK_SESSION_LABELS], ["11:30 AM"], []);
 
 const SERVER_SNAPSHOT: SessionTimingsSnapshot = {
   ...FALLBACK,
@@ -44,29 +55,44 @@ const SERVER_SNAPSHOT: SessionTimingsSnapshot = {
   loading: false,
 };
 
-function readCache(): string[] | null {
+function readCache(): CachePayload | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { labels?: string[] };
+    const parsed = JSON.parse(raw) as Partial<CachePayload>;
     if (!Array.isArray(parsed.labels)) return null;
     const labels = parsed.labels.filter(
       (item) => typeof item === "string" && item.trim(),
     );
-    return labels.length > 0 ? labels : null;
+    if (labels.length === 0) return null;
+    return {
+      labels,
+      specialLabels: Array.isArray(parsed.specialLabels)
+        ? parsed.specialLabels.filter(
+            (item) => typeof item === "string" && item.trim(),
+          )
+        : [],
+      sundayQa: Array.isArray(parsed.sundayQa)
+        ? parsed.sundayQa.filter(
+            (item) => typeof item === "string" && item.trim(),
+          )
+        : [],
+    };
   } catch {
     return null;
   }
 }
 
-function writeCache(labels: string[]) {
+function writeCache(payload: CachePayload) {
   if (typeof window === "undefined") return;
-  window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ labels }));
+  window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
 
 class SessionTimingsStore {
   private labels: string[] = [...FALLBACK_SESSION_LABELS];
+  private specialLabels: string[] = ["11:30 AM"];
+  private sundayQa: string[] = [];
   private ready = false;
   private fromApi = false;
   private loading = false;
@@ -77,8 +103,10 @@ class SessionTimingsStore {
   constructor() {
     if (typeof window === "undefined") return;
     const cached = readCache();
-    if (cached && cached.length > 0) {
-      this.labels = cached;
+    if (cached) {
+      this.labels = cached.labels;
+      this.specialLabels = cached.specialLabels;
+      this.sundayQa = cached.sundayQa;
       this.ready = true;
       this.fromApi = true;
       this.rebuildSnapshot();
@@ -98,7 +126,7 @@ class SessionTimingsStore {
 
   private rebuildSnapshot() {
     this.cachedSnapshot = {
-      ...fromLabels(this.labels),
+      ...fromParts(this.labels, this.specialLabels, this.sundayQa),
       ready: this.ready,
       fromApi: this.fromApi,
       loading: this.loading,
@@ -123,8 +151,10 @@ class SessionTimingsStore {
 
     if (!force) {
       const cached = readCache();
-      if (cached && cached.length > 0) {
-        this.labels = cached;
+      if (cached) {
+        this.labels = cached.labels;
+        this.specialLabels = cached.specialLabels;
+        this.sundayQa = cached.sundayQa;
         this.ready = true;
         this.fromApi = true;
         this.emit();
@@ -142,23 +172,40 @@ class SessionTimingsStore {
         if (!Array.isArray(rows)) {
           throw new Error("Invalid session timings response.");
         }
-        const labels = rows
-          .filter((row) => row.active !== false)
+        const active = rows.filter((row) => row.active !== false);
+        const monSat = active.filter((row) => !row.isSundayQa);
+        const labels = monSat
+          .map((row) => String(row.label ?? "").trim())
+          .filter(Boolean);
+        const specialLabels = monSat
+          .filter((row) => Boolean(row.isSpecial))
+          .map((row) => String(row.label ?? "").trim())
+          .filter(Boolean);
+        const sundayQa = active
+          .filter((row) => Boolean(row.isSundayQa))
           .map((row) => String(row.label ?? "").trim())
           .filter(Boolean);
         if (labels.length === 0) {
           throw new Error("No active session timings configured.");
         }
         this.labels = labels;
+        this.specialLabels = specialLabels;
+        this.sundayQa = sundayQa;
         this.ready = true;
         this.fromApi = true;
-        writeCache(this.labels);
+        writeCache({
+          labels: this.labels,
+          specialLabels: this.specialLabels,
+          sundayQa: this.sundayQa,
+        });
         this.emit();
         return this.labels;
       })
       .catch(() => {
         if (!this.ready) {
           this.labels = [...FALLBACK_SESSION_LABELS];
+          this.specialLabels = ["11:30 AM"];
+          this.sundayQa = [];
           this.ready = true;
           this.fromApi = false;
           this.emit();

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import calendarIcon from "@/assets/calander-icon.png";
 import crownIcon from "@/assets/crown.png";
 import leafRight from "@/assets/leaf-right.png";
@@ -36,7 +36,7 @@ import {
   isSunday,
   sessionUnavailableMessage,
 } from "@/lib/member-session-schedule";
-import { useTodaySessions } from "@/lib/today-sessions-store";
+import { useTodaySessions, todaySessionsStore } from "@/lib/today-sessions-store";
 import { SITE_MAPS_URL } from "@/lib/site-contact";
 import { sessionStore, useMyReferrals, updateMemberAuthCache } from "@/lib/session-store";
 
@@ -103,6 +103,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     morning: morningSlots,
     special: specialSlots,
     evening: eveningSlots,
+    specialLabels,
     date: todaySessionsDate,
     ready: todaySessionsReady,
     refreshing: todaySessionsRefreshing,
@@ -116,6 +117,10 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const todayLabel = formatDashboardDateFromIso(todaySessionsDate);
   const todayLabelCompact = formatDashboardDateFromIso(todaySessionsDate, true);
   const sunday = isSunday(now);
+  const specialLabelSet = useMemo(
+    () => new Set(specialLabels.map((label) => label.trim().toLowerCase())),
+    [specialLabels],
+  );
   const membershipKnown = !loading;
   const isUnaffiliated = membershipKnown && access.state === "pending";
   const isExpired = membershipKnown && access.state === "expired";
@@ -126,13 +131,15 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const running =
     isExpired || isScheduledTrial || isUnaffiliated
       ? null
-      : findRunningSession(now, sessionKind, sessionLabels);
+      : findRunningSession(now, sessionKind, sessionLabels, specialLabelSet);
   const specialSessionLabel = specialSlots[0] ?? null;
   const trialSlotSubtitle =
     formatSlotList(sessionLabels) ||
     (todaySessionsReady ? "No sessions scheduled today" : "Session times");
-  const sundaySlotSubtitle = formatSlotList(sessionLabels)
-    ? `Sunday · ${formatSlotList(sessionLabels)}`
+  const sundaySlotSubtitle = formatSlotList(
+    specialSlots.length > 0 ? specialSlots : sessionLabels,
+  )
+    ? `Sunday · ${formatSlotList(specialSlots.length > 0 ? specialSlots : sessionLabels)}`
     : todaySessionsReady
       ? "No sessions scheduled today"
       : "Sunday sessions";
@@ -186,13 +193,18 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
       const now = new Date();
       // 1) Always refresh today's Class Management slots first.
       const labels = await refreshTodaySessionsSilent();
-      // 2) Only call live when a slot is joinable at this moment.
-      const running = findRunningSession(now, sessionKind, labels);
+      // Prefer freshly loaded special flags from the store snapshot after refresh.
+      const specialSet = new Set(
+        todaySessionsStore.getSnapshot().specialLabels.map((label) =>
+          label.trim().toLowerCase(),
+        ),
+      );
+      const running = findRunningSession(now, sessionKind, labels, specialSet);
       if (!running) {
         setSessionNotice(
           labels.length === 0
             ? "No sessions scheduled today. Check back when a class is on the schedule."
-            : sessionUnavailableMessage(now, sessionKind, labels),
+            : sessionUnavailableMessage(now, sessionKind, labels, specialSet),
         );
         return;
       }
@@ -559,8 +571,10 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
               />
               <SessionTimingBlock
                 icon={sunIcon}
-                label="Sunday Sessions"
-                slots={sessionLabels}
+                label={
+                  specialSlots.length > 0 ? "Q&A Sessions" : "Sunday Sessions"
+                }
+                slots={specialSlots.length > 0 ? specialSlots : sessionLabels}
                 tint="bg-[#F4F8F2]"
                 liveSlot={running?.label}
                 emptyLabel="No sessions scheduled for today"
@@ -581,8 +595,18 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
               </p>
             </div>
           ) : (
-            <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
-              <div className="border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-r">
+            <div
+              className={`grid gap-0 ${
+                specialSlots.length > 0
+                  ? "lg:grid-cols-[1.15fr_0.85fr]"
+                  : "lg:grid-cols-1"
+              }`}
+            >
+              <div
+                className={`border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 ${
+                  specialSlots.length > 0 ? "lg:border-r" : ""
+                }`}
+              >
                 {(() => {
                   const hasMorning = morningSlots.length > 0;
                   const hasEvening = eveningSlots.length > 0;
@@ -688,6 +712,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 })()}
               </div>
 
+              {specialSlots.length > 0 ? (
               <div className="border-t border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-t-0">
                 <SectionHeading
                   icon={
@@ -742,6 +767,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   tint="bg-[#F7F7F5]"
                 />
               </div>
+              ) : null}
             </div>
           )}
         </section>

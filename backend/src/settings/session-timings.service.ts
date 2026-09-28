@@ -17,11 +17,13 @@ const DEFAULT_TIMINGS = [
   '6:30 AM',
   '7:30 AM',
   '8:30 AM',
-  '11:30 AM',
   '5:00 PM',
   '6:00 PM',
   '7:00 PM',
 ] as const;
+
+/** Default time for the single, always-present special session slot. */
+const DEFAULT_SPECIAL_LABEL = '11:30 AM';
 
 function normalizeTimeLabel(label: string) {
   const trimmed = label.trim().replace(/\s+/g, ' ');
@@ -43,7 +45,11 @@ export class SessionTimingsService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    await this.ensureIsSpecialColumn();
+    await this.ensureIsSundayQaColumn();
+    await this.ensureLabelUniquenessByDayKind();
     await this.seedDefaultsIfEmpty();
+    await this.ensureSpecialTiming();
   }
 
   async list(includeInactive = true) {
@@ -56,10 +62,8 @@ export class SessionTimingsService implements OnModuleInit {
 
   async create(dto: CreateSessionTimingDto) {
     const label = normalizeTimeLabel(dto.label);
-    const existing = await this.timings.findOne({ where: { label } });
-    if (existing) {
-      throw new BadRequestException('That session time already exists.');
-    }
+    const isSundayQa = Boolean(dto.isSundayQa);
+    await this.assertLabelAvailable(label, isSundayQa);
 
     const maxRow = await this.timings
       .createQueryBuilder('t')
@@ -73,6 +77,8 @@ export class SessionTimingsService implements OnModuleInit {
         label,
         sortOrder,
         active: dto.active ?? true,
+        isSpecial: false,
+        isSundayQa,
       }),
     );
     return this.toResponse(saved);
@@ -82,14 +88,51 @@ export class SessionTimingsService implements OnModuleInit {
     const row = await this.timings.findOne({ where: { id } });
     if (!row) throw new NotFoundException('Session time not found.');
 
-    if (dto.label !== undefined) {
-      const label = normalizeTimeLabel(dto.label);
-      const clash = await this.timings.findOne({ where: { label } });
-      if (clash && clash.id !== id) {
-        throw new BadRequestException('That session time already exists.');
+    if (row.isSpecial) {
+      if (dto.active === false) {
+        throw new BadRequestException(
+          'The special session timing cannot be deactivated.',
+        );
       }
-      row.label = label;
+      if (dto.isSpecial === false) {
+        throw new BadRequestException(
+          'The special session timing cannot be removed. Edit its time instead.',
+        );
+      }
+      if (dto.isSundayQa === true) {
+        throw new BadRequestException(
+          'The special session timing is Mon–Sat only. Add a separate Sunday Q&A time instead.',
+        );
+      }
+      if (dto.label !== undefined) {
+        const label = normalizeTimeLabel(dto.label);
+        await this.assertLabelAvailable(label, false, id);
+        row.label = label;
+      }
+      row.active = true;
+      row.isSpecial = true;
+      row.isSundayQa = false;
+      const saved = await this.timings.save(row);
+      return this.toResponse(saved);
     }
+
+    if (dto.isSpecial === true) {
+      throw new BadRequestException(
+        'Special session timing is managed separately. Edit the Special session timing card instead.',
+      );
+    }
+
+    const nextSundayQa =
+      dto.isSundayQa !== undefined ? Boolean(dto.isSundayQa) : row.isSundayQa;
+    const nextLabel =
+      dto.label !== undefined ? normalizeTimeLabel(dto.label) : row.label;
+
+    if (nextLabel !== row.label || nextSundayQa !== row.isSundayQa) {
+      await this.assertLabelAvailable(nextLabel, nextSundayQa, id);
+    }
+
+    row.label = nextLabel;
+    row.isSundayQa = nextSundayQa;
     if (dto.sortOrder !== undefined) row.sortOrder = dto.sortOrder;
     if (dto.active !== undefined) row.active = dto.active;
 
@@ -100,6 +143,12 @@ export class SessionTimingsService implements OnModuleInit {
   async remove(id: string) {
     const row = await this.timings.findOne({ where: { id } });
     if (!row) throw new NotFoundException('Session time not found.');
+
+    if (row.isSpecial) {
+      throw new BadRequestException(
+        'The special session timing cannot be deleted. Edit its time instead.',
+      );
+    }
 
     const used = await this.classes.count({ where: { sessionTimingId: id } });
     if (used > 0) {
@@ -122,6 +171,155 @@ export class SessionTimingsService implements OnModuleInit {
     return row;
   }
 
+  /** Id of the single special timing (always present after init). */
+  async getSpecialTimingId(): Promise<string | null> {
+    const row = await this.timings.findOne({
+      where: { isSpecial: true, active: true },
+    });
+    return row?.id ?? null;
+  }
+
+  /** Ensure exactly one special timing exists and stays active. */
+  private async ensureSpecialTiming() {
+    const specials = await this.timings.find({
+      where: { isSpecial: true },
+      order: { sortOrder: 'ASC', createdAt: 'ASC' },
+    });
+
+    if (specials.length > 1) {
+      for (const extra of specials.slice(1)) {
+        extra.isSpecial = false;
+        await this.timings.save(extra);
+      }
+    }
+
+    const special = specials[0] ?? null;
+    if (special) {
+      let dirty = false;
+      if (!special.active) {
+        special.active = true;
+        dirty = true;
+      }
+      if (special.isSundayQa) {
+        special.isSundayQa = false;
+        dirty = true;
+      }
+      if (dirty) await this.timings.save(special);
+      return;
+    }
+
+    const preferred = await this.timings.findOne({
+      where: { label: DEFAULT_SPECIAL_LABEL, isSundayQa: false },
+    });
+    if (preferred) {
+      preferred.isSpecial = true;
+      preferred.active = true;
+      preferred.isSundayQa = false;
+      await this.timings.save(preferred);
+      return;
+    }
+
+    const maxRow = await this.timings
+      .createQueryBuilder('t')
+      .select('MAX(t.sortOrder)', 'max')
+      .getRawOne<{ max: string | null }>();
+    const sortOrder = (Number(maxRow?.max ?? Number.NaN) || -1) + 1;
+
+    await this.timings.save(
+      this.timings.create({
+        label: DEFAULT_SPECIAL_LABEL,
+        sortOrder,
+        active: true,
+        isSpecial: true,
+        isSundayQa: false,
+      }),
+    );
+  }
+
+  /**
+   * Same clock time may exist once for Mon–Sat and once for Sunday Q&A.
+   * Uniqueness is only within the same day-kind.
+   */
+  private async assertLabelAvailable(
+    label: string,
+    isSundayQa: boolean,
+    exceptId?: string,
+  ) {
+    const clash = await this.timings.findOne({
+      where: { label, isSundayQa },
+    });
+    if (clash && clash.id !== exceptId) {
+      throw new BadRequestException(
+        isSundayQa
+          ? 'That Sunday Q&A time already exists.'
+          : 'That Mon–Sat session time already exists.',
+      );
+    }
+  }
+
+  /** Drop legacy unique-on-label index; allow same time for Mon–Sat and Sunday Q&A. */
+  private async ensureLabelUniquenessByDayKind() {
+    try {
+      await this.timings.query(`
+        DO $$
+        DECLARE
+          idx_name text;
+        BEGIN
+          FOR idx_name IN
+            SELECT i.relname
+            FROM pg_index x
+            JOIN pg_class t ON t.oid = x.indrelid
+            JOIN pg_class i ON i.oid = x.indexrelid
+            JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY (x.indkey)
+            WHERE t.relname = 'session_timings'
+              AND x.indisunique
+              AND NOT x.indisprimary
+              AND a.attname = 'label'
+              AND (
+                SELECT count(*) FROM unnest(x.indkey) AS k(attnum)
+              ) = 1
+          LOOP
+            EXECUTE format('ALTER TABLE "session_timings" DROP CONSTRAINT IF EXISTS %I', idx_name);
+            EXECUTE format('DROP INDEX IF EXISTS %I', idx_name);
+          END LOOP;
+        END $$;
+      `);
+    } catch {
+      // Best-effort; synchronize / env may differ.
+    }
+
+    try {
+      await this.timings.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "UQ_session_timings_label_sunday_qa"
+        ON "session_timings" ("label", "isSundayQa")
+      `);
+    } catch {
+      // Index may already exist via synchronize.
+    }
+  }
+
+  private async ensureIsSpecialColumn() {
+    try {
+      await this.timings.query(`
+        ALTER TABLE "session_timings"
+        ADD COLUMN IF NOT EXISTS "isSpecial" boolean NOT NULL DEFAULT false
+      `);
+    } catch {
+      // Column may already exist via synchronize.
+    }
+  }
+
+  private async ensureIsSundayQaColumn() {
+    try {
+      await this.timings.query(`
+        ALTER TABLE "session_timings"
+        ADD COLUMN IF NOT EXISTS "isSundayQa" boolean NOT NULL DEFAULT false
+      `);
+    } catch {
+      // Column may already exist via synchronize.
+    }
+  }
+
   private async seedDefaultsIfEmpty() {
     const count = await this.timings.count();
     if (count > 0) return;
@@ -132,6 +330,8 @@ export class SessionTimingsService implements OnModuleInit {
           label,
           sortOrder: index,
           active: true,
+          isSpecial: false,
+          isSundayQa: false,
         }),
       ),
     );
@@ -143,6 +343,8 @@ export class SessionTimingsService implements OnModuleInit {
       label: row.label,
       sortOrder: row.sortOrder,
       active: row.active,
+      isSpecial: Boolean(row.isSpecial),
+      isSundayQa: Boolean(row.isSundayQa),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };

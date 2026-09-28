@@ -56,14 +56,19 @@ export function MemberJoinPage() {
         const labels = await todaySessionsStore.refreshSilent();
         if (cancelled) return;
 
-        const running = findRunningSession(now, sessionKind, labels);
+        const specialSet = new Set(
+          todaySessionsStore
+            .getSnapshot()
+            .specialLabels.map((label) => label.trim().toLowerCase()),
+        );
+        const running = findRunningSession(now, sessionKind, labels, specialSet);
         if (!running) {
           setLiveUrl(null);
           setLiveSlot(null);
           setNextCopy(
             labels.length === 0
               ? "No sessions scheduled today. Check back when a class is on the schedule."
-              : sessionUnavailableMessage(now, sessionKind, labels),
+              : sessionUnavailableMessage(now, sessionKind, labels, specialSet),
           );
           return;
         }

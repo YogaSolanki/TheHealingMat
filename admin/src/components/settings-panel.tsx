@@ -144,8 +144,12 @@ export function SettingsPanel() {
   const [timings, setTimings] = useState<AdminSessionTiming[]>([]);
   const [referralDiscountPercent, setReferralDiscountPercent] = useState("20");
   const [newTiming, setNewTiming] = useState<TimeParts>(DEFAULT_TIME);
+  const [newTimingSundayQa, setNewTimingSundayQa] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTime, setEditingTime] = useState<TimeParts>(DEFAULT_TIME);
+  const [editingSundayQa, setEditingSundayQa] = useState(false);
+  const [specialEditing, setSpecialEditing] = useState(false);
+  const [specialEditTime, setSpecialEditTime] = useState<TimeParts>(DEFAULT_TIME);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [timingBusy, setTimingBusy] = useState(false);
@@ -162,6 +166,15 @@ export function SettingsPanel() {
         ? localStorage.getItem(ADMIN_TOKEN_KEY) ?? ""
         : "",
     [],
+  );
+
+  const specialTiming = useMemo(
+    () => timings.find((row) => row.isSpecial) ?? null,
+    [timings],
+  );
+  const regularTimings = useMemo(
+    () => timings.filter((row) => !row.isSpecial),
+    [timings],
   );
 
   function showError(message: string) {
@@ -187,6 +200,10 @@ export function SettingsPanel() {
         String(nextSettings.referralDiscountPercent ?? 20),
       );
       setTimings(nextTimings);
+      const special = nextTimings.find((row) => row.isSpecial);
+      if (special) {
+        setSpecialEditTime(parseTimeLabel(special.label));
+      }
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Unable to load settings.";
@@ -240,15 +257,23 @@ export function SettingsPanel() {
     setError(null);
     setTimingSaved(false);
     try {
-      const created = await createAdminSessionTiming(token, { label });
+      const created = await createAdminSessionTiming(token, {
+        label,
+        isSundayQa: newTimingSundayQa,
+      });
       setTimings((current) =>
         [...current, created].sort(
           (a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label),
         ),
       );
       setNewTiming(DEFAULT_TIME);
+      setNewTimingSundayQa(false);
       setTimingSaved(true);
-      showSuccess(`Added session time ${created.label}.`);
+      showSuccess(
+        created.isSundayQa
+          ? `Added Sunday Q&A time ${created.label}.`
+          : `Added session time ${created.label}.`,
+      );
     } catch (err: unknown) {
       showError(
         err instanceof Error ? err.message : "Unable to add session time.",
@@ -265,7 +290,10 @@ export function SettingsPanel() {
     setTimingBusy(true);
     setError(null);
     try {
-      const updated = await updateAdminSessionTiming(token, id, { label });
+      const updated = await updateAdminSessionTiming(token, id, {
+        label,
+        isSundayQa: editingSundayQa,
+      });
       setTimings((current) =>
         current
           .map((row) => (row.id === id ? updated : row))
@@ -276,6 +304,7 @@ export function SettingsPanel() {
       );
       setEditingId(null);
       setEditingTime(DEFAULT_TIME);
+      setEditingSundayQa(false);
       setTimingSaved(true);
       showSuccess("Session time updated.");
     } catch (err: unknown) {
@@ -287,8 +316,45 @@ export function SettingsPanel() {
     }
   }
 
+  async function onSaveSpecialTiming() {
+    if (!token || timingBusy || !specialTiming) return;
+    const label = formatTimeLabel(specialEditTime);
+    if (label === specialTiming.label) {
+      setSpecialEditing(false);
+      return;
+    }
+
+    setTimingBusy(true);
+    setError(null);
+    try {
+      const updated = await updateAdminSessionTiming(token, specialTiming.id, {
+        label,
+      });
+      setTimings((current) =>
+        current
+          .map((row) => (row.id === specialTiming.id ? updated : row))
+          .sort(
+            (a, b) =>
+              a.sortOrder - b.sortOrder || a.label.localeCompare(b.label),
+          ),
+      );
+      setSpecialEditTime(parseTimeLabel(updated.label));
+      setSpecialEditing(false);
+      setTimingSaved(true);
+      showSuccess(`Special session time updated to ${updated.label}.`);
+    } catch (err: unknown) {
+      showError(
+        err instanceof Error
+          ? err.message
+          : "Unable to update special session time.",
+      );
+    } finally {
+      setTimingBusy(false);
+    }
+  }
+
   async function onToggleActive(row: AdminSessionTiming) {
-    if (!token || timingBusy) return;
+    if (!token || timingBusy || row.isSpecial) return;
     setTimingBusy(true);
     setError(null);
     try {
@@ -313,7 +379,7 @@ export function SettingsPanel() {
   }
 
   async function onDeleteTiming(row: AdminSessionTiming) {
-    if (!token || timingBusy) return;
+    if (!token || timingBusy || row.isSpecial) return;
     setPendingDeleteTiming(row);
   }
 
@@ -432,11 +498,89 @@ export function SettingsPanel() {
       <section className="space-y-4 rounded-2xl border border-[#e6ebe3] bg-white p-5 shadow-sm sm:p-6">
         <div>
           <h2 className="text-sm font-semibold text-[#243028]">
+            Special session timing
+          </h2>
+        </div>
+
+        {specialTiming ? (
+          <div className="rounded-xl border border-[#f0e0c8] bg-[#fffaf3] px-3.5 py-3">
+            {specialEditing ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                <TimeSelects
+                  idPrefix="special-timing"
+                  value={specialEditTime}
+                  onChange={setSpecialEditTime}
+                  disabled={timingBusy}
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void onSaveSpecialTiming()}
+                    disabled={timingBusy}
+                    className="rounded-full bg-[#1f6b3a] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                  >
+                    Save time
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSpecialEditTime(parseTimeLabel(specialTiming.label));
+                      setSpecialEditing(false);
+                    }}
+                    disabled={timingBusy}
+                    className="rounded-full border border-[#d7e0d6] px-3 py-1.5 text-xs font-semibold text-[#3d4a3c]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-[#243028]">
+                      {specialTiming.label}
+                    </p>
+                    <span className="rounded-md bg-[#C58A1A] px-2 py-0.5 text-[11px] font-semibold text-white">
+                      Special · Mon–Sat
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#8a978c]">
+                    Fixed slot · edit time only
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSpecialEditTime(parseTimeLabel(specialTiming.label));
+                    setSpecialEditing(true);
+                    setTimingSaved(false);
+                  }}
+                  disabled={timingBusy}
+                  className="rounded-full border border-[#d7e0d6] px-3 py-1.5 text-xs font-semibold text-[#1f6b3a] hover:bg-[#e8f2ea]"
+                >
+                  Edit time
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-[#8a5a2f]">
+            Special session timing is still loading. Reload settings if this
+            stays empty.
+          </p>
+        )}
+      </section>
+
+      <section className="space-y-4 rounded-2xl border border-[#e6ebe3] bg-white p-5 shadow-sm sm:p-6">
+        <div>
+          <h2 className="text-sm font-semibold text-[#243028]">
             Session timings
           </h2>
           <p className="mt-1 text-[13px] leading-relaxed text-[#6b7c6e]">
-            These times appear in Class Management when scheduling a class. Add
-            or edit times here only.
+            Regular times are Mon–Sat. Check Sunday Q&amp;A for slots that only
+            appear on Sunday — they can use the same clock time as a Mon–Sat
+            slot.
           </p>
         </div>
 
@@ -450,6 +594,16 @@ export function SettingsPanel() {
             onChange={setNewTiming}
             disabled={timingBusy}
           />
+          <label className="inline-flex items-center gap-2 text-sm font-semibold text-[#243028]">
+            <input
+              type="checkbox"
+              checked={newTimingSundayQa}
+              onChange={(event) => setNewTimingSundayQa(event.target.checked)}
+              disabled={timingBusy}
+              className="h-4 w-4 rounded border-[#c5d0c4] text-[#1f6b3a] focus:ring-[#1f6b3a] disabled:opacity-60"
+            />
+            Sunday Q&amp;A
+          </label>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="submit"
@@ -464,11 +618,11 @@ export function SettingsPanel() {
           </div>
         </form>
 
-        {timings.length === 0 ? (
+        {regularTimings.length === 0 ? (
           <p className="text-sm text-[#8a978c]">No session times yet.</p>
         ) : (
           <ul className="divide-y divide-[#f4f7f4] overflow-hidden rounded-xl border border-[#e6ebe3]">
-            {timings.map((row) => {
+            {regularTimings.map((row) => {
               const isEditing = editingId === row.id;
               return (
                 <li
@@ -476,21 +630,47 @@ export function SettingsPanel() {
                   className="flex flex-wrap items-center gap-2 px-3.5 py-3"
                 >
                   {isEditing ? (
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 space-y-2">
                       <TimeSelects
                         idPrefix={`edit-${row.id}`}
                         value={editingTime}
                         onChange={setEditingTime}
                         disabled={timingBusy}
                       />
+                      <label className="inline-flex items-center gap-2 text-sm font-semibold text-[#243028]">
+                        <input
+                          type="checkbox"
+                          checked={editingSundayQa}
+                          onChange={(event) =>
+                            setEditingSundayQa(event.target.checked)
+                          }
+                          disabled={timingBusy}
+                          className="h-4 w-4 rounded border-[#c5d0c4] text-[#1f6b3a] focus:ring-[#1f6b3a] disabled:opacity-60"
+                        />
+                        Sunday Q&amp;A
+                      </label>
                     </div>
                   ) : (
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-[#243028]">
-                        {row.label}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-[#243028]">
+                          {row.label}
+                        </p>
+                        {row.isSundayQa ? (
+                          <span className="rounded-md bg-[#2f6b8a] px-2 py-0.5 text-[11px] font-semibold text-white">
+                            Sunday Q&amp;A
+                          </span>
+                        ) : (
+                          <span className="rounded-md bg-[#ecefec] px-2 py-0.5 text-[11px] font-semibold text-[#5f6f64]">
+                            Mon–Sat
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-[#8a978c]">
                         {row.active ? "Active" : "Inactive"}
+                        {row.isSundayQa
+                          ? " · only on Sunday in Class Management"
+                          : " · regular class time"}
                       </p>
                     </div>
                   )}
@@ -510,6 +690,7 @@ export function SettingsPanel() {
                           onClick={() => {
                             setEditingId(null);
                             setEditingTime(DEFAULT_TIME);
+                            setEditingSundayQa(false);
                           }}
                           disabled={timingBusy}
                           className="rounded-full border border-[#d7e0d6] px-3 py-1.5 text-xs font-semibold text-[#3d4a3c]"
@@ -524,6 +705,7 @@ export function SettingsPanel() {
                           onClick={() => {
                             setEditingId(row.id);
                             setEditingTime(parseTimeLabel(row.label));
+                            setEditingSundayQa(Boolean(row.isSundayQa));
                             setTimingSaved(false);
                           }}
                           disabled={timingBusy}
