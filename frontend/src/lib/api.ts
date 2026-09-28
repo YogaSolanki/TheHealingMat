@@ -403,6 +403,29 @@ export async function resolveAccessLink(
   return parseJson<{ valid: true; slug: string }>(response);
 }
 
+export type PersonalLinkJoinResponse = {
+  status: "live" | "no_session" | "inactive" | "scheduled";
+  accessState: "trial" | "active" | "expired" | "scheduled" | "pending";
+  trialStartsAt: string | null;
+  url: string | null;
+  slot: string | null;
+  next: { label: string; when: "today" | "tomorrow" } | null;
+};
+
+/** Personal session link join — no auth. Uses link owner's plan + IST live class. */
+export async function joinViaAccessLink(
+  slug: string,
+  options?: { at?: string | null },
+): Promise<PersonalLinkJoinResponse> {
+  const at = options?.at?.trim() || new Date().toISOString();
+  const query = `?at=${encodeURIComponent(at)}`;
+  const response = await fetch(
+    `${API_URL}/auth/access/${encodeURIComponent(slug)}/join${query}`,
+    { cache: "no-store" },
+  );
+  return parseJson<PersonalLinkJoinResponse>(response);
+}
+
 export async function getAuthMe(accessToken: string): Promise<PublicUser> {
   const response = await fetch(`${API_URL}/auth/me`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -587,6 +610,8 @@ export type PublicSessionTiming = {
   label: string;
   sortOrder: number;
   active: boolean;
+  isSpecial?: boolean;
+  isSundayQa?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -603,12 +628,16 @@ export type TodaySessionSlot = {
   id: string;
   sessionTimingId: string;
   sessionTimeLabel: string;
+  isSpecial?: boolean;
+  isSundayQa?: boolean;
 };
 
 export type TodaySessionsResponse = {
   date: string;
   dayLabel: string;
   sessions: TodaySessionSlot[];
+  todayTopic?: string;
+  tomorrowTopic?: string;
 };
 
 /** Session times scheduled for today via Admin → Class Management. */

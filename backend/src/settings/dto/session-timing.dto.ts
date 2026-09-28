@@ -30,8 +30,15 @@ export class CreateSessionTimingDto {
   sortOrder?: number;
 
   @IsOptional()
+  @Type(() => Boolean)
   @IsBoolean()
   active?: boolean;
+
+  /** Mark as a Sunday-only Q&A session time (multiple allowed). */
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  isSundayQa?: boolean;
 }
 
 export class UpdateSessionTimingDto {
@@ -51,6 +58,18 @@ export class UpdateSessionTimingDto {
   sortOrder?: number;
 
   @IsOptional()
+  @Type(() => Boolean)
   @IsBoolean()
   active?: boolean;
+
+  /** Not used for regular timings; special timing is fixed and edit-time-only. */
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  isSpecial?: boolean;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  isSundayQa?: boolean;
 }

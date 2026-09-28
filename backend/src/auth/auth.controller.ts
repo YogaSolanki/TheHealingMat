@@ -125,6 +125,19 @@ export class AuthController {
     return this.authService.resolveAccessLink(slug);
   }
 
+  /**
+   * Personal session link: validate membership/trial + return live class (IST).
+   * No login required — any visitor with the link can join when the owner is active.
+   */
+  @Public()
+  @Get('auth/access/:slug/join')
+  joinViaAccessLink(
+    @Param('slug') slug: string,
+    @Query('at') at?: string,
+  ) {
+    return this.authService.joinViaAccessLink(slug, at ?? null);
+  }
+
   @Public()
   @Get('auth/google')
   googleStart(

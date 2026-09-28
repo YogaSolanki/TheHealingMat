@@ -32,6 +32,27 @@ function dayLabelFromDate(isoDate: string) {
   return date.toLocaleDateString('en-US', { weekday: 'long' });
 }
 
+function isSundayDate(isoDate: string) {
+  return dayLabelFromDate(isoDate) === 'Sunday';
+}
+
+function assertTimingMatchesDay(
+  timing: { isSpecial?: boolean; isSundayQa?: boolean; label: string },
+  classDate: string,
+) {
+  const sunday = isSundayDate(classDate);
+  if (sunday && !timing.isSundayQa) {
+    throw new BadRequestException(
+      'On Sunday only Sunday Q&A session times can be scheduled.',
+    );
+  }
+  if (!sunday && timing.isSundayQa) {
+    throw new BadRequestException(
+      'Sunday Q&A session times can only be scheduled on Sunday.',
+    );
+  }
+}
+
 /** Calendar "today" in Asia/Kolkata (class schedule business timezone). */
 function todayIsoDate(now = new Date()) {
   return new Intl.DateTimeFormat('en-CA', {
@@ -140,6 +161,7 @@ export class ScheduledClassesService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    await this.ensureIsSpecialColumn();
     await this.purgeExpiredClasses();
     // Hourly sweep so yesterday's classes (and links) leave the DB even if
     // no admin request hits this service after midnight.
@@ -152,6 +174,7 @@ export class ScheduledClassesService implements OnModuleInit {
     await this.purgeExpiredClasses();
 
     const from = options?.from?.trim() || todayIsoDate();
+    const specialTimingId = await this.timings.getSpecialTimingId();
     const rows = await this.classes
       .createQueryBuilder('c')
       .leftJoinAndSelect('c.sessionTiming', 'timing')
@@ -160,7 +183,16 @@ export class ScheduledClassesService implements OnModuleInit {
       .addOrderBy('c.sessionTimeLabel', 'ASC')
       .getMany();
 
-    return rows.map((row) => this.toResponse(row));
+    return rows.map((row) =>
+      this.toResponse(row, {
+        isSpecial: Boolean(
+          row.sessionTiming?.isSpecial ||
+            row.isSpecial ||
+            (specialTimingId && row.sessionTimingId === specialTimingId),
+        ),
+        isSundayQa: Boolean(row.sessionTiming?.isSundayQa),
+      }),
+    );
   }
 
   async create(dto: CreateScheduledClassDto) {
@@ -172,6 +204,7 @@ export class ScheduledClassesService implements OnModuleInit {
     const meetingUrl = dto.meetingUrl.trim();
 
     assertWithinScheduleWindow(classDate);
+    assertTimingMatchesDay(timing, classDate);
 
     const clash = await this.classes.findOne({
       where: { classDate, sessionTimingId: timing.id },
@@ -189,9 +222,14 @@ export class ScheduledClassesService implements OnModuleInit {
         sessionTimingId: timing.id,
         sessionTimeLabel: timing.label,
         meetingUrl,
+        // Mirrored from timing for older rows; responses derive from timing.
+        isSpecial: Boolean(timing.isSpecial),
       }),
     );
-    return this.toResponse(saved);
+    return this.toResponse(saved, {
+      isSpecial: Boolean(timing.isSpecial),
+      isSundayQa: Boolean(timing.isSundayQa),
+    });
   }
 
   async update(id: string, dto: UpdateScheduledClassDto) {
@@ -208,10 +246,15 @@ export class ScheduledClassesService implements OnModuleInit {
       row.dayLabel = dayLabelFromDate(row.classDate);
     }
 
+    let timingIsSpecial = Boolean(row.sessionTiming?.isSpecial);
+    let timingIsSundayQa = Boolean(row.sessionTiming?.isSundayQa);
     if (dto.sessionTimingId !== undefined) {
       const timing = await this.timings.requireActive(dto.sessionTimingId);
       row.sessionTimingId = timing.id;
       row.sessionTimeLabel = timing.label;
+      row.isSpecial = Boolean(timing.isSpecial);
+      timingIsSpecial = Boolean(timing.isSpecial);
+      timingIsSundayQa = Boolean(timing.isSundayQa);
     }
 
     if (dto.meetingUrl !== undefined) {
@@ -219,6 +262,14 @@ export class ScheduledClassesService implements OnModuleInit {
     }
 
     assertWithinScheduleWindow(row.classDate);
+    assertTimingMatchesDay(
+      {
+        label: row.sessionTimeLabel,
+        isSpecial: timingIsSpecial,
+        isSundayQa: timingIsSundayQa,
+      },
+      row.classDate,
+    );
 
     const clash = await this.classes.findOne({
       where: {
@@ -233,7 +284,10 @@ export class ScheduledClassesService implements OnModuleInit {
     }
 
     const saved = await this.classes.save(row);
-    return this.toResponse(saved);
+    return this.toResponse(saved, {
+      isSpecial: timingIsSpecial,
+      isSundayQa: timingIsSundayQa,
+    });
   }
 
   async remove(id: string) {
@@ -244,10 +298,11 @@ export class ScheduledClassesService implements OnModuleInit {
   }
 
   /**
-   * Resolve the live meeting URL from today's Class Management schedule
-   * using the current clock (client `at` if within skew, else server IST).
-   * Only returns a URL when that scheduled class still exists and has a meeting link.
-   * Never trusts a client-provided slot label or a global fallback URL.
+   * Resolve the live meeting URL from today's Class Management schedule.
+   *
+   * Join windows are ALWAYS Asia/Kolkata (IST). Client `at` is only an absolute
+   * clock instant (ISO); we convert it to IST minutes. Members outside India
+   * join the same live slot at the same moment — local timezone is display-only.
    */
   async findLiveSessionAt(atIso?: string | null) {
     await this.purgeExpiredClasses();
@@ -257,6 +312,7 @@ export class ScheduledClassesService implements OnModuleInit {
     const minutesNow = istMinutesSinceMidnight(at);
     const todays = await this.classes.find({
       where: { classDate: day },
+      relations: { sessionTiming: true },
       order: { sessionTimeLabel: 'ASC' },
     });
 
@@ -272,11 +328,21 @@ export class ScheduledClassesService implements OnModuleInit {
       .map((row) => {
         const minutes = parseSlotLabelMinutes(row.sessionTimeLabel);
         if (minutes == null) return null;
+        // Regular, Special (Mon–Sat), and Sunday Q&A are all joinable.
+        const isSpecial = Boolean(
+          row.sessionTiming?.isSpecial || row.isSpecial,
+        );
+        const isSundayQa = Boolean(row.sessionTiming?.isSundayQa);
         return {
           label: row.sessionTimeLabel,
           minutes,
-          durationMinutes: durationForMinutes(minutes),
+          durationMinutes:
+            isSpecial || isSundayQa
+              ? SPECIAL_SESSION_DURATION_MINUTES
+              : durationForMinutes(minutes),
           meetingUrl: row.meetingUrl?.trim() || null,
+          isSpecial,
+          isSundayQa,
         };
       })
       .filter(
@@ -287,15 +353,25 @@ export class ScheduledClassesService implements OnModuleInit {
           minutes: number;
           durationMinutes: number;
           meetingUrl: string | null;
+          isSpecial: boolean;
+          isSundayQa: boolean;
         } => slot != null,
       )
       .sort((a, b) => a.minutes - b.minutes);
 
-    const running = allSlots.find((slot) => {
+    // Prefer the latest-starting open window so Special / Q&A win when
+    // join windows overlap an earlier regular slot.
+    const openSlots = allSlots.filter((slot) => {
       const openAt = slot.minutes - JOIN_EARLY_MINUTES;
       const closeAt = slot.minutes + slot.durationMinutes;
       return minutesNow >= openAt && minutesNow < closeAt;
     });
+    const running =
+      openSlots.length === 0
+        ? null
+        : openSlots.reduce((best, slot) =>
+            slot.minutes >= best.minutes ? slot : best,
+          );
 
     if (running) {
       return {
@@ -343,21 +419,31 @@ export class ScheduledClassesService implements OnModuleInit {
     await this.purgeExpiredClasses();
     const today = todayIsoDate();
     const todays = await this.listTodayRows();
+    const specialTimingId = await this.timings.getSpecialTimingId();
     const seen = new Set<string>();
     const sessions: {
       id: string;
       sessionTimingId: string;
       sessionTimeLabel: string;
+      isSpecial: boolean;
+      isSundayQa: boolean;
     }[] = [];
 
     for (const row of todays) {
       const key = row.sessionTimeLabel.trim().toLowerCase();
       if (!key || seen.has(key)) continue;
       seen.add(key);
+      const isSundayQa = Boolean(row.sessionTiming?.isSundayQa);
       sessions.push({
         id: row.id,
         sessionTimingId: row.sessionTimingId,
         sessionTimeLabel: row.sessionTimeLabel,
+        isSpecial: Boolean(
+          row.sessionTiming?.isSpecial ||
+            row.isSpecial ||
+            (specialTimingId && row.sessionTimingId === specialTimingId),
+        ),
+        isSundayQa,
       });
     }
 
@@ -372,6 +458,7 @@ export class ScheduledClassesService implements OnModuleInit {
     const today = todayIsoDate();
     return this.classes.find({
       where: { classDate: today },
+      relations: { sessionTiming: true },
       order: { sessionTimeLabel: 'ASC' },
     });
   }
@@ -387,7 +474,21 @@ export class ScheduledClassesService implements OnModuleInit {
       .execute();
   }
 
-  private toResponse(row: ScheduledClass) {
+  private async ensureIsSpecialColumn() {
+    try {
+      await this.classes.query(`
+        ALTER TABLE "scheduled_classes"
+        ADD COLUMN IF NOT EXISTS "isSpecial" boolean NOT NULL DEFAULT false
+      `);
+    } catch {
+      // Column may already exist via synchronize.
+    }
+  }
+
+  private toResponse(
+    row: ScheduledClass,
+    flags?: { isSpecial?: boolean; isSundayQa?: boolean },
+  ) {
     return {
       id: row.id,
       classDate: row.classDate,
@@ -395,6 +496,12 @@ export class ScheduledClassesService implements OnModuleInit {
       sessionTimingId: row.sessionTimingId,
       sessionTimeLabel: row.sessionTimeLabel,
       meetingUrl: row.meetingUrl,
+      isSpecial:
+        flags?.isSpecial ??
+        Boolean(row.sessionTiming?.isSpecial) ??
+        Boolean(row.isSpecial),
+      isSundayQa:
+        flags?.isSundayQa ?? Boolean(row.sessionTiming?.isSundayQa),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };

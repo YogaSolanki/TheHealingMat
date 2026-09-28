@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { AdminToast } from "@/components/admin-toast";
 import { ReloadButton } from "@/components/reload-button";
 import {
   ADMIN_TOKEN_KEY,
@@ -296,6 +297,10 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   );
   const [pendingSave, setPendingSave] = useState<PendingSave | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    variant: "error" | "success";
+  } | null>(null);
   const [profileSaved, setProfileSaved] = useState(false);
   const [membershipSavedId, setMembershipSavedId] = useState<string | null>(
     null,
@@ -314,6 +319,16 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         : "",
     [],
   );
+
+  function showError(message: string) {
+    setError(message);
+    setToast({ message, variant: "error" });
+  }
+
+  function showSuccess(message: string) {
+    setError(null);
+    setToast({ message, variant: "success" });
+  }
 
   const applyDetail = useCallback((next: AdminUserDetail) => {
     setDetail(next);
@@ -512,7 +527,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     const nextPassword = profileForm.password.trim();
     if (nextPassword || profileForm.confirmPassword.trim()) {
       if (nextPassword.length < 8) {
-        setError(
+        showError(
           "Password must be 8–72 characters and include uppercase, lowercase, and a number.",
         );
         return;
@@ -521,13 +536,13 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(nextPassword) ||
         nextPassword.length > 72
       ) {
-        setError(
+        showError(
           "Password must be 8–72 characters and include uppercase, lowercase, and a number.",
         );
         return;
       }
       if (nextPassword !== profileForm.confirmPassword.trim()) {
-        setError("Password and confirm password do not match.");
+        showError("Password and confirm password do not match.");
         return;
       }
     }
@@ -546,7 +561,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
     const planMonths = Number(form.planMonths);
     if (!Number.isInteger(planMonths) || planMonths < 1) {
-      setError("Plan months must be a whole number of at least 1.");
+      showError("Plan months must be a whole number of at least 1.");
       return;
     }
 
@@ -557,7 +572,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     if (!editing || savingNewMembership) return;
     const planMonths = Number(newMembershipForm.planMonths);
     if (!Number.isInteger(planMonths) || planMonths < 1) {
-      setError("Select a valid plan.");
+      showError("Select a valid plan.");
       return;
     }
     setPendingSave({ type: "create-membership", mode });
@@ -567,7 +582,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     if (!editing || savingMembershipId) return;
     const planMonths = Number(upgradeForm.planMonths);
     if (!Number.isInteger(planMonths) || planMonths < 1) {
-      setError("Select a valid plan.");
+      showError("Select a valid plan.");
       return;
     }
     const row = detail?.memberships.find((m) => m.id === membershipId);
@@ -610,10 +625,12 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         invalidateCached(DASHBOARD_CACHE_KEYS.users);
         invalidateCached(DASHBOARD_CACHE_KEYS.overview);
         setProfileSaved(true);
-        setEditing(false);
         setMembershipComposer(null);
+        showSuccess("Profile saved successfully.");
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Unable to save profile.");
+        showError(
+          err instanceof Error ? err.message : "Unable to save profile.",
+        );
       } finally {
         setSavingProfile(false);
       }
@@ -641,18 +658,19 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         invalidateCached(DASHBOARD_CACHE_KEYS.users);
         invalidateCached(DASHBOARD_CACHE_KEYS.overview);
         setMembershipCreated(true);
-        setMembershipActionMessage(
+        const successMessage =
           mode === "renew"
             ? "Renewal scheduled successfully."
-            : "Membership added successfully.",
-        );
+            : "Membership added successfully.";
+        setMembershipActionMessage(successMessage);
+        showSuccess(successMessage);
         setMembershipComposer(null);
         setNewMembershipForm(emptyNewMembershipForm(catalogPlans));
         const active =
           next.memberships.find((m) => m.status === "active") ?? null;
         setUpgradeForm(emptyUpgradeForm(active, catalogPlans));
       } catch (err) {
-        setError(
+        showError(
           err instanceof Error
             ? err.message
             : mode === "renew"
@@ -682,12 +700,13 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         invalidateCached(DASHBOARD_CACHE_KEYS.users);
         invalidateCached(DASHBOARD_CACHE_KEYS.overview);
         setMembershipCreated(true);
-        setMembershipActionMessage(
-          "Membership activated from payment successfully.",
-        );
+        const successMessage =
+          "Membership activated from payment successfully.";
+        setMembershipActionMessage(successMessage);
+        showSuccess(successMessage);
         setMembershipComposer(null);
       } catch (err) {
-        setError(
+        showError(
           err instanceof Error
             ? err.message
             : "Unable to activate membership from payment.",
@@ -703,7 +722,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       const membership = detail?.memberships.find((m) => m.id === membershipId);
       if (!membership) {
         setPendingSave(null);
-        setError("Membership not found.");
+        showError("Membership not found.");
         return;
       }
       const planMonths = Number(upgradeForm.planMonths);
@@ -735,11 +754,12 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         invalidateCached(DASHBOARD_CACHE_KEYS.users);
         invalidateCached(DASHBOARD_CACHE_KEYS.overview);
         setMembershipSavedId(membershipId);
-        setMembershipActionMessage(
+        const successMessage =
           membership.status === "scheduled"
             ? "Scheduled renew upgraded successfully."
-            : "Current membership upgraded successfully.",
-        );
+            : "Current membership upgraded successfully.";
+        setMembershipActionMessage(successMessage);
+        showSuccess(successMessage);
         setMembershipComposer(null);
         setUpgradeTargetId(null);
         setUpgradeForm(
@@ -749,7 +769,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           ),
         );
       } catch (err) {
-        setError(
+        showError(
           err instanceof Error ? err.message : "Unable to upgrade membership.",
         );
       } finally {
@@ -782,9 +802,10 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       invalidateCached(DASHBOARD_CACHE_KEYS.users);
       invalidateCached(DASHBOARD_CACHE_KEYS.overview);
       setMembershipSavedId(membershipId);
+      showSuccess("Membership saved successfully.");
       setMembershipComposer(null);
     } catch (err) {
-      setError(
+      showError(
         err instanceof Error ? err.message : "Unable to save membership.",
       );
     } finally {
@@ -900,6 +921,11 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
+      <AdminToast
+        message={toast?.message ?? null}
+        variant={toast?.variant ?? "success"}
+        onDismiss={() => setToast(null)}
+      />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link
@@ -1239,10 +1265,16 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                 disabled={fieldsLocked || !profileDirty}
                 className="inline-flex h-11 items-center justify-center rounded-xl bg-[#1f6b3a] px-5 text-sm font-bold text-white disabled:opacity-60"
               >
-                {savingProfile ? "Saving…" : "Save profile"}
+                {savingProfile
+                  ? "Saving…"
+                  : profileSaved && !profileDirty
+                    ? "Saved"
+                    : "Save changes"}
               </button>
-              {profileSaved ? (
-                <span className="text-sm font-medium text-[#1f6b3a]">Saved</span>
+              {profileSaved && !profileDirty ? (
+                <span className="text-sm font-medium text-[#1f6b3a]">
+                  Changes saved
+                </span>
               ) : null}
             </div>
           ) : null}
@@ -1984,11 +2016,17 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                       }
                       className="inline-flex h-11 items-center justify-center rounded-xl bg-[#1f6b3a] px-5 text-sm font-bold text-white disabled:opacity-60"
                     >
-                      {savingThis ? "Saving…" : "Save membership"}
+                      {savingThis
+                        ? "Saving…"
+                        : membershipSavedId === membership.id &&
+                            !membershipDirtyById[membership.id]
+                          ? "Saved"
+                          : "Save changes"}
                     </button>
-                    {membershipSavedId === membership.id ? (
+                    {membershipSavedId === membership.id &&
+                    !membershipDirtyById[membership.id] ? (
                       <span className="text-sm font-medium text-[#1f6b3a]">
-                        Saved
+                        Changes saved
                       </span>
                     ) : null}
                   </div>
@@ -2159,7 +2197,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                 disabled={confirmBusy}
                 className="h-11 rounded-xl bg-[#1f6b3a] px-4 text-sm font-semibold text-white transition hover:bg-[#185830] disabled:opacity-60"
               >
-                {confirmBusy ? "Saving…" : "Confirm save"}
+                {confirmBusy ? "Saving…" : "Save changes"}
               </button>
             </div>
           </div>

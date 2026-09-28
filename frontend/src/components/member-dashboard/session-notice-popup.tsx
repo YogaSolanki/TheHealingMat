@@ -9,6 +9,8 @@ type SessionNoticePopupProps = {
   open: boolean;
   message: string;
   onClose: () => void;
+  actionHref?: string;
+  actionLabel?: string;
 };
 
 const CLOSE_MS = 220;
@@ -58,6 +60,20 @@ function splitNotice(message: string) {
     };
   }
 
+  if (/membership has expired/i.test(trimmed) || /renew your plan/i.test(trimmed)) {
+    return {
+      title: "Membership expired",
+      body: trimmed,
+    };
+  }
+
+  if (/not active yet/i.test(trimmed) || /start a free trial or complete a membership/i.test(trimmed)) {
+    return {
+      title: "Session link not active",
+      body: trimmed,
+    };
+  }
+
   if (/please sign in/i.test(trimmed)) {
     return {
       title: "Sign in required",
@@ -82,6 +98,8 @@ export function SessionNoticePopup({
   open,
   message,
   onClose,
+  actionHref,
+  actionLabel,
 }: SessionNoticePopupProps) {
   const titleId = useId();
   const [mounted, setMounted] = useState(false);
@@ -136,6 +154,8 @@ export function SessionNoticePopup({
 
   if (!mounted || !rendered) return null;
 
+  const primaryLabel = actionLabel?.trim() || "Got it";
+
   return createPortal(
     <div
       className={`fixed inset-0 z-[210] flex items-center justify-center overflow-y-auto px-4 py-6 ${
@@ -176,14 +196,24 @@ export function SessionNoticePopup({
           </div>
         </div>
 
-        <div className="mt-5 flex justify-end">
-          <button
-            type="button"
-            onClick={handleClose}
-            className={`${memberPrimaryBtnSmClass} min-w-[108px] justify-center px-5 py-2.5 text-[13px]`}
-          >
-            Got it
-          </button>
+        <div className="mt-5 flex justify-end gap-2">
+          {actionHref?.trim() ? (
+            <a
+              href={actionHref.trim()}
+              className={`${memberPrimaryBtnSmClass} min-w-[108px] justify-center px-5 py-2.5 text-[13px]`}
+              onClick={handleClose}
+            >
+              {primaryLabel}
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={handleClose}
+              className={`${memberPrimaryBtnSmClass} min-w-[108px] justify-center px-5 py-2.5 text-[13px]`}
+            >
+              {primaryLabel}
+            </button>
+          )}
         </div>
       </div>
     </div>,

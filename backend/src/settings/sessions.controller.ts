@@ -2,16 +2,24 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
 import { ScheduledClassesService } from './scheduled-classes.service';
+import { ScheduledTopicsService } from './scheduled-topics.service';
 
 @Controller('sessions')
 export class SessionsController {
-  constructor(private readonly classes: ScheduledClassesService) {}
+  constructor(
+    private readonly classes: ScheduledClassesService,
+    private readonly topics: ScheduledTopicsService,
+  ) {}
 
   /** Session times scheduled for today (from Class Management). */
   @Roles(Role.User)
   @Get('today')
-  listToday() {
-    return this.classes.listToday();
+  async listToday() {
+    const [today, topics] = await Promise.all([
+      this.classes.listToday(),
+      this.topics.getTodayAndTomorrow(),
+    ]);
+    return { ...today, ...topics };
   }
 
   /**

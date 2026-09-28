@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useId, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { AdminConfirmDialog } from "@/components/admin-confirm-dialog";
 import { PanelLoader } from "@/components/panel-loader";
@@ -9,10 +10,14 @@ import {
   ADMIN_TOKEN_KEY,
   createAdminScheduledClass,
   deleteAdminScheduledClass,
+  deleteAdminScheduledTopic,
   listAdminScheduledClasses,
+  listAdminScheduledTopics,
   listAdminSessionTimings,
   updateAdminScheduledClass,
+  upsertAdminScheduledTopic,
   type AdminScheduledClass,
+  type AdminScheduledTopic,
   type AdminSessionTiming,
 } from "@/lib/api";
 import {
@@ -32,6 +37,7 @@ const SCHEDULE_WINDOW_DAYS = 7;
 type ClassesCachePayload = {
   timings: AdminSessionTiming[];
   classes: AdminScheduledClass[];
+  topics: AdminScheduledTopic[];
   cachedFrom: string;
 };
 
@@ -88,6 +94,12 @@ function formatDisplayDate(isoDate: string) {
   });
 }
 
+function isSundayIso(isoDate: string) {
+  const date = parseIsoDate(isoDate);
+  if (!date) return false;
+  return date.getDay() === 0;
+}
+
 function buildNextSevenDays(fromIso = todayIso()) {
   return Array.from({ length: SCHEDULE_WINDOW_DAYS }, (_, index) => {
     const iso = shiftIsoDate(fromIso, index);
@@ -103,6 +115,7 @@ function buildNextSevenDays(fromIso = todayIso()) {
 }
 
 export function ClassManagementCard() {
+  const scheduleFormTitleId = useId();
   const cacheKey = DASHBOARD_CACHE_KEYS.classes;
   const cached = getCached<ClassesCachePayload>(cacheKey);
   const [timings, setTimings] = useState<AdminSessionTiming[]>(
@@ -111,16 +124,24 @@ export function ClassManagementCard() {
   const [classes, setClasses] = useState<AdminScheduledClass[]>(
     () => cached?.classes ?? [],
   );
+  const [topics, setTopics] = useState<AdminScheduledTopic[]>(
+    () => cached?.topics ?? [],
+  );
   const [selectedDate, setSelectedDate] = useState(todayIso);
   const [sessionTimingId, setSessionTimingId] = useState("");
   const [meetingUrl, setMeetingUrl] = useState("");
+  const [draftTopic, setDraftTopic] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [formMounted, setFormMounted] = useState(false);
   const [loading, setLoading] = useState(() => !hasCached(cacheKey));
   const [saving, setSaving] = useState(false);
+  const [savingTopic, setSavingTopic] = useState(false);
+  const [topicSaved, setTopicSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
+  const [confirmClearTopicOpen, setConfirmClearTopicOpen] = useState(false);
 
   const token = useMemo(
     () =>
@@ -129,6 +150,27 @@ export function ClassManagementCard() {
         : "",
     [],
   );
+
+  useEffect(() => {
+    setFormMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!showForm) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && !saving) resetForm(true);
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [showForm, saving]);
 
   const [weekDays, setWeekDays] = useState(() => buildNextSevenDays());
   const maxDate = weekDays[weekDays.length - 1]?.iso ?? todayIso();
@@ -148,6 +190,59 @@ export function ClassManagementCard() {
     () => weekDays.find((day) => day.iso === selectedDate) ?? weekDays[0],
     [weekDays, selectedDate],
   );
+  const selectedIsSunday = isSundayIso(selectedDate);
+
+  /** Mon–Sat: regular + special. Sunday: Q&A timings only. */
+  const dayTimings = useMemo(
+    () =>
+      activeTimings.filter((row) =>
+        selectedIsSunday ? Boolean(row.isSundayQa) : !row.isSundayQa,
+      ),
+    [activeTimings, selectedIsSunday],
+  );
+
+  const specialTiming = useMemo(
+    () => dayTimings.find((row) => row.isSpecial) ?? null,
+    [dayTimings],
+  );
+
+  function timingsForDate(iso: string) {
+    const sunday = isSundayIso(iso);
+    return activeTimings.filter((row) =>
+      sunday ? Boolean(row.isSundayQa) : !row.isSundayQa,
+    );
+  }
+
+  const topicByDate = useMemo(() => {
+    const map = new Map<string, AdminScheduledTopic>();
+    for (const row of topics) map.set(row.topicDate, row);
+    return map;
+  }, [topics]);
+
+  const selectedTopic = topicByDate.get(selectedDate) ?? null;
+
+  const topicDirty = useMemo(() => {
+    const next = draftTopic.trim();
+    const current = selectedTopic?.topic.trim() ?? "";
+    return next.length > 0 && next !== current;
+  }, [draftTopic, selectedTopic?.topic]);
+
+  const editingSlot = useMemo(
+    () =>
+      editingId ? (classes.find((row) => row.id === editingId) ?? null) : null,
+    [classes, editingId],
+  );
+
+  const slotDirty = useMemo(() => {
+    const url = meetingUrl.trim();
+    if (!url || !sessionTimingId) return false;
+    if (!editingSlot) return true;
+    return (
+      editingSlot.sessionTimingId !== sessionTimingId ||
+      editingSlot.meetingUrl.trim() !== url ||
+      editingSlot.classDate !== selectedDate
+    );
+  }, [editingSlot, meetingUrl, selectedDate, sessionTimingId]);
 
   const isSlotTaken = useCallback(
     (date: string, timingId: string, ignoreClassId?: string | null) => {
@@ -162,7 +257,7 @@ export function ClassManagementCard() {
   );
 
   const selectedDaySlots = useMemo(() => {
-    return activeTimings.map((timing) => {
+    return dayTimings.map((timing) => {
       const scheduled =
         classes.find(
           (row) =>
@@ -171,7 +266,7 @@ export function ClassManagementCard() {
         ) ?? null;
       return { timing, scheduled };
     });
-  }, [activeTimings, classes, selectedDate]);
+  }, [dayTimings, classes, selectedDate]);
 
   const scheduledOnSelectedDay = useMemo(
     () =>
@@ -205,6 +300,7 @@ export function ClassManagementCard() {
       setWeekDays(buildNextSevenDays(from));
       setTimings(payload.timings);
       setClasses(payload.classes);
+      setTopics(payload.topics);
       setCached(cacheKey, payload);
       setSelectedDate((current) => (current < from ? from : current));
       const firstActive = payload.timings.find((row) => row.active);
@@ -229,8 +325,11 @@ export function ClassManagementCard() {
 
       if (!force) {
         const hit = getCached<ClassesCachePayload>(cacheKey);
-        // Reuse cache only for the same calendar day window.
-        if (hit && hit.cachedFrom === from) {
+        if (
+          hit &&
+          hit.cachedFrom === from &&
+          Array.isArray(hit.topics)
+        ) {
           applyPayload(hit);
           setLoading(false);
           setError(null);
@@ -241,9 +340,10 @@ export function ClassManagementCard() {
       setLoading(true);
       setError(null);
       try {
-        const [nextTimings, nextClasses] = await Promise.all([
+        const [nextTimings, nextClasses, nextTopics] = await Promise.all([
           listAdminSessionTimings(token),
           listAdminScheduledClasses(token, { from }),
+          listAdminScheduledTopics(token, { from }),
         ]);
         const windowEnd = shiftIsoDate(from, SCHEDULE_WINDOW_DAYS - 1);
         const payload: ClassesCachePayload = {
@@ -251,9 +351,13 @@ export function ClassManagementCard() {
           classes: nextClasses.filter(
             (row) => row.classDate >= from && row.classDate <= windowEnd,
           ),
+          topics: nextTopics.filter(
+            (row) => row.topicDate >= from && row.topicDate <= windowEnd,
+          ),
           cachedFrom: from,
         };
         applyPayload(payload);
+        setTopicSaved(false);
       } catch (err: unknown) {
         setError(
           err instanceof Error
@@ -271,25 +375,43 @@ export function ClassManagementCard() {
     void load();
   }, [load]);
 
-  function syncClassesCache(nextClasses: AdminScheduledClass[]) {
-    setClasses(nextClasses);
+  useEffect(() => {
+    setDraftTopic(selectedTopic?.topic ?? "");
+    setTopicSaved(false);
+  }, [selectedDate, selectedTopic?.id, selectedTopic?.topic]);
+
+  function writeCache(
+    nextClasses: AdminScheduledClass[],
+    nextTopics: AdminScheduledTopic[],
+  ) {
     setCached(cacheKey, {
       timings,
       classes: nextClasses,
+      topics: nextTopics,
       cachedFrom: todayIso(),
     } satisfies ClassesCachePayload);
+  }
+
+  function syncClassesCache(nextClasses: AdminScheduledClass[]) {
+    setClasses(nextClasses);
+    writeCache(nextClasses, topics);
+  }
+
+  function syncTopicsCache(nextTopics: AdminScheduledTopic[]) {
+    setTopics(nextTopics);
+    writeCache(classes, nextTopics);
   }
 
   useEffect(() => {
     if (!sessionTimingId || !selectedDate || !showForm) return;
     if (!isSlotTaken(selectedDate, sessionTimingId, editingId)) return;
-    const firstFree = activeTimings.find(
+    const firstFree = dayTimings.find(
       (timing) => !isSlotTaken(selectedDate, timing.id, editingId),
     );
     setSessionTimingId(firstFree?.id ?? "");
   }, [
     selectedDate,
-    activeTimings,
+    dayTimings,
     editingId,
     isSlotTaken,
     sessionTimingId,
@@ -300,9 +422,10 @@ export function ClassManagementCard() {
     setEditingId(null);
     if (!keepDay) setSelectedDate(todayIso());
     setMeetingUrl("");
-    setSessionTimingId(activeTimings[0]?.id ?? "");
+    setSessionTimingId(dayTimings[0]?.id ?? "");
     setShowForm(false);
     setSaved(false);
+    setError(null);
   }
 
   function selectDay(iso: string) {
@@ -312,10 +435,11 @@ export function ClassManagementCard() {
     setShowForm(false);
     setSaved(false);
     setError(null);
-    const firstFree = activeTimings.find(
+    const forDay = timingsForDate(iso);
+    const firstFree = forDay.find(
       (timing) => !isSlotTaken(iso, timing.id, null),
     );
-    setSessionTimingId(firstFree?.id ?? activeTimings[0]?.id ?? "");
+    setSessionTimingId(firstFree?.id ?? forDay[0]?.id ?? "");
   }
 
   function startSchedule(timingId?: string) {
@@ -328,7 +452,7 @@ export function ClassManagementCard() {
       setSessionTimingId(timingId);
       return;
     }
-    const firstFree = activeTimings.find(
+    const firstFree = dayTimings.find(
       (timing) => !isSlotTaken(selectedDate, timing.id, null),
     );
     setSessionTimingId(firstFree?.id ?? "");
@@ -410,6 +534,65 @@ export function ClassManagementCard() {
     }
   }
 
+  async function onSaveTopic(event: FormEvent) {
+    event.preventDefault();
+    if (!token || savingTopic) return;
+
+    const topic = draftTopic.trim();
+    if (!topic) {
+      setError("Enter a topic for this day.");
+      return;
+    }
+    if (selectedDate < todayIso() || selectedDate > maxDate) {
+      setError("Pick a date within the next 7 days.");
+      return;
+    }
+
+    setSavingTopic(true);
+    setError(null);
+    setTopicSaved(false);
+    try {
+      const savedTopic = await upsertAdminScheduledTopic(token, {
+        topicDate: selectedDate,
+        topic,
+      });
+      const without = topics.filter((row) => row.topicDate !== selectedDate);
+      syncTopicsCache(
+        [...without, savedTopic].sort((a, b) =>
+          a.topicDate.localeCompare(b.topicDate),
+        ),
+      );
+      setDraftTopic(savedTopic.topic);
+      setTopicSaved(true);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Unable to save daily topic.",
+      );
+    } finally {
+      setSavingTopic(false);
+    }
+  }
+
+  async function confirmClearTopic() {
+    if (!token || !selectedTopic || savingTopic) return;
+    setSavingTopic(true);
+    setError(null);
+    setTopicSaved(false);
+    try {
+      await deleteAdminScheduledTopic(token, selectedTopic.id);
+      syncTopicsCache(topics.filter((row) => row.id !== selectedTopic.id));
+      setDraftTopic("");
+      setConfirmClearTopicOpen(false);
+      setTopicSaved(true);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Unable to clear daily topic.",
+      );
+    } finally {
+      setSavingTopic(false);
+    }
+  }
+
   async function onRemoveSlot() {
     if (!token || !editingId || saving) return;
     setConfirmRemoveOpen(true);
@@ -453,6 +636,17 @@ export function ClassManagementCard() {
         }}
         onConfirm={() => void confirmRemoveSlot()}
       />
+      <AdminConfirmDialog
+        open={confirmClearTopicOpen}
+        title="Clear daily topic?"
+        description={`Clear the topic for ${selectedDay?.displayDate ?? selectedDate}? Members will see “Coming soon” for that day.`}
+        confirmLabel="Clear topic"
+        busy={savingTopic}
+        onCancel={() => {
+          if (!savingTopic) setConfirmClearTopicOpen(false);
+        }}
+        onConfirm={() => void confirmClearTopic()}
+      />
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -460,12 +654,13 @@ export function ClassManagementCard() {
             Class Management
           </h2>
           <p className="mt-0.5 text-xs text-[#8a978c]">
-            Rolling next 7 days from today — past days drop off automatically
+            Schedule classes and daily topics for the next 7 days — past days
+            drop off automatically
           </p>
         </div>
         <ReloadButton
           onClick={() => void load({ force: true })}
-          disabled={loading || saving}
+          disabled={loading || saving || savingTopic}
           label="Reload class schedule"
         />
       </div>
@@ -482,84 +677,195 @@ export function ClassManagementCard() {
         </div>
       ) : (
         <>
-          {activeTimings.length === 0 ? (
-            <p className="mt-4 rounded-xl bg-[#fff8f0] px-3.5 py-3 text-sm text-[#8a5a2f]">
-              No active session times. Add them in{" "}
-              <Link
-                href="/dashboard/settings"
-                className="font-semibold underline underline-offset-2"
+          {/* Horizontal day picker — shared for classes + topics */}
+          <div className="mt-4 -mx-1 overflow-x-auto px-1 pb-1">
+            <div className="flex min-w-max gap-2">
+              {weekDays.map((day) => {
+                const selected = day.iso === selectedDate;
+                const count = dayCounts.get(day.iso) ?? 0;
+                const hasTopic = topicByDate.has(day.iso);
+                return (
+                  <button
+                    key={day.iso}
+                    type="button"
+                    onClick={() => selectDay(day.iso)}
+                    disabled={saving || savingTopic}
+                    className={`flex w-[4.75rem] flex-col items-center rounded-2xl border px-2 py-2.5 transition disabled:opacity-60 ${
+                      selected
+                        ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
+                        : "border-[#e2e8df] bg-white text-[#243028] hover:border-[#1f6b3a]/40 hover:bg-[#f3faf5]"
+                    }`}
+                  >
+                    <span
+                      className={`text-[11px] font-semibold uppercase tracking-wide ${
+                        selected ? "text-white/80" : "text-[#8a978c]"
+                      }`}
+                    >
+                      {day.weekdayShort}
+                    </span>
+                    <span className="mt-0.5 text-lg font-bold leading-none">
+                      {day.dayNumber}
+                    </span>
+                    <span
+                      className={`mt-1.5 text-[10px] font-medium ${
+                        selected ? "text-white/85" : "text-[#5f6f64]"
+                      }`}
+                    >
+                      {count > 0
+                        ? `${count} class${count === 1 ? "" : "es"}`
+                        : day.isToday
+                          ? "Today"
+                          : "Open"}
+                    </span>
+                    <span
+                      className={`mt-0.5 text-[9px] font-semibold uppercase tracking-wide ${
+                        selected
+                          ? hasTopic
+                            ? "text-white/90"
+                            : "text-white/55"
+                          : hasTopic
+                            ? "text-[#1f6b3a]"
+                            : "text-[#b0bbb2]"
+                      }`}
+                    >
+                      {hasTopic ? "Topic" : "No topic"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Selected day header */}
+          <div className="mt-5">
+            <h3 className="text-sm font-semibold text-[#243028]">
+              {selectedDay?.weekdayLong}
+              {selectedDay?.isToday ? " · Today" : null}
+            </h3>
+            <p className="mt-0.5 text-xs text-[#8a978c]">
+              {selectedDay?.displayDate} · {scheduledOnSelectedDay.length}{" "}
+              scheduled / {dayTimings.length} times
+              {selectedTopic ? " · topic set" : " · no topic yet"}
+            </p>
+          </div>
+
+          {/* Daily topic for selected day */}
+          <form
+            onSubmit={onSaveTopic}
+            className="mt-4 space-y-3 rounded-xl border border-[#e6ebe3] bg-[#f7faf7] p-4"
+          >
+            <div>
+              <h4 className="text-sm font-semibold text-[#243028]">
+                Daily topic
+              </h4>
+              <p className="mt-0.5 text-xs text-[#8a978c]">
+                Shown on the member dashboard as Today&apos;s or Tomorrow&apos;s
+                Topic when this date arrives.
+              </p>
+            </div>
+            <label className={labelClass}>
+              Topic for {selectedDay?.weekdayLong}
+              <input
+                type="text"
+                maxLength={200}
+                value={draftTopic}
+                onChange={(event) => {
+                  setDraftTopic(event.target.value);
+                  setTopicSaved(false);
+                }}
+                className={inputClass}
+                disabled={savingTopic}
+                placeholder="e.g. Back Care & Spine Strength"
+              />
+            </label>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="submit"
+                disabled={savingTopic || !topicDirty}
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-[#1f6b3a] px-5 text-sm font-bold text-white disabled:opacity-60"
               >
-                Settings
-              </Link>{" "}
-              first.
+                {savingTopic
+                  ? "Saving…"
+                  : selectedTopic
+                    ? "Update topic"
+                    : "Save topic"}
+              </button>
+              {selectedTopic ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmClearTopicOpen(true)}
+                  disabled={savingTopic}
+                  className="inline-flex h-11 items-center justify-center rounded-xl border border-[#ead9d9] bg-white px-4 text-sm font-semibold text-[#8a2f2f] hover:bg-[#faf4f4] disabled:opacity-60"
+                >
+                  Clear topic
+                </button>
+              ) : null}
+              {topicSaved ? (
+                <span className="text-sm font-medium text-[#1f6b3a]">Saved</span>
+              ) : null}
+            </div>
+          </form>
+
+          {dayTimings.length === 0 ? (
+            <p className="mt-4 rounded-xl bg-[#fff8f0] px-3.5 py-3 text-sm text-[#8a5a2f]">
+              {selectedIsSunday ? (
+                <>
+                  No Sunday Q&amp;A times yet. Add times in{" "}
+                  <Link
+                    href="/dashboard/settings"
+                    className="font-semibold underline underline-offset-2"
+                  >
+                    Settings
+                  </Link>{" "}
+                  and check <span className="font-semibold">Sunday Q&amp;A</span>
+                  .
+                </>
+              ) : (
+                <>
+                  No active session times. Add them in{" "}
+                  <Link
+                    href="/dashboard/settings"
+                    className="font-semibold underline underline-offset-2"
+                  >
+                    Settings
+                  </Link>{" "}
+                  to schedule class links for this day.
+                </>
+              )}
             </p>
           ) : (
             <>
-              {/* Horizontal day picker */}
-              <div className="mt-4 -mx-1 overflow-x-auto px-1 pb-1">
-                <div className="flex min-w-max gap-2">
-                  {weekDays.map((day) => {
-                    const selected = day.iso === selectedDate;
-                    const count = dayCounts.get(day.iso) ?? 0;
-                    return (
-                      <button
-                        key={day.iso}
-                        type="button"
-                        onClick={() => selectDay(day.iso)}
-                        disabled={saving}
-                        className={`flex w-[4.75rem] flex-col items-center rounded-2xl border px-2 py-2.5 transition disabled:opacity-60 ${
-                          selected
-                            ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
-                            : "border-[#e2e8df] bg-white text-[#243028] hover:border-[#1f6b3a]/40 hover:bg-[#f3faf5]"
-                        }`}
-                      >
-                        <span
-                          className={`text-[11px] font-semibold uppercase tracking-wide ${
-                            selected ? "text-white/80" : "text-[#8a978c]"
-                          }`}
-                        >
-                          {day.weekdayShort}
-                        </span>
-                        <span className="mt-0.5 text-lg font-bold leading-none">
-                          {day.dayNumber}
-                        </span>
-                        <span
-                          className={`mt-1.5 text-[10px] font-medium ${
-                            selected ? "text-white/85" : "text-[#5f6f64]"
-                          }`}
-                        >
-                          {day.isToday
-                            ? count > 0
-                              ? `${count} set`
-                              : "Today"
-                            : count > 0
-                              ? `${count} set`
-                              : "None"}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Selected day header + actions */}
-              <div className="mt-5 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-semibold text-[#243028]">
-                    {selectedDay?.weekdayLong}
-                  </h3>
-                  <p className="mt-0.5 text-xs text-[#8a978c]">
-                    {selectedDay?.displayDate} ·{" "}
-                    {scheduledOnSelectedDay.length} scheduled /{" "}
-                    {activeTimings.length} times
+              {/*Slots for selected day */}
+              <div className="mt-4 space-y-2">
+                <h4 className="text-sm font-semibold text-[#243028]">
+                  {selectedIsSunday ? "Q&A slots" : "Class slots"}
+                </h4>
+                {selectedIsSunday ? (
+                  <p className="text-xs text-[#8a978c]">
+                    Sunday only shows Q&amp;A times from Settings. Regular and
+                    Special slots are Mon–Sat.
                   </p>
-                </div>
-              </div>
-
-              {/* Slots for selected day */}
-              <div className="mt-3 space-y-2">
-                {selectedDaySlots.map(({ timing, scheduled }) =>
-                  scheduled ? (
+                ) : specialTiming ? (
+                  <p className="text-xs text-[#8a978c]">
+                    Special slot is{" "}
+                    <span className="font-semibold text-[#8a5a2f]">
+                      {specialTiming.label}
+                    </span>{" "}
+                    — schedule it on this day to show Special Session.
+                  </p>
+                ) : (
+                  <p className="text-xs text-[#8a5a2f]">
+                    No special slot configured. Set the time in Settings →
+                    Special session timing.
+                  </p>
+                )}
+                {selectedDaySlots.map(({ timing, scheduled }) => {
+                  const isSpecialSlot =
+                    Boolean(timing.isSpecial) || Boolean(scheduled?.isSpecial);
+                  const isSundayQaSlot =
+                    Boolean(timing.isSundayQa) ||
+                    Boolean(scheduled?.isSundayQa);
+                  return scheduled ? (
                     <div
                       key={timing.id}
                       className="flex flex-wrap items-center gap-3 rounded-xl border border-[#1f6b3a]/30 bg-[#f3faf5] px-3.5 py-3"
@@ -575,6 +881,15 @@ export function ClassManagementCard() {
                           <span className="rounded-md bg-[#1f6b3a] px-2 py-0.5 text-[11px] font-semibold text-white">
                             Scheduled
                           </span>
+                          {isSundayQaSlot ? (
+                            <span className="rounded-md bg-[#2f6b8a] px-2 py-0.5 text-[11px] font-semibold text-white">
+                              Q&amp;A
+                            </span>
+                          ) : isSpecialSlot ? (
+                            <span className="rounded-md bg-[#C58A1A] px-2 py-0.5 text-[11px] font-semibold text-white">
+                              Special
+                            </span>
+                          ) : null}
                         </div>
                         <p className="mt-0.5 truncate text-xs text-[#5f6f64]">
                           Class link ready ·{" "}
@@ -615,6 +930,15 @@ export function ClassManagementCard() {
                           <span className="rounded-md bg-[#ecefec] px-2 py-0.5 text-[11px] font-medium text-[#6b7468]">
                             Not scheduled
                           </span>
+                          {timing.isSundayQa ? (
+                            <span className="rounded-md bg-[#e8f3f8] px-2 py-0.5 text-[11px] font-semibold text-[#2f6b8a]">
+                              Q&amp;A slot
+                            </span>
+                          ) : timing.isSpecial ? (
+                            <span className="rounded-md bg-[#fff4e8] px-2 py-0.5 text-[11px] font-semibold text-[#8a5a2f]">
+                              Special slot
+                            </span>
+                          ) : null}
                         </div>
                         <p className="mt-0.5 text-xs text-[#8a978c]">
                           No class link for this time yet
@@ -629,112 +953,9 @@ export function ClassManagementCard() {
                         Schedule
                       </button>
                     </div>
-                  ),
-                )}
+                  );
+                })}
               </div>
-
-              {/* Add / edit form for selected day */}
-              {showForm ? (
-                <form
-                  onSubmit={onSubmit}
-                  className="mt-4 rounded-xl border border-[#1f6b3a]/20 bg-[#f3faf5] p-4"
-                >
-                  <h4 className="text-sm font-semibold text-[#243028]">
-                    {editingId
-                      ? `Edit slot · ${selectedDay?.weekdayLong}`
-                      : `Schedule slot · ${selectedDay?.weekdayLong}`}
-                  </h4>
-                  <p className="mt-0.5 text-xs text-[#8a978c]">
-                    {selectedDay?.displayDate}
-                  </p>
-                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                    <label className={labelClass}>
-                      Session time
-                      <select
-                        required
-                        value={sessionTimingId}
-                        onChange={(event) => {
-                          setSessionTimingId(event.target.value);
-                          setSaved(false);
-                        }}
-                        className={inputClass}
-                        disabled={saving}
-                      >
-                        {activeTimings.map((timing) => {
-                          const taken = isSlotTaken(
-                            selectedDate,
-                            timing.id,
-                            editingId,
-                          );
-                          return (
-                            <option
-                              key={timing.id}
-                              value={timing.id}
-                              disabled={taken}
-                            >
-                              {timing.label}
-                              {taken ? " — already scheduled" : ""}
-                            </option>
-                          );
-                        })}
-                      </select>
-                      {selectedSlotTaken ? (
-                        <span className="mt-1 block text-xs font-normal text-[#8a2f2f]">
-                          That slot is already booked. Pick another time.
-                        </span>
-                      ) : null}
-                    </label>
-                    <label className={labelClass}>
-                      Class link
-                      <input
-                        type="url"
-                        required
-                        value={meetingUrl}
-                        onChange={(event) => {
-                          setMeetingUrl(event.target.value);
-                          setSaved(false);
-                        }}
-                        placeholder="https://zoom.us/j/…"
-                        className={inputClass}
-                        disabled={saving}
-                      />
-                    </label>
-                  </div>
-                  <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <button
-                      type="submit"
-                      disabled={
-                        saving || selectedSlotTaken || !sessionTimingId
-                      }
-                      className="inline-flex h-11 items-center justify-center rounded-xl bg-[#1f6b3a] px-5 text-sm font-bold text-white disabled:opacity-60"
-                    >
-                      {saving
-                        ? "Saving…"
-                        : editingId
-                          ? "Update slot"
-                          : "Save slot"}
-                    </button>
-                    {editingId ? (
-                      <button
-                        type="button"
-                        onClick={() => void onRemoveSlot()}
-                        disabled={saving}
-                        className="inline-flex h-11 items-center justify-center rounded-xl border border-[#ead9d9] bg-white px-4 text-sm font-semibold text-[#8a2f2f] hover:bg-[#faf4f4] disabled:opacity-60"
-                      >
-                        Remove slot
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={() => resetForm(true)}
-                      disabled={saving}
-                      className="inline-flex h-11 items-center justify-center rounded-xl border border-[#d7e0d6] bg-white px-4 text-sm font-semibold text-[#3d4a3c]"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              ) : null}
 
               {saved && !showForm ? (
                 <p className="mt-3 text-sm font-medium text-[#1f6b3a]">Saved</p>
@@ -743,6 +964,161 @@ export function ClassManagementCard() {
           )}
         </>
       )}
+
+      {formMounted && showForm
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[230] flex items-center justify-center px-4 py-6"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={scheduleFormTitleId}
+            >
+              <button
+                type="button"
+                aria-label="Dismiss"
+                className="absolute inset-0 bg-[#1a2e22]/40 backdrop-blur-[1px]"
+                onClick={() => {
+                  if (!saving) resetForm(true);
+                }}
+              />
+
+              <form
+                onSubmit={onSubmit}
+                className="relative z-10 w-full max-w-[680px] rounded-[20px] border border-[#e6ebe3] bg-white px-5 pt-5 pb-5 shadow-[0_24px_60px_rgba(31,107,58,0.18)] sm:px-7 sm:pt-6 sm:pb-6"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2
+                    id={scheduleFormTitleId}
+                    className="text-[16px] font-bold leading-snug text-[#243028] sm:text-[17px]"
+                  >
+                    {editingId
+                      ? `Edit slot · ${selectedDay?.weekdayLong}`
+                      : `Schedule slot · ${selectedDay?.weekdayLong}`}
+                  </h2>
+                  {dayTimings.find((row) => row.id === sessionTimingId)
+                    ?.isSundayQa ? (
+                    <span className="rounded-md bg-[#2f6b8a] px-2 py-0.5 text-[11px] font-semibold text-white">
+                      Q&amp;A
+                    </span>
+                  ) : dayTimings.find((row) => row.id === sessionTimingId)
+                      ?.isSpecial ? (
+                    <span className="rounded-md bg-[#C58A1A] px-2 py-0.5 text-[11px] font-semibold text-white">
+                      Special
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-1 text-[13px] text-[#8a978c]">
+                  {selectedDay?.displayDate}
+                </p>
+
+                {error ? (
+                  <p className="mt-3 rounded-xl bg-[#fdecec] px-3.5 py-2.5 text-sm text-[#8a2f2f]">
+                    {error}
+                  </p>
+                ) : null}
+
+                <div className="mt-4 space-y-4">
+                  <label className={labelClass}>
+                    Session time
+                    <select
+                      required
+                      value={sessionTimingId}
+                      onChange={(event) => {
+                        setSessionTimingId(event.target.value);
+                        setSaved(false);
+                        setError(null);
+                      }}
+                      className={inputClass}
+                      disabled={saving}
+                    >
+                      {dayTimings.map((timing) => {
+                        const taken = isSlotTaken(
+                          selectedDate,
+                          timing.id,
+                          editingId,
+                        );
+                        return (
+                          <option
+                            key={timing.id}
+                            value={timing.id}
+                            disabled={taken}
+                          >
+                            {timing.label}
+                            {timing.isSundayQa
+                              ? " · Q&A"
+                              : timing.isSpecial
+                                ? " · Special"
+                                : ""}
+                            {taken ? " — already scheduled" : ""}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    {selectedSlotTaken ? (
+                      <span className="mt-1 block text-xs font-normal text-[#8a2f2f]">
+                        That slot is already booked. Pick another time.
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className={labelClass}>
+                    Class link
+                    <input
+                      type="url"
+                      required
+                      value={meetingUrl}
+                      onChange={(event) => {
+                        setMeetingUrl(event.target.value);
+                        setSaved(false);
+                        setError(null);
+                      }}
+                      placeholder="https://zoom.us/j/…"
+                      className={inputClass}
+                      disabled={saving}
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-5 flex flex-wrap items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => resetForm(true)}
+                    disabled={saving}
+                    className="inline-flex h-10 items-center justify-center rounded-xl border border-[#d7e0d6] bg-white px-4 text-sm font-semibold text-[#3d4a3c] disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                  {editingId ? (
+                    <button
+                      type="button"
+                      onClick={() => void onRemoveSlot()}
+                      disabled={saving}
+                      className="inline-flex h-10 items-center justify-center rounded-xl border border-[#ead9d9] bg-white px-4 text-sm font-semibold text-[#8a2f2f] hover:bg-[#faf4f4] disabled:opacity-60"
+                    >
+                      Remove slot
+                    </button>
+                  ) : null}
+                  <button
+                    type="submit"
+                    disabled={
+                      saving ||
+                      selectedSlotTaken ||
+                      !sessionTimingId ||
+                      !slotDirty
+                    }
+                    className="inline-flex h-10 items-center justify-center rounded-xl bg-[#1f6b3a] px-4 text-sm font-bold text-white hover:bg-[#195a30] disabled:opacity-60"
+                  >
+                    {saving
+                      ? "Saving…"
+                      : editingId
+                        ? "Update slot"
+                        : "Save slot"}
+                  </button>
+                </div>
+              </form>
+            </div>,
+            document.body,
+          )
+        : null}
     </section>
   );
 }

@@ -51,38 +51,58 @@ function isSpecialMinutes(minutes: number) {
   return hour >= 11 && hour < 12;
 }
 
-function durationForMinutes(minutes: number) {
-  return isSpecialMinutes(minutes)
-    ? SPECIAL_SESSION_DURATION_MINUTES
-    : SESSION_DURATION_MINUTES;
-}
-
 /** Split admin timings into morning / special / evening for dashboard layout. */
-export function splitSessionLabels(labels: readonly string[]) {
+export function splitSessionLabels(
+  labels: readonly string[],
+  options?: { specialLabels?: ReadonlySet<string> | readonly string[] },
+) {
   const morning: string[] = [];
   const special: string[] = [];
   const evening: string[] = [];
+  const specialSet = options?.specialLabels
+    ? options.specialLabels instanceof Set
+      ? options.specialLabels
+      : new Set(
+          [...options.specialLabels].map((label) =>
+            label.trim().toLowerCase(),
+          ),
+        )
+    : null;
 
   for (const label of labels) {
     const minutes = parseSlotLabel(label);
     if (minutes == null) continue;
+    const isMarkedSpecial =
+      specialSet?.has(label.trim().toLowerCase()) === true;
+    if (isMarkedSpecial) {
+      special.push(label);
+      continue;
+    }
     if (minutes >= 12 * 60) evening.push(label);
-    else if (isSpecialMinutes(minutes)) special.push(label);
     else morning.push(label);
   }
 
   return { morning, special, evening };
 }
 
-function toSlots(labels: readonly string[]): SessionSlot[] {
+function toSlots(
+  labels: readonly string[],
+  specialLabels?: ReadonlySet<string>,
+): SessionSlot[] {
   return labels
     .map((label) => {
       const minutes = parseSlotLabel(label);
       if (minutes == null) return null;
+      // specialLabels covers Mon–Sat Special Session and Sunday Q&A flags.
+      const isSpecialOrQa =
+        specialLabels?.has(label.trim().toLowerCase()) === true ||
+        isSpecialMinutes(minutes);
       return {
         label,
         minutes,
-        durationMinutes: durationForMinutes(minutes),
+        durationMinutes: isSpecialOrQa
+          ? SPECIAL_SESSION_DURATION_MINUTES
+          : SESSION_DURATION_MINUTES,
       };
     })
     .filter((slot): slot is SessionSlot => slot != null)
@@ -102,12 +122,13 @@ function slotsForDate(
   date: Date,
   kind: SessionAccessKind,
   labels: readonly string[],
+  specialLabels?: ReadonlySet<string>,
 ) {
   void kind;
   void date;
   // Admin Session timings are the single source of truth for every joinable slot
   // (weekday, Sunday, and trial).
-  return toSlots(labels);
+  return toSlots(labels, specialLabels);
 }
 
 /** Minutes since midnight in Asia/Kolkata. */
@@ -147,17 +168,34 @@ function joinWindow(slot: SessionSlot) {
   };
 }
 
+/**
+ * Is a class joinable right now?
+ *
+ * Always evaluated in Asia/Kolkata (IST) — never the viewer's local clock.
+ * London 2:00 PM and Delhi 7:30 PM are the same moment; if that IST slot is
+ * live, every member worldwide can join. Display may show local times; join
+ * windows do not.
+ */
 export function findRunningSession(
   now = new Date(),
   kind: SessionAccessKind = "member",
+  /** IST labels from Class Management cache / API (not local-converted). */
   labels: readonly string[] = FALLBACK_SESSION_LABELS,
+  specialLabels?: ReadonlySet<string>,
 ) {
+  // currentMinutes() is always Asia/Kolkata wall-clock.
   const minutesNow = currentMinutes(now);
-  return (
-    slotsForDate(now, kind, labels).find((slot) => {
+  // Include every scheduled label (regular, Special, Sunday Q&A). When join
+  // windows overlap, prefer the latest-starting slot so Special / Q&A win.
+  const open = slotsForDate(now, kind, labels, specialLabels).filter(
+    (slot) => {
       const { openAt, closeAt } = joinWindow(slot);
       return minutesNow >= openAt && minutesNow < closeAt;
-    }) ?? null
+    },
+  );
+  if (open.length === 0) return null;
+  return open.reduce((best, slot) =>
+    slot.minutes >= best.minutes ? slot : best,
   );
 }
 
@@ -166,8 +204,9 @@ export function isSessionSlotRunning(
   now = new Date(),
   kind: SessionAccessKind = "member",
   labels: readonly string[] = FALLBACK_SESSION_LABELS,
+  specialLabels?: ReadonlySet<string>,
 ) {
-  const running = findRunningSession(now, kind, labels);
+  const running = findRunningSession(now, kind, labels, specialLabels);
   return running?.label === slotLabel;
 }
 
@@ -175,13 +214,16 @@ export function findNextSession(
   now = new Date(),
   kind: SessionAccessKind = "member",
   labels: readonly string[] = FALLBACK_SESSION_LABELS,
+  specialLabels?: ReadonlySet<string>,
 ) {
   const minutesNow = currentMinutes(now);
-  const todaySlots = slotsForDate(now, kind, labels).filter((slot) => {
-    // Next start is after the current join window has closed (or before open).
-    const { openAt } = joinWindow(slot);
-    return openAt > minutesNow;
-  });
+  const todaySlots = slotsForDate(now, kind, labels, specialLabels).filter(
+    (slot) => {
+      // Next start is after the current join window has closed (or before open).
+      const { openAt } = joinWindow(slot);
+      return openAt > minutesNow;
+    },
+  );
   if (todaySlots.length > 0) {
     return { label: todaySlots[0].label, when: "today" as const };
   }
@@ -189,7 +231,7 @@ export function findNextSession(
   const tomorrow = new Date(now);
   tomorrow.setDate(now.getDate() + 1);
   tomorrow.setHours(0, 0, 0, 0);
-  const nextDaySlots = slotsForDate(tomorrow, kind, labels);
+  const nextDaySlots = slotsForDate(tomorrow, kind, labels, specialLabels);
   return {
     label: nextDaySlots[0]?.label ?? labels[0] ?? "the next session",
     when: "tomorrow" as const,
@@ -200,8 +242,9 @@ export function sessionUnavailableMessage(
   now = new Date(),
   kind: SessionAccessKind = "member",
   labels: readonly string[] = FALLBACK_SESSION_LABELS,
+  specialLabels?: ReadonlySet<string>,
 ) {
-  const next = findNextSession(now, kind, labels);
+  const next = findNextSession(now, kind, labels, specialLabels);
   if (next.when === "tomorrow") {
     return `No session is currently running. The next session starts at ${next.label} tomorrow.`;
   }
@@ -213,4 +256,158 @@ export function formatSlotList(labels: readonly string[]) {
   if (labels.length === 1) return labels[0];
   if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
   return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
+}
+
+/** Browser / device IANA timezone (falls back to IST). */
+export function getViewerTimeZone() {
+  try {
+    return (
+      Intl.DateTimeFormat().resolvedOptions().timeZone?.trim() ||
+      SESSION_TIMEZONE
+    );
+  } catch {
+    return SESSION_TIMEZONE;
+  }
+}
+
+export function isIndiaTimeZone(timeZone = getViewerTimeZone()) {
+  return timeZone === "Asia/Kolkata" || timeZone === "Asia/Calcutta";
+}
+
+export type IstLocalSlotMapping = {
+  istLabel: string;
+  localLabel: string;
+  /** Local calendar day relative to the IST schedule day. */
+  dayOffset: -1 | 0 | 1;
+};
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function formatHourMinuteLabel(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).formatToParts(date);
+  const hour = parts.find((p) => p.type === "hour")?.value;
+  const minute = parts.find((p) => p.type === "minute")?.value;
+  const dayPeriod = parts.find((p) => p.type === "dayPeriod")?.value;
+  if (!hour || !minute || !dayPeriod) {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+      .format(date)
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  return `${hour}:${minute} ${dayPeriod.toUpperCase()}`;
+}
+
+function calendarDayKey(date: Date, timeZone: string) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+/**
+ * Convert an India (Asia/Kolkata) session label like "7:00 PM" into the
+ * viewer's local clock label for the same instant.
+ */
+export function convertIstSlotToLocal(
+  istLabel: string,
+  options?: { timeZone?: string; istDateIso?: string | null },
+): IstLocalSlotMapping | null {
+  const minutes = parseSlotLabel(istLabel);
+  if (minutes == null) return null;
+
+  const timeZone = options?.timeZone?.trim() || getViewerTimeZone();
+  const istDate =
+    options?.istDateIso?.trim() ||
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: SESSION_TIMEZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  const instant = new Date(
+    `${istDate}T${pad2(hours)}:${pad2(mins)}:00+05:30`,
+  );
+  if (Number.isNaN(instant.getTime())) return null;
+
+  const localLabel = formatHourMinuteLabel(instant, timeZone);
+  const istDay = calendarDayKey(instant, SESSION_TIMEZONE);
+  const localDay = calendarDayKey(instant, timeZone);
+  let dayOffset: -1 | 0 | 1 = 0;
+  if (localDay > istDay) dayOffset = 1;
+  else if (localDay < istDay) dayOffset = -1;
+
+  return {
+    istLabel: istLabel.trim().replace(/\s+/g, " "),
+    localLabel,
+    dayOffset,
+  };
+}
+
+/** Map many IST labels → local labels, sorted by Indian clock time. */
+export function mapIstSlotsToLocal(
+  istLabels: readonly string[],
+  options?: { timeZone?: string; istDateIso?: string | null },
+): IstLocalSlotMapping[] {
+  const out: IstLocalSlotMapping[] = [];
+  const seen = new Set<string>();
+  for (const raw of istLabels) {
+    const mapped = convertIstSlotToLocal(raw, options);
+    if (!mapped) continue;
+    const key = mapped.istLabel.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(mapped);
+  }
+  return out.sort(
+    (a, b) =>
+      (parseSlotLabel(a.istLabel) ?? 0) - (parseSlotLabel(b.istLabel) ?? 0),
+  );
+}
+
+/**
+ * Labels to show on the dashboard: local clock outside India, IST inside India.
+ * Join / live windows still use the original IST labels under the hood.
+ */
+export function displaySlotLabels(
+  istLabels: readonly string[],
+  options?: { timeZone?: string; istDateIso?: string | null },
+): string[] {
+  const timeZone = options?.timeZone?.trim() || getViewerTimeZone();
+  if (isIndiaTimeZone(timeZone)) {
+    return [...istLabels];
+  }
+  return mapIstSlotsToLocal(istLabels, { ...options, timeZone }).map(
+    (row) => row.localLabel,
+  );
+}
+
+/** Convert a single IST label for UI (or return original in India). */
+export function displaySlotLabel(
+  istLabel: string | null | undefined,
+  options?: { timeZone?: string; istDateIso?: string | null },
+): string | null {
+  if (!istLabel?.trim()) return null;
+  const timeZone = options?.timeZone?.trim() || getViewerTimeZone();
+  if (isIndiaTimeZone(timeZone)) return istLabel.trim().replace(/\s+/g, " ");
+  return (
+    convertIstSlotToLocal(istLabel, { ...options, timeZone })?.localLabel ??
+    istLabel.trim().replace(/\s+/g, " ")
+  );
 }

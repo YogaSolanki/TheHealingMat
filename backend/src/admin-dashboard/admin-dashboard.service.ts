@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { randomBytes, randomUUID } from 'crypto';
+import { randomBytes, randomInt, randomUUID } from 'crypto';
 import { DataSource, In, Not, Repository } from 'typeorm';
 import { CouponRedemption } from '../coupons/coupon-redemption.entity';
 import { Coupon } from '../coupons/coupon.entity';
@@ -1018,7 +1018,10 @@ export class AdminDashboardService {
 
   private async allocateUniqueAccessLinkSlug(fullName: string) {
     for (let attempt = 0; attempt < 40; attempt += 1) {
-      const accessLinkToken = buildAccessLinkSlug(fullName);
+      const accessLinkToken =
+        attempt < 20
+          ? buildAccessLinkSlug(fullName)
+          : `${buildAccessLinkSlug(fullName)}${randomInt(10, 99)}`;
       const exists = await this.users.findOne({ where: { accessLinkToken } });
       if (!exists) return accessLinkToken;
     }

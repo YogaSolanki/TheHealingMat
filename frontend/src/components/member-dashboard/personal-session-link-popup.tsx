@@ -143,7 +143,8 @@ export function PersonalSessionLinkPopup({
             Your Personal Session Link
           </h2>
           <p className="mt-2 max-w-[34ch] text-[14px] leading-snug text-[#5f6f64]">
-            This is your personal link for joining your yoga sessions.
+            Share this link to join your yoga sessions without signing in —
+            it works while your membership or trial is active.
           </p>
         </div>
 

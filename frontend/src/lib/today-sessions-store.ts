@@ -8,7 +8,7 @@ import {
   splitSessionLabels,
 } from "@/lib/member-session-schedule";
 
-const STORAGE_KEY = "thm_today_sessions_v2";
+const STORAGE_KEY = "thm_today_sessions_v6";
 const SESSION_TIMEZONE = "Asia/Kolkata";
 
 export type TodaySessionsSnapshot = {
@@ -16,8 +16,11 @@ export type TodaySessionsSnapshot = {
   morning: string[];
   special: string[];
   evening: string[];
+  specialLabels: string[];
   date: string | null;
   dayLabel: string | null;
+  todayTopic: string | null;
+  tomorrowTopic: string | null;
   ready: boolean;
   refreshing: boolean;
 };
@@ -26,6 +29,9 @@ type CachePayload = {
   date: string;
   dayLabel: string | null;
   labels: string[];
+  specialLabels: string[];
+  todayTopic: string | null;
+  tomorrowTopic: string | null;
 };
 
 const EMPTY: TodaySessionsSnapshot = {
@@ -33,8 +39,11 @@ const EMPTY: TodaySessionsSnapshot = {
   morning: [],
   special: [],
   evening: [],
+  specialLabels: [],
   date: null,
   dayLabel: null,
+  todayTopic: null,
+  tomorrowTopic: null,
   ready: false,
   refreshing: false,
 };
@@ -53,15 +62,21 @@ function fromLabels(
   labels: string[],
   date: string | null,
   dayLabel: string | null,
+  todayTopic: string | null,
+  tomorrowTopic: string | null,
+  specialLabels: string[] = [],
 ): Omit<TodaySessionsSnapshot, "ready" | "refreshing"> {
-  const split = splitSessionLabels(labels);
+  const split = splitSessionLabels(labels, { specialLabels });
   return {
     labels,
     morning: split.morning,
     special: split.special,
     evening: split.evening,
+    specialLabels,
     date,
     dayLabel,
+    todayTopic,
+    tomorrowTopic,
   };
 }
 
@@ -98,6 +113,15 @@ function readCache(): CachePayload | null {
       labels: parsed.labels.filter(
         (item) => typeof item === "string" && item.trim(),
       ),
+      specialLabels: Array.isArray(parsed.specialLabels)
+        ? parsed.specialLabels.filter(
+            (item) => typeof item === "string" && item.trim(),
+          )
+        : [],
+      todayTopic:
+        typeof parsed.todayTopic === "string" ? parsed.todayTopic : null,
+      tomorrowTopic:
+        typeof parsed.tomorrowTopic === "string" ? parsed.tomorrowTopic : null,
     };
   } catch {
     return null;
@@ -119,8 +143,11 @@ function msUntilNextIstMidnight(now = new Date()) {
 
 class TodaySessionsStore {
   private labels: string[] = [];
+  private specialLabels: string[] = [];
   private date: string | null = null;
   private dayLabel: string | null = null;
+  private todayTopic: string | null = null;
+  private tomorrowTopic: string | null = null;
   private ready = false;
   private refreshing = false;
   private inflight: Promise<string[]> | null = null;
@@ -132,8 +159,11 @@ class TodaySessionsStore {
     const cached = readCache();
     if (cached) {
       this.labels = uniqueSortedLabels(cached.labels);
+      this.specialLabels = uniqueSortedLabels(cached.specialLabels);
       this.date = cached.date;
       this.dayLabel = cached.dayLabel;
+      this.todayTopic = cached.todayTopic;
+      this.tomorrowTopic = cached.tomorrowTopic;
       this.ready = true;
       this.rebuildSnapshot();
     }
@@ -152,7 +182,14 @@ class TodaySessionsStore {
 
   private rebuildSnapshot() {
     this.cachedSnapshot = {
-      ...fromLabels(this.labels, this.date, this.dayLabel),
+      ...fromLabels(
+        this.labels,
+        this.date,
+        this.dayLabel,
+        this.todayTopic,
+        this.tomorrowTopic,
+        this.specialLabels,
+      ),
       ready: this.ready,
       refreshing: this.refreshing,
     };
@@ -191,14 +228,25 @@ class TodaySessionsStore {
     const today = todayIsoLocal();
 
     if (!force) {
-      if (this.ready && this.date === today) {
+      // Topics must be present (even as "") — null means never fetched with topics API.
+      const topicsReady =
+        this.todayTopic !== null && this.tomorrowTopic !== null;
+      if (this.ready && this.date === today && topicsReady) {
         return this.labels;
       }
       const cached = readCache();
-      if (cached && cached.date === today) {
+      if (
+        cached &&
+        cached.date === today &&
+        cached.todayTopic !== null &&
+        cached.tomorrowTopic !== null
+      ) {
         this.labels = uniqueSortedLabels(cached.labels);
+        this.specialLabels = uniqueSortedLabels(cached.specialLabels);
         this.date = cached.date;
         this.dayLabel = cached.dayLabel;
+        this.todayTopic = cached.todayTopic;
+        this.tomorrowTopic = cached.tomorrowTopic;
         this.ready = true;
         this.emit();
         return this.labels;
@@ -210,8 +258,11 @@ class TodaySessionsStore {
     const token = getStoredToken();
     if (!token) {
       this.labels = [];
+      this.specialLabels = [];
       this.date = today;
       this.dayLabel = null;
+      this.todayTopic = null;
+      this.tomorrowTopic = null;
       this.ready = true;
       this.refreshing = false;
       this.emit();
@@ -225,19 +276,38 @@ class TodaySessionsStore {
 
     this.inflight = getTodaySessions(token)
       .then((data) => {
+        const sessions = data.sessions ?? [];
         const labels = uniqueSortedLabels(
-          (data.sessions ?? [])
+          sessions
+            .map((row) => row.sessionTimeLabel?.trim())
+            .filter((label): label is string => Boolean(label)),
+        );
+        const specialLabels = uniqueSortedLabels(
+          sessions
+            .filter(
+              (row) => Boolean(row.isSpecial) || Boolean(row.isSundayQa),
+            )
             .map((row) => row.sessionTimeLabel?.trim())
             .filter((label): label is string => Boolean(label)),
         );
         this.labels = labels;
+        this.specialLabels = specialLabels;
         this.date = data.date ?? today;
         this.dayLabel = data.dayLabel ?? null;
+        this.todayTopic =
+          typeof data.todayTopic === "string" ? data.todayTopic.trim() : "";
+        this.tomorrowTopic =
+          typeof data.tomorrowTopic === "string"
+            ? data.tomorrowTopic.trim()
+            : "";
         this.ready = true;
         writeCache({
           date: this.date,
           dayLabel: this.dayLabel,
           labels: this.labels,
+          specialLabels: this.specialLabels,
+          todayTopic: this.todayTopic,
+          tomorrowTopic: this.tomorrowTopic,
         });
         this.emit();
         return this.labels;
@@ -246,8 +316,11 @@ class TodaySessionsStore {
         // Keep existing cache/memory on refresh failure — but only if still same day.
         if (!this.ready || this.isStaleForToday()) {
           this.labels = [];
+          this.specialLabels = [];
           this.date = today;
           this.dayLabel = null;
+          this.todayTopic = null;
+          this.tomorrowTopic = null;
           this.ready = true;
         }
         this.emit();

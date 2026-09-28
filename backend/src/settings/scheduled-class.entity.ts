@@ -40,6 +40,13 @@ export class ScheduledClass {
   @Column({ type: 'text' })
   meetingUrl: string;
 
+  /**
+   * When true on Mon–Sat: Special Session (topics block).
+   * When true on Sunday: Q&A & Guidance session.
+   */
+  @Column({ type: 'boolean', default: false })
+  isSpecial: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 
