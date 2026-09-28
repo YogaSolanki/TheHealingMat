@@ -6,8 +6,15 @@ import { memberPrimaryBtnClass } from "@/components/member-dashboard/member-butt
 import { getLiveSessionUrl } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
 import { useMemberAccess } from "@/lib/member-access";
-import { formatSlotList } from "@/lib/member-session-schedule";
-import { useTodaySessions } from "@/lib/today-sessions-store";
+import {
+  findRunningSession,
+  formatSlotList,
+  sessionUnavailableMessage,
+} from "@/lib/member-session-schedule";
+import {
+  todaySessionsStore,
+  useTodaySessions,
+} from "@/lib/today-sessions-store";
 
 export function MemberJoinPage() {
   const { access, loading: accessLoading } = useMemberAccess();
@@ -21,6 +28,9 @@ export function MemberJoinPage() {
   const accessOk =
     !accessLoading &&
     (access.state === "trial" || access.state === "active");
+
+  const sessionKind =
+    access.state === "trial" || access.state === "scheduled" ? "trial" : "member";
 
   useEffect(() => {
     if (accessLoading) return;
@@ -39,41 +49,55 @@ export function MemberJoinPage() {
     let cancelled = false;
     setUrlLoading(true);
     setUrlError(null);
-    void getLiveSessionUrl(token, { at: new Date().toISOString() })
-      .then((result) => {
+
+    void (async () => {
+      try {
+        const now = new Date();
+        const labels = await todaySessionsStore.refreshSilent();
         if (cancelled) return;
-        setLiveUrl(result.url);
-        setLiveSlot(result.slot);
-        if (!result.url && result.next) {
+
+        const running = findRunningSession(now, sessionKind, labels);
+        if (!running) {
+          setLiveUrl(null);
+          setLiveSlot(null);
           setNextCopy(
-            result.next.when === "tomorrow"
-              ? `No session is currently running. The next session starts at ${result.next.label} tomorrow.`
-              : `No session is currently running. The next session starts at ${result.next.label}.`,
+            labels.length === 0
+              ? "No sessions scheduled today. Check back when a class is on the schedule."
+              : sessionUnavailableMessage(now, sessionKind, labels),
           );
-        } else if (!result.url && result.slot) {
+          return;
+        }
+
+        const result = await getLiveSessionUrl(token, {
+          at: now.toISOString(),
+        });
+        if (cancelled) return;
+
+        setLiveUrl(result.url);
+        setLiveSlot(result.slot ?? running.label);
+        if (!result.url) {
           setNextCopy(
-            `The ${result.slot} session is live, but its class link has not been published yet.`,
+            `The ${running.label} session is live, but its class link has not been published yet.`,
           );
         } else {
           setNextCopy(null);
         }
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
         if (cancelled) return;
         setUrlError(
           err instanceof Error
             ? err.message
             : "Unable to load the live session link.",
         );
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setUrlLoading(false);
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, [accessOk, accessLoading]);
+  }, [accessOk, accessLoading, sessionKind]);
 
   const loading = accessLoading || urlLoading || !todayReady;
   const canRedirect = accessOk && Boolean(liveUrl);

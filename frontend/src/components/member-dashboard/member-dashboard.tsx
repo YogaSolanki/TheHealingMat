@@ -34,6 +34,7 @@ import {
   findRunningSession,
   formatSlotList,
   isSunday,
+  sessionUnavailableMessage,
 } from "@/lib/member-session-schedule";
 import { useTodaySessions } from "@/lib/today-sessions-store";
 import { SITE_MAPS_URL } from "@/lib/site-contact";
@@ -105,6 +106,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     date: todaySessionsDate,
     ready: todaySessionsReady,
     refreshing: todaySessionsRefreshing,
+    todayTopic,
+    tomorrowTopic,
     refresh: refreshTodaySessions,
     refreshSilent: refreshTodaySessionsSilent,
   } = useTodaySessions();
@@ -180,37 +183,32 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     setJoiningSession(true);
     setSessionNotice(null);
     try {
-      // Refresh today's slots quietly (no skeleton) so the card stays current.
-      const [, result] = await Promise.all([
-        refreshTodaySessionsSilent(),
-        getLiveSessionUrl(token, { at: new Date().toISOString() }),
-      ]);
+      const now = new Date();
+      // 1) Always refresh today's Class Management slots first.
+      const labels = await refreshTodaySessionsSilent();
+      // 2) Only call live when a slot is joinable at this moment.
+      const running = findRunningSession(now, sessionKind, labels);
+      if (!running) {
+        setSessionNotice(
+          labels.length === 0
+            ? "No sessions scheduled today. Check back when a class is on the schedule."
+            : sessionUnavailableMessage(now, sessionKind, labels),
+        );
+        return;
+      }
+
+      const result = await getLiveSessionUrl(token, {
+        at: now.toISOString(),
+      });
       const url = result.url?.trim() || null;
 
-      // Open whenever Class Management returned a live meeting URL.
       if (url) {
         window.open(url, "_blank", "noopener,noreferrer");
         return;
       }
 
-      if (result.slot) {
-        setSessionNotice(
-          `The ${result.slot} session is live, but its class link has not been published yet. Please try again shortly or contact support.`,
-        );
-        return;
-      }
-
-      if (result.next) {
-        setSessionNotice(
-          result.next.when === "tomorrow"
-            ? `No session is currently running. The next session starts at ${result.next.label} tomorrow.`
-            : `No session is currently running. The next session starts at ${result.next.label}.`,
-        );
-        return;
-      }
-
       setSessionNotice(
-        "No session is currently running. Check today’s schedule and join when a class is live.",
+        `The ${running.label} session is live, but its class link has not been published yet. Please try again shortly or contact support.`,
       );
     } catch (err) {
       setSessionNotice(
@@ -391,8 +389,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   void refreshTodaySessions();
                 }}
                 disabled={todaySessionsRefreshing || joiningSession}
-                title="Refresh today's session timings"
-                aria-label="Refresh today's session timings"
+                title="Refresh today's sessions and topics"
+                aria-label="Refresh today's sessions and topics"
                 className="ml-0.5 inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#1f6b3a] transition hover:bg-[#eef6f0] disabled:cursor-wait disabled:opacity-55"
               >
                 <RefreshIcon
@@ -716,7 +714,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                     />
                   }
                   label="Today's Topic"
-                  topic="Back Care & Spine Strength"
+                  topic={todayTopic?.trim() || "Coming soon"}
                   tint="bg-[#F4F8F2]"
                 />
                 <SpecialTopicRow
@@ -740,7 +738,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                     </span>
                   }
                   label="Tomorrow's Topic"
-                  topic="Detox Yoga Flow"
+                  topic={tomorrowTopic?.trim() || "Coming soon"}
                   tint="bg-[#F7F7F5]"
                 />
               </div>

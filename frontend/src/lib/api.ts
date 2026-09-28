@@ -609,6 +609,8 @@ export type TodaySessionsResponse = {
   date: string;
   dayLabel: string;
   sessions: TodaySessionSlot[];
+  todayTopic?: string;
+  tomorrowTopic?: string;
 };
 
 /** Session times scheduled for today via Admin → Class Management. */

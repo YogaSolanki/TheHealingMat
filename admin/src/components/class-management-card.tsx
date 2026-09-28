@@ -9,10 +9,14 @@ import {
   ADMIN_TOKEN_KEY,
   createAdminScheduledClass,
   deleteAdminScheduledClass,
+  deleteAdminScheduledTopic,
   listAdminScheduledClasses,
+  listAdminScheduledTopics,
   listAdminSessionTimings,
   updateAdminScheduledClass,
+  upsertAdminScheduledTopic,
   type AdminScheduledClass,
+  type AdminScheduledTopic,
   type AdminSessionTiming,
 } from "@/lib/api";
 import {
@@ -32,6 +36,7 @@ const SCHEDULE_WINDOW_DAYS = 7;
 type ClassesCachePayload = {
   timings: AdminSessionTiming[];
   classes: AdminScheduledClass[];
+  topics: AdminScheduledTopic[];
   cachedFrom: string;
 };
 
@@ -111,16 +116,23 @@ export function ClassManagementCard() {
   const [classes, setClasses] = useState<AdminScheduledClass[]>(
     () => cached?.classes ?? [],
   );
+  const [topics, setTopics] = useState<AdminScheduledTopic[]>(
+    () => cached?.topics ?? [],
+  );
   const [selectedDate, setSelectedDate] = useState(todayIso);
   const [sessionTimingId, setSessionTimingId] = useState("");
   const [meetingUrl, setMeetingUrl] = useState("");
+  const [draftTopic, setDraftTopic] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(() => !hasCached(cacheKey));
   const [saving, setSaving] = useState(false);
+  const [savingTopic, setSavingTopic] = useState(false);
+  const [topicSaved, setTopicSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
+  const [confirmClearTopicOpen, setConfirmClearTopicOpen] = useState(false);
 
   const token = useMemo(
     () =>
@@ -148,6 +160,14 @@ export function ClassManagementCard() {
     () => weekDays.find((day) => day.iso === selectedDate) ?? weekDays[0],
     [weekDays, selectedDate],
   );
+
+  const topicByDate = useMemo(() => {
+    const map = new Map<string, AdminScheduledTopic>();
+    for (const row of topics) map.set(row.topicDate, row);
+    return map;
+  }, [topics]);
+
+  const selectedTopic = topicByDate.get(selectedDate) ?? null;
 
   const isSlotTaken = useCallback(
     (date: string, timingId: string, ignoreClassId?: string | null) => {
@@ -205,6 +225,7 @@ export function ClassManagementCard() {
       setWeekDays(buildNextSevenDays(from));
       setTimings(payload.timings);
       setClasses(payload.classes);
+      setTopics(payload.topics);
       setCached(cacheKey, payload);
       setSelectedDate((current) => (current < from ? from : current));
       const firstActive = payload.timings.find((row) => row.active);
@@ -229,8 +250,11 @@ export function ClassManagementCard() {
 
       if (!force) {
         const hit = getCached<ClassesCachePayload>(cacheKey);
-        // Reuse cache only for the same calendar day window.
-        if (hit && hit.cachedFrom === from) {
+        if (
+          hit &&
+          hit.cachedFrom === from &&
+          Array.isArray(hit.topics)
+        ) {
           applyPayload(hit);
           setLoading(false);
           setError(null);
@@ -241,9 +265,10 @@ export function ClassManagementCard() {
       setLoading(true);
       setError(null);
       try {
-        const [nextTimings, nextClasses] = await Promise.all([
+        const [nextTimings, nextClasses, nextTopics] = await Promise.all([
           listAdminSessionTimings(token),
           listAdminScheduledClasses(token, { from }),
+          listAdminScheduledTopics(token, { from }),
         ]);
         const windowEnd = shiftIsoDate(from, SCHEDULE_WINDOW_DAYS - 1);
         const payload: ClassesCachePayload = {
@@ -251,9 +276,13 @@ export function ClassManagementCard() {
           classes: nextClasses.filter(
             (row) => row.classDate >= from && row.classDate <= windowEnd,
           ),
+          topics: nextTopics.filter(
+            (row) => row.topicDate >= from && row.topicDate <= windowEnd,
+          ),
           cachedFrom: from,
         };
         applyPayload(payload);
+        setTopicSaved(false);
       } catch (err: unknown) {
         setError(
           err instanceof Error
@@ -271,13 +300,31 @@ export function ClassManagementCard() {
     void load();
   }, [load]);
 
-  function syncClassesCache(nextClasses: AdminScheduledClass[]) {
-    setClasses(nextClasses);
+  useEffect(() => {
+    setDraftTopic(selectedTopic?.topic ?? "");
+    setTopicSaved(false);
+  }, [selectedDate, selectedTopic?.id, selectedTopic?.topic]);
+
+  function writeCache(
+    nextClasses: AdminScheduledClass[],
+    nextTopics: AdminScheduledTopic[],
+  ) {
     setCached(cacheKey, {
       timings,
       classes: nextClasses,
+      topics: nextTopics,
       cachedFrom: todayIso(),
     } satisfies ClassesCachePayload);
+  }
+
+  function syncClassesCache(nextClasses: AdminScheduledClass[]) {
+    setClasses(nextClasses);
+    writeCache(nextClasses, topics);
+  }
+
+  function syncTopicsCache(nextTopics: AdminScheduledTopic[]) {
+    setTopics(nextTopics);
+    writeCache(classes, nextTopics);
   }
 
   useEffect(() => {
@@ -410,6 +457,65 @@ export function ClassManagementCard() {
     }
   }
 
+  async function onSaveTopic(event: FormEvent) {
+    event.preventDefault();
+    if (!token || savingTopic) return;
+
+    const topic = draftTopic.trim();
+    if (!topic) {
+      setError("Enter a topic for this day.");
+      return;
+    }
+    if (selectedDate < todayIso() || selectedDate > maxDate) {
+      setError("Pick a date within the next 7 days.");
+      return;
+    }
+
+    setSavingTopic(true);
+    setError(null);
+    setTopicSaved(false);
+    try {
+      const savedTopic = await upsertAdminScheduledTopic(token, {
+        topicDate: selectedDate,
+        topic,
+      });
+      const without = topics.filter((row) => row.topicDate !== selectedDate);
+      syncTopicsCache(
+        [...without, savedTopic].sort((a, b) =>
+          a.topicDate.localeCompare(b.topicDate),
+        ),
+      );
+      setDraftTopic(savedTopic.topic);
+      setTopicSaved(true);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Unable to save daily topic.",
+      );
+    } finally {
+      setSavingTopic(false);
+    }
+  }
+
+  async function confirmClearTopic() {
+    if (!token || !selectedTopic || savingTopic) return;
+    setSavingTopic(true);
+    setError(null);
+    setTopicSaved(false);
+    try {
+      await deleteAdminScheduledTopic(token, selectedTopic.id);
+      syncTopicsCache(topics.filter((row) => row.id !== selectedTopic.id));
+      setDraftTopic("");
+      setConfirmClearTopicOpen(false);
+      setTopicSaved(true);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Unable to clear daily topic.",
+      );
+    } finally {
+      setSavingTopic(false);
+    }
+  }
+
   async function onRemoveSlot() {
     if (!token || !editingId || saving) return;
     setConfirmRemoveOpen(true);
@@ -453,6 +559,17 @@ export function ClassManagementCard() {
         }}
         onConfirm={() => void confirmRemoveSlot()}
       />
+      <AdminConfirmDialog
+        open={confirmClearTopicOpen}
+        title="Clear daily topic?"
+        description={`Clear the topic for ${selectedDay?.displayDate ?? selectedDate}? Members will see “Coming soon” for that day.`}
+        confirmLabel="Clear topic"
+        busy={savingTopic}
+        onCancel={() => {
+          if (!savingTopic) setConfirmClearTopicOpen(false);
+        }}
+        onConfirm={() => void confirmClearTopic()}
+      />
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -460,12 +577,13 @@ export function ClassManagementCard() {
             Class Management
           </h2>
           <p className="mt-0.5 text-xs text-[#8a978c]">
-            Rolling next 7 days from today — past days drop off automatically
+            Schedule classes and daily topics for the next 7 days — past days
+            drop off automatically
           </p>
         </div>
         <ReloadButton
           onClick={() => void load({ force: true })}
-          disabled={loading || saving}
+          disabled={loading || saving || savingTopic}
           label="Reload class schedule"
         />
       </div>
@@ -482,6 +600,135 @@ export function ClassManagementCard() {
         </div>
       ) : (
         <>
+          {/* Horizontal day picker — shared for classes + topics */}
+          <div className="mt-4 -mx-1 overflow-x-auto px-1 pb-1">
+            <div className="flex min-w-max gap-2">
+              {weekDays.map((day) => {
+                const selected = day.iso === selectedDate;
+                const count = dayCounts.get(day.iso) ?? 0;
+                const hasTopic = topicByDate.has(day.iso);
+                return (
+                  <button
+                    key={day.iso}
+                    type="button"
+                    onClick={() => selectDay(day.iso)}
+                    disabled={saving || savingTopic}
+                    className={`flex w-[4.75rem] flex-col items-center rounded-2xl border px-2 py-2.5 transition disabled:opacity-60 ${
+                      selected
+                        ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
+                        : "border-[#e2e8df] bg-white text-[#243028] hover:border-[#1f6b3a]/40 hover:bg-[#f3faf5]"
+                    }`}
+                  >
+                    <span
+                      className={`text-[11px] font-semibold uppercase tracking-wide ${
+                        selected ? "text-white/80" : "text-[#8a978c]"
+                      }`}
+                    >
+                      {day.weekdayShort}
+                    </span>
+                    <span className="mt-0.5 text-lg font-bold leading-none">
+                      {day.dayNumber}
+                    </span>
+                    <span
+                      className={`mt-1.5 text-[10px] font-medium ${
+                        selected ? "text-white/85" : "text-[#5f6f64]"
+                      }`}
+                    >
+                      {count > 0
+                        ? `${count} class${count === 1 ? "" : "es"}`
+                        : day.isToday
+                          ? "Today"
+                          : "Open"}
+                    </span>
+                    <span
+                      className={`mt-0.5 text-[9px] font-semibold uppercase tracking-wide ${
+                        selected
+                          ? hasTopic
+                            ? "text-white/90"
+                            : "text-white/55"
+                          : hasTopic
+                            ? "text-[#1f6b3a]"
+                            : "text-[#b0bbb2]"
+                      }`}
+                    >
+                      {hasTopic ? "Topic" : "No topic"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Selected day header */}
+          <div className="mt-5">
+            <h3 className="text-sm font-semibold text-[#243028]">
+              {selectedDay?.weekdayLong}
+              {selectedDay?.isToday ? " · Today" : null}
+            </h3>
+            <p className="mt-0.5 text-xs text-[#8a978c]">
+              {selectedDay?.displayDate} · {scheduledOnSelectedDay.length}{" "}
+              scheduled / {activeTimings.length} times
+              {selectedTopic ? " · topic set" : " · no topic yet"}
+            </p>
+          </div>
+
+          {/* Daily topic for selected day */}
+          <form
+            onSubmit={onSaveTopic}
+            className="mt-4 space-y-3 rounded-xl border border-[#e6ebe3] bg-[#f7faf7] p-4"
+          >
+            <div>
+              <h4 className="text-sm font-semibold text-[#243028]">
+                Daily topic
+              </h4>
+              <p className="mt-0.5 text-xs text-[#8a978c]">
+                Shown on the member dashboard as Today&apos;s or Tomorrow&apos;s
+                Topic when this date arrives.
+              </p>
+            </div>
+            <label className={labelClass}>
+              Topic for {selectedDay?.weekdayLong}
+              <input
+                type="text"
+                maxLength={200}
+                value={draftTopic}
+                onChange={(event) => {
+                  setDraftTopic(event.target.value);
+                  setTopicSaved(false);
+                }}
+                className={inputClass}
+                disabled={savingTopic}
+                placeholder="e.g. Back Care & Spine Strength"
+              />
+            </label>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="submit"
+                disabled={savingTopic}
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-[#1f6b3a] px-5 text-sm font-bold text-white disabled:opacity-60"
+              >
+                {savingTopic
+                  ? "Saving…"
+                  : selectedTopic
+                    ? "Update topic"
+                    : "Save topic"}
+              </button>
+              {selectedTopic ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmClearTopicOpen(true)}
+                  disabled={savingTopic}
+                  className="inline-flex h-11 items-center justify-center rounded-xl border border-[#ead9d9] bg-white px-4 text-sm font-semibold text-[#8a2f2f] hover:bg-[#faf4f4] disabled:opacity-60"
+                >
+                  Clear topic
+                </button>
+              ) : null}
+              {topicSaved ? (
+                <span className="text-sm font-medium text-[#1f6b3a]">Saved</span>
+              ) : null}
+            </div>
+          </form>
+
           {activeTimings.length === 0 ? (
             <p className="mt-4 rounded-xl bg-[#fff8f0] px-3.5 py-3 text-sm text-[#8a5a2f]">
               No active session times. Add them in{" "}
@@ -491,73 +738,15 @@ export function ClassManagementCard() {
               >
                 Settings
               </Link>{" "}
-              first.
+              to schedule class links for this day.
             </p>
           ) : (
             <>
-              {/* Horizontal day picker */}
-              <div className="mt-4 -mx-1 overflow-x-auto px-1 pb-1">
-                <div className="flex min-w-max gap-2">
-                  {weekDays.map((day) => {
-                    const selected = day.iso === selectedDate;
-                    const count = dayCounts.get(day.iso) ?? 0;
-                    return (
-                      <button
-                        key={day.iso}
-                        type="button"
-                        onClick={() => selectDay(day.iso)}
-                        disabled={saving}
-                        className={`flex w-[4.75rem] flex-col items-center rounded-2xl border px-2 py-2.5 transition disabled:opacity-60 ${
-                          selected
-                            ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
-                            : "border-[#e2e8df] bg-white text-[#243028] hover:border-[#1f6b3a]/40 hover:bg-[#f3faf5]"
-                        }`}
-                      >
-                        <span
-                          className={`text-[11px] font-semibold uppercase tracking-wide ${
-                            selected ? "text-white/80" : "text-[#8a978c]"
-                          }`}
-                        >
-                          {day.weekdayShort}
-                        </span>
-                        <span className="mt-0.5 text-lg font-bold leading-none">
-                          {day.dayNumber}
-                        </span>
-                        <span
-                          className={`mt-1.5 text-[10px] font-medium ${
-                            selected ? "text-white/85" : "text-[#5f6f64]"
-                          }`}
-                        >
-                          {day.isToday
-                            ? count > 0
-                              ? `${count} set`
-                              : "Today"
-                            : count > 0
-                              ? `${count} set`
-                              : "None"}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Selected day header + actions */}
-              <div className="mt-5 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-semibold text-[#243028]">
-                    {selectedDay?.weekdayLong}
-                  </h3>
-                  <p className="mt-0.5 text-xs text-[#8a978c]">
-                    {selectedDay?.displayDate} ·{" "}
-                    {scheduledOnSelectedDay.length} scheduled /{" "}
-                    {activeTimings.length} times
-                  </p>
-                </div>
-              </div>
-
               {/* Slots for selected day */}
-              <div className="mt-3 space-y-2">
+              <div className="mt-4 space-y-2">
+                <h4 className="text-sm font-semibold text-[#243028]">
+                  Class slots
+                </h4>
                 {selectedDaySlots.map(({ timing, scheduled }) =>
                   scheduled ? (
                     <div
@@ -633,7 +822,6 @@ export function ClassManagementCard() {
                 )}
               </div>
 
-              {/* Add / edit form for selected day */}
               {showForm ? (
                 <form
                   onSubmit={onSubmit}

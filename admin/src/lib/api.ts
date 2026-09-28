@@ -392,7 +392,7 @@ export type AdminContentItem = {
 };
 
 async function authJson<T>(
-  method: "GET" | "POST" | "PATCH" | "DELETE",
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
   token: string,
   body?: unknown,
@@ -955,6 +955,49 @@ export function deleteAdminScheduledClass(token: string, id: string) {
   return authJson<{ success: boolean }>(
     "DELETE",
     `/admin/classes/${id}`,
+    token,
+  ).then(() => undefined);
+}
+
+export type AdminScheduledTopic = {
+  id: string;
+  topicDate: string;
+  dayLabel: string;
+  topic: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function listAdminScheduledTopics(
+  token: string,
+  options?: { from?: string },
+) {
+  const query = options?.from
+    ? `?from=${encodeURIComponent(options.from)}`
+    : "";
+  return authJson<AdminScheduledTopic[]>(
+    "GET",
+    `/admin/session-topics${query}`,
+    token,
+  );
+}
+
+export function upsertAdminScheduledTopic(
+  token: string,
+  body: { topicDate: string; topic: string },
+) {
+  return authJson<AdminScheduledTopic>(
+    "PUT",
+    "/admin/session-topics",
+    token,
+    body,
+  );
+}
+
+export function deleteAdminScheduledTopic(token: string, id: string) {
+  return authJson<{ success: boolean }>(
+    "DELETE",
+    `/admin/session-topics/${id}`,
     token,
   ).then(() => undefined);
 }
