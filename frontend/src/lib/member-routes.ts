@@ -29,14 +29,13 @@ export function isMemberChromePath(pathname: string) {
 
 /**
  * When signed in, keep the member dashboard header on site pages reached
- * from the footer (About, Contact, Corporate, legal, etc.).
- * Skip auth callback and personal access-link entry.
+ * from the footer (About, Contact, Corporate, legal, etc.) and personal
+ * session links. Skip auth callback only.
  */
 export function shouldShowMemberHeader(pathname: string, signedIn: boolean) {
   if (isDashboardPath(pathname)) return true;
   if (!signedIn) return false;
   if (pathname === "/auth/callback") return false;
-  if (pathname.startsWith("/u/")) return false;
   return true;
 }
 
