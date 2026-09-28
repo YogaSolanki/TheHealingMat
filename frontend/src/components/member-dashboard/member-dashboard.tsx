@@ -35,6 +35,7 @@ import {
   formatSlotList,
   isSunday,
   sessionUnavailableMessage,
+  splitSessionLabels,
 } from "@/lib/member-session-schedule";
 import { useTodaySessions, todaySessionsStore } from "@/lib/today-sessions-store";
 import { SITE_MAPS_URL } from "@/lib/site-contact";
@@ -117,6 +118,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const todayLabel = formatDashboardDateFromIso(todaySessionsDate);
   const todayLabelCompact = formatDashboardDateFromIso(todaySessionsDate, true);
   const sunday = isSunday(now);
+  const sundayDisplaySlots =
+    specialSlots.length > 0 ? specialSlots : sessionLabels;
+  const sundaySplit = splitSessionLabels(sundayDisplaySlots);
+  const sundayMorningSlots = sundaySplit.morning;
+  const sundayEveningSlots = sundaySplit.evening;
   const specialLabelSet = useMemo(
     () => new Set(specialLabels.map((label) => label.trim().toLowerCase())),
     [specialLabels],
@@ -136,13 +142,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const trialSlotSubtitle =
     formatSlotList(sessionLabels) ||
     (todaySessionsReady ? "No sessions scheduled today" : "Session times");
-  const sundaySlotSubtitle = formatSlotList(
-    specialSlots.length > 0 ? specialSlots : sessionLabels,
-  )
-    ? `Sunday · ${formatSlotList(specialSlots.length > 0 ? specialSlots : sessionLabels)}`
-    : todaySessionsReady
-      ? "No sessions scheduled today"
-      : "Sunday sessions";
+  const sundaySlotSubtitle = "Sunday";
   const hasTodaySessions = sessionLabels.length > 0;
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const dismissSessionNotice = useCallback(() => {
@@ -564,54 +564,167 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
               </p>
             </div>
           ) : sunday ? (
-            <div className="px-4 py-4 sm:px-6 sm:py-5">
-              <SectionHeading
-                icon={
-                  <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-7 sm:w-7">
-                    <span
-                      aria-hidden="true"
-                      className="block h-3.5 w-3.5 sm:h-4 sm:w-4"
-                      style={{
-                        backgroundColor: "#1f6b3a",
-                        WebkitMaskImage: `url(${calendarIcon.src})`,
-                        WebkitMaskSize: "contain",
-                        WebkitMaskRepeat: "no-repeat",
-                        WebkitMaskPosition: "center",
-                        maskImage: `url(${calendarIcon.src})`,
-                        maskSize: "contain",
-                        maskRepeat: "no-repeat",
-                        maskPosition: "center",
-                      }}
+            <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
+              <div className="border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-r">
+                {(() => {
+                  const hasMorning = sundayMorningSlots.length > 0;
+                  const hasEvening = sundayEveningSlots.length > 0;
+                  const bothPeriods = hasMorning && hasEvening;
+                  const joinSessionButton = (
+                    <button
+                      type="button"
+                      onClick={() => void handleJoin()}
+                      disabled={joiningSession}
+                      className={`${memberPrimaryBtnClass} w-full justify-center px-5 py-3 text-[14px] sm:w-auto sm:min-w-[148px] sm:px-6 sm:py-3.5 sm:text-[15px]`}
+                    >
+                      {joiningSession ? "Joining…" : "Join Session"}
+                    </button>
+                  );
+
+                  return (
+                    <>
+                      <div
+                        className={`mb-4 flex flex-wrap items-start gap-3 ${
+                          bothPeriods ? "justify-between" : ""
+                        }`}
+                      >
+                        <SectionHeading
+                          className="mb-0 flex min-w-0 flex-1 items-start gap-2.5"
+                          icon={
+                            <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-7 sm:w-7">
+                              <span
+                                aria-hidden="true"
+                                className="block h-3.5 w-3.5 sm:h-4 sm:w-4"
+                                style={{
+                                  backgroundColor: "#1f6b3a",
+                                  WebkitMaskImage: `url(${calendarIcon.src})`,
+                                  WebkitMaskSize: "contain",
+                                  WebkitMaskRepeat: "no-repeat",
+                                  WebkitMaskPosition: "center",
+                                  maskImage: `url(${calendarIcon.src})`,
+                                  maskSize: "contain",
+                                  maskRepeat: "no-repeat",
+                                  maskPosition: "center",
+                                }}
+                              />
+                            </span>
+                          }
+                          title="Q&A & Guidance"
+                          subtitle={sundaySlotSubtitle}
+                        />
+                        {bothPeriods ? joinSessionButton : null}
+                      </div>
+
+                      {sundayDisplaySlots.length === 0 ? (
+                        <SessionTimingBlock
+                          icon={sunIcon}
+                          label="Sunday Sessions"
+                          slots={[]}
+                          tint="bg-[#F4F8F2]"
+                          emptyLabel="No sessions scheduled for today"
+                        />
+                      ) : !hasMorning && !hasEvening ? (
+                        <SessionTimingBlock
+                          icon={sunIcon}
+                          label="Q&A Sessions"
+                          slots={sundayDisplaySlots}
+                          tint="bg-[#F4F8F2]"
+                          liveSlot={running?.label}
+                        />
+                      ) : (
+                        <>
+                          {hasMorning ? (
+                            <SessionTimingBlock
+                              icon={sunIcon}
+                              label="Morning Q&A Sessions"
+                              slots={sundayMorningSlots}
+                              tint="bg-[#F4F8F2]"
+                              liveSlot={running?.label}
+                            />
+                          ) : null}
+                          {hasEvening ? (
+                            <SessionTimingBlock
+                              icon={moonIcon}
+                              label="Evening Q&A Sessions"
+                              slots={sundayEveningSlots}
+                              tint="bg-[#F7F7F5]"
+                              liveSlot={running?.label}
+                            />
+                          ) : null}
+                        </>
+                      )}
+
+                      {!bothPeriods ? (
+                        <div className="mt-3 flex justify-center sm:mt-4">
+                          <button
+                            type="button"
+                            onClick={() => void handleJoin()}
+                            disabled={joiningSession}
+                            className={`${memberPrimaryBtnClass} w-full max-w-[420px] justify-center px-8 py-3.5 text-[15px] sm:px-10 sm:py-4 sm:text-[16px]`}
+                          >
+                            {joiningSession ? "Joining…" : "Join Session"}
+                          </button>
+                        </div>
+                      ) : null}
+                    </>
+                  );
+                })()}
+              </div>
+
+              <div className="border-t border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-t-0">
+                <SectionHeading
+                  icon={
+                    <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FFF4DC] text-[#C58A1A] sm:h-7 sm:w-7">
+                      <StarIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    </span>
+                  }
+                  title={
+                    specialSessionLabel
+                      ? `${specialSessionLabel} Special Session`
+                      : "Special Session"
+                  }
+                  subtitle="(Monday to Saturday)"
+                />
+
+                <SpecialTopicRow
+                  icon={
+                    <Image
+                      src={sunIcon}
+                      alt=""
+                      width={32}
+                      height={32}
+                      className="h-8 w-8 shrink-0 object-contain sm:h-9 sm:w-9"
                     />
-                  </span>
-                }
-                title="Q&A & Guidance"
-                subtitle={sundaySlotSubtitle}
-              />
-              <SessionTimingBlock
-                icon={sunIcon}
-                label={
-                  specialSlots.length > 0 ? "Q&A Sessions" : "Sunday Sessions"
-                }
-                slots={specialSlots.length > 0 ? specialSlots : sessionLabels}
-                tint="bg-[#F4F8F2]"
-                liveSlot={running?.label}
-                emptyLabel="No sessions scheduled for today"
-                join={
-                  <button
-                    type="button"
-                    onClick={() => void handleJoin()}
-                    disabled={joiningSession}
-                    className={`${memberPrimaryBtnSmClass} w-full justify-center px-5 py-2.5 text-[13px] sm:w-auto sm:min-w-[100px]`}
-                  >
-                    {joiningSession ? "Joining…" : "Join"}
-                  </button>
-                }
-              />
-              <p className="mt-4 flex items-start gap-2 text-[12px] leading-snug text-[#6b7c6e] sm:text-[13px]">
-                <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-[#8a968c]" />
-                Have a question? Send it to us via WhatsApp or email for Sunday Q&amp;A.
-              </p>
+                  }
+                  label="Today's Topic"
+                  topic={todayTopic?.trim() || "Coming soon"}
+                  tint="bg-[#F4F8F2]"
+                />
+                <SpecialTopicRow
+                  icon={
+                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center sm:h-9 sm:w-9">
+                      <span
+                        aria-hidden="true"
+                        className="block h-5 w-5 sm:h-6 sm:w-6"
+                        style={{
+                          backgroundColor: "#1f6b3a",
+                          WebkitMaskImage: `url(${calendarIcon.src})`,
+                          WebkitMaskSize: "contain",
+                          WebkitMaskRepeat: "no-repeat",
+                          WebkitMaskPosition: "center",
+                          maskImage: `url(${calendarIcon.src})`,
+                          maskSize: "contain",
+                          maskRepeat: "no-repeat",
+                          maskPosition: "center",
+                        }}
+                      />
+                    </span>
+                  }
+                  label="Tomorrow's Topic"
+                  topic={tomorrowTopic?.trim() || "Coming soon"}
+                  tint="bg-[#F7F7F5]"
+                />
+              </div>
             </div>
           ) : (
             <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
@@ -1197,15 +1310,6 @@ function ChevronRightIcon({ className }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-    </svg>
-  );
-}
-
-function InfoIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M12 10.5V16M12 8v-.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
