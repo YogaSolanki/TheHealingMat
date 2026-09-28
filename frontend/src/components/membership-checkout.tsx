@@ -187,6 +187,12 @@ export function MembershipCheckoutPanel({
         if (cancelled) return;
         setUser(me);
 
+        if (me?.region) {
+          await membershipPlansStore.refresh(me.region);
+          if (cancelled) return;
+          setQuote(quoteFromPlan(resolvePlan(planMonths)));
+        }
+
         if (membershipAccess?.state === "active" && membershipAccess.current?.endsAt) {
           setRenewMinStartsOn(
             nextStartIsoFromEndsAt(membershipAccess.current.endsAt),

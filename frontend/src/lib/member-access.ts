@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import {
   emptyMemberAccess,
   daypartYogaMessage,
@@ -27,18 +27,13 @@ export function clearMemberAccessCache() {
 
 export function useMemberAccess() {
   const { access, ready } = useSessionAccess();
-  const [loading, setLoading] = useState(!ready);
 
   useEffect(() => {
-    if (ready) {
-      setLoading(false);
-      return;
-    }
+    if (ready) return;
 
     let cancelled = false;
-    setLoading(true);
     void sessionStore.ensureAccess().finally(() => {
-      if (!cancelled) setLoading(false);
+      if (cancelled) return;
     });
 
     return () => {
@@ -46,5 +41,5 @@ export function useMemberAccess() {
     };
   }, [ready]);
 
-  return { access, loading: loading && !ready };
+  return { access, loading: !ready };
 }

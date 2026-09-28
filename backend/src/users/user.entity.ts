@@ -35,7 +35,7 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   gender: Gender | null;
 
-  /** Indian state / region of residence (collected before membership payment). */
+  /** Residence: Indian state, or country when region is outside India. */
   @Column({ type: 'varchar', nullable: true })
   state: string | null;
 

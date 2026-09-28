@@ -57,9 +57,11 @@ export function MembershipCheckoutDetails({
   onContinue,
   onClose,
 }: MembershipCheckoutDetailsProps) {
-  const needsState = !user.state?.trim();
+  const isIndia = user.region === "india";
+  const locationLabel = isIndia ? "State" : "Country";
+  const needsLocation = !user.state?.trim();
   const minStart = maxIso(minStartsOn?.trim() || todayIso(), todayIso());
-  const [state, setState] = useState(user.state?.trim() ?? "");
+  const [location, setLocation] = useState(user.state?.trim() ?? "");
   const [preferredClassTime, setPreferredClassTime] = useState(
     user.preferredClassTime?.trim() ?? "",
   );
@@ -91,7 +93,7 @@ export function MembershipCheckoutDetails({
 
   const maxStart = addMonthsIso(minStart, 6);
   const canContinue =
-    (!needsState || Boolean(state.trim())) &&
+    (!needsLocation || Boolean(location.trim())) &&
     Boolean(preferredClassTime.trim()) &&
     Boolean(startsOn.trim());
 
@@ -99,8 +101,12 @@ export function MembershipCheckoutDetails({
     event.preventDefault();
     setError(null);
 
-    if (needsState && !state.trim()) {
-      setError("Please select your state to continue.");
+    if (needsLocation && !location.trim()) {
+      setError(
+        isIndia
+          ? "Please select your state to continue."
+          : "Please enter your country to continue.",
+      );
       return;
     }
     if (!preferredClassTime.trim()) {
@@ -132,7 +138,7 @@ export function MembershipCheckoutDetails({
         fullName: user.fullName,
         dateOfBirth: user.dateOfBirth,
         gender: user.gender,
-        ...(needsState ? { state: state.trim() } : {}),
+        ...(needsLocation ? { state: location.trim() } : {}),
         preferredClassTime: preferredClassTime.trim(),
       });
       updateMemberAuthCache(result.user);
@@ -161,15 +167,15 @@ export function MembershipCheckoutDetails({
       </p>
 
       <form onSubmit={(event) => void onSubmit(event)} className="mt-4 space-y-3.5">
-        {needsState ? (
+        {needsLocation ? (
           <div>
             <label className="mb-1 block text-[13px] font-semibold text-[#243028]">
-              State
+              {locationLabel}
             </label>
-            {user.region === "india" ? (
+            {isIndia ? (
               <MemberSelect
-                value={state}
-                onChange={setState}
+                value={location}
+                onChange={setLocation}
                 options={stateOptions}
                 placeholder="Select your state"
                 size="sm"
@@ -178,9 +184,11 @@ export function MembershipCheckoutDetails({
             ) : (
               <input
                 type="text"
-                value={state}
-                onChange={(event) => setState(event.target.value)}
-                placeholder="State / province"
+                value={location}
+                onChange={(event) => setLocation(event.target.value)}
+                placeholder="Enter your country"
+                autoComplete="country-name"
+                maxLength={120}
                 className="w-full rounded-[12px] border border-[#d7e0d6] bg-white px-3.5 py-2.5 text-[14px] font-semibold text-[#243028] outline-none transition placeholder:font-medium placeholder:text-[#9aa89c] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
               />
             )}

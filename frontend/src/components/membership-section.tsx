@@ -22,7 +22,7 @@ import yogaIcon from "@/assets/yoga.png";
 import { ChoosePlanButton } from "@/components/choose-plan-button";
 import { StartTrialButton } from "@/components/start-trial-button";
 import { TrialTrustRow } from "@/components/trial-trust-row";
-import type { PublicMembershipPlan } from "@/lib/api";
+import type { PublicMembershipPlan, Region } from "@/lib/api";
 import type { CheckoutStartMode } from "@/lib/checkout-intent";
 import {
   formatMembershipMoney,
@@ -219,15 +219,18 @@ export function MembershipSection({
   variant = "public",
   startMode = "now",
   showMarketing = true,
+  region,
 }: {
   variant?: MembershipSectionVariant;
   startMode?: CheckoutStartMode;
   /** Public marketing blocks (week schedule, benefits, trial CTA). Off for logged-in My Membership. */
   showMarketing?: boolean;
+  /** Signed-in account region — drives INR vs USD. Public pages omit this (visitor region). */
+  region?: Region;
 } = {}) {
   return (
     <div className={variant === "renew" ? "w-full bg-[#FBF9F5]" : "w-full bg-white"}>
-      <PlansBlock variant={variant} startMode={startMode} />
+      <PlansBlock variant={variant} startMode={startMode} region={region} />
       <CouponStrip />
       {showMarketing ? (
         <>
@@ -244,12 +247,14 @@ export function MembershipSection({
 function PlansBlock({
   variant,
   startMode,
+  region,
 }: {
   variant: MembershipSectionVariant;
   startMode: CheckoutStartMode;
+  region?: Region;
 }) {
   const isRenew = variant === "renew";
-  const { data, error } = useMembershipPlans();
+  const { data, error } = useMembershipPlans(region);
   const plans = data.plans.map(toPlanCard);
   const liveOffer = data.offer;
 
