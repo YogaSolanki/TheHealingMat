@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import type { IconType } from "react-icons";
 import {
   FaFacebookF,
@@ -21,6 +22,7 @@ import omIcon from "@/assets/om.png";
 import { useAuthModal } from "@/components/auth-modal-provider";
 import { useReferEarnPopup } from "@/components/refer-earn-popup";
 import { SiteLogo } from "@/components/site-logo";
+import { getStoredToken } from "@/lib/auth-storage";
 import { isDashboardPath, isMembershipBrowsePath } from "@/lib/member-routes";
 import {
   SITE_ADDRESS_LINES,
@@ -175,7 +177,12 @@ function GetStartedColumn() {
 
 export function SiteFooter() {
   const pathname = usePathname();
+  const [signedIn, setSignedIn] = useState(false);
   const isMemberDashboard = isDashboardPath(pathname);
+  const homeHref = signedIn ? "/dashboard" : "/";
+  const exploreLinksForUser = exploreLinks.map((link) =>
+    link.label === "Home" ? { ...link, href: homeHref } : link,
+  );
   const showTopBorder =
     pathname === "/corporate/enquiry" ||
     pathname === "/contact" ||
@@ -185,6 +192,10 @@ export function SiteFooter() {
     pathname.startsWith("/u/") ||
     isMembershipBrowsePath(pathname) ||
     isMemberDashboard;
+
+  useEffect(() => {
+    setSignedIn(Boolean(getStoredToken()));
+  }, [pathname]);
 
   return (
     <footer
@@ -196,7 +207,14 @@ export function SiteFooter() {
       <div className="mx-auto grid w-full max-w-[1200px] grid-cols-2 gap-x-4 gap-y-8 px-5 py-8 sm:gap-x-6 sm:px-6 sm:py-9 md:grid-cols-4 md:gap-0 md:px-6 md:py-9 lg:px-8 xl:px-10">
         <div className="col-span-2 flex flex-col items-start text-left md:col-span-1 md:pr-4 lg:pr-6 xl:pr-8">
           <div className="flex flex-col items-start">
-            <SiteLogo />
+            <SiteLogo
+              href={homeHref}
+              ariaLabel={
+                signedIn
+                  ? "The Healing Mat dashboard home"
+                  : "The Healing Mat home"
+              }
+            />
             <span className="mt-1 hidden text-[11px] text-[#6b7c6e] sm:block sm:text-[12px]">
               Health Without Drama
             </span>
@@ -224,7 +242,7 @@ export function SiteFooter() {
         </div>
 
         <div className="min-w-0 md:border-l md:border-[#dde3d8] md:px-4 lg:px-6 xl:px-8">
-          <FooterLinkColumn title="Explore" links={exploreLinks} />
+          <FooterLinkColumn title="Explore" links={exploreLinksForUser} />
         </div>
 
         <div className="min-w-0 md:border-l md:border-[#dde3d8] md:px-4 lg:px-6 xl:px-8">

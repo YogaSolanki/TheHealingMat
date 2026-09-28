@@ -12,7 +12,6 @@ import {
 } from "@/components/member-dashboard/member-button-styles";
 import { MemberDashboardSkeleton } from "@/components/member-dashboard/member-dashboard-skeleton";
 import { MembershipSection } from "@/components/membership-section";
-import { useMemberDashboard } from "@/components/member-dashboard/member-dashboard-provider";
 import {
   downloadMembershipInvoice,
   getMyMembership,
@@ -24,10 +23,10 @@ import {
   useMemberAccess,
   membershipStatusLabel,
 } from "@/lib/member-access";
-import { sessionStore } from "@/lib/session-store";
+import { sessionStore, useSessionUser } from "@/lib/session-store";
 
 export function MemberMembershipPage() {
-  const { user } = useMemberDashboard();
+  const { user } = useSessionUser();
   const { access, loading } = useMemberAccess();
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
@@ -36,6 +35,13 @@ export function MemberMembershipPage() {
   const [scheduledInvoiceError, setScheduledInvoiceError] = useState<
     string | null
   >(null);
+
+  useEffect(() => {
+    sessionStore.attachClient();
+    if (getStoredToken()) {
+      void sessionStore.ensureUser();
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -92,7 +98,7 @@ export function MemberMembershipPage() {
       ? "Complete Membership"
       : "Renew Membership";
 
-  if (loading) {
+  if (loading || !user) {
     return <MemberDashboardSkeleton />;
   }
 
@@ -257,7 +263,6 @@ export function MemberMembershipPage() {
                 {access.paymentDateLabel ? (
                   <p className="mt-2 break-words text-[12px] text-[#6b7c6e]">
                     Paid on {access.paymentDateLabel}
-                    {access.transactionRef ? ` · Ref ${access.transactionRef}` : ""}
                   </p>
                 ) : null}
                 {isPending || loading || !access.invoiceDownloadable ? null : (

@@ -68,32 +68,6 @@ function logoPath() {
   return path.join(assetsRoot(), 'images', 'logo-icon-invoice.png');
 }
 
-function indianFinancialYear(date: Date): string {
-  const y = date.getUTCFullYear();
-  const m = date.getUTCMonth();
-  const start = m >= 3 ? y : y - 1;
-  return `${String(start).slice(-2)}-${String(start + 1).slice(-2)}`;
-}
-
-function invoiceSerial(membershipId: string): string {
-  let hash = 0;
-  for (let i = 0; i < membershipId.length; i += 1) {
-    hash = (hash * 31 + membershipId.charCodeAt(i)) >>> 0;
-  }
-  return String(hash % 1_000_000).padStart(6, '0');
-}
-
-/** e.g. 26-27-DM-000123 or 26-27-EX-000045 */
-export function buildInvoiceNumber(input: {
-  issuedAt: Date;
-  currency: 'INR' | 'USD';
-  membershipId: string;
-}): string {
-  const fy = indianFinancialYear(input.issuedAt);
-  const kind = input.currency === 'USD' ? 'EX' : 'DM';
-  return `${fy}-${kind}-${invoiceSerial(input.membershipId)}`;
-}
-
 function formatMoney(minorUnits: number, currency: 'INR' | 'USD'): string {
   const major = minorUnits / 100;
   if (currency === 'USD') {

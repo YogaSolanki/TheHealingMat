@@ -22,7 +22,8 @@ import { User } from '../users/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { QuoteMembershipDto } from './dto/quote-membership.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
-import { buildInvoiceNumber, buildMembershipInvoicePdf } from './invoice-pdf';
+import { buildMembershipInvoicePdf } from './invoice-pdf';
+import { InvoicesService } from './invoices.service';
 import { Membership } from './membership.entity';
 import { MembershipPlan } from './membership-plan.entity';
 import { DEFAULT_REFERRAL_DISCOUNT_PERCENT } from './membership-plans';
@@ -52,6 +53,7 @@ export class PaymentsService {
     private readonly membershipPlans: MembershipPlansService,
     private readonly membershipOffers: MembershipOffersService,
     private readonly settings: SettingsService,
+    private readonly invoices: InvoicesService,
     @InjectRepository(PaymentOrder)
     private readonly orders: Repository<PaymentOrder>,
     @InjectRepository(Membership)
@@ -454,30 +456,44 @@ export class PaymentsService {
       throw new NotFoundException('Membership invoice not found.');
     }
 
+    if (membership.amountPaidPaise <= 0) {
+      throw new BadRequestException(
+        'No invoice is generated for zero-payment or complimentary memberships.',
+      );
+    }
+
     const order = membership.paymentOrderId.startsWith('admin-manual-')
       ? null
       : await this.orders.findOne({
           where: { id: membership.paymentOrderId, userId: user.id },
         });
 
-    const currency =
-      membership.currency?.toUpperCase() === 'USD' ? ('USD' as const) : ('INR' as const);
-    // Billing location label follows account region (signup), not device location.
-    const isInternational = user.region === Region.OutsideIndia;
-    const invoiceNo = buildInvoiceNumber({
-      issuedAt: membership.createdAt,
-      currency,
-      membershipId: membership.id,
-    });
-
     const paymentRef =
       membership.razorpayPaymentId?.trim() ||
       order?.razorpayPaymentId?.trim() ||
       null;
     const adminManual = membership.paymentOrderId.startsWith('admin-manual-');
-    const paymentMethod = adminManual
-      ? 'Admin assigned'
-      : 'Online (Razorpay)';
+    const paymentMethod =
+      membership.paymentMethod?.trim() ||
+      (adminManual ? 'Admin assigned' : 'Online (Razorpay)');
+
+    const invoice = await this.invoices.ensureMembershipInvoice({
+      membership,
+      user,
+      paymentMethod,
+      paymentReference: paymentRef,
+      discountLabel: order?.couponCode?.trim() || null,
+    });
+    if (!invoice) {
+      throw new BadRequestException(
+        'No invoice is generated for zero-payment or complimentary memberships.',
+      );
+    }
+
+    const currency =
+      membership.currency?.toUpperCase() === 'USD' ? ('USD' as const) : ('INR' as const);
+    // Billing location label follows account region (signup), not device location.
+    const isInternational = user.region === Region.OutsideIndia;
 
     const location = user.state?.trim() || null;
     const memberLocation = isInternational
@@ -487,8 +503,8 @@ export class PaymentsService {
         : 'India';
 
     const pdf = await buildMembershipInvoicePdf({
-      invoiceNo,
-      issuedAt: membership.createdAt,
+      invoiceNo: invoice.invoiceNumber,
+      issuedAt: invoice.issuedAt,
       paidAt: membership.createdAt,
       memberName: user.fullName,
       memberEmail: user.email,
@@ -499,18 +515,18 @@ export class PaymentsService {
       planMonths: membership.planMonths,
       listPricePaise: membership.listPricePaise,
       discountPaise: membership.discountPaise,
-      discountLabel: order?.couponCode?.trim() || null,
+      discountLabel: invoice.discountLabel,
       amountPaidPaise: membership.amountPaidPaise,
       currency,
-      paymentRef,
-      paymentMethod,
+      paymentRef: invoice.paymentReference,
+      paymentMethod: invoice.paymentMethod || paymentMethod,
       startsAt: membership.startsAt,
       endsAt: membership.endsAt,
     });
 
     return {
       type: 'pdf' as const,
-      filename: `the-healing-mat-invoice-${invoiceNo}.pdf`,
+      filename: `the-healing-mat-invoice-${invoice.invoiceNumber}.pdf`,
       pdf,
     };
   }
@@ -697,6 +713,22 @@ export class PaymentsService {
         paymentOrderId: order.id,
       })
       .catch(() => null);
+
+    await this.invoices
+      .ensureMembershipInvoice({
+        membership,
+        user,
+        paymentMethod: 'Online (Razorpay)',
+        paymentReference: order.razorpayPaymentId,
+        discountLabel: order.couponCode?.trim() || null,
+      })
+      .catch((err) => {
+        this.logger.warn(
+          `Invoice issue failed for membership ${membership.id}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      });
 
     await this.deliverRazorpayInvoice(user, membership).catch((err) => {
       this.logger.warn(
@@ -1184,8 +1216,8 @@ export class PaymentsService {
       razorpayInvoiceId: membership.razorpayInvoiceId,
       razorpayInvoiceUrl: membership.razorpayInvoiceUrl,
       paidAt: membership.createdAt.toISOString(),
-      /** Healing Mat branded PDF is always available for paid memberships. */
-      invoiceDownloadable: true,
+      /** Healing Mat branded PDF — only for paid memberships (not 100% discount). */
+      invoiceDownloadable: membership.amountPaidPaise > 0,
     };
   }
 

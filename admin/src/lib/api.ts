@@ -256,6 +256,10 @@ export type AdminUserMembership = {
   razorpayPaymentId: string | null;
   razorpayInvoiceId: string | null;
   razorpayInvoiceUrl: string | null;
+  paymentMethod: string | null;
+  adminNote: string | null;
+  invoiceNumber: string | null;
+  invoiceCategory: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -308,8 +312,13 @@ export type CreateAdminMembershipInput = {
   startsAt?: string;
   paymentOrderId?: string;
   paymentRef?: string;
+  paymentMethod?: string;
+  adminNote: string;
+  listPricePaise?: number;
+  discountPaise?: number;
   amountPaidPaise?: number;
   currency?: string;
+  billingLocation?: string;
 };
 
 export function getAdminUserDetail(token: string, id: string) {

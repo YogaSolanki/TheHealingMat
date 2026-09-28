@@ -410,17 +410,21 @@ export function UsersPanel() {
 
   if (error && users.length === 0 && !confirmOpen) {
     return (
-      <div className="space-y-3">
-        <div className="flex justify-end">
-          <ReloadButton
-            onClick={() => void load({ force: true })}
-            label="Reload users"
-          />
+      <section className="flex min-h-[calc(100dvh-7rem)] flex-col">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_rgba(21,32,25,0.04)]">
+          <div className="flex shrink-0 justify-end border-b border-[#e6ebe3] px-5 py-4">
+            <ReloadButton
+              onClick={() => void load({ force: true })}
+              label="Reload users"
+            />
+          </div>
+          <div className="flex min-h-0 flex-1 items-start px-5 py-4">
+            <p className="w-full rounded-xl bg-[#fff8f7] px-4 py-3 text-sm text-[#8a2f2f]">
+              {error}
+            </p>
+          </div>
         </div>
-        <p className="rounded-2xl bg-white px-5 py-4 text-sm text-[#8a2f2f] shadow-sm">
-          {error}
-        </p>
-      </div>
+      </section>
     );
   }
 
@@ -443,8 +447,9 @@ export function UsersPanel() {
         }}
         onConfirm={() => void confirmDeleteUser()}
       />
-      <section className="overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_rgba(21,32,25,0.04)]">
-        <div className="flex flex-col gap-3 border-b border-[#e6ebe3] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <section className="flex min-h-[calc(100dvh-7rem)] flex-col">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_rgba(21,32,25,0.04)]">
+        <div className="flex shrink-0 flex-col gap-3 border-b border-[#e6ebe3] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-medium text-[#243028]">
               {users.length} permanent THM accounts
@@ -483,12 +488,12 @@ export function UsersPanel() {
         </div>
 
         {error ? (
-          <p className="border-b border-[#e6ebe3] bg-[#fff8f7] px-5 py-3 text-sm text-[#8a2f2f]">
+          <p className="shrink-0 border-b border-[#e6ebe3] bg-[#fff8f7] px-5 py-3 text-sm text-[#8a2f2f]">
             {error}
           </p>
         ) : null}
 
-        <div className="overflow-x-auto">
+        <div className="min-h-0 flex-1 overflow-x-auto pb-28">
           <table className="w-full min-w-[860px] table-fixed text-left text-sm">
             <thead className="text-[#5f6f64]">
               <tr>
@@ -627,6 +632,7 @@ export function UsersPanel() {
             </tbody>
           </table>
         </div>
+        </div>
       </section>
 
       {addOpen ? (
@@ -637,17 +643,42 @@ export function UsersPanel() {
             aria-labelledby="add-user-title"
             className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#e6ebe3] bg-white p-5 shadow-[0_20px_48px_rgba(21,32,25,0.18)] sm:p-6"
           >
-            <h2
-              id="add-user-title"
-              className="text-lg font-semibold text-[#243028]"
-            >
-              {createdPassword ? "User created" : "Add user"}
-            </h2>
-            <p className="mt-1 text-sm text-[#5f6f64]">
-              {createdPassword
-                ? "Copy the temporary password now — it won’t be shown again."
-                : "Create with name and contact. Profile details can be edited later on the user page."}
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2
+                  id="add-user-title"
+                  className="text-lg font-semibold text-[#243028]"
+                >
+                  {createdPassword ? "User created" : "Add user"}
+                </h2>
+                <p className="mt-1 text-sm text-[#5f6f64]">
+                  {createdPassword
+                    ? "Copy the temporary password now — it won’t be shown again."
+                    : "Create with name and contact. Profile details can be edited later on the user page."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeAddUser}
+                disabled={adding || checkingExists}
+                aria-label="Close"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#5f6f64] transition hover:bg-[#f0f4ef] hover:text-[#243028] disabled:opacity-50"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M6 6l12 12M18 6 6 18"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
 
             {createdPassword && createdUserId ? (
               <div className="mt-5 space-y-4">
@@ -662,6 +693,13 @@ export function UsersPanel() {
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <button
                     type="button"
+                    onClick={closeAddUser}
+                    className="h-11 rounded-xl border border-[#e2e8df] px-4 text-sm font-semibold text-[#3d4a3c] transition hover:bg-[#f6f8f5]"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => {
                       void navigator.clipboard.writeText(createdPassword);
                     }}
@@ -672,8 +710,9 @@ export function UsersPanel() {
                   <button
                     type="button"
                     onClick={() => {
-                      setAddOpen(false);
-                      router.push(`/dashboard/users/${createdUserId}`);
+                      const id = createdUserId;
+                      closeAddUser();
+                      if (id) router.push(`/dashboard/users/${id}`);
                     }}
                     className="h-11 rounded-xl bg-[#1f6b3a] px-4 text-sm font-semibold text-white transition hover:bg-[#185830]"
                   >

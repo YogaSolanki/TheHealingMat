@@ -14,6 +14,7 @@ import { Coupon } from '../coupons/coupon.entity';
 import { isValidPassword, PASSWORD_MESSAGE } from '../auth/dto/password.rules';
 import { Membership } from '../payments/membership.entity';
 import { MembershipPlansService } from '../payments/membership-plans.service';
+import { InvoicesService } from '../payments/invoices.service';
 import { PaymentOrder } from '../payments/payment-order.entity';
 import { PaymentsService } from '../payments/payments.service';
 import { RewardRedemptionRequest } from '../referrals/reward-redemption-request.entity';
@@ -45,6 +46,7 @@ export class AdminDashboardService {
     private readonly config: ConfigService,
     private readonly membershipPlans: MembershipPlansService,
     private readonly payments: PaymentsService,
+    private readonly invoices: InvoicesService,
     private readonly trialsService: TrialsService,
     @InjectRepository(User)
     private readonly users: Repository<User>,
@@ -223,6 +225,15 @@ export class AdminDashboardService {
       this.users.count({ where: { referredByUserId: id } }),
     ]);
 
+    const invoiceRows = await this.invoices.findByMembershipIds(
+      memberships.map((m) => m.id),
+    );
+    const invoiceByMembershipId = new Map(
+      invoiceRows
+        .filter((row) => row.membershipId)
+        .map((row) => [row.membershipId as string, row]),
+    );
+
     let referredBy: { id: string; fullName: string; referralCode: string } | null =
       null;
     if (user.referredByUserId) {
@@ -272,24 +283,31 @@ export class AdminDashboardService {
             orientationLabel: trial.orientationSlot?.label ?? null,
           }
         : null,
-      memberships: memberships.map((membership) => ({
-        id: membership.id,
-        planMonths: membership.planMonths,
-        planName: membership.planName,
-        listPricePaise: membership.listPricePaise,
-        discountPaise: membership.discountPaise,
-        amountPaidPaise: membership.amountPaidPaise,
-        currency: membership.currency,
-        status: membership.status,
-        startsAt: membership.startsAt,
-        endsAt: membership.endsAt,
-        paymentOrderId: membership.paymentOrderId,
-        razorpayPaymentId: membership.razorpayPaymentId,
-        razorpayInvoiceId: membership.razorpayInvoiceId,
-        razorpayInvoiceUrl: membership.razorpayInvoiceUrl,
-        createdAt: membership.createdAt,
-        updatedAt: membership.updatedAt,
-      })),
+      memberships: memberships.map((membership) => {
+        const invoice = invoiceByMembershipId.get(membership.id) ?? null;
+        return {
+          id: membership.id,
+          planMonths: membership.planMonths,
+          planName: membership.planName,
+          listPricePaise: membership.listPricePaise,
+          discountPaise: membership.discountPaise,
+          amountPaidPaise: membership.amountPaidPaise,
+          currency: membership.currency,
+          status: membership.status,
+          startsAt: membership.startsAt,
+          endsAt: membership.endsAt,
+          paymentOrderId: membership.paymentOrderId,
+          razorpayPaymentId: membership.razorpayPaymentId,
+          razorpayInvoiceId: membership.razorpayInvoiceId,
+          razorpayInvoiceUrl: membership.razorpayInvoiceUrl,
+          paymentMethod: membership.paymentMethod,
+          adminNote: membership.adminNote,
+          invoiceNumber: invoice?.invoiceNumber ?? null,
+          invoiceCategory: invoice?.category ?? null,
+          createdAt: membership.createdAt,
+          updatedAt: membership.updatedAt,
+        };
+      }),
       payments: payments.map((payment) => ({
         id: payment.id,
         razorpayOrderId: payment.razorpayOrderId,
@@ -643,28 +661,76 @@ export class AdminDashboardService {
       throw new BadRequestException('endsAt must be after startsAt.');
     }
 
+    const adminNote = dto.adminNote?.trim();
+    if (!adminNote || adminNote.length < 3) {
+      throw new BadRequestException(
+        'Admin note is required (why this membership was created manually).',
+      );
+    }
+
     const currency =
       dto.currency?.toUpperCase() ||
       payment?.currency ||
       (user.region === Region.OutsideIndia ? 'USD' : 'INR');
-    const listPricePaise =
-      payment?.listPricePaise ??
-      (currency === 'USD'
+    const catalogListPrice =
+      currency === 'USD'
         ? (plan.listPriceUsdCents ?? 0)
-        : (plan.listPricePaise ?? 0));
-    const discountPaise = payment?.discountPaise ?? 0;
+        : (plan.listPricePaise ?? 0);
+    const listPricePaise =
+      dto.listPricePaise ?? payment?.listPricePaise ?? catalogListPrice;
+    const discountPaise =
+      dto.discountPaise ?? payment?.discountPaise ?? 0;
     const amountPaidPaise =
       dto.amountPaidPaise ??
       payment?.amountPaise ??
       Math.max(0, listPricePaise - discountPaise);
 
+    if (discountPaise > listPricePaise) {
+      throw new BadRequestException('Discount cannot exceed list price.');
+    }
+    if (amountPaidPaise > listPricePaise) {
+      throw new BadRequestException(
+        'Amount paid cannot exceed list price.',
+      );
+    }
+
+    const billingLocation =
+      dto.billingLocation?.trim() || user.state?.trim() || null;
+    if (!billingLocation) {
+      throw new BadRequestException(
+        user.region === Region.OutsideIndia
+          ? 'Country is required for the invoice. Add it on the profile or enter billing location here.'
+          : 'State is required for the invoice. Add it on the profile or enter billing location here.',
+      );
+    }
+    if (!user.state?.trim() && dto.billingLocation?.trim()) {
+      user.state = dto.billingLocation.trim();
+      await this.users.save(user);
+    }
+
+    const paymentMethod =
+      dto.paymentMethod?.trim() ||
+      (payment ? 'Online (Razorpay)' : null);
+    const paymentRef =
+      dto.paymentRef?.trim() || payment?.razorpayPaymentId || null;
+
+    if (amountPaidPaise > 0) {
+      if (!paymentMethod) {
+        throw new BadRequestException(
+          'Payment method is required when amount paid is greater than zero.',
+        );
+      }
+      if (!paymentRef) {
+        throw new BadRequestException(
+          'Payment reference is required when amount paid is greater than zero.',
+        );
+      }
+    }
+
     if (payment && payment.status !== 'paid') {
       payment.status = 'paid';
       await this.paymentOrders.save(payment);
     }
-
-    const paymentRef =
-      dto.paymentRef?.trim() || payment?.razorpayPaymentId || null;
 
     let razorpayInvoiceId = payment?.razorpayInvoiceId ?? null;
     let razorpayInvoiceUrl = payment?.razorpayInvoiceUrl ?? null;
@@ -696,12 +762,28 @@ export class AdminDashboardService {
         razorpayPaymentId,
         razorpayInvoiceId,
         razorpayInvoiceUrl,
+        paymentMethod,
+        adminNote,
       }),
     );
 
     if (status === 'active') {
       await this.supersedeOtherActiveMemberships(userId, membership.id);
       await this.completeTrialForMembership(userId);
+    }
+
+    const invoice = await this.invoices.ensureMembershipInvoice({
+      membership,
+      user,
+      paymentMethod: paymentMethod || 'Admin assigned',
+      paymentReference: amountPaidPaise > 0 ? razorpayPaymentId : null,
+      discountLabel: payment?.couponCode?.trim() || null,
+    });
+
+    if (amountPaidPaise > 0 && !invoice) {
+      throw new BadRequestException(
+        'Membership was created but invoice could not be issued. Please try again.',
+      );
     }
 
     return this.getUserDetail(userId);
@@ -741,6 +823,9 @@ export class AdminDashboardService {
       amountPaidPaise: payment.amountPaise,
       currency: payment.currency,
       status: 'active',
+      adminNote: 'Activated from existing paid payment order.',
+      paymentMethod: 'Online (Razorpay)',
+      paymentRef: payment.razorpayPaymentId ?? undefined,
     });
   }
 
