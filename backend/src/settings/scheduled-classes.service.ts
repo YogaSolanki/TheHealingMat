@@ -186,7 +186,9 @@ export class ScheduledClassesService implements OnModuleInit {
     return rows.map((row) =>
       this.toResponse(row, {
         isSpecial: Boolean(
-          specialTimingId && row.sessionTimingId === specialTimingId,
+          row.sessionTiming?.isSpecial ||
+            row.isSpecial ||
+            (specialTimingId && row.sessionTimingId === specialTimingId),
         ),
         isSundayQa: Boolean(row.sessionTiming?.isSundayQa),
       }),
@@ -325,7 +327,10 @@ export class ScheduledClassesService implements OnModuleInit {
       .map((row) => {
         const minutes = parseSlotLabelMinutes(row.sessionTimeLabel);
         if (minutes == null) return null;
-        const isSpecial = Boolean(row.sessionTiming?.isSpecial);
+        // Regular, Special (Mon–Sat), and Sunday Q&A are all joinable.
+        const isSpecial = Boolean(
+          row.sessionTiming?.isSpecial || row.isSpecial,
+        );
         const isSundayQa = Boolean(row.sessionTiming?.isSundayQa);
         return {
           label: row.sessionTimeLabel,
@@ -335,6 +340,8 @@ export class ScheduledClassesService implements OnModuleInit {
               ? SPECIAL_SESSION_DURATION_MINUTES
               : durationForMinutes(minutes),
           meetingUrl: row.meetingUrl?.trim() || null,
+          isSpecial,
+          isSundayQa,
         };
       })
       .filter(
@@ -345,15 +352,25 @@ export class ScheduledClassesService implements OnModuleInit {
           minutes: number;
           durationMinutes: number;
           meetingUrl: string | null;
+          isSpecial: boolean;
+          isSundayQa: boolean;
         } => slot != null,
       )
       .sort((a, b) => a.minutes - b.minutes);
 
-    const running = allSlots.find((slot) => {
+    // Prefer the latest-starting open window so Special / Q&A win when
+    // join windows overlap an earlier regular slot.
+    const openSlots = allSlots.filter((slot) => {
       const openAt = slot.minutes - JOIN_EARLY_MINUTES;
       const closeAt = slot.minutes + slot.durationMinutes;
       return minutesNow >= openAt && minutesNow < closeAt;
     });
+    const running =
+      openSlots.length === 0
+        ? null
+        : openSlots.reduce((best, slot) =>
+            slot.minutes >= best.minutes ? slot : best,
+          );
 
     if (running) {
       return {
@@ -415,14 +432,17 @@ export class ScheduledClassesService implements OnModuleInit {
       const key = row.sessionTimeLabel.trim().toLowerCase();
       if (!key || seen.has(key)) continue;
       seen.add(key);
+      const isSundayQa = Boolean(row.sessionTiming?.isSundayQa);
       sessions.push({
         id: row.id,
         sessionTimingId: row.sessionTimingId,
         sessionTimeLabel: row.sessionTimeLabel,
         isSpecial: Boolean(
-          specialTimingId && row.sessionTimingId === specialTimingId,
+          row.sessionTiming?.isSpecial ||
+            row.isSpecial ||
+            (specialTimingId && row.sessionTimingId === specialTimingId),
         ),
-        isSundayQa: Boolean(row.sessionTiming?.isSundayQa),
+        isSundayQa,
       });
     }
 

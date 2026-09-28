@@ -93,13 +93,14 @@ function toSlots(
     .map((label) => {
       const minutes = parseSlotLabel(label);
       if (minutes == null) return null;
-      const isSpecial =
+      // specialLabels covers Mon–Sat Special Session and Sunday Q&A flags.
+      const isSpecialOrQa =
         specialLabels?.has(label.trim().toLowerCase()) === true ||
         isSpecialMinutes(minutes);
       return {
         label,
         minutes,
-        durationMinutes: isSpecial
+        durationMinutes: isSpecialOrQa
           ? SPECIAL_SESSION_DURATION_MINUTES
           : SESSION_DURATION_MINUTES,
       };
@@ -174,11 +175,17 @@ export function findRunningSession(
   specialLabels?: ReadonlySet<string>,
 ) {
   const minutesNow = currentMinutes(now);
-  return (
-    slotsForDate(now, kind, labels, specialLabels).find((slot) => {
+  // Include every scheduled label (regular, Special, Sunday Q&A). When join
+  // windows overlap, prefer the latest-starting slot so Special / Q&A win.
+  const open = slotsForDate(now, kind, labels, specialLabels).filter(
+    (slot) => {
       const { openAt, closeAt } = joinWindow(slot);
       return minutesNow >= openAt && minutesNow < closeAt;
-    }) ?? null
+    },
+  );
+  if (open.length === 0) return null;
+  return open.reduce((best, slot) =>
+    slot.minutes >= best.minutes ? slot : best,
   );
 }
 

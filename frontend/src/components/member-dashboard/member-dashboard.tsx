@@ -191,36 +191,55 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     setSessionNotice(null);
     try {
       const now = new Date();
-      // 1) Always refresh today's Class Management slots first.
+      // Refresh today's Class Management slots (regular + special + Sunday Q&A).
       const labels = await refreshTodaySessionsSilent();
-      // Prefer freshly loaded special flags from the store snapshot after refresh.
       const specialSet = new Set(
         todaySessionsStore.getSnapshot().specialLabels.map((label) =>
           label.trim().toLowerCase(),
         ),
       );
-      const running = findRunningSession(now, sessionKind, labels, specialSet);
-      if (!running) {
-        setSessionNotice(
-          labels.length === 0
-            ? "No sessions scheduled today. Check back when a class is on the schedule."
-            : sessionUnavailableMessage(now, sessionKind, labels, specialSet),
-        );
-        return;
-      }
 
+      // Backend is the source of truth for which scheduled class is live —
+      // including Special Session and Sunday Q&A — and returns its meeting URL.
       const result = await getLiveSessionUrl(token, {
         at: now.toISOString(),
       });
       const url = result.url?.trim() || null;
+      const liveSlot =
+        result.slot?.trim() ||
+        findRunningSession(now, sessionKind, labels, specialSet)?.label ||
+        null;
 
       if (url) {
         window.open(url, "_blank", "noopener,noreferrer");
         return;
       }
 
+      if (liveSlot) {
+        setSessionNotice(
+          `The ${liveSlot} session is live, but its class link has not been published yet. Please try again shortly or contact support.`,
+        );
+        return;
+      }
+
+      if (labels.length === 0) {
+        setSessionNotice(
+          "No sessions scheduled today. Check back when a class is on the schedule.",
+        );
+        return;
+      }
+
+      if (result.next?.label) {
+        setSessionNotice(
+          result.next.when === "tomorrow"
+            ? `No session is currently running. The next session starts at ${result.next.label} tomorrow.`
+            : `No session is currently running. The next session starts at ${result.next.label}.`,
+        );
+        return;
+      }
+
       setSessionNotice(
-        `The ${running.label} session is live, but its class link has not been published yet. Please try again shortly or contact support.`,
+        sessionUnavailableMessage(now, sessionKind, labels, specialSet),
       );
     } catch (err) {
       setSessionNotice(

@@ -61,32 +61,54 @@ export function MemberJoinPage() {
             .getSnapshot()
             .specialLabels.map((label) => label.trim().toLowerCase()),
         );
-        const running = findRunningSession(now, sessionKind, labels, specialSet);
-        if (!running) {
-          setLiveUrl(null);
-          setLiveSlot(null);
-          setNextCopy(
-            labels.length === 0
-              ? "No sessions scheduled today. Check back when a class is on the schedule."
-              : sessionUnavailableMessage(now, sessionKind, labels, specialSet),
-          );
-          return;
-        }
 
+        // Backend resolves the live class for regular, Special, and Sunday Q&A.
         const result = await getLiveSessionUrl(token, {
           at: now.toISOString(),
         });
         if (cancelled) return;
 
-        setLiveUrl(result.url);
-        setLiveSlot(result.slot ?? running.label);
-        if (!result.url) {
-          setNextCopy(
-            `The ${running.label} session is live, but its class link has not been published yet.`,
-          );
-        } else {
+        const liveSlot =
+          result.slot?.trim() ||
+          findRunningSession(now, sessionKind, labels, specialSet)?.label ||
+          null;
+
+        if (result.url) {
+          setLiveUrl(result.url);
+          setLiveSlot(liveSlot);
           setNextCopy(null);
+          return;
         }
+
+        setLiveUrl(null);
+        setLiveSlot(liveSlot);
+
+        if (liveSlot) {
+          setNextCopy(
+            `The ${liveSlot} session is live, but its class link has not been published yet.`,
+          );
+          return;
+        }
+
+        if (labels.length === 0) {
+          setNextCopy(
+            "No sessions scheduled today. Check back when a class is on the schedule.",
+          );
+          return;
+        }
+
+        if (result.next?.label) {
+          setNextCopy(
+            result.next.when === "tomorrow"
+              ? `No session is currently running. The next session starts at ${result.next.label} tomorrow.`
+              : `No session is currently running. The next session starts at ${result.next.label}.`,
+          );
+          return;
+        }
+
+        setNextCopy(
+          sessionUnavailableMessage(now, sessionKind, labels, specialSet),
+        );
       } catch (err: unknown) {
         if (cancelled) return;
         setUrlError(
