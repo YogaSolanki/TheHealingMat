@@ -38,9 +38,9 @@ export function buildReferralCode(fullName: string) {
   return `${firstNameSlug(fullName)}_${randomAlphanumeric(5)}`;
 }
 
-/** V1 slug only: firstnamelastname + 2-digit — e.g. pradeepsolanki27 */
+/** Personal session link slug: name + digits + short random — e.g. pradeepsolanki27k4 */
 export function buildAccessLinkSlug(fullName: string) {
-  return `${fullNameSlug(fullName)}${randomTwoDigits()}`;
+  return `${fullNameSlug(fullName)}${randomTwoDigits()}${randomAlphanumeric(2)}`;
 }
 
 export function isUniqueViolation(error: unknown) {

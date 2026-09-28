@@ -4,6 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AdminsModule } from '../admins/admins.module';
+import { PaymentsModule } from '../payments/payments.module';
+import { SettingsModule } from '../settings/settings.module';
 import { TrialsModule } from '../trials/trials.module';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
@@ -17,6 +19,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     AdminsModule,
     UsersModule,
     TrialsModule,
+    PaymentsModule,
+    SettingsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       inject: [ConfigService],

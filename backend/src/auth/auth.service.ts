@@ -40,6 +40,8 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UserLoginDto } from './dto/user-login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { TrialsService } from '../trials/trials.service';
+import { PaymentsService } from '../payments/payments.service';
+import { ScheduledClassesService } from '../settings/scheduled-classes.service';
 
 export type PublicAdmin = {
   email: string;
@@ -90,6 +92,8 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly trials: TrialsService,
+    private readonly payments: PaymentsService,
+    private readonly scheduledClasses: ScheduledClassesService,
   ) {}
 
   async login(dto: AdminLoginDto) {
@@ -750,7 +754,11 @@ export class AuthService {
 
   private async allocateUniqueAccessLinkSlug(fullName: string) {
     for (let attempt = 0; attempt < 40; attempt += 1) {
-      const accessLinkToken = buildAccessLinkSlug(fullName);
+      // Extra entropy on later retries if the name-based slug space is crowded.
+      const accessLinkToken =
+        attempt < 20
+          ? buildAccessLinkSlug(fullName)
+          : `${buildAccessLinkSlug(fullName)}${randomInt(10, 99)}`;
       const exists = await this.users.findOne({
         where: { accessLinkToken },
       });
@@ -986,6 +994,67 @@ export class AuthService {
     return {
       valid: true,
       slug: user.accessLinkToken,
+    };
+  }
+
+  /**
+   * Personal session link join (no login required).
+   * Validates the link owner’s membership/trial, then returns the IST live class.
+   */
+  async joinViaAccessLink(slug: string, atIso?: string | null) {
+    const accessLinkToken = slug.trim().toLowerCase();
+    if (!/^[a-z0-9]{3,64}$/.test(accessLinkToken)) {
+      throw new NotFoundException('Access link not found.');
+    }
+
+    const user = await this.users.findOne({ where: { accessLinkToken } });
+    if (!user) {
+      throw new NotFoundException('Access link not found.');
+    }
+
+    const access = await this.payments.getMyAccess(user);
+
+    if (access.state === 'scheduled') {
+      return {
+        status: 'scheduled' as const,
+        accessState: access.state,
+        trialStartsAt: access.trial?.startsAt ?? null,
+        url: null as string | null,
+        slot: null as string | null,
+        next: null as { label: string; when: 'today' | 'tomorrow' } | null,
+      };
+    }
+
+    if (access.state !== 'active' && access.state !== 'trial') {
+      return {
+        status: 'inactive' as const,
+        accessState: access.state,
+        trialStartsAt: null as string | null,
+        url: null as string | null,
+        slot: null as string | null,
+        next: null as { label: string; when: 'today' | 'tomorrow' } | null,
+      };
+    }
+
+    const live = await this.scheduledClasses.findLiveSessionAt(atIso ?? null);
+    if (live.url?.trim()) {
+      return {
+        status: 'live' as const,
+        accessState: access.state,
+        trialStartsAt: null as string | null,
+        url: live.url.trim(),
+        slot: live.slot,
+        next: null as { label: string; when: 'today' | 'tomorrow' } | null,
+      };
+    }
+
+    return {
+      status: 'no_session' as const,
+      accessState: access.state,
+      trialStartsAt: null as string | null,
+      url: null as string | null,
+      slot: live.slot,
+      next: live.next,
     };
   }
 
