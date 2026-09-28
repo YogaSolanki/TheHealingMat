@@ -182,6 +182,7 @@ export function SiteFooter() {
     pathname === "/faq" ||
     pathname === "/membership" ||
     pathname.startsWith("/membership/") ||
+    pathname.startsWith("/u/") ||
     isMembershipBrowsePath(pathname) ||
     isMemberDashboard;
 
