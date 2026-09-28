@@ -168,12 +168,22 @@ function joinWindow(slot: SessionSlot) {
   };
 }
 
+/**
+ * Is a class joinable right now?
+ *
+ * Always evaluated in Asia/Kolkata (IST) — never the viewer's local clock.
+ * London 2:00 PM and Delhi 7:30 PM are the same moment; if that IST slot is
+ * live, every member worldwide can join. Display may show local times; join
+ * windows do not.
+ */
 export function findRunningSession(
   now = new Date(),
   kind: SessionAccessKind = "member",
+  /** IST labels from Class Management cache / API (not local-converted). */
   labels: readonly string[] = FALLBACK_SESSION_LABELS,
   specialLabels?: ReadonlySet<string>,
 ) {
+  // currentMinutes() is always Asia/Kolkata wall-clock.
   const minutesNow = currentMinutes(now);
   // Include every scheduled label (regular, Special, Sunday Q&A). When join
   // windows overlap, prefer the latest-starting slot so Special / Q&A win.

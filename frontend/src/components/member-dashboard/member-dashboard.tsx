@@ -236,24 +236,27 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     setJoiningSession(true);
     setSessionNotice(null);
     try {
+      // Absolute "now" (UTC instant). Backend + findRunningSession both convert
+      // this to IST — join is never based on the member's local wall clock.
       const now = new Date();
-      // Refresh today's Class Management slots (regular + special + Sunday Q&A).
-      const labels = await refreshTodaySessionsSilent();
+      // Cached / refreshed Class Management labels are always IST strings
+      // (e.g. "7:00 PM" meaning 7:00 PM India), not local-converted chips.
+      const istLabels = await refreshTodaySessionsSilent();
       const specialSet = new Set(
         todaySessionsStore.getSnapshot().specialLabels.map((label) =>
           label.trim().toLowerCase(),
         ),
       );
 
-      // Backend is the source of truth for which scheduled class is live —
-      // including Special Session and Sunday Q&A — and returns its meeting URL.
+      // Live API: server checks which IST slot is open right now and returns
+      // that class link. Same live window for India and outside-India users.
       const result = await getLiveSessionUrl(token, {
         at: now.toISOString(),
       });
       const url = result.url?.trim() || null;
-      const liveSlot =
+      const liveIstSlot =
         result.slot?.trim() ||
-        findRunningSession(now, sessionKind, labels, specialSet)?.label ||
+        findRunningSession(now, sessionKind, istLabels, specialSet)?.label ||
         null;
 
       if (url) {
@@ -261,14 +264,14 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
         return;
       }
 
-      if (liveSlot) {
+      if (liveIstSlot) {
         setSessionNotice(
-          `The ${toLocalSlot(liveSlot) ?? liveSlot} session is live, but its class link has not been published yet. Please try again shortly or contact support.`,
+          `The ${toLocalSlot(liveIstSlot) ?? liveIstSlot} session is live, but its class link has not been published yet. Please try again shortly or contact support.`,
         );
         return;
       }
 
-      if (labels.length === 0) {
+      if (istLabels.length === 0) {
         setSessionNotice(
           "No sessions scheduled today. Check back when a class is on the schedule.",
         );
@@ -288,7 +291,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
       const fallback = sessionUnavailableMessage(
         now,
         sessionKind,
-        labels,
+        istLabels,
         specialSet,
       );
       setSessionNotice(

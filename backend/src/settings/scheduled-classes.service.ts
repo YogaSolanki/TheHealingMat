@@ -298,10 +298,11 @@ export class ScheduledClassesService implements OnModuleInit {
   }
 
   /**
-   * Resolve the live meeting URL from today's Class Management schedule
-   * using the current clock (client `at` if within skew, else server IST).
-   * Only returns a URL when that scheduled class still exists and has a meeting link.
-   * Never trusts a client-provided slot label or a global fallback URL.
+   * Resolve the live meeting URL from today's Class Management schedule.
+   *
+   * Join windows are ALWAYS Asia/Kolkata (IST). Client `at` is only an absolute
+   * clock instant (ISO); we convert it to IST minutes. Members outside India
+   * join the same live slot at the same moment — local timezone is display-only.
    */
   async findLiveSessionAt(atIso?: string | null) {
     await this.purgeExpiredClasses();

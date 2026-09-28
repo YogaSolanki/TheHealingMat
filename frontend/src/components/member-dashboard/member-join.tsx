@@ -62,7 +62,8 @@ export function MemberJoinPage() {
             .specialLabels.map((label) => label.trim().toLowerCase()),
         );
 
-        // Backend resolves the live class for regular, Special, and Sunday Q&A.
+        // Join check is IST-only (same live window worldwide). Labels from
+        // cache are Indian session times — never local-converted chip text.
         const result = await getLiveSessionUrl(token, {
           at: now.toISOString(),
         });
