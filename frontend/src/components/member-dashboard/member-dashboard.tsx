@@ -494,7 +494,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
             </div>
           </div>
 
-          {cachedIstSlotLabels.length > 0 ? (
+          {showLocalTimes && cachedIstSlotLabels.length > 0 ? (
             <div className="border-b border-[#eef2ee] px-4 py-2.5 sm:px-6">
               <SessionTimezoneNote
                 istLabels={cachedIstSlotLabels}
