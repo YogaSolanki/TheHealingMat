@@ -14,6 +14,7 @@ import {
   listAdminSessionTimings,
   updateAdminUser,
   updateAdminUserMembership,
+  upgradeAdminUserMembership,
   type AdminMembershipPlan,
   type AdminUserDetail,
   type AdminUserMembership,
@@ -115,12 +116,30 @@ function emptyUpgradeForm(
   active: AdminUserMembership | null,
   plans?: AdminMembershipPlan[],
 ): UpgradeForm {
-  if (active) {
-    return { planMonths: String(active.planMonths) };
-  }
-  const preferred =
-    plans?.find((p) => p.months === 3) ?? plans?.[0] ?? null;
-  return { planMonths: preferred ? String(preferred.months) : "3" };
+  const options = upgradePlanOptions(active?.planMonths ?? 0, plans);
+  return { planMonths: options[0] ? String(options[0].months) : "" };
+}
+
+/** Longer plans only — never same or shorter duration. */
+function upgradePlanOptions(
+  currentMonths: number,
+  plans?: AdminMembershipPlan[],
+): { id: string; months: number; name: string }[] {
+  const catalog =
+    plans && plans.length > 0
+      ? plans.map((plan) => ({
+          id: plan.id,
+          months: plan.months,
+          name: plan.name,
+        }))
+      : [3, 6, 12].map((months) => ({
+          id: String(months),
+          months,
+          name: `${months}-Month Membership`,
+        }));
+  return catalog
+    .filter((plan) => plan.months > currentMonths)
+    .sort((a, b) => a.months - b.months);
 }
 
 /** Match payments/admin membershipEndsAt: start + N months − 1 day, end of day. */
@@ -575,6 +594,21 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     const target = detail.memberships.find((m) => m.id === membershipId);
     if (!target) return;
 
+    if (target.status !== "active" && target.status !== "scheduled") {
+      showError(
+        "Only the current membership or a scheduled renew can be upgraded.",
+      );
+      return;
+    }
+
+    const longerPlans = upgradePlanOptions(target.planMonths, catalogPlans);
+    if (longerPlans.length === 0) {
+      showError(
+        "This plan is already the longest duration — no upgrade available.",
+      );
+      return;
+    }
+
     if (!editing) {
       applyDetail(detail);
       setEditing(true);
@@ -594,19 +628,26 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       return;
     }
 
+    const nextMonths = String(longerPlans[0].months);
+    const nextPlan = longerPlans[0];
+    const nextEnds = calcMembershipEndsAt(
+      new Date(target.startsAt),
+      nextPlan.months,
+    );
+
     setMembershipComposer("upgrade");
     setUpgradeTargetId(membershipId);
-    setUpgradeForm({ planMonths: String(target.planMonths) });
+    setUpgradeForm({ planMonths: nextMonths });
     setMembershipForms((forms) => {
       const existing = forms[membershipId] ?? membershipFormFromRow(target);
       return {
         ...forms,
         [membershipId]: {
           ...existing,
-          planMonths: String(target.planMonths),
-          planName: target.planName,
+          planMonths: nextMonths,
+          planName: nextPlan.name,
           startsAt: toDateTimeLocal(target.startsAt),
-          endsAt: toDateTimeLocal(target.endsAt),
+          endsAt: toDateTimeLocal(nextEnds.toISOString()),
           status: target.status,
         },
       };
@@ -719,11 +760,18 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     if (!editing || savingMembershipId) return;
     const planMonths = Number(upgradeForm.planMonths);
     if (!Number.isInteger(planMonths) || planMonths < 1) {
-      showError("Select a valid plan.");
+      showError("Select a valid longer plan.");
       return;
     }
     const row = detail?.memberships.find((m) => m.id === membershipId);
-    if (row && String(row.planMonths) === upgradeForm.planMonths) {
+    if (!row) {
+      showError("Membership not found.");
+      return;
+    }
+    if (planMonths <= row.planMonths) {
+      showError(
+        "Upgrade must be to a longer plan. Shorter or same duration is not allowed.",
+      );
       return;
     }
     setPendingSave({ type: "upgrade-membership", membershipId });
@@ -907,12 +955,13 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         return;
       }
       const planMonths = Number(upgradeForm.planMonths);
-      const plan = catalogPlans.find((p) => p.months === planMonths) ?? null;
-      const planName = plan?.name ?? `${planMonths}-Month Membership`;
-      const endsAt = calcMembershipEndsAt(
-        new Date(membership.startsAt),
-        planMonths,
-      );
+      if (!Number.isInteger(planMonths) || planMonths <= membership.planMonths) {
+        setPendingSave(null);
+        showError(
+          "Upgrade must be to a longer plan. Shorter or same duration is not allowed.",
+        );
+        return;
+      }
 
       setSavingMembershipId(membershipId);
       setError(null);
@@ -920,25 +969,26 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       setMembershipActionMessage(null);
       setPendingSave(null);
       try {
-        const next = await updateAdminUserMembership(
+        const next = await upgradeAdminUserMembership(
           token,
           userId,
           membershipId,
-          {
-            planMonths,
-            planName,
-            endsAt: endsAt.toISOString(),
-            status: membership.status,
-          },
+          { planMonths },
         );
         applyDetail(next);
         invalidateCached(DASHBOARD_CACHE_KEYS.users);
         invalidateCached(DASHBOARD_CACHE_KEYS.overview);
-        setMembershipSavedId(membershipId);
+        const upgraded =
+          next.memberships.find(
+            (m) =>
+              (m.status === "active" || m.status === "scheduled") &&
+              m.planMonths === planMonths,
+          ) ?? null;
+        setMembershipSavedId(upgraded?.id ?? null);
         const successMessage =
           membership.status === "scheduled"
-            ? "Scheduled renew upgraded successfully."
-            : "Current membership upgraded successfully.";
+            ? "Scheduled renew upgraded — previous renew kept in history."
+            : "Membership upgraded — previous plan kept in history.";
         setMembershipActionMessage(successMessage);
         showSuccess(successMessage);
         setMembershipComposer(null);
@@ -1133,7 +1183,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     detail.memberships.find((m) => m.id === upgradeTargetId) ?? null;
   const upgradeDirty = Boolean(
     upgradeTarget &&
-      String(upgradeTarget.planMonths) !== upgradeForm.planMonths,
+      Number(upgradeForm.planMonths) > upgradeTarget.planMonths,
   );
   const renewStartsAt = activeMembership
     ? dayAfterDate(new Date(activeMembership.endsAt))
@@ -1158,6 +1208,18 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           months,
           name: `${months}-Month Membership`,
         }));
+  const upgradeOptions = upgradeTarget
+    ? upgradePlanOptions(upgradeTarget.planMonths, catalogPlans)
+    : [];
+  const canUpgradeActive = Boolean(
+    activeMembership &&
+      upgradePlanOptions(activeMembership.planMonths, catalogPlans).length > 0,
+  );
+  const canUpgradeScheduled = Boolean(
+    scheduledMembership &&
+      upgradePlanOptions(scheduledMembership.planMonths, catalogPlans).length >
+        0,
+  );
   const upgradePreviewEndsAt =
     upgradeTarget && Number(upgradeForm.planMonths) > 0
       ? calcMembershipEndsAt(
@@ -1912,19 +1974,25 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-[#1f6b3a]">
                     Current membership
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => startUpgrade(activeMembership.id)}
-                    disabled={confirmBusy}
-                    className={`inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-semibold transition disabled:opacity-60 ${
-                      membershipComposer === "upgrade" &&
-                      upgradeTargetId === activeMembership.id
-                        ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
-                        : "border-[#1f6b3a]/35 bg-white text-[#1f6b3a] hover:bg-[#e8f2ea]"
-                    }`}
-                  >
-                    Upgrade
-                  </button>
+                  {canUpgradeActive ? (
+                    <button
+                      type="button"
+                      onClick={() => startUpgrade(activeMembership.id)}
+                      disabled={confirmBusy}
+                      className={`inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-semibold transition disabled:opacity-60 ${
+                        membershipComposer === "upgrade" &&
+                        upgradeTargetId === activeMembership.id
+                          ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
+                          : "border-[#1f6b3a]/35 bg-white text-[#1f6b3a] hover:bg-[#e8f2ea]"
+                      }`}
+                    >
+                      Upgrade
+                    </button>
+                  ) : (
+                    <span className="inline-flex h-8 items-center rounded-full border border-[#d7e5d9] bg-[#f7faf6] px-3 text-[11px] font-semibold text-[#8a978c]">
+                      No upgrade
+                    </span>
+                  )}
                 </div>
                 <p className="mt-1.5 text-sm font-semibold text-[#243028]">
                   {activeMembership.planName}
@@ -1941,19 +2009,25 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-[#8a5a2f]">
                     Next renew
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => startUpgrade(scheduledMembership.id)}
-                    disabled={confirmBusy}
-                    className={`inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-semibold transition disabled:opacity-60 ${
-                      membershipComposer === "upgrade" &&
-                      upgradeTargetId === scheduledMembership.id
-                        ? "border-[#8a5a2f] bg-[#8a5a2f] text-white"
-                        : "border-[#e8d4a8] bg-white text-[#8a5a2f] hover:bg-[#fff8ef]"
-                    }`}
-                  >
-                    Upgrade
-                  </button>
+                  {canUpgradeScheduled ? (
+                    <button
+                      type="button"
+                      onClick={() => startUpgrade(scheduledMembership.id)}
+                      disabled={confirmBusy}
+                      className={`inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-semibold transition disabled:opacity-60 ${
+                        membershipComposer === "upgrade" &&
+                        upgradeTargetId === scheduledMembership.id
+                          ? "border-[#8a5a2f] bg-[#8a5a2f] text-white"
+                          : "border-[#e8d4a8] bg-white text-[#8a5a2f] hover:bg-[#fff8ef]"
+                      }`}
+                    >
+                      Upgrade
+                    </button>
+                  ) : (
+                    <span className="inline-flex h-8 items-center rounded-full border border-[#e8d4a8] bg-[#fff8ef] px-3 text-[11px] font-semibold text-[#8a978c]">
+                      No upgrade
+                    </span>
+                  )}
                 </div>
                 <p className="mt-1.5 text-sm font-semibold text-[#243028]">
                   {scheduledMembership.planName}
@@ -2031,8 +2105,8 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                     {isUpgradeTarget ? (
                       <p className="mt-0.5 text-xs font-medium text-[#1f6b3a]">
                         {membership.status === "scheduled"
-                          ? "Upgrade this renew — end date recalculates from its start date"
-                          : "Upgrade this plan — end date recalculates from start date"}
+                          ? "Upgrade creates a longer renew on top — previous renew stays in history"
+                          : "Upgrade creates a longer plan on top — previous membership stays in history"}
                       </p>
                     ) : null}
                     {isRenewTarget ? (
@@ -2057,7 +2131,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   <>
                     <div className="mt-4 grid gap-4 sm:grid-cols-2">
                       <label className={labelClass}>
-                        New plan
+                        Upgrade to
                         <select
                           value={upgradeForm.planMonths}
                           onChange={(e) => {
@@ -2065,7 +2139,12 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                             const monthsNum = Number(months);
                             setUpgradeForm({ planMonths: months });
                             const plan =
-                              catalogPlans.find((p) => String(p.months) === months) ??
+                              upgradeOptions.find(
+                                (p) => String(p.months) === months,
+                              ) ??
+                              catalogPlans.find(
+                                (p) => String(p.months) === months,
+                              ) ??
                               null;
                             const nextForm = {
                               ...form,
@@ -2095,7 +2174,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                           className={inputClass}
                           disabled={fieldsLocked}
                         >
-                          {planOptions.map((plan) => (
+                          {upgradeOptions.map((plan) => (
                             <option key={plan.id ?? plan.months} value={plan.months}>
                               {plan.months} months
                             </option>
@@ -2823,8 +2902,8 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                     : "This will add a new active membership for this member."
                   : pendingSave.type === "upgrade-membership"
                     ? pendingSave.membershipId === scheduledMembership?.id
-                      ? "This will upgrade the scheduled renew plan."
-                      : "This will upgrade the current membership plan."
+                      ? "This creates a longer scheduled renew on top. The previous renew stays in history and is not overwritten."
+                      : "This creates a longer membership on top of the current one. The previous plan stays in history and is not overwritten."
                     : pendingSave.type === "activate-payment"
                       ? "This will create a membership from the selected payment order."
                       : "This will update this member’s membership plan and dates."}{" "}

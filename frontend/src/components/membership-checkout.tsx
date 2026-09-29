@@ -424,9 +424,10 @@ export function MembershipCheckoutPanel({
     setError(null);
 
     try {
+      // Only an explicitly applied coupon counts — never charge from typed-but-unapplied input.
       const couponCode =
-        !applyReferralDiscount
-          ? appliedCoupon || couponInput.trim() || undefined
+        !applyReferralDiscount && appliedCoupon.trim()
+          ? appliedCoupon.trim()
           : undefined;
       const applyReferral = applyReferralDiscount && !couponCode;
 
@@ -437,10 +438,14 @@ export function MembershipCheckoutPanel({
         applyReferralDiscount: applyReferral,
       });
       setQuote(confirmedQuote);
+      if (confirmedQuote.couponCode) {
+        setAppliedCoupon(confirmedQuote.couponCode);
+        setCouponInput(confirmedQuote.couponCode);
+      }
 
       const order = await createRazorpayOrder(token, {
         planMonths,
-        couponCode,
+        couponCode: confirmedQuote.couponCode ?? couponCode,
         startMode,
         ...(startsOn ? { startsOn } : {}),
         applyReferralDiscount: applyReferral,
@@ -456,21 +461,30 @@ export function MembershipCheckoutPanel({
         throw new Error("Unable to start payment.");
       }
 
+      // Gateway must receive the same final payable as the quote (after coupon).
+      if (order.amount !== confirmedQuote.amountPaise) {
+        throw new Error(
+          "Payment amount mismatch. Please refresh and try again.",
+        );
+      }
+
       // Keep UI in sync with the amount the order was created for.
-      setQuote((prev) => ({
-        ...prev,
+      setQuote({
+        ...confirmedQuote,
         amountPaise: order.amount,
         currency:
           order.currency === "USD" || order.currency === "INR"
             ? order.currency
-            : prev.currency,
-      }));
+            : confirmedQuote.currency,
+      });
 
       const razorpayOrderId = String(order.order_id);
       const checkoutCurrency =
         order.currency === "USD" || order.currency === "INR"
           ? order.currency
-          : "INR";
+          : confirmedQuote.currency === "USD"
+            ? "USD"
+            : "INR";
       const isUsd = checkoutCurrency === "USD";
       // Razorpay rejects international checkout when prefill.contact is forced to +91.
       const prefillContact = (() => {
@@ -485,6 +499,7 @@ export function MembershipCheckoutPanel({
 
       const checkout = new window.Razorpay({
         key: order.key_id || keyId,
+        // Always the discounted payable — never list/original price.
         amount: order.amount,
         currency: checkoutCurrency,
         name: "The Healing Mat",
@@ -732,6 +747,14 @@ export function MembershipCheckoutPanel({
                     : "—"}
                 </dd>
               </div>
+              {quote.couponCode ? (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-[#5f6f64]">Coupon</dt>
+                  <dd className="font-mono font-semibold tracking-wide text-[#243028]">
+                    {quote.couponCode}
+                  </dd>
+                </div>
+              ) : null}
               <div className="flex justify-between gap-4 border-t border-[#d7e5d9] pt-2">
                 <dt className="font-bold text-[#243028]">Amount payable</dt>
                 <dd className="font-bold text-[#1f6b3a]">{payableLabel}</dd>
@@ -780,6 +803,12 @@ export function MembershipCheckoutPanel({
                     <p className="mt-0.5 font-mono text-[13px] font-bold tracking-wide text-[#243028]">
                       {appliedCoupon}
                     </p>
+                    {quote.discountPaise > 0 ? (
+                      <p className="mt-1 text-[12px] font-semibold text-[#1f6b3a]">
+                        − {formatMoney(quote.discountPaise, quote.currency)} ·
+                        payable {payableLabel}
+                      </p>
+                    ) : null}
                     {referralAvailable ? (
                       <p className="mt-1 text-[12px] text-[#6b7c6e]">
                         Remove this coupon to use your referral discount instead.

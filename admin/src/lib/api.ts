@@ -421,6 +421,20 @@ export function updateAdminUserMembership(
   );
 }
 
+export function upgradeAdminUserMembership(
+  token: string,
+  userId: string,
+  membershipId: string,
+  body: { planMonths: number },
+) {
+  return authJson<AdminUserDetail>(
+    "POST",
+    `/admin/users/${userId}/memberships/${membershipId}/upgrade`,
+    token,
+    body,
+  );
+}
+
 export type AdminContentItem = {
   id: string;
   slug: string;

@@ -36,6 +36,7 @@ import { CreateAdminMembershipDto } from './dto/create-admin-membership.dto';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { UpdateAdminMembershipDto } from './dto/update-admin-membership.dto';
 import { UpdateAdminUserDto } from './dto/update-admin-user.dto';
+import { UpgradeAdminMembershipDto } from './dto/upgrade-admin-membership.dto';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -859,6 +860,23 @@ export class AdminDashboardService {
       throw new NotFoundException('Membership not found.');
     }
 
+    if (
+      dto.planMonths !== undefined &&
+      dto.planMonths !== membership.planMonths
+    ) {
+      throw new BadRequestException(
+        'Use Upgrade to change plan duration. Upgrade creates a new membership on top of the current one and does not overwrite it.',
+      );
+    }
+    if (
+      dto.planName !== undefined &&
+      dto.planName.trim() !== membership.planName
+    ) {
+      throw new BadRequestException(
+        'Use Upgrade to change the plan. Upgrade creates a new membership on top of the current one.',
+      );
+    }
+
     if (dto.status !== undefined) {
       membership.status = dto.status;
     }
@@ -867,12 +885,6 @@ export class AdminDashboardService {
     }
     if (dto.endsAt !== undefined) {
       membership.endsAt = new Date(dto.endsAt);
-    }
-    if (dto.planMonths !== undefined) {
-      membership.planMonths = dto.planMonths;
-    }
-    if (dto.planName !== undefined) {
-      membership.planName = dto.planName.trim();
     }
 
     if (membership.endsAt.getTime() <= membership.startsAt.getTime()) {
@@ -883,6 +895,99 @@ export class AdminDashboardService {
 
     if (membership.status === 'active') {
       await this.supersedeOtherActiveMemberships(userId, membership.id);
+      await this.completeTrialForMembership(userId);
+    }
+
+    return this.getUserDetail(userId);
+  }
+
+  /**
+   * Upgrade to a longer plan without overwriting the source membership.
+   * Creates a new membership on top (same start, longer end) and retires the
+   * previous record with its original plan/dates kept for history.
+   * Allowed: 3→6, 3→12, 6→12. Same or shorter duration is rejected.
+   */
+  async upgradeMembership(
+    userId: string,
+    membershipId: string,
+    dto: UpgradeAdminMembershipDto,
+  ) {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    const source = await this.memberships.findOne({
+      where: { id: membershipId, userId },
+    });
+    if (!source) {
+      throw new NotFoundException('Membership not found.');
+    }
+    if (source.status !== 'active' && source.status !== 'scheduled') {
+      throw new BadRequestException(
+        'Only the current membership or a scheduled renew can be upgraded.',
+      );
+    }
+
+    const nextMonths = dto.planMonths;
+    if (!Number.isInteger(nextMonths) || nextMonths < 1) {
+      throw new BadRequestException('Select a valid longer plan.');
+    }
+    if (nextMonths <= source.planMonths) {
+      throw new BadRequestException(
+        'Upgrade must be to a longer plan. A longer membership cannot be changed to a shorter one.',
+      );
+    }
+
+    const plan =
+      (await this.membershipPlans.findByMonths(nextMonths)) ?? null;
+    if (!plan) {
+      throw new BadRequestException(
+        `No membership plan found for ${nextMonths} months.`,
+      );
+    }
+
+    const startsAt = new Date(source.startsAt);
+    const endsAt = this.membershipEndsAt(startsAt, nextMonths);
+    if (endsAt.getTime() <= startsAt.getTime()) {
+      throw new BadRequestException('endsAt must be after startsAt.');
+    }
+
+    const currency =
+      source.currency?.toUpperCase() ||
+      (user.region === Region.OutsideIndia ? 'USD' : 'INR');
+    const listPricePaise =
+      currency === 'USD'
+        ? (plan.listPriceUsdCents ?? 0)
+        : (plan.listPricePaise ?? 0);
+
+    const upgraded = await this.memberships.save(
+      this.memberships.create({
+        userId,
+        planMonths: nextMonths,
+        planName: plan.name,
+        listPricePaise,
+        discountPaise: 0,
+        amountPaidPaise: 0,
+        currency,
+        status: source.status,
+        startsAt,
+        endsAt,
+        paymentOrderId: `admin-upgrade-${randomUUID()}`,
+        razorpayPaymentId: null,
+        razorpayInvoiceId: null,
+        razorpayInvoiceUrl: null,
+        paymentMethod: 'Admin upgrade',
+        adminNote: `Upgraded from ${source.planMonths}-month to ${nextMonths}-month membership (previous membership kept in history).`,
+      }),
+    );
+
+    // Retire the previous record without changing its plan or original dates.
+    source.status = 'expired';
+    await this.memberships.save(source);
+
+    if (upgraded.status === 'active') {
+      await this.supersedeOtherActiveMemberships(userId, upgraded.id);
       await this.completeTrialForMembership(userId);
     }
 

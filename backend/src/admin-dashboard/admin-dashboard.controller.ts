@@ -18,6 +18,7 @@ import { CreateAdminMembershipDto } from './dto/create-admin-membership.dto';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { UpdateAdminMembershipDto } from './dto/update-admin-membership.dto';
 import { UpdateAdminUserDto } from './dto/update-admin-user.dto';
+import { UpgradeAdminMembershipDto } from './dto/upgrade-admin-membership.dto';
 
 @Controller('admin')
 @Roles(Role.Admin)
@@ -87,6 +88,15 @@ export class AdminDashboardController {
     @Param('paymentOrderId', ParseUUIDPipe) paymentOrderId: string,
   ) {
     return this.dashboard.activateMembershipFromPayment(id, paymentOrderId);
+  }
+
+  @Post('users/:id/memberships/:membershipId/upgrade')
+  upgradeMembership(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('membershipId', ParseUUIDPipe) membershipId: string,
+    @Body() dto: UpgradeAdminMembershipDto,
+  ) {
+    return this.dashboard.upgradeMembership(id, membershipId, dto);
   }
 
   @Patch('users/:id/memberships/:membershipId')

@@ -110,10 +110,14 @@ export class PaymentsService {
         dto.couponCode,
         dto.applyReferralDiscount === true,
       );
-      if (
-        dto.expectedAmountPaise != null &&
-        dto.expectedAmountPaise !== quote.amountPaise
-      ) {
+      // Client must confirm the discounted payable (UI amount) before we open
+      // the gateway — prevents charging list price after a coupon was shown.
+      if (dto.expectedAmountPaise == null) {
+        throw new BadRequestException(
+          'Confirm the payable amount from the quote before starting payment.',
+        );
+      }
+      if (dto.expectedAmountPaise !== quote.amountPaise) {
         throw new BadRequestException(
           'The membership price was updated. Please review the new amount and try again.',
         );
@@ -150,12 +154,25 @@ export class PaymentsService {
       // Razorpay Invoices often block international cards even when the merchant
       // account has International Payments enabled (error: "International cards
       // are not supported"). Orders inherit the account's card settings.
+      //
+      // Payable amount is always quote.amountPaise (after coupon/referral + ₹1/$1 floor).
+      // Never charge list/original price here.
       const order = await this.createRazorpayOrder({
         amountPaise: quote.amountPaise,
         currency: quote.currency,
         receipt,
         notes,
       });
+
+      const gatewayAmount = Number(order.amount);
+      if (
+        !Number.isFinite(gatewayAmount) ||
+        gatewayAmount !== quote.amountPaise
+      ) {
+        throw new InternalServerErrorException(
+          'Payment gateway amount did not match the discounted payable amount.',
+        );
+      }
 
       await this.orders.save(
         this.orders.create({
@@ -689,6 +706,7 @@ export class PaymentsService {
         discountPaise: order.discountPaise,
         amountPaidPaise: order.amountPaise,
         currency: order.currency || 'INR',
+        paymentMethod: 'Online (Razorpay)',
         status,
         startsAt,
         endsAt,
