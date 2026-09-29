@@ -41,6 +41,12 @@ export class CreateOrderDto {
   @MaxLength(40)
   couponCode?: string;
 
+  /** Required when applying a corporate (domain-locked) coupon. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  domainVerificationId?: string;
+
   @IsOptional()
   @IsIn(['now', 'after_current'])
   startMode?: 'now' | 'after_current';

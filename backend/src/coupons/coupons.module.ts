@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CorporateDomainVerification } from '../corporate/corporate-domain-verification.entity';
 import { User } from '../users/user.entity';
 import { CouponRedemption } from './coupon-redemption.entity';
 import { Coupon } from './coupon.entity';
@@ -8,7 +9,14 @@ import { CouponsService } from './coupons.service';
 import { MemberCouponsController } from './member-coupons.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Coupon, CouponRedemption, User])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Coupon,
+      CouponRedemption,
+      User,
+      CorporateDomainVerification,
+    ]),
+  ],
   controllers: [CouponsController, MemberCouponsController],
   providers: [CouponsService],
   exports: [CouponsService],

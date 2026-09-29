@@ -94,6 +94,7 @@ export class PaymentsService {
       dto.planMonths,
       dto.couponCode,
       dto.applyReferralDiscount === true,
+      dto.domainVerificationId,
     );
     return this.toQuoteResponse(quote);
   }
@@ -109,6 +110,7 @@ export class PaymentsService {
         dto.planMonths,
         dto.couponCode,
         dto.applyReferralDiscount === true,
+        dto.domainVerificationId,
       );
       // Client must confirm the discounted payable (UI amount) before we open
       // the gateway — prevents charging list price after a coupon was shown.
@@ -185,6 +187,8 @@ export class PaymentsService {
           receipt,
           planMonths: quote.plan.months,
           couponCode: quote.couponCode,
+          verifiedEmail: quote.verifiedEmail,
+          domainVerificationId: quote.domainVerificationId,
           startMode,
           startsOn,
           listPricePaise: quote.listPricePaise,
@@ -624,6 +628,8 @@ export class PaymentsService {
         receipt,
         planMonths: quote.plan.months,
         couponCode: quote.couponCode,
+        verifiedEmail: quote.verifiedEmail,
+        domainVerificationId: quote.domainVerificationId,
         startMode,
         startsOn,
         listPricePaise: quote.listPricePaise,
@@ -788,8 +794,15 @@ export class PaymentsService {
         code: order.couponCode,
         userId: user.id,
         paymentOrderId: order.id,
+        verifiedEmail: order.verifiedEmail,
       })
       .catch(() => null);
+
+    if (order.domainVerificationId) {
+      await this.coupons
+        .markDomainVerificationUsed(order.domainVerificationId)
+        .catch(() => null);
+    }
 
     await this.invoices
       .ensureMembershipInvoice({
@@ -1166,6 +1179,7 @@ export class PaymentsService {
     planMonths: number,
     couponCode?: string,
     applyReferralDiscount = false,
+    domainVerificationId?: string,
   ) {
     const plan = await this.membershipPlans.requireActiveByMonths(planMonths);
     const currency = user.region === Region.OutsideIndia ? ('USD' as const) : ('INR' as const);
@@ -1184,6 +1198,8 @@ export class PaymentsService {
     let discountPaise = 0;
     let appliedCoupon: string | null = null;
     let discountLabel = '—';
+    let verifiedEmail: string | null = null;
+    let resolvedDomainVerificationId: string | null = null;
     const referralDiscountPercent =
       await this.settings.getReferralDiscountPercent();
     const referralDiscountAvailable = Boolean(user.referredByUserId);
@@ -1204,7 +1220,26 @@ export class PaymentsService {
       if (!coupon) {
         throw new BadRequestException('Invalid coupon');
       }
-      await this.coupons.assertRedeemable(coupon, user.id);
+
+      if (this.coupons.isCorporateCoupon(coupon)) {
+        const verificationId = domainVerificationId?.trim();
+        if (!verificationId) {
+          throw new BadRequestException(
+            'Verify your work email to apply this corporate coupon.',
+          );
+        }
+        const verification = await this.coupons.requireValidDomainVerification({
+          userId: user.id,
+          couponId: coupon.id,
+          domainVerificationId: verificationId,
+        });
+        verifiedEmail = verification.email;
+        resolvedDomainVerificationId = verification.id;
+      }
+
+      await this.coupons.assertRedeemable(coupon, user.id, {
+        verifiedEmail,
+      });
       appliedCoupon = coupon.code;
       if (coupon.discountType === 'percent') {
         discountPaise = Math.floor(
@@ -1216,6 +1251,15 @@ export class PaymentsService {
         discountPaise = coupon.discountValue * 100;
       }
       discountLabel = coupon.discountLabel || `${coupon.discountValue} off`;
+
+      // Full company-paid corporate seat: allow ₹0 / $0 checkout.
+      if (
+        coupon.discountType === 'percent' &&
+        coupon.discountValue >= 100 &&
+        this.coupons.isCorporateCoupon(coupon)
+      ) {
+        discountPaise = listPricePaise;
+      }
     } else if (
       wantsReferral &&
       referralDiscountAvailable &&
@@ -1238,8 +1282,13 @@ export class PaymentsService {
 
     if (discountPaise > listPricePaise) discountPaise = listPricePaise;
     let amountPaise = listPricePaise - discountPaise;
-    // Coupon/referral may wipe the price; keep at least ₹1 / $1 for checkout + invoice.
-    if (amountPaise < MIN_PAYABLE_MINOR) {
+    const fullyCoveredCorporate =
+      Boolean(appliedCoupon) &&
+      amountPaise === 0 &&
+      Boolean(resolvedDomainVerificationId);
+    // Coupon/referral may wipe the price; keep at least ₹1 / $1 unless a
+    // corporate coupon covers 100% of the seat.
+    if (amountPaise < MIN_PAYABLE_MINOR && !fullyCoveredCorporate) {
       amountPaise = MIN_PAYABLE_MINOR;
       discountPaise = Math.max(0, listPricePaise - amountPaise);
     }
@@ -1253,6 +1302,8 @@ export class PaymentsService {
       amountPaise,
       couponCode: appliedCoupon,
       discountLabel,
+      verifiedEmail,
+      domainVerificationId: resolvedDomainVerificationId,
       referralDiscountAvailable,
       referralDiscountApplied,
       referralDiscountPercent:

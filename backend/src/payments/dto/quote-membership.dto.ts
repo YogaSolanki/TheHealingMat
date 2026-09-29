@@ -21,6 +21,15 @@ export class QuoteMembershipDto {
   @MaxLength(40)
   couponCode?: string;
 
+  /**
+   * Required when applying a corporate (domain-locked) coupon.
+   * Issued by POST /memberships/corporate-coupon/verify-otp.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  domainVerificationId?: string;
+
   /** Opt-in: apply referral discount. Cannot be combined with couponCode. */
   @IsOptional()
   @Transform(({ value }) => value === true || value === 'true')

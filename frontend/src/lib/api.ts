@@ -604,6 +604,7 @@ export async function quoteMembership(
     planMonths: number;
     couponCode?: string;
     applyReferralDiscount?: boolean;
+    domainVerificationId?: string;
   },
 ): Promise<MembershipQuote> {
   const response = await fetch(`${API_URL}/memberships/quote`, {
@@ -612,6 +613,48 @@ export async function quoteMembership(
     body: JSON.stringify(input),
   });
   return parseJson<MembershipQuote>(response);
+}
+
+export async function requestCorporateCouponOtp(
+  accessToken: string,
+  input: { couponCode: string; email: string },
+) {
+  const response = await fetch(
+    `${API_URL}/memberships/corporate-coupon/request-otp`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify(input),
+    },
+  );
+  return parseJson<{
+    success: boolean;
+    message: string;
+    expiresInSeconds: number;
+    email: string;
+    allowedDomains: string[];
+  }>(response);
+}
+
+export async function verifyCorporateCouponOtp(
+  accessToken: string,
+  input: { couponCode: string; email: string; code: string },
+) {
+  const response = await fetch(
+    `${API_URL}/memberships/corporate-coupon/verify-otp`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify(input),
+    },
+  );
+  return parseJson<{
+    success: boolean;
+    domainVerificationId: string;
+    email: string;
+    couponCode: string;
+    expiresAt: string;
+  }>(response);
 }
 
 export async function getMyMembership(
@@ -702,6 +745,7 @@ export async function createRazorpayOrder(
     startMode?: "now" | "after_current";
     startsOn?: string;
     applyReferralDiscount?: boolean;
+    domainVerificationId?: string;
     /** Latest quoted payable amount; server rejects if price changed. */
     expectedAmountPaise?: number;
   },
