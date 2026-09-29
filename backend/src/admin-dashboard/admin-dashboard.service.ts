@@ -308,26 +308,44 @@ export class AdminDashboardService {
           updatedAt: membership.updatedAt,
         };
       }),
-      payments: payments.map((payment) => ({
-        id: payment.id,
-        razorpayOrderId: payment.razorpayOrderId,
-        razorpayPaymentId: payment.razorpayPaymentId,
-        razorpayInvoiceId: payment.razorpayInvoiceId,
-        razorpayInvoiceUrl: payment.razorpayInvoiceUrl,
-        amountPaise: payment.amountPaise,
-        currency: payment.currency,
-        receipt: payment.receipt,
-        planMonths: payment.planMonths,
-        couponCode: payment.couponCode,
-        startMode: payment.startMode,
-        startsOn: payment.startsOn,
-        listPricePaise: payment.listPricePaise,
-        discountPaise: payment.discountPaise,
-        status: payment.status,
-        createdAt: payment.createdAt,
-        updatedAt: payment.updatedAt,
-      })),
+      payments: payments.map((payment) => {
+        const membership =
+          memberships.find((row) => row.paymentOrderId === payment.id) ?? null;
+        const invoice = membership
+          ? (invoiceByMembershipId.get(membership.id) ?? null)
+          : null;
+        return {
+          id: payment.id,
+          razorpayOrderId: payment.razorpayOrderId,
+          razorpayPaymentId: payment.razorpayPaymentId,
+          razorpayInvoiceId: payment.razorpayInvoiceId,
+          razorpayInvoiceUrl: payment.razorpayInvoiceUrl,
+          amountPaise: payment.amountPaise,
+          currency: payment.currency,
+          receipt: payment.receipt,
+          planMonths: payment.planMonths,
+          couponCode: payment.couponCode,
+          startMode: payment.startMode,
+          startsOn: payment.startsOn,
+          listPricePaise: payment.listPricePaise,
+          discountPaise: payment.discountPaise,
+          status: payment.status,
+          membershipId: membership?.id ?? null,
+          invoiceNumber: invoice?.invoiceNumber ?? null,
+          source: 'razorpay' as const,
+          createdAt: payment.createdAt,
+          updatedAt: payment.updatedAt,
+        };
+      }),
     };
+  }
+
+  async getMembershipInvoice(userId: string, membershipId: string) {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+    return this.payments.getInvoice(user, membershipId);
   }
 
   async checkUserExists(input: { mobile?: string; email?: string }) {

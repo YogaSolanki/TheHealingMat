@@ -280,6 +280,9 @@ export type AdminUserPayment = {
   listPricePaise: number;
   discountPaise: number;
   status: "created" | "paid" | "failed";
+  membershipId?: string | null;
+  invoiceNumber?: string | null;
+  source?: "razorpay" | "admin_manual";
   createdAt: string;
   updatedAt: string;
 };
@@ -352,6 +355,44 @@ export function createAdminUserMembership(
     token,
     body,
   );
+}
+
+export async function downloadAdminMembershipInvoice(
+  token: string,
+  userId: string,
+  membershipId: string,
+) {
+  const response = await fetch(
+    `${API_URL}/admin/users/${userId}/memberships/${membershipId}/invoice`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as {
+      message?: string | string[];
+    };
+    const message = Array.isArray(body.message)
+      ? body.message.join(", ")
+      : body.message;
+    throw new Error(message || "Unable to download invoice.");
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="?([^"]+)"?/i);
+  const filename = match?.[1] || `the-healing-mat-invoice.pdf`;
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 export function activateAdminMembershipFromPayment(

@@ -3,11 +3,13 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
+  StreamableFile,
 } from '@nestjs/common';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
@@ -64,6 +66,19 @@ export class AdminDashboardController {
     @Body() dto: CreateAdminMembershipDto,
   ) {
     return this.dashboard.createMembership(id, dto);
+  }
+
+  @Get('users/:id/memberships/:membershipId/invoice')
+  @Header('Content-Type', 'application/pdf')
+  async downloadMembershipInvoice(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('membershipId', ParseUUIDPipe) membershipId: string,
+  ) {
+    const invoice = await this.dashboard.getMembershipInvoice(id, membershipId);
+    return new StreamableFile(invoice.pdf, {
+      type: 'application/pdf',
+      disposition: `attachment; filename="${invoice.filename}"`,
+    });
   }
 
   @Post('users/:id/payments/:paymentOrderId/activate-membership')

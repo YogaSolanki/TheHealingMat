@@ -8,6 +8,7 @@ import {
   ADMIN_TOKEN_KEY,
   activateAdminMembershipFromPayment,
   createAdminUserMembership,
+  downloadAdminMembershipInvoice,
   getAdminUserDetail,
   listAdminMembershipPlans,
   listAdminSessionTimings,
@@ -355,6 +356,9 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   const [activatingPaymentId, setActivatingPaymentId] = useState<string | null>(
     null,
   );
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<
+    string | null
+  >(null);
   const [pendingSave, setPendingSave] = useState<PendingSave | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{
@@ -419,7 +423,9 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     if (!token) return;
     try {
       const timings = await listAdminSessionTimings(token, { activeOnly: true });
-      setPreferredClassTimes(timings.map((row) => row.label));
+      setPreferredClassTimes([
+        ...new Set(timings.map((row) => row.label).filter(Boolean)),
+      ]);
     } catch {
       setPreferredClassTimes([]);
     }
@@ -714,6 +720,22 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   function requestActivatePayment(paymentOrderId: string) {
     if (!editing || activatingPaymentId) return;
     setPendingSave({ type: "activate-payment", paymentOrderId });
+  }
+
+  async function downloadInvoice(membershipId: string) {
+    if (!token || downloadingInvoiceId) return;
+    setDownloadingInvoiceId(membershipId);
+    setError(null);
+    try {
+      await downloadAdminMembershipInvoice(token, userId, membershipId);
+      showSuccess("Invoice downloaded.");
+    } catch (err) {
+      showError(
+        err instanceof Error ? err.message : "Unable to download invoice.",
+      );
+    } finally {
+      setDownloadingInvoiceId(null);
+    }
   }
 
   async function confirmPendingSave() {
@@ -1026,6 +1048,66 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       payment.planMonths != null &&
       !membershipPaymentIds.has(payment.id) &&
       (payment.status === "paid" || Boolean(payment.razorpayPaymentId)),
+  );
+  type PaymentRow = {
+    key: string;
+    when: string;
+    amountPaise: number;
+    currency: string;
+    statusLabel: string;
+    planMonths: number | null;
+    couponCode: string | null;
+    sourceLabel: string;
+    reference: string;
+    membershipId: string | null;
+    invoiceNumber: string | null;
+    razorpayInvoiceUrl: string | null;
+    needsActivation: boolean;
+  };
+  const paymentRows: PaymentRow[] = [
+    ...detail.payments.map((payment) => ({
+      key: `pay-${payment.id}`,
+      when: payment.createdAt,
+      amountPaise: payment.amountPaise,
+      currency: payment.currency,
+      statusLabel: payment.status,
+      planMonths: payment.planMonths,
+      couponCode: payment.couponCode,
+      sourceLabel: "Razorpay",
+      reference:
+        payment.razorpayPaymentId ?? payment.razorpayOrderId ?? payment.id,
+      membershipId: payment.membershipId ?? null,
+      invoiceNumber: payment.invoiceNumber ?? null,
+      razorpayInvoiceUrl: payment.razorpayInvoiceUrl,
+      needsActivation:
+        !membershipPaymentIds.has(payment.id) &&
+        payment.planMonths != null &&
+        (payment.status === "paid" || Boolean(payment.razorpayPaymentId)),
+    })),
+    ...detail.memberships
+      .filter((membership) =>
+        membership.paymentOrderId.startsWith("admin-manual-"),
+      )
+      .map((membership) => ({
+        key: `admin-${membership.id}`,
+        when: membership.createdAt,
+        amountPaise: membership.amountPaidPaise,
+        currency: membership.currency,
+        statusLabel: "paid",
+        planMonths: membership.planMonths,
+        couponCode: null,
+        sourceLabel: "Admin manual",
+        reference:
+          membership.razorpayPaymentId ??
+          membership.paymentMethod ??
+          "Manual grant",
+        membershipId: membership.id,
+        invoiceNumber: membership.invoiceNumber,
+        razorpayInvoiceUrl: null,
+        needsActivation: false,
+      })),
+  ].sort(
+    (a, b) => new Date(b.when).getTime() - new Date(a.when).getTime(),
   );
   const now = new Date();
   const activeMembership =
@@ -2098,6 +2180,23 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                           {membership.invoiceCategory
                             ? ` (${membership.invoiceCategory})`
                             : ""}
+                          {membership.amountPaidPaise > 0 ? (
+                            <>
+                              {" · "}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void downloadInvoice(membership.id)
+                                }
+                                disabled={Boolean(downloadingInvoiceId)}
+                                className="font-semibold text-[#1f6b3a] hover:underline disabled:opacity-60"
+                              >
+                                {downloadingInvoiceId === membership.id
+                                  ? "Downloading…"
+                                  : "Download invoice"}
+                              </button>
+                            </>
+                          ) : null}
                         </p>
                       ) : null}
                       {membership.adminNote ? (
@@ -2414,6 +2513,21 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                         <span className="font-semibold text-[#243028]">
                           {membership.invoiceNumber}
                         </span>
+                        {membership.amountPaidPaise > 0 ? (
+                          <>
+                            {" · "}
+                            <button
+                              type="button"
+                              onClick={() => void downloadInvoice(membership.id)}
+                              disabled={Boolean(downloadingInvoiceId)}
+                              className="font-semibold text-[#1f6b3a] hover:underline disabled:opacity-60"
+                            >
+                              {downloadingInvoiceId === membership.id
+                                ? "Downloading…"
+                                : "Download"}
+                            </button>
+                          </>
+                        ) : null}
                       </p>
                     ) : null}
                     {membership.adminNote ? (
@@ -2511,6 +2625,9 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
       <section className={cardClass}>
         <h2 className="text-sm font-semibold text-[#243028]">Payments</h2>
+        <p className="mt-1 text-xs text-[#8a978c]">
+          Razorpay checkouts and admin-assigned memberships with invoices.
+        </p>
         {recoverablePayments.length > 0 && editing ? (
           <div className="mt-3 rounded-xl border border-[#f0d9b5] bg-[#fff8ef] px-3.5 py-3">
             <p className="text-sm font-semibold text-[#8a5a2f]">
@@ -2551,71 +2668,105 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             </ul>
           </div>
         ) : null}
-        {detail.payments.length === 0 ? (
-          <p className="mt-3 text-sm text-[#8a978c]">No payment orders yet.</p>
+        {paymentRows.length === 0 ? (
+          <p className="mt-3 text-sm text-[#8a978c]">
+            No payments or admin-assigned memberships yet.
+          </p>
         ) : (
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-[820px] text-left text-sm">
               <thead className="text-[#5f6f64]">
                 <tr>
                   <th className="px-2 py-2 font-medium">When</th>
                   <th className="px-2 py-2 font-medium">Amount</th>
                   <th className="px-2 py-2 font-medium">Status</th>
                   <th className="px-2 py-2 font-medium">Plan</th>
-                  <th className="px-2 py-2 font-medium">Coupon</th>
-                  <th className="px-2 py-2 font-medium">Razorpay</th>
+                  <th className="px-2 py-2 font-medium">Source</th>
+                  <th className="px-2 py-2 font-medium">Reference</th>
+                  <th className="px-2 py-2 font-medium">Invoice</th>
                 </tr>
               </thead>
               <tbody>
-                {detail.payments.map((payment) => (
-                  <tr key={payment.id} className="border-t border-[#f4f7f4]">
-                    <td className="px-2 py-3 whitespace-nowrap text-[#5f6f64]">
-                      {formatDateTime(payment.createdAt)}
-                    </td>
-                    <td className="px-2 py-3 font-medium text-[#243028]">
-                      {formatMoney(payment.amountPaise, payment.currency)}
-                    </td>
-                    <td className="px-2 py-3 capitalize text-[#5f6f64]">
-                      {payment.status}
-                      {!membershipPaymentIds.has(payment.id) &&
-                      payment.planMonths != null &&
-                      (payment.status === "paid" ||
-                        Boolean(payment.razorpayPaymentId)) ? (
-                        <span className="ml-1 text-[11px] font-medium text-[#8a5a2f]">
-                          (no membership)
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-2 py-3 text-[#5f6f64]">
-                      {payment.planMonths
-                        ? `${payment.planMonths} mo`
-                        : "—"}
-                    </td>
-                    <td className="px-2 py-3 text-[#5f6f64]">
-                      {payment.couponCode ?? "—"}
-                    </td>
-                    <td className="px-2 py-3">
-                      <div className="space-y-1">
-                        <p
-                          className="truncate text-xs text-[#8a978c]"
-                          title={payment.razorpayOrderId}
-                        >
-                          {payment.razorpayOrderId}
-                        </p>
-                        {payment.razorpayInvoiceUrl ? (
-                          <a
-                            href={payment.razorpayInvoiceUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs font-semibold text-[#1f6b3a] hover:underline"
-                          >
-                            Invoice
-                          </a>
+                {paymentRows.map((row) => {
+                  const downloading =
+                    row.membershipId != null &&
+                    downloadingInvoiceId === row.membershipId;
+                  const canDownloadThm =
+                    Boolean(row.membershipId) &&
+                    Boolean(row.invoiceNumber) &&
+                    row.amountPaise > 0;
+                  return (
+                    <tr key={row.key} className="border-t border-[#f4f7f4]">
+                      <td className="px-2 py-3 whitespace-nowrap text-[#5f6f64]">
+                        {formatDateTime(row.when)}
+                      </td>
+                      <td className="px-2 py-3 font-medium text-[#243028]">
+                        {formatMoney(row.amountPaise, row.currency)}
+                      </td>
+                      <td className="px-2 py-3 capitalize text-[#5f6f64]">
+                        {row.statusLabel}
+                        {row.needsActivation ? (
+                          <span className="ml-1 text-[11px] font-medium text-[#8a5a2f]">
+                            (no membership)
+                          </span>
                         ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-2 py-3 text-[#5f6f64]">
+                        {row.planMonths ? `${row.planMonths} mo` : "—"}
+                        {row.couponCode ? (
+                          <span className="block text-[11px] text-[#8a978c]">
+                            {row.couponCode}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="px-2 py-3 text-[#5f6f64]">
+                        {row.sourceLabel}
+                      </td>
+                      <td className="px-2 py-3">
+                        <p
+                          className="max-w-[180px] truncate text-xs text-[#8a978c]"
+                          title={row.reference}
+                        >
+                          {row.reference}
+                        </p>
+                      </td>
+                      <td className="px-2 py-3">
+                        <div className="flex flex-col gap-1">
+                          {row.invoiceNumber ? (
+                            <span className="text-[11px] font-medium text-[#243028]">
+                              {row.invoiceNumber}
+                            </span>
+                          ) : null}
+                          {canDownloadThm && row.membershipId ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void downloadInvoice(row.membershipId!)
+                              }
+                              disabled={Boolean(downloadingInvoiceId)}
+                              className="w-fit text-xs font-semibold text-[#1f6b3a] hover:underline disabled:opacity-60"
+                            >
+                              {downloading ? "Downloading…" : "Download invoice"}
+                            </button>
+                          ) : null}
+                          {row.razorpayInvoiceUrl ? (
+                            <a
+                              href={row.razorpayInvoiceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="w-fit text-xs font-semibold text-[#1f6b3a] hover:underline"
+                            >
+                              Razorpay invoice
+                            </a>
+                          ) : null}
+                          {!canDownloadThm && !row.razorpayInvoiceUrl ? (
+                            <span className="text-xs text-[#8a978c]">—</span>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
