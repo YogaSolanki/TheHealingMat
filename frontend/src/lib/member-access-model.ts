@@ -29,6 +29,13 @@ export type MemberAccess = {
   invoiceDownloadable: boolean;
   /** Whether the scheduled membership has a downloadable invoice. */
   scheduledInvoiceDownloadable: boolean;
+  /** Current membership is an admin upgrade with its own invoice. */
+  isUpgrade: boolean;
+  invoiceNumber: string | null;
+  /** Prior membership invoice (e.g. original before upgrade), if downloadable. */
+  priorInvoiceMembershipId: string | null;
+  priorInvoiceDownloadable: boolean;
+  priorInvoiceNumber: string | null;
 };
 
 export function membershipStatusLabel(state: MemberAccessState) {
@@ -123,6 +130,11 @@ export function emptyMemberAccess(
     scheduledStartsOnLabel: null,
     invoiceDownloadable: false,
     scheduledInvoiceDownloadable: false,
+    isUpgrade: false,
+    invoiceNumber: null,
+    priorInvoiceMembershipId: null,
+    priorInvoiceDownloadable: false,
+    priorInvoiceNumber: null,
   };
 }
 
@@ -152,7 +164,7 @@ export function mapMembershipAccess(data: MembershipAccessResponse): MemberAcces
   access.scheduledPlanName = data.scheduled?.planName ?? null;
   access.scheduledStartsOnLabel = formatLongDate(data.scheduled?.startsAt);
   access.scheduledInvoiceDownloadable =
-    data.scheduled != null && data.scheduled.invoiceDownloadable !== false;
+    data.scheduled != null && data.scheduled.invoiceDownloadable === true;
 
   if (state === "pending") {
     return access;
@@ -169,7 +181,12 @@ export function mapMembershipAccess(data: MembershipAccessResponse): MemberAcces
   if (!membership) return access;
 
   access.membershipId = membership.id;
-  access.planName = membership.planName;
+  access.isUpgrade = membership.isUpgrade === true;
+  access.invoiceNumber = membership.invoiceNumber ?? null;
+  // Prefer a clean plan title on My Membership; invoice PDF keeps the upgrade label.
+  access.planName = access.isUpgrade
+    ? `${membership.planMonths}-Month Membership`
+    : membership.planName;
   access.startDateLabel = formatLongDate(membership.startsAt);
   access.validUntilLabel = formatLongDate(membership.endsAt);
   access.validUntilIso = membership.endsAt;
@@ -186,6 +203,20 @@ export function mapMembershipAccess(data: MembershipAccessResponse): MemberAcces
   );
   access.paymentDateLabel = formatLongDate(membership.paidAt);
   access.transactionRef = membership.razorpayPaymentId;
-  access.invoiceDownloadable = membership.invoiceDownloadable !== false;
+  access.invoiceDownloadable = membership.invoiceDownloadable === true;
+
+  // After an upgrade, the superseded original membership stays downloadable.
+  const prior = data.lastExpired;
+  if (
+    access.isUpgrade &&
+    prior &&
+    prior.id !== membership.id &&
+    prior.invoiceDownloadable === true
+  ) {
+    access.priorInvoiceMembershipId = prior.id;
+    access.priorInvoiceDownloadable = true;
+    access.priorInvoiceNumber = prior.invoiceNumber ?? null;
+  }
+
   return access;
 }

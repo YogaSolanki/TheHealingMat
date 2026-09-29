@@ -904,7 +904,9 @@ export class AdminDashboardService {
   /**
    * Upgrade to a longer plan without overwriting the source membership.
    * Creates a new membership on top (same start, longer end) and retires the
-   * previous record with its original plan/dates kept for history.
+   * previous record with its original plan/dates/payment/invoice kept intact.
+   * Admin can record the additional payment for the upgrade; a separate
+   * "Membership Upgrade" invoice is issued when that amount is greater than zero.
    * Allowed: 3→6, 3→12, 6→12. Same or shorter duration is rejected.
    */
   async upgradeMembership(
@@ -956,39 +958,133 @@ export class AdminDashboardService {
     const currency =
       source.currency?.toUpperCase() ||
       (user.region === Region.OutsideIndia ? 'USD' : 'INR');
-    const listPricePaise =
+    const catalogListPrice =
       currency === 'USD'
         ? (plan.listPriceUsdCents ?? 0)
         : (plan.listPricePaise ?? 0);
+    const alreadyPaidPaise = Math.max(0, source.amountPaidPaise ?? 0);
+
+    const listPricePaise = dto.listPricePaise ?? catalogListPrice;
+    if (listPricePaise < 0) {
+      throw new BadRequestException('List price cannot be negative.');
+    }
+
+    // Discount defaults to prior payment credit; admin may increase (extra discount).
+    const defaultCredit = Math.min(alreadyPaidPaise, listPricePaise);
+    const discountPaise = dto.discountPaise ?? defaultCredit;
+    if (discountPaise < 0) {
+      throw new BadRequestException('Discount cannot be negative.');
+    }
+    if (discountPaise > listPricePaise) {
+      throw new BadRequestException('Discount cannot exceed the new plan price.');
+    }
+
+    const expectedAdditional = Math.max(0, listPricePaise - discountPaise);
+    const amountPaidPaise = dto.amountPaidPaise ?? expectedAdditional;
+    if (amountPaidPaise < 0) {
+      throw new BadRequestException('Additional amount cannot be negative.');
+    }
+    if (amountPaidPaise > listPricePaise) {
+      throw new BadRequestException(
+        'Additional amount cannot exceed the new plan price.',
+      );
+    }
+    if (amountPaidPaise !== expectedAdditional) {
+      throw new BadRequestException(
+        'Additional amount must equal new plan price minus discount.',
+      );
+    }
+
+    const priorCredit = defaultCredit;
+    const extraDiscount = Math.max(0, discountPaise - priorCredit);
+    let upgradeDiscountLabel = `Prior ${source.planMonths}-month payment`;
+    if (extraDiscount > 0) {
+      upgradeDiscountLabel += ' + admin discount';
+    }
+
+    const paymentMethod = dto.paymentMethod?.trim() || null;
+    const paymentRef = dto.paymentRef?.trim() || null;
+
+    if (amountPaidPaise > 0) {
+      if (!paymentMethod) {
+        throw new BadRequestException(
+          'Payment method is required when recording an additional upgrade payment.',
+        );
+      }
+      if (!paymentRef) {
+        throw new BadRequestException(
+          'Payment reference is required when recording an additional upgrade payment.',
+        );
+      }
+    }
+
+    const noteFromAdmin = dto.adminNote?.trim();
+    const adminNote =
+      noteFromAdmin && noteFromAdmin.length >= 3
+        ? noteFromAdmin
+        : `Membership Upgrade: ${source.planMonths}-month → ${nextMonths}-month. Original payment ${alreadyPaidPaise / 100} ${currency} credited; additional ${amountPaidPaise / 100} ${currency} recorded. Previous membership kept intact.`;
+
+    const planName = `Membership Upgrade (${source.planMonths} to ${nextMonths} months)`;
+
+    let razorpayPaymentId = paymentRef;
+    let razorpayInvoiceId: string | null = null;
+    let razorpayInvoiceUrl: string | null = null;
+    if (paymentRef?.startsWith('pay_')) {
+      const resolved =
+        await this.payments.resolveRazorpayPaymentInvoice(paymentRef);
+      if (resolved) {
+        razorpayPaymentId = resolved.paymentId;
+        if (resolved.invoiceId) razorpayInvoiceId = resolved.invoiceId;
+        if (resolved.invoiceUrl) razorpayInvoiceUrl = resolved.invoiceUrl;
+      }
+    }
 
     const upgraded = await this.memberships.save(
       this.memberships.create({
         userId,
         planMonths: nextMonths,
-        planName: plan.name,
+        planName,
         listPricePaise,
-        discountPaise: 0,
-        amountPaidPaise: 0,
+        discountPaise,
+        amountPaidPaise,
         currency,
         status: source.status,
         startsAt,
         endsAt,
         paymentOrderId: `admin-upgrade-${randomUUID()}`,
-        razorpayPaymentId: null,
-        razorpayInvoiceId: null,
-        razorpayInvoiceUrl: null,
-        paymentMethod: 'Admin upgrade',
-        adminNote: `Upgraded from ${source.planMonths}-month to ${nextMonths}-month membership (previous membership kept in history).`,
+        razorpayPaymentId: amountPaidPaise > 0 ? razorpayPaymentId : null,
+        razorpayInvoiceId,
+        razorpayInvoiceUrl,
+        paymentMethod:
+          amountPaidPaise > 0
+            ? paymentMethod
+            : 'Membership Upgrade (no additional payment)',
+        adminNote,
       }),
     );
 
-    // Retire the previous record without changing its plan or original dates.
+    // Retire the previous record without changing its plan, dates, payment, or invoice.
     source.status = 'expired';
     await this.memberships.save(source);
 
     if (upgraded.status === 'active') {
       await this.supersedeOtherActiveMemberships(userId, upgraded.id);
       await this.completeTrialForMembership(userId);
+    }
+
+    if (amountPaidPaise > 0) {
+      const invoice = await this.invoices.ensureMembershipInvoice({
+        membership: upgraded,
+        user,
+        paymentMethod: paymentMethod || 'Membership Upgrade',
+        paymentReference: razorpayPaymentId,
+        discountLabel: upgradeDiscountLabel,
+      });
+      if (!invoice) {
+        throw new BadRequestException(
+          'Upgrade was created but the Membership Upgrade invoice could not be issued. Please try again.',
+        );
+      }
     }
 
     return this.getUserDetail(userId);

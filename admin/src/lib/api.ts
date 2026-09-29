@@ -425,7 +425,15 @@ export function upgradeAdminUserMembership(
   token: string,
   userId: string,
   membershipId: string,
-  body: { planMonths: number },
+  body: {
+    planMonths: number;
+    listPricePaise?: number;
+    discountPaise?: number;
+    amountPaidPaise?: number;
+    paymentMethod?: string;
+    paymentRef?: string;
+    adminNote?: string;
+  },
 ) {
   return authJson<AdminUserDetail>(
     "POST",

@@ -442,8 +442,27 @@ export class PaymentsService {
         ? trial
         : null;
 
-    const lastExpired =
+    const lastExpiredDefault =
       rows.find((row) => row.status === 'expired') ?? null;
+    // After an admin upgrade, prefer the superseded original membership so its
+    // invoice remains available on My Membership alongside the upgrade invoice.
+    const lastExpired = (() => {
+      if (!current) return lastExpiredDefault;
+      const isUpgrade =
+        current.paymentOrderId.startsWith('admin-upgrade-') ||
+        current.planName.toLowerCase().includes('membership upgrade');
+      if (!isUpgrade) return lastExpiredDefault;
+      const currentStart = this.startOfLocalDay(current.startsAt).getTime();
+      const superseded =
+        rows.find((row) => {
+          if (row.status !== 'expired' || row.id === current.id) return false;
+          if (row.planMonths >= current.planMonths) return false;
+          return (
+            this.startOfLocalDay(row.startsAt).getTime() === currentStart
+          );
+        }) ?? null;
+      return superseded ?? lastExpiredDefault;
+    })();
 
     let state: 'trial' | 'active' | 'expired' | 'scheduled' | 'pending' =
       'pending';
@@ -452,11 +471,37 @@ export class PaymentsService {
     else if (trialScheduled) state = 'scheduled';
     else if (lastExpired) state = 'expired';
 
+    const invoiceMembershipIds = [current, scheduled, lastExpired]
+      .filter((row): row is Membership => Boolean(row))
+      .map((row) => row.id);
+    const invoices =
+      await this.invoices.findByMembershipIds(invoiceMembershipIds);
+    const invoiceByMembershipId = new Map(
+      invoices
+        .filter((row) => row.membershipId)
+        .map((row) => [row.membershipId as string, row]),
+    );
+
     return {
       state,
-      current: current ? this.toPublicMembership(current) : null,
-      scheduled: scheduled ? this.toPublicMembership(scheduled) : null,
-      lastExpired: lastExpired ? this.toPublicMembership(lastExpired) : null,
+      current: current
+        ? this.toPublicMembership(
+            current,
+            invoiceByMembershipId.get(current.id) ?? null,
+          )
+        : null,
+      scheduled: scheduled
+        ? this.toPublicMembership(
+            scheduled,
+            invoiceByMembershipId.get(scheduled.id) ?? null,
+          )
+        : null,
+      lastExpired: lastExpired
+        ? this.toPublicMembership(
+            lastExpired,
+            invoiceByMembershipId.get(lastExpired.id) ?? null,
+          )
+        : null,
       trial: trial
         ? {
             status: trial.status,
@@ -481,27 +526,39 @@ export class PaymentsService {
       );
     }
 
-    const order = membership.paymentOrderId.startsWith('admin-manual-')
-      ? null
-      : await this.orders.findOne({
-          where: { id: membership.paymentOrderId, userId: user.id },
-        });
+    const order =
+      membership.paymentOrderId.startsWith('admin-manual-') ||
+      membership.paymentOrderId.startsWith('admin-upgrade-')
+        ? null
+        : await this.orders.findOne({
+            where: { id: membership.paymentOrderId, userId: user.id },
+          });
 
     const paymentRef =
       membership.razorpayPaymentId?.trim() ||
       order?.razorpayPaymentId?.trim() ||
       null;
-    const adminManual = membership.paymentOrderId.startsWith('admin-manual-');
+    const adminManual =
+      membership.paymentOrderId.startsWith('admin-manual-') ||
+      membership.paymentOrderId.startsWith('admin-upgrade-');
     const paymentMethod =
       membership.paymentMethod?.trim() ||
-      (adminManual ? 'Admin assigned' : 'Online (Razorpay)');
+      (adminManual
+        ? membership.paymentOrderId.startsWith('admin-upgrade-')
+          ? 'Membership Upgrade'
+          : 'Admin assigned'
+        : 'Online (Razorpay)');
 
     const invoice = await this.invoices.ensureMembershipInvoice({
       membership,
       user,
       paymentMethod,
       paymentReference: paymentRef,
-      discountLabel: order?.couponCode?.trim() || null,
+      discountLabel:
+        order?.couponCode?.trim() ||
+        (membership.paymentOrderId.startsWith('admin-upgrade-')
+          ? 'Membership Upgrade'
+          : null),
     });
     if (!invoice) {
       throw new BadRequestException(
@@ -1227,7 +1284,14 @@ export class PaymentsService {
     };
   }
 
-  private toPublicMembership(membership: Membership) {
+  private toPublicMembership(
+    membership: Membership,
+    invoice?: { invoiceNumber: string } | null,
+  ) {
+    const isUpgrade =
+      membership.paymentOrderId.startsWith('admin-upgrade-') ||
+      membership.planName.toLowerCase().includes('membership upgrade');
+    const invoiceDownloadable = membership.amountPaidPaise > 0;
     return {
       id: membership.id,
       planName: membership.planName,
@@ -1243,8 +1307,10 @@ export class PaymentsService {
       razorpayInvoiceId: membership.razorpayInvoiceId,
       razorpayInvoiceUrl: membership.razorpayInvoiceUrl,
       paidAt: membership.createdAt.toISOString(),
-      /** Healing Mat branded PDF — only for paid memberships (not 100% discount). */
-      invoiceDownloadable: membership.amountPaidPaise > 0,
+      /** Healing Mat branded PDF — only for paid memberships (not complimentary). */
+      invoiceDownloadable,
+      invoiceNumber: invoice?.invoiceNumber ?? null,
+      isUpgrade,
     };
   }
 

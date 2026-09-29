@@ -67,6 +67,17 @@ type NewMembershipForm = {
 
 type UpgradeForm = {
   planMonths: string;
+  /** New plan catalogue price (major units). */
+  listPriceMajor: string;
+  /** Amount already paid on the original membership (display only). */
+  alreadyPaidMajor: string;
+  /** Total discount on upgrade invoice (includes prior payment credit + any extra). */
+  discountMajor: string;
+  /** Additional amount for the upgrade (major units). */
+  amountPaidMajor: string;
+  paymentMethod: string;
+  paymentRef: string;
+  adminNote: string;
 };
 
 type MembershipComposer = "add" | "renew" | "upgrade" | null;
@@ -115,9 +126,56 @@ function emptyNewMembershipForm(
 function emptyUpgradeForm(
   active: AdminUserMembership | null,
   plans?: AdminMembershipPlan[],
+  currency = "INR",
 ): UpgradeForm {
   const options = upgradePlanOptions(active?.planMonths ?? 0, plans);
-  return { planMonths: options[0] ? String(options[0].months) : "" };
+  if (!active || options.length === 0) {
+    return {
+      planMonths: "",
+      listPriceMajor: "0",
+      alreadyPaidMajor: "0",
+      discountMajor: "0",
+      amountPaidMajor: "0",
+      paymentMethod: "",
+      paymentRef: "",
+      adminNote: "",
+    };
+  }
+  return buildUpgradeForm(active, options[0].months, plans, currency);
+}
+
+function formatMajorFromMinor(minor: number, currency: string) {
+  return (Math.max(0, minor) / 100).toFixed(currency === "USD" ? 2 : 0);
+}
+
+/** Build upgrade form with credit for original payment and suggested additional due. */
+function buildUpgradeForm(
+  source: AdminUserMembership,
+  planMonths: number,
+  plans: AdminMembershipPlan[] | undefined,
+  currency: string,
+): UpgradeForm {
+  const plan =
+    plans?.find((p) => p.months === planMonths) ?? null;
+  const listMinor = catalogListMinor(plan, currency);
+  const alreadyPaid = Math.max(0, source.amountPaidPaise ?? 0);
+  const credit = Math.min(alreadyPaid, listMinor);
+  const discountMajor = formatMajorFromMinor(credit, currency);
+  const amountMajor = payableFromListAndDiscount(
+    formatMajorFromMinor(listMinor, currency),
+    discountMajor,
+    currency,
+  );
+  return {
+    planMonths: String(planMonths),
+    listPriceMajor: formatMajorFromMinor(listMinor, currency),
+    alreadyPaidMajor: formatMajorFromMinor(alreadyPaid, currency),
+    discountMajor,
+    amountPaidMajor: amountMajor,
+    paymentMethod: "",
+    paymentRef: "",
+    adminNote: `Membership Upgrade: ${source.planMonths} → ${planMonths} months.`,
+  };
 }
 
 /** Longer plans only — never same or shorter duration. */
@@ -375,7 +433,14 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     emptyNewMembershipForm,
   );
   const [upgradeForm, setUpgradeForm] = useState<UpgradeForm>({
-    planMonths: "3",
+    planMonths: "",
+    listPriceMajor: "0",
+    alreadyPaidMajor: "0",
+    discountMajor: "0",
+    amountPaidMajor: "0",
+    paymentMethod: "",
+    paymentRef: "",
+    adminNote: "",
   });
   const [catalogPlans, setCatalogPlans] = useState<AdminMembershipPlan[]>([]);
   const [membershipComposer, setMembershipComposer] =
@@ -490,7 +555,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       setNewMembershipForm(emptyNewMembershipForm(plans, currency));
       const active =
         next.memberships.find((m) => m.status === "active") ?? null;
-      setUpgradeForm(emptyUpgradeForm(active, plans));
+      setUpgradeForm(emptyUpgradeForm(active, plans, currency));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load user.");
       setDetail(null);
@@ -521,7 +586,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     setNewMembershipForm(emptyNewMembershipForm(catalogPlans, currency));
     const active =
       detail.memberships.find((m) => m.status === "active") ?? null;
-    setUpgradeForm(emptyUpgradeForm(active, catalogPlans));
+    setUpgradeForm(emptyUpgradeForm(active, catalogPlans, currency));
     setProfileSaved(false);
     setMembershipSavedId(null);
     setMembershipCreated(false);
@@ -530,7 +595,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     if (catalogPlans.length === 0) {
       void loadCatalogPlans().then((plans) => {
         setNewMembershipForm(emptyNewMembershipForm(plans, currency));
-        setUpgradeForm(emptyUpgradeForm(active, plans));
+        setUpgradeForm(emptyUpgradeForm(active, plans, currency));
       });
     }
   }
@@ -546,7 +611,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     setNewMembershipForm(emptyNewMembershipForm(catalogPlans, currency));
     const active =
       detail.memberships.find((m) => m.status === "active") ?? null;
-    setUpgradeForm(emptyUpgradeForm(active, catalogPlans));
+    setUpgradeForm(emptyUpgradeForm(active, catalogPlans, currency));
     setPendingSave(null);
     setProfileSaved(false);
     setMembershipSavedId(null);
@@ -628,8 +693,15 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       return;
     }
 
-    const nextMonths = String(longerPlans[0].months);
     const nextPlan = longerPlans[0];
+    const currency =
+      detail.profile.region === "outside_india" ? "USD" : "INR";
+    const nextUpgrade = buildUpgradeForm(
+      target,
+      nextPlan.months,
+      catalogPlans,
+      currency,
+    );
     const nextEnds = calcMembershipEndsAt(
       new Date(target.startsAt),
       nextPlan.months,
@@ -637,15 +709,15 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
     setMembershipComposer("upgrade");
     setUpgradeTargetId(membershipId);
-    setUpgradeForm({ planMonths: nextMonths });
+    setUpgradeForm(nextUpgrade);
     setMembershipForms((forms) => {
       const existing = forms[membershipId] ?? membershipFormFromRow(target);
       return {
         ...forms,
         [membershipId]: {
           ...existing,
-          planMonths: nextMonths,
-          planName: nextPlan.name,
+          planMonths: nextUpgrade.planMonths,
+          planName: `Membership Upgrade (${target.planMonths} → ${nextPlan.months} months)`,
           startsAt: toDateTimeLocal(target.startsAt),
           endsAt: toDateTimeLocal(nextEnds.toISOString()),
           status: target.status,
@@ -774,6 +846,41 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       );
       return;
     }
+    const listPricePaise = majorToMinorUnits(upgradeForm.listPriceMajor);
+    const discountPaise = majorToMinorUnits(upgradeForm.discountMajor);
+    const amountPaidPaise = majorToMinorUnits(upgradeForm.amountPaidMajor);
+    if (
+      listPricePaise == null ||
+      discountPaise == null ||
+      amountPaidPaise == null
+    ) {
+      showError("Enter a valid new plan price, discount, and additional amount.");
+      return;
+    }
+    if (discountPaise > listPricePaise) {
+      showError("Discount cannot exceed the new plan price.");
+      return;
+    }
+    if (amountPaidPaise > listPricePaise) {
+      showError("Additional amount cannot exceed the new plan price.");
+      return;
+    }
+    if (listPricePaise - discountPaise !== amountPaidPaise) {
+      showError("Additional amount must equal new plan price minus discount.");
+      return;
+    }
+    if (amountPaidPaise > 0) {
+      if (!upgradeForm.paymentMethod.trim()) {
+        showError("Select a payment method for the additional upgrade payment.");
+        return;
+      }
+      if (upgradeForm.paymentRef.trim().length < 2) {
+        showError(
+          "Enter a payment reference for the additional upgrade payment.",
+        );
+        return;
+      }
+    }
     setPendingSave({ type: "upgrade-membership", membershipId });
   }
 
@@ -897,7 +1004,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         setNewMembershipForm(emptyNewMembershipForm(catalogPlans, currency));
         const active =
           next.memberships.find((m) => m.status === "active") ?? null;
-        setUpgradeForm(emptyUpgradeForm(active, catalogPlans));
+        setUpgradeForm(emptyUpgradeForm(active, catalogPlans, currency));
       } catch (err) {
         showError(
           err instanceof Error
@@ -963,6 +1070,36 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         return;
       }
 
+      const currency =
+        detail?.profile.region === "outside_india" ? "USD" : "INR";
+      const listPricePaise = majorToMinorUnits(upgradeForm.listPriceMajor);
+      const discountPaise = majorToMinorUnits(upgradeForm.discountMajor);
+      const amountPaidPaise = majorToMinorUnits(upgradeForm.amountPaidMajor);
+      if (
+        listPricePaise == null ||
+        discountPaise == null ||
+        amountPaidPaise == null
+      ) {
+        setPendingSave(null);
+        showError("Enter a valid new plan price, discount, and additional amount.");
+        return;
+      }
+      if (discountPaise > listPricePaise) {
+        setPendingSave(null);
+        showError("Discount cannot exceed the new plan price.");
+        return;
+      }
+      if (amountPaidPaise > listPricePaise) {
+        setPendingSave(null);
+        showError("Additional amount cannot exceed the new plan price.");
+        return;
+      }
+      if (listPricePaise - discountPaise !== amountPaidPaise) {
+        setPendingSave(null);
+        showError("Additional amount must equal new plan price minus discount.");
+        return;
+      }
+
       setSavingMembershipId(membershipId);
       setError(null);
       setMembershipSavedId(null);
@@ -973,7 +1110,21 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           token,
           userId,
           membershipId,
-          { planMonths },
+          {
+            planMonths,
+            listPricePaise,
+            discountPaise,
+            amountPaidPaise,
+            ...(amountPaidPaise > 0
+              ? {
+                  paymentMethod: upgradeForm.paymentMethod.trim(),
+                  paymentRef: upgradeForm.paymentRef.trim(),
+                }
+              : {}),
+            ...(upgradeForm.adminNote.trim().length >= 3
+              ? { adminNote: upgradeForm.adminNote.trim() }
+              : {}),
+          },
         );
         applyDetail(next);
         invalidateCached(DASHBOARD_CACHE_KEYS.users);
@@ -986,9 +1137,13 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           ) ?? null;
         setMembershipSavedId(upgraded?.id ?? null);
         const successMessage =
-          membership.status === "scheduled"
-            ? "Scheduled renew upgraded — previous renew kept in history."
-            : "Membership upgraded — previous plan kept in history.";
+          amountPaidPaise > 0
+            ? membership.status === "scheduled"
+              ? "Scheduled renew upgraded — Membership Upgrade invoice created."
+              : "Membership upgraded — Membership Upgrade invoice created."
+            : membership.status === "scheduled"
+              ? "Scheduled renew upgraded — previous renew kept in history."
+              : "Membership upgraded — previous plan kept in history.";
         setMembershipActionMessage(successMessage);
         showSuccess(successMessage);
         setMembershipComposer(null);
@@ -997,6 +1152,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           emptyUpgradeForm(
             next.memberships.find((m) => m.status === "active") ?? null,
             catalogPlans,
+            currency,
           ),
         );
       } catch (err) {
@@ -1191,10 +1347,6 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   const selectedCatalogPlan =
     catalogPlans.find(
       (plan) => String(plan.months) === newMembershipForm.planMonths,
-    ) ?? null;
-  const selectedUpgradePlan =
-    catalogPlans.find(
-      (plan) => String(plan.months) === upgradeForm.planMonths,
     ) ?? null;
   const planOptions: { id: string; months: number; name: string }[] =
     catalogPlans.length > 0
@@ -2135,40 +2287,34 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                         <select
                           value={upgradeForm.planMonths}
                           onChange={(e) => {
-                            const months = e.target.value;
-                            const monthsNum = Number(months);
-                            setUpgradeForm({ planMonths: months });
-                            const plan =
-                              upgradeOptions.find(
-                                (p) => String(p.months) === months,
-                              ) ??
-                              catalogPlans.find(
-                                (p) => String(p.months) === months,
-                              ) ??
-                              null;
-                            const nextForm = {
-                              ...form,
-                              planMonths: months,
-                              planName:
-                                plan?.name ?? `${months}-Month Membership`,
-                              status: membership.status,
-                            };
+                            const monthsNum = Number(e.target.value);
                             if (
-                              Number.isInteger(monthsNum) &&
-                              monthsNum >= 1 &&
-                              form.startsAt
+                              !Number.isInteger(monthsNum) ||
+                              monthsNum <= membership.planMonths
                             ) {
-                              const ends = calcMembershipEndsAt(
-                                new Date(fromDateTimeLocal(form.startsAt)),
-                                monthsNum,
-                              );
-                              nextForm.endsAt = toDateTimeLocal(
-                                ends.toISOString(),
-                              );
+                              return;
                             }
+                            const next = buildUpgradeForm(
+                              membership,
+                              monthsNum,
+                              catalogPlans,
+                              membershipCurrency,
+                            );
+                            setUpgradeForm(next);
+                            const ends = calcMembershipEndsAt(
+                              new Date(membership.startsAt),
+                              monthsNum,
+                            );
                             setMembershipForms({
                               ...membershipForms,
-                              [membership.id]: nextForm,
+                              [membership.id]: {
+                                ...form,
+                                planMonths: next.planMonths,
+                                planName: `Membership Upgrade (${membership.planMonths} → ${monthsNum} months)`,
+                                status: membership.status,
+                                startsAt: toDateTimeLocal(membership.startsAt),
+                                endsAt: toDateTimeLocal(ends.toISOString()),
+                              },
                             });
                           }}
                           className={inputClass}
@@ -2182,10 +2328,11 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                         </select>
                       </label>
                       <div>
-                        <p className={labelClass}>Plan name</p>
+                        <p className={labelClass}>Upgrade label</p>
                         <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
-                          {selectedUpgradePlan?.name ??
-                            `${upgradeForm.planMonths}-Month Membership`}
+                          Membership Upgrade (
+                          {membership.planMonths} → {upgradeForm.planMonths}{" "}
+                          months)
                         </p>
                       </div>
                       <div>
@@ -2204,7 +2351,139 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                               : "—"}
                         </p>
                       </div>
+                      <div>
+                        <p className={labelClass}>
+                          Already paid ({moneySuffix})
+                        </p>
+                        <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
+                          {upgradeForm.alreadyPaidMajor} (credited)
+                        </p>
+                      </div>
+                      <label className={labelClass}>
+                        New plan price ({moneySuffix})
+                        <input
+                          type="number"
+                          min={0}
+                          step={membershipCurrency === "USD" ? "0.01" : "1"}
+                          value={upgradeForm.listPriceMajor}
+                          onChange={(e) => {
+                            const listPriceMajor = e.target.value;
+                            setUpgradeForm({
+                              ...upgradeForm,
+                              listPriceMajor,
+                              amountPaidMajor: payableFromListAndDiscount(
+                                listPriceMajor,
+                                upgradeForm.discountMajor,
+                                membershipCurrency,
+                              ),
+                            });
+                          }}
+                          className={inputClass}
+                          disabled={fieldsLocked}
+                        />
+                      </label>
+                      <label className={labelClass}>
+                        Discount ({moneySuffix})
+                        <input
+                          type="number"
+                          min={0}
+                          step={membershipCurrency === "USD" ? "0.01" : "1"}
+                          value={upgradeForm.discountMajor}
+                          onChange={(e) => {
+                            const discountMajor = e.target.value;
+                            setUpgradeForm({
+                              ...upgradeForm,
+                              discountMajor,
+                              amountPaidMajor: payableFromListAndDiscount(
+                                upgradeForm.listPriceMajor,
+                                discountMajor,
+                                membershipCurrency,
+                              ),
+                            });
+                          }}
+                          className={inputClass}
+                          disabled={fieldsLocked}
+                          title="Includes prior payment credit; increase for extra discount"
+                        />
+                      </label>
+                      <label className={labelClass}>
+                        Additional amount ({moneySuffix})
+                        <input
+                          type="number"
+                          min={0}
+                          step={membershipCurrency === "USD" ? "0.01" : "1"}
+                          value={upgradeForm.amountPaidMajor}
+                          readOnly
+                          className={inputClass}
+                          disabled={fieldsLocked}
+                          title="New plan price − discount"
+                        />
+                      </label>
+                      <label className={labelClass}>
+                        Payment method
+                        <select
+                          value={upgradeForm.paymentMethod}
+                          onChange={(e) =>
+                            setUpgradeForm({
+                              ...upgradeForm,
+                              paymentMethod: e.target.value,
+                            })
+                          }
+                          className={inputClass}
+                          disabled={fieldsLocked}
+                        >
+                          <option value="">
+                            {Number(upgradeForm.amountPaidMajor) > 0
+                              ? "Select method"
+                              : "Not required (₹0 / $0 additional)"}
+                          </option>
+                          {PAYMENT_METHOD_OPTIONS.map((method) => (
+                            <option key={method} value={method}>
+                              {method}
+                            </option>
+                          ))}
+                          <option value="Online (Razorpay)">
+                            Online (Razorpay)
+                          </option>
+                        </select>
+                      </label>
+                      <label className={labelClass}>
+                        Payment reference
+                        <input
+                          value={upgradeForm.paymentRef}
+                          onChange={(e) =>
+                            setUpgradeForm({
+                              ...upgradeForm,
+                              paymentRef: e.target.value,
+                            })
+                          }
+                          className={inputClass}
+                          disabled={fieldsLocked}
+                          placeholder="pay_… / UTR / bank transfer note"
+                        />
+                      </label>
+                      <label className={`${labelClass} sm:col-span-2`}>
+                        Admin note
+                        <textarea
+                          value={upgradeForm.adminNote}
+                          onChange={(e) =>
+                            setUpgradeForm({
+                              ...upgradeForm,
+                              adminNote: e.target.value,
+                            })
+                          }
+                          className="mt-1.5 min-h-[4.5rem] w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 py-2.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 disabled:cursor-default disabled:bg-[#f7faf6] disabled:text-[#5f6f64]"
+                          disabled={fieldsLocked}
+                          placeholder="Membership Upgrade note"
+                        />
+                      </label>
                     </div>
+                    <p className="mt-3 rounded-xl bg-[#f3faf5] px-3.5 py-2.5 text-xs leading-relaxed text-[#5f6f64]">
+                      Discount starts at the member&apos;s prior payment credit;
+                      increase it for an extra admin discount. Additional amount
+                      is new plan price minus discount. Original membership,
+                      payment, and invoice stay intact.
+                    </p>
                     <div className="mt-4 flex flex-wrap items-center gap-3">
                       <button
                         type="button"
@@ -2902,8 +3181,8 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                     : "This will add a new active membership for this member."
                   : pendingSave.type === "upgrade-membership"
                     ? pendingSave.membershipId === scheduledMembership?.id
-                      ? "This creates a longer scheduled renew on top. The previous renew stays in history and is not overwritten."
-                      : "This creates a longer membership on top of the current one. The previous plan stays in history and is not overwritten."
+                      ? "This creates a longer scheduled renew on top and records any additional Membership Upgrade payment as a separate invoice. The previous renew stays intact."
+                      : "This creates a longer membership on top and records any additional Membership Upgrade payment as a separate invoice. The original membership, payment, and invoice stay intact."
                     : pendingSave.type === "activate-payment"
                       ? "This will create a membership from the selected payment order."
                       : "This will update this member’s membership plan and dates."}{" "}

@@ -68,6 +68,15 @@ function logoPath() {
   return path.join(assetsRoot(), 'images', 'logo-icon-invoice.png');
 }
 
+/** Invoice fonts omit many Unicode glyphs (e.g. →); keep labels ASCII-safe. */
+function sanitizeInvoiceText(value: string): string {
+  return value
+    .replace(/\u2192/g, ' to ')
+    .replace(/\u2013|\u2014/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function formatMoney(minorUnits: number, currency: 'INR' | 'USD'): string {
   const major = minorUnits / 100;
   if (currency === 'USD') {
@@ -382,17 +391,37 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
   const xAmt = xUnit + colUnitW;
 
   const headH = 40;
-  const itemH = 84;
-  const sumH = 34;
   const totalH = 44;
+  const descPadX = 12;
+  const descW = colDescW - 18;
+  const planTitle = sanitizeInvoiceText(input.planName);
   const unitStr = formatMoney(input.listPricePaise, input.currency);
-  const discLabel = input.discountLabel
-    ? `Discount (${input.discountLabel})`
-    : 'Discount';
+  const discLabel = sanitizeInvoiceText(
+    input.discountLabel
+      ? `Discount (${input.discountLabel})`
+      : 'Discount',
+  );
   const discValue =
     input.discountPaise > 0
       ? `-${formatMoney(input.discountPaise, input.currency)}`
       : formatMoney(0, input.currency);
+
+  doc.font('Invoice-Bold').fontSize(13);
+  const titleBlockH = doc.heightOfString(planTitle, { width: descW });
+  const itemPadTop = 14;
+  const titleGap = 8;
+  const dateLineH = 14;
+  const itemPadBottom = 10;
+  const itemH = Math.max(
+    84,
+    Math.ceil(
+      itemPadTop + titleBlockH + titleGap + dateLineH * 2 + itemPadBottom,
+    ),
+  );
+
+  doc.font('Invoice').fontSize(12);
+  const discountLabelH = doc.heightOfString(discLabel, { width: descW });
+  const sumH = Math.max(34, Math.ceil(discountLabelH + 14));
 
   const tableH = headH + itemH + sumH + sumH + totalH;
   const tableTop = y;
@@ -446,31 +475,35 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
     lineBreak: false,
   });
 
-  // Item row
+  // Item row — description height grows for long upgrade titles.
   const itemTop = tableTop + headH;
+  let descY = itemTop + itemPadTop;
   doc
     .font('Invoice-Bold')
     .fontSize(13)
     .fillColor(NAVY)
-    .text(input.planName, tableX + 12, itemTop + 16, {
-      width: colDescW - 18,
-      lineBreak: false,
+    .text(planTitle, tableX + descPadX, descY, {
+      width: descW,
+      lineBreak: true,
     });
+  descY += titleBlockH + titleGap;
   doc
     .font('Invoice')
     .fontSize(11)
     .fillColor(MUTED)
     .text(
       `Start Date: ${formatDate(input.startsAt)}`,
-      tableX + 12,
-      itemTop + 38,
-      { width: colDescW - 18 },
+      tableX + descPadX,
+      descY,
+      { width: descW, lineBreak: true },
     );
-  doc.text(`End Date: ${formatDate(input.endsAt)}`, tableX + 12, itemTop + 54, {
-    width: colDescW - 18,
+  descY += dateLineH;
+  doc.text(`End Date: ${formatDate(input.endsAt)}`, tableX + descPadX, descY, {
+    width: descW,
+    lineBreak: true,
   });
 
-  const itemMidY = itemTop + 34;
+  const itemMidY = itemTop + Math.floor(itemH / 2) - 6;
   doc.font('Invoice').fontSize(12).fillColor(NAVY);
   doc.text('1', xQty, itemMidY, {
     width: colQtyW,
@@ -508,7 +541,10 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
 
   // Discount row
   sumY += sumH;
-  doc.text(discLabel, tableX + 12, sumY + 10, { lineBreak: false });
+  doc.text(discLabel, tableX + descPadX, sumY + 10, {
+    width: descW,
+    lineBreak: true,
+  });
   doc.text(discValue, xAmt, sumY + 10, {
     width: colAmtW,
     align: 'center',

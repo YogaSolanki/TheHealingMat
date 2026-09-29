@@ -532,8 +532,12 @@ export type PublicMembership = {
   razorpayInvoiceId?: string | null;
   razorpayInvoiceUrl?: string | null;
   paidAt: string;
-  /** False when membership was granted manually by admin. */
+  /** True when a branded PDF invoice can be downloaded (paid amount > 0). */
   invoiceDownloadable?: boolean;
+  /** Issued invoice number when available. */
+  invoiceNumber?: string | null;
+  /** Admin membership upgrade (additional payment invoice). */
+  isUpgrade?: boolean;
 };
 
 export type MembershipAccessResponse = {
