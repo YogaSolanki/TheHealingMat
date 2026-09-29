@@ -1130,11 +1130,13 @@ export class PaymentsService {
       await this.coupons.assertRedeemable(coupon, user.id);
       appliedCoupon = coupon.code;
       if (coupon.discountType === 'percent') {
-        discountPaise = Math.floor((listPricePaise * coupon.discountValue) / 100);
-      } else if (currency === 'INR') {
-        discountPaise = coupon.discountValue * 100;
+        discountPaise = Math.floor(
+          (listPricePaise * coupon.discountValue) / 100,
+        );
       } else {
-        throw new BadRequestException('Invalid coupon');
+        // Fixed value is major units of the member's checkout currency
+        // (₹ for India, $ for outside-India). Same *100 → paise/cents.
+        discountPaise = coupon.discountValue * 100;
       }
       discountLabel = coupon.discountLabel || `${coupon.discountValue} off`;
     } else if (

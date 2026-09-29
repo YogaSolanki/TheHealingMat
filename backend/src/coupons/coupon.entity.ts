@@ -33,7 +33,7 @@ export class Coupon {
   @Column({ type: 'varchar', nullable: true })
   assignedReferralCode: string | null;
 
-  /** percent = % off, fixed = flat amount off (e.g. ₹) */
+  /** percent = % off, fixed = flat amount off in checkout currency (₹ or $) */
   @Column({ type: 'varchar', length: 20, default: 'fixed' })
   discountType: CouponDiscountType;
 

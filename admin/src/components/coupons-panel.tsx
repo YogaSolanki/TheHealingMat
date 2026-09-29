@@ -351,7 +351,8 @@ export function CouponsPanel() {
         <p className="mt-1 text-xs text-[#8a978c]">
           Set a usage limit (e.g. 1 = single use, 10 = ten members). Leave
           unassigned for a shared code, or assign to one member for a personal
-          single-use coupon.
+          single-use coupon. Fixed OFF uses the member&apos;s currency (₹ for
+          India, $ for outside India); any amount from 1 up is allowed.
         </p>
 
         <form onSubmit={onGenerate} className="mt-4 space-y-3">
@@ -376,7 +377,7 @@ export function CouponsPanel() {
                 }
                 className="mt-1.5 h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
               >
-                <option value="fixed">₹ OFF</option>
+                <option value="fixed">Fixed OFF (₹ / $)</option>
                 <option value="percent">% OFF</option>
               </select>
             </label>
