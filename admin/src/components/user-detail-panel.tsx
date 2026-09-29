@@ -206,6 +206,22 @@ function majorToMinorUnits(value: string): number | null {
   return Math.round(n * 100);
 }
 
+/** List − discount → payable (never below zero). */
+function payableFromListAndDiscount(
+  listMajor: string,
+  discountMajor: string,
+  currency: string,
+): string {
+  const list = Number(listMajor.trim());
+  const discount = Number((discountMajor.trim() || "0"));
+  if (!Number.isFinite(list) || list < 0) return listMajor;
+  const clippedDiscount =
+    Number.isFinite(discount) && discount > 0 ? Math.min(discount, list) : 0;
+  return Math.max(0, list - clippedDiscount).toFixed(
+    currency === "USD" ? 2 : 0,
+  );
+}
+
 function catalogListMinor(
   plan: AdminMembershipPlan | null | undefined,
   currency: string,
@@ -665,19 +681,15 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
     const listPricePaise = majorToMinorUnits(newMembershipForm.listPriceMajor);
     const discountPaise = majorToMinorUnits(newMembershipForm.discountMajor);
-    const amountPaidPaise = majorToMinorUnits(newMembershipForm.amountPaidMajor);
-    if (listPricePaise == null || discountPaise == null || amountPaidPaise == null) {
-      showError("Enter valid list price, discount, and amount paid.");
+    if (listPricePaise == null || discountPaise == null) {
+      showError("Enter valid list price and discount.");
       return;
     }
     if (discountPaise > listPricePaise) {
       showError("Discount cannot exceed list price.");
       return;
     }
-    if (amountPaidPaise > listPricePaise) {
-      showError("Amount paid cannot exceed list price.");
-      return;
-    }
+    const amountPaidPaise = Math.max(0, listPricePaise - discountPaise);
     if (amountPaidPaise > 0) {
       if (!newMembershipForm.paymentMethod.trim()) {
         showError("Payment method is required for paid memberships.");
@@ -785,18 +797,17 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         detail?.profile.region === "outside_india" ? "USD" : "INR";
       const listPricePaise = majorToMinorUnits(newMembershipForm.listPriceMajor);
       const discountPaise = majorToMinorUnits(newMembershipForm.discountMajor);
-      const amountPaidPaise = majorToMinorUnits(
-        newMembershipForm.amountPaidMajor,
-      );
-      if (
-        listPricePaise == null ||
-        discountPaise == null ||
-        amountPaidPaise == null
-      ) {
-        showError("Enter valid list price, discount, and amount paid.");
+      if (listPricePaise == null || discountPaise == null) {
+        showError("Enter valid list price and discount.");
         setPendingSave(null);
         return;
       }
+      if (discountPaise > listPricePaise) {
+        showError("Discount cannot exceed list price.");
+        setPendingSave(null);
+        return;
+      }
+      const amountPaidPaise = Math.max(0, listPricePaise - discountPaise);
 
       setSavingNewMembership(true);
       setError(null);
@@ -1732,12 +1743,18 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   min={0}
                   step={membershipCurrency === "USD" ? "0.01" : "1"}
                   value={newMembershipForm.listPriceMajor}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const listPriceMajor = e.target.value;
                     setNewMembershipForm({
                       ...newMembershipForm,
-                      listPriceMajor: e.target.value,
-                    })
-                  }
+                      listPriceMajor,
+                      amountPaidMajor: payableFromListAndDiscount(
+                        listPriceMajor,
+                        newMembershipForm.discountMajor,
+                        membershipCurrency,
+                      ),
+                    });
+                  }}
                   className={inputClass}
                   disabled={fieldsLocked}
                 />
@@ -1749,31 +1766,33 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   min={0}
                   step={membershipCurrency === "USD" ? "0.01" : "1"}
                   value={newMembershipForm.discountMajor}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const discountMajor = e.target.value;
                     setNewMembershipForm({
                       ...newMembershipForm,
-                      discountMajor: e.target.value,
-                    })
-                  }
+                      discountMajor,
+                      amountPaidMajor: payableFromListAndDiscount(
+                        newMembershipForm.listPriceMajor,
+                        discountMajor,
+                        membershipCurrency,
+                      ),
+                    });
+                  }}
                   className={inputClass}
                   disabled={fieldsLocked}
                 />
               </label>
               <label className={labelClass}>
-                Amount paid ({moneySuffix})
+                Amount payable ({moneySuffix})
                 <input
                   type="number"
                   min={0}
                   step={membershipCurrency === "USD" ? "0.01" : "1"}
                   value={newMembershipForm.amountPaidMajor}
-                  onChange={(e) =>
-                    setNewMembershipForm({
-                      ...newMembershipForm,
-                      amountPaidMajor: e.target.value,
-                    })
-                  }
+                  readOnly
                   className={inputClass}
                   disabled={fieldsLocked}
+                  title="List price − discount"
                 />
               </label>
               <label className={labelClass}>
@@ -2283,12 +2302,18 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                             min={0}
                             step={membershipCurrency === "USD" ? "0.01" : "1"}
                             value={newMembershipForm.listPriceMajor}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              const listPriceMajor = e.target.value;
                               setNewMembershipForm({
                                 ...newMembershipForm,
-                                listPriceMajor: e.target.value,
-                              })
-                            }
+                                listPriceMajor,
+                                amountPaidMajor: payableFromListAndDiscount(
+                                  listPriceMajor,
+                                  newMembershipForm.discountMajor,
+                                  membershipCurrency,
+                                ),
+                              });
+                            }}
                             className={inputClass}
                             disabled={fieldsLocked}
                           />
@@ -2300,31 +2325,33 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                             min={0}
                             step={membershipCurrency === "USD" ? "0.01" : "1"}
                             value={newMembershipForm.discountMajor}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              const discountMajor = e.target.value;
                               setNewMembershipForm({
                                 ...newMembershipForm,
-                                discountMajor: e.target.value,
-                              })
-                            }
+                                discountMajor,
+                                amountPaidMajor: payableFromListAndDiscount(
+                                  newMembershipForm.listPriceMajor,
+                                  discountMajor,
+                                  membershipCurrency,
+                                ),
+                              });
+                            }}
                             className={inputClass}
                             disabled={fieldsLocked}
                           />
                         </label>
                         <label className={labelClass}>
-                          Amount paid ({moneySuffix})
+                          Amount payable ({moneySuffix})
                           <input
                             type="number"
                             min={0}
                             step={membershipCurrency === "USD" ? "0.01" : "1"}
                             value={newMembershipForm.amountPaidMajor}
-                            onChange={(e) =>
-                              setNewMembershipForm({
-                                ...newMembershipForm,
-                                amountPaidMajor: e.target.value,
-                              })
-                            }
+                            readOnly
                             className={inputClass}
                             disabled={fieldsLocked}
+                            title="List price − discount"
                           />
                         </label>
                         <label className={labelClass}>
