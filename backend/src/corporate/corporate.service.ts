@@ -16,6 +16,7 @@ import { Coupon } from '../coupons/coupon.entity';
 import { sendResendEmail } from '../mail/resend';
 import { buildMembershipInvoicePdf } from '../payments/invoice-pdf';
 import { InvoicesService } from '../payments/invoices.service';
+import { Membership } from '../payments/membership.entity';
 import { MembershipPlansService } from '../payments/membership-plans.service';
 import { OtpChallenge } from '../users/otp-challenge.entity';
 import { Region } from '../users/enums/region.enum';
@@ -58,6 +59,8 @@ export class CorporateService implements OnModuleInit {
     private readonly otpChallenges: Repository<OtpChallenge>,
     @InjectRepository(User)
     private readonly users: Repository<User>,
+    @InjectRepository(Membership)
+    private readonly memberships: Repository<Membership>,
   ) {}
 
   async onModuleInit() {
@@ -199,9 +202,18 @@ export class CorporateService implements OnModuleInit {
     const companyPayPercent = dto.companyPayPercent;
     const listPricePerSeatPaise = catalog.listPricePaise;
     const totalListPricePaise = listPricePerSeatPaise * employeeCount;
-    const companyAmountPaise = Math.round(
+    /** ₹1 per seat reserved so each employee can get a paid invoice. */
+    const seatInvoiceReservePaise =
+      companyPayPercent >= 100 ? employeeCount * 100 : 0;
+    let companyAmountPaise = Math.round(
       (totalListPricePaise * companyPayPercent) / 100,
     );
+    if (companyPayPercent >= 100) {
+      companyAmountPaise = Math.max(
+        0,
+        totalListPricePaise - seatInvoiceReservePaise,
+      );
+    }
 
     if (companyAmountPaise > 0) {
       if (!dto.paymentMethod?.trim() || !dto.paymentRef?.trim()) {
@@ -282,9 +294,9 @@ export class CorporateService implements OnModuleInit {
       paymentMethod: plan.paymentMethod || 'Other',
       paymentReference: plan.paymentRef,
       discountLabel:
-        companyPayPercent < 100
-          ? `Employee share ${100 - companyPayPercent}%`
-          : 'Full company payment',
+        companyPayPercent >= 100
+          ? `₹1 × ${employeeCount} employee seat${employeeCount === 1 ? '' : 's'} (member invoices)`
+          : `Employee share ${100 - companyPayPercent}%`,
       issuedAt: new Date(),
     });
     if (invoice) {
@@ -655,6 +667,8 @@ export class CorporateService implements OnModuleInit {
       couponCode: string | null;
       createdAt: string;
       userName: string | null;
+      membershipId: string | null;
+      invoiceNumber: string | null;
     }[] = [];
 
     if (plan.couponId) {
@@ -686,6 +700,12 @@ export class CorporateService implements OnModuleInit {
         );
         for (const row of rows) {
           const user = await this.users.findOne({ where: { id: row.userId } });
+          const membership = await this.memberships.findOne({
+            where: { paymentOrderId: row.paymentOrderId },
+          });
+          const invoice = membership
+            ? await this.invoices.findByMembershipId(membership.id)
+            : null;
           redemptions.push({
             id: row.id,
             userId: row.userId,
@@ -693,6 +713,8 @@ export class CorporateService implements OnModuleInit {
             couponCode: row.couponCode,
             createdAt: row.createdAt.toISOString(),
             userName: user?.fullName ?? null,
+            membershipId: membership?.id ?? null,
+            invoiceNumber: invoice?.invoiceNumber ?? null,
           });
         }
       }

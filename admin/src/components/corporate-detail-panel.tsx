@@ -9,6 +9,7 @@ import {
   ADMIN_TOKEN_KEY,
   createAdminCorporatePlan,
   downloadAdminCorporatePlanInvoice,
+  downloadAdminMembershipInvoice,
   getAdminCompany,
   listAdminMembershipPlans,
   updateAdminCompany,
@@ -65,6 +66,9 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
   const [downloadingPlanId, setDownloadingPlanId] = useState<string | null>(
     null,
   );
+  const [downloadingSeatInvoiceKey, setDownloadingSeatInvoiceKey] = useState<
+    string | null
+  >(null);
 
   const [companyName, setCompanyName] = useState("");
   const [domain, setDomain] = useState("");
@@ -139,7 +143,12 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
   const payPct = Math.min(100, Math.max(0, Number(companyPayPercent) || 0));
   const listPerSeat = selectedPlan?.listPricePaise ?? 0;
   const totalList = listPerSeat * seats;
-  const companyAmount = Math.round((totalList * payPct) / 100);
+  /** ₹1/seat reserved for member invoices when company pays 100%. */
+  const seatInvoiceReserve = payPct >= 100 ? seats * 100 : 0;
+  const companyAmount =
+    payPct >= 100
+      ? Math.max(0, totalList - seatInvoiceReserve)
+      : Math.round((totalList * payPct) / 100);
 
   async function onSaveCompany(event: FormEvent) {
     event.preventDefault();
@@ -221,6 +230,23 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
       });
     } finally {
       setSavingPlan(false);
+    }
+  }
+
+  async function downloadSeatInvoice(userId: string, membershipId: string) {
+    if (!token || downloadingSeatInvoiceKey) return;
+    const key = `${userId}:${membershipId}`;
+    setDownloadingSeatInvoiceKey(key);
+    try {
+      await downloadAdminMembershipInvoice(token, userId, membershipId);
+    } catch (err) {
+      setToast({
+        message:
+          err instanceof Error ? err.message : "Unable to download invoice.",
+        variant: "error",
+      });
+    } finally {
+      setDownloadingSeatInvoiceKey(null);
     }
   }
 
@@ -526,26 +552,106 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
                         No employees have redeemed this coupon yet.
                       </p>
                     ) : (
-                      <ul className="mt-2 divide-y divide-[#eef2ee] rounded-xl border border-[#e6ebe3]">
-                        {plan.redemptions.map((row) => (
-                          <li
-                            key={row.id}
-                            className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 text-sm"
-                          >
-                            <div>
-                              <p className="font-medium text-[#243028]">
-                                {row.userName || "Member"}
-                              </p>
-                              <p className="text-xs text-[#5f6f64]">
-                                {row.verifiedEmail || "—"}
-                              </p>
-                            </div>
-                            <p className="text-xs text-[#8a978c]">
-                              {formatDate(row.createdAt)}
-                            </p>
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="mt-2 overflow-x-auto rounded-xl border border-[#e6ebe3]">
+                        <table className="min-w-full text-left text-sm">
+                          <thead className="bg-[#f7faf6] text-xs uppercase tracking-wide text-[#8a978c]">
+                            <tr>
+                              <th className="px-3.5 py-2.5 font-semibold">
+                                Member
+                              </th>
+                              <th className="px-3.5 py-2.5 font-semibold">
+                                User ID
+                              </th>
+                              <th className="px-3.5 py-2.5 font-semibold">
+                                Verified email
+                              </th>
+                              <th className="px-3.5 py-2.5 font-semibold">
+                                Used
+                              </th>
+                              <th className="px-3.5 py-2.5 font-semibold">
+                                Invoice
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#eef2ee]">
+                            {plan.redemptions.map((row) => {
+                              const invoiceKey =
+                                row.membershipId
+                                  ? `${row.userId}:${row.membershipId}`
+                                  : null;
+                              const downloading =
+                                invoiceKey !== null &&
+                                downloadingSeatInvoiceKey === invoiceKey;
+                              return (
+                                <tr key={row.id} className="align-top">
+                                  <td className="px-3.5 py-2.5 font-medium text-[#243028]">
+                                    {row.userName || "Member"}
+                                  </td>
+                                  <td className="px-3.5 py-2.5">
+                                    <Link
+                                      href={`/dashboard/users/${row.userId}`}
+                                      className="font-mono text-xs text-[#1f6b3a] hover:underline"
+                                      title={row.userId}
+                                    >
+                                      {row.userId.slice(0, 8)}…
+                                    </Link>
+                                  </td>
+                                  <td className="px-3.5 py-2.5 text-xs text-[#5f6f64]">
+                                    {row.verifiedEmail || "—"}
+                                  </td>
+                                  <td className="px-3.5 py-2.5 text-xs text-[#8a978c]">
+                                    {formatDate(row.createdAt)}
+                                  </td>
+                                  <td className="px-3.5 py-2.5">
+                                    {row.membershipId && row.invoiceNumber ? (
+                                      <div className="flex flex-col gap-1">
+                                        <span className="font-mono text-xs text-[#243028]">
+                                          {row.invoiceNumber}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          disabled={downloading}
+                                          onClick={() =>
+                                            void downloadSeatInvoice(
+                                              row.userId,
+                                              row.membershipId!,
+                                            )
+                                          }
+                                          className="w-fit text-xs font-semibold text-[#1f6b3a] hover:underline disabled:opacity-60"
+                                        >
+                                          {downloading
+                                            ? "Downloading…"
+                                            : "Download invoice"}
+                                        </button>
+                                      </div>
+                                    ) : row.membershipId ? (
+                                      <button
+                                        type="button"
+                                        disabled={downloading}
+                                        onClick={() =>
+                                          void downloadSeatInvoice(
+                                            row.userId,
+                                            row.membershipId!,
+                                          )
+                                        }
+                                        className="text-xs font-semibold text-[#1f6b3a] hover:underline disabled:opacity-60"
+                                      >
+                                        {downloading
+                                          ? "Downloading…"
+                                          : "Download invoice"}
+                                      </button>
+                                    ) : (
+                                      <span className="text-xs text-[#8a978c]">
+                                        —
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
                   </div>
                 ) : null}
@@ -635,8 +741,8 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
                   required
                 />
                 <span className="mt-1 block text-xs font-normal text-[#8a978c]">
-                  100 = company pays all. 50 = company 50% / employee 50% via
-                  coupon.
+                  100 = company pays almost all (₹1/seat reserved for each
+                  employee invoice). 50 = company 50% / employee 50% via coupon.
                 </span>
               </label>
               <label className={labelClass}>
@@ -658,8 +764,21 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
                   · Company invoice:{" "}
                   <span className="font-semibold text-[#243028]">
                     {formatMoney(companyAmount)}
-                  </span>{" "}
-                  · Employee coupon: {payPct}% OFF × {seats} uses
+                  </span>
+                  {payPct >= 100 && seats > 0 ? (
+                    <>
+                      {" "}
+                      · Discount: −{formatMoney(seatInvoiceReserve)} (
+                      {seats} user{seats === 1 ? "" : "s"} × ₹1)
+                    </>
+                  ) : null}
+                </p>
+                <p className="mt-1 text-xs text-[#8a978c]">
+                  Employee coupon: {payPct}% OFF × {seats} use
+                  {seats === 1 ? "" : "s"}
+                  {payPct >= 100
+                    ? " — members still pay ₹1 each for their invoice"
+                    : ""}
                 </p>
               </div>
               <label className={labelClass}>

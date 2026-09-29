@@ -238,6 +238,8 @@ export type AdminCorporateRedemption = {
   couponCode: string | null;
   createdAt: string;
   userName: string | null;
+  membershipId: string | null;
+  invoiceNumber: string | null;
 };
 
 export type AdminCorporatePlan = {

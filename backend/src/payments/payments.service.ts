@@ -1251,15 +1251,6 @@ export class PaymentsService {
         discountPaise = coupon.discountValue * 100;
       }
       discountLabel = coupon.discountLabel || `${coupon.discountValue} off`;
-
-      // Full company-paid corporate seat: allow ₹0 / $0 checkout.
-      if (
-        coupon.discountType === 'percent' &&
-        coupon.discountValue >= 100 &&
-        this.coupons.isCorporateCoupon(coupon)
-      ) {
-        discountPaise = listPricePaise;
-      }
     } else if (
       wantsReferral &&
       referralDiscountAvailable &&
@@ -1282,13 +1273,9 @@ export class PaymentsService {
 
     if (discountPaise > listPricePaise) discountPaise = listPricePaise;
     let amountPaise = listPricePaise - discountPaise;
-    const fullyCoveredCorporate =
-      Boolean(appliedCoupon) &&
-      amountPaise === 0 &&
-      Boolean(resolvedDomainVerificationId);
-    // Coupon/referral may wipe the price; keep at least ₹1 / $1 unless a
-    // corporate coupon covers 100% of the seat.
-    if (amountPaise < MIN_PAYABLE_MINOR && !fullyCoveredCorporate) {
+    // Always keep at least ₹1 / $1 so a real invoice can be issued — including
+    // 100% corporate seat coupons.
+    if (amountPaise < MIN_PAYABLE_MINOR) {
       amountPaise = MIN_PAYABLE_MINOR;
       discountPaise = Math.max(0, listPricePaise - amountPaise);
     }
