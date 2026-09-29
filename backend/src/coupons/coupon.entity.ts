@@ -33,7 +33,7 @@ export class Coupon {
   @Column({ type: 'varchar', nullable: true })
   assignedReferralCode: string | null;
 
-  /** percent = % off, fixed = flat amount off (e.g. ₹) */
+  /** percent = % off, fixed = flat amount off in checkout currency (₹ or $) */
   @Column({ type: 'varchar', length: 20, default: 'fixed' })
   discountType: CouponDiscountType;
 
@@ -59,6 +59,17 @@ export class Coupon {
   /** Optional time expiry (UTC). */
   @Column({ type: 'timestamptz', nullable: true })
   expiresAt: Date | null;
+
+  /**
+   * When set, redeemers must verify a work email on one of these domains
+   * (corporate plan coupons). Empty / null = no domain restriction.
+   */
+  @Column({ type: 'simple-json', nullable: true })
+  allowedDomains: string[] | null;
+
+  /** Link to corporate_plans when this coupon was auto-created for a company plan. */
+  @Column({ type: 'uuid', nullable: true })
+  corporatePlanId: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

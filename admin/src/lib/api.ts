@@ -119,6 +119,7 @@ export type AdminUserRow = {
   email: string | null;
   referralCode: string;
   hasUsedFreeTrial: boolean;
+  accountStatus?: "active" | "inactive";
   createdAt: string;
   trial?: {
     status: string;
@@ -186,20 +187,203 @@ export function checkAdminUserExists(
   );
 }
 
-export function deleteAdminUser(token: string, id: string) {
-  return authJson<{ success: boolean }>(
-    "DELETE",
-    `/admin/users/${id}`,
+export function deactivateAdminUser(token: string, id: string) {
+  return authJson<AdminUserDetail>(
+    "POST",
+    `/admin/users/${id}/deactivate`,
     token,
-  ).then(() => undefined);
+    {},
+  );
 }
 
-export function deleteAllAdminUsers(token: string) {
-  return authJson<{ success: boolean; deletedCount: number }>(
-    "DELETE",
-    "/admin/users",
+export function reactivateAdminUser(token: string, id: string) {
+  return authJson<AdminUserDetail>(
+    "POST",
+    `/admin/users/${id}/reactivate`,
+    token,
+    {},
+  );
+}
+
+export type AdminCompanyRow = {
+  id: string;
+  companyName: string;
+  domains: string[];
+  gstNumber: string | null;
+  state: string | null;
+  planCount: number;
+  createdAt: string;
+};
+
+export type AdminCorporateCoupon = {
+  id: string;
+  code: string;
+  userName: string;
+  discountType: string;
+  discountValue: number;
+  discountLabel: string;
+  maxUses: number;
+  usageCount: number;
+  remainingUses: number;
+  active: boolean;
+  allowedDomains: string[];
+  corporatePlanId: string | null;
+  createdAt: string;
+};
+
+export type AdminCorporateRedemption = {
+  id: string;
+  userId: string;
+  verifiedEmail: string | null;
+  couponCode: string | null;
+  createdAt: string;
+  userName: string | null;
+};
+
+export type AdminCorporatePlan = {
+  id: string;
+  companyId: string;
+  companyName: string;
+  planMonths: number;
+  planName: string;
+  employeeCount: number;
+  companyPayPercent: number;
+  currency: string;
+  listPricePerSeatPaise: number;
+  totalListPricePaise: number;
+  companyAmountPaise: number;
+  paymentMethod: string | null;
+  paymentRef: string | null;
+  adminNote: string | null;
+  invoiceId: string | null;
+  invoiceNumber: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  status: string;
+  createdAt: string;
+  coupon: AdminCorporateCoupon | null;
+  redemptions: AdminCorporateRedemption[];
+  seatsUsed: number;
+  seatsRemaining: number;
+};
+
+export type AdminCompanyDetail = {
+  company: {
+    id: string;
+    companyName: string;
+    domains: string[];
+    gstNumber: string | null;
+    state: string | null;
+    billingEmail: string | null;
+    billingPhone: string | null;
+    billingAddress: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+  plans: AdminCorporatePlan[];
+};
+
+export function getAdminCompanies(token: string) {
+  return authGet<{ companies: AdminCompanyRow[] }>(
+    "/admin/corporate/companies",
     token,
   );
+}
+
+export function getAdminCompany(token: string, id: string) {
+  return authGet<AdminCompanyDetail>(`/admin/corporate/companies/${id}`, token);
+}
+
+export function createAdminCompany(
+  token: string,
+  body: {
+    companyName: string;
+    domains: string[];
+    gstNumber?: string;
+    state?: string;
+    billingEmail?: string;
+    billingPhone?: string;
+    billingAddress?: string;
+  },
+) {
+  return authJson<AdminCompanyDetail>(
+    "POST",
+    "/admin/corporate/companies",
+    token,
+    body,
+  );
+}
+
+export function updateAdminCompany(
+  token: string,
+  id: string,
+  body: Partial<{
+    companyName: string;
+    domains: string[];
+    gstNumber: string | null;
+    state: string | null;
+    billingEmail: string | null;
+    billingPhone: string | null;
+    billingAddress: string | null;
+  }>,
+) {
+  return authJson<AdminCompanyDetail>(
+    "PATCH",
+    `/admin/corporate/companies/${id}`,
+    token,
+    body,
+  );
+}
+
+export function createAdminCorporatePlan(
+  token: string,
+  companyId: string,
+  body: {
+    planMonths: number;
+    employeeCount: number;
+    companyPayPercent: number;
+    paymentMethod: string;
+    paymentRef: string;
+    adminNote: string;
+    billingLocation?: string;
+    startsAt?: string;
+  },
+) {
+  return authJson<AdminCompanyDetail>(
+    "POST",
+    `/admin/corporate/companies/${companyId}/plans`,
+    token,
+    body,
+  );
+}
+
+export async function downloadAdminCorporatePlanInvoice(
+  token: string,
+  companyId: string,
+  planId: string,
+) {
+  const response = await fetch(
+    `${API_URL}/admin/corporate/companies/${companyId}/plans/${planId}/invoice`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    },
+  );
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as {
+      message?: string;
+    };
+    throw new Error(body.message || "Failed to download invoice.");
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `corporate-invoice-${planId}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 export type AdminUserDetail = {
@@ -218,6 +402,7 @@ export type AdminUserDetail = {
     accessLinkToken: string;
     hasUsedFreeTrial: boolean;
     passwordSetByUser: boolean;
+    accountStatus?: "active" | "inactive";
     referredByUserId: string | null;
     createdAt: string;
     updatedAt: string;
@@ -280,6 +465,9 @@ export type AdminUserPayment = {
   listPricePaise: number;
   discountPaise: number;
   status: "created" | "paid" | "failed";
+  membershipId?: string | null;
+  invoiceNumber?: string | null;
+  source?: "razorpay" | "admin_manual";
   createdAt: string;
   updatedAt: string;
 };
@@ -354,6 +542,44 @@ export function createAdminUserMembership(
   );
 }
 
+export async function downloadAdminMembershipInvoice(
+  token: string,
+  userId: string,
+  membershipId: string,
+) {
+  const response = await fetch(
+    `${API_URL}/admin/users/${userId}/memberships/${membershipId}/invoice`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as {
+      message?: string | string[];
+    };
+    const message = Array.isArray(body.message)
+      ? body.message.join(", ")
+      : body.message;
+    throw new Error(message || "Unable to download invoice.");
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="?([^"]+)"?/i);
+  const filename = match?.[1] || `the-healing-mat-invoice.pdf`;
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function activateAdminMembershipFromPayment(
   token: string,
   userId: string,
@@ -375,6 +601,28 @@ export function updateAdminUserMembership(
   return authJson<AdminUserDetail>(
     "PATCH",
     `/admin/users/${userId}/memberships/${membershipId}`,
+    token,
+    body,
+  );
+}
+
+export function upgradeAdminUserMembership(
+  token: string,
+  userId: string,
+  membershipId: string,
+  body: {
+    planMonths: number;
+    listPricePaise?: number;
+    discountPaise?: number;
+    amountPaidPaise?: number;
+    paymentMethod?: string;
+    paymentRef?: string;
+    adminNote?: string;
+  },
+) {
+  return authJson<AdminUserDetail>(
+    "POST",
+    `/admin/users/${userId}/memberships/${membershipId}/upgrade`,
     token,
     body,
   );

@@ -1,6 +1,7 @@
 export const ADMIN_NAV = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
   { href: "/dashboard/users", label: "Users", icon: "users" },
+  { href: "/dashboard/corporate", label: "Corporate", icon: "corporate" },
   { href: "/dashboard/resources", label: "Resources", icon: "resources" },
   { href: "/dashboard/articles", label: "Articles", icon: "blog" },
   { href: "/dashboard/videos", label: "Videos", icon: "videos" },

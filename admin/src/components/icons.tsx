@@ -12,6 +12,8 @@ export function NavGlyph({ name, className = iconClass }: { name: NavIcon; class
       return <GridIcon className={className} />;
     case "users":
       return <UsersIcon className={className} />;
+    case "corporate":
+      return <BuildingIcon className={className} />;
     case "coupon":
       return <TicketIcon className={className} />;
     case "offers":
@@ -51,6 +53,16 @@ export function UsersIcon({ className = iconClass }: IconProps) {
       <path d="M4 19c0-2.8 2.2-5 5-5h0c2.8 0 5 2.2 5 5" />
       <circle cx="16.5" cy="8.5" r="2.5" />
       <path d="M15 19c.3-2.2 1.8-4 3.8-4.6" />
+    </svg>
+  );
+}
+
+function BuildingIcon({ className = iconClass }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+      <path d="M4 20V8.5L12 4l8 4.5V20" strokeLinejoin="round" />
+      <path d="M9 20v-5h6v5" strokeLinejoin="round" />
+      <path d="M9 10.5h.01M12 10.5h.01M15 10.5h.01M9 14h.01M12 14h.01M15 14h.01" strokeLinecap="round" />
     </svg>
   );
 }

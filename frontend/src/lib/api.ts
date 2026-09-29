@@ -2,6 +2,12 @@
  * Browser: prefer same-origin `/api` (Next rewrite → backend).
  * Server Components: relative URLs fail in Node fetch — call the backend absolute URL.
  */
+import {
+  forceLogoutDeactivatedAccount,
+  getStoredToken,
+  isAccountDeactivatedMessage,
+} from "@/lib/auth-storage";
+
 function resolveApiUrl() {
   let configured = (process.env.NEXT_PUBLIC_API_URL ?? "/api").replace(/\/$/, "") || "/api";
 
@@ -197,7 +203,16 @@ function readResponseErrorMessage(
 async function parseJson<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(readResponseErrorMessage(data, response.status));
+    const message = readResponseErrorMessage(data, response.status);
+    // Inactive account: drop local session so the member cannot stay signed in.
+    if (
+      response.status === 401 &&
+      isAccountDeactivatedMessage(message) &&
+      getStoredToken()
+    ) {
+      forceLogoutDeactivatedAccount(message);
+    }
+    throw new Error(message);
   }
   return data as T;
 }
@@ -532,8 +547,12 @@ export type PublicMembership = {
   razorpayInvoiceId?: string | null;
   razorpayInvoiceUrl?: string | null;
   paidAt: string;
-  /** False when membership was granted manually by admin. */
+  /** True when a branded PDF invoice can be downloaded (paid amount > 0). */
   invoiceDownloadable?: boolean;
+  /** Issued invoice number when available. */
+  invoiceNumber?: string | null;
+  /** Admin membership upgrade (additional payment invoice). */
+  isUpgrade?: boolean;
 };
 
 export type MembershipAccessResponse = {
@@ -585,6 +604,7 @@ export async function quoteMembership(
     planMonths: number;
     couponCode?: string;
     applyReferralDiscount?: boolean;
+    domainVerificationId?: string;
   },
 ): Promise<MembershipQuote> {
   const response = await fetch(`${API_URL}/memberships/quote`, {
@@ -593,6 +613,48 @@ export async function quoteMembership(
     body: JSON.stringify(input),
   });
   return parseJson<MembershipQuote>(response);
+}
+
+export async function requestCorporateCouponOtp(
+  accessToken: string,
+  input: { couponCode: string; email: string },
+) {
+  const response = await fetch(
+    `${API_URL}/memberships/corporate-coupon/request-otp`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify(input),
+    },
+  );
+  return parseJson<{
+    success: boolean;
+    message: string;
+    expiresInSeconds: number;
+    email: string;
+    allowedDomains: string[];
+  }>(response);
+}
+
+export async function verifyCorporateCouponOtp(
+  accessToken: string,
+  input: { couponCode: string; email: string; code: string },
+) {
+  const response = await fetch(
+    `${API_URL}/memberships/corporate-coupon/verify-otp`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify(input),
+    },
+  );
+  return parseJson<{
+    success: boolean;
+    domainVerificationId: string;
+    email: string;
+    couponCode: string;
+    expiresAt: string;
+  }>(response);
 }
 
 export async function getMyMembership(
@@ -683,6 +745,7 @@ export async function createRazorpayOrder(
     startMode?: "now" | "after_current";
     startsOn?: string;
     applyReferralDiscount?: boolean;
+    domainVerificationId?: string;
     /** Latest quoted payable amount; server rejects if price changed. */
     expectedAmountPaise?: number;
   },

@@ -15,6 +15,7 @@ import { Admin } from '../admins/admin.entity';
 import { Region } from '../users/enums/region.enum';
 import { Gender } from '../users/enums/gender.enum';
 import { OtpChallenge } from '../users/otp-challenge.entity';
+import { assertUserAccountActive } from '../users/account-access';
 import { User } from '../users/user.entity';
 import {
   buildAccessLinkSlug,
@@ -135,6 +136,7 @@ export class AuthService {
     if (!user || !user.passwordHash || !passwordMatches) {
       throw new UnauthorizedException('Invalid credentials');
     }
+    assertUserAccountActive(user);
 
     return this.issueUserToken(user, false, { startFreeTrial: false });
   }
@@ -160,6 +162,13 @@ export class AuthService {
       throw new BadRequestException(
         'No account found. Please sign up for a Free Trial first.',
       );
+    }
+
+    if (
+      existing &&
+      (dto.purpose === 'login' || dto.purpose === 'password_reset')
+    ) {
+      assertUserAccountActive(existing);
     }
 
     if (dto.purpose === 'signup' && existing) {
@@ -314,6 +323,7 @@ export class AuthService {
         ? false
         : isNewAccount || dto.signupIntent === 'trial';
 
+    assertUserAccountActive(user);
     return this.issueUserToken(user, isNewAccount, { startFreeTrial });
   }
 
@@ -1216,6 +1226,7 @@ export class AuthService {
       .getOne();
 
     if (existing) {
+      assertUserAccountActive(existing);
       // Keep stored email normalized for future lookups.
       if (existing.email !== input.email) {
         existing.email = input.email;

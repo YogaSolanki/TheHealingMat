@@ -32,6 +32,8 @@ import { MembershipPlansService } from './membership-plans.service';
 import { PaymentOrder } from './payment-order.entity';
 
 const MIN_ORDER_PAISE = 100;
+/** Minimum payable after coupon/referral: ₹1 / $1 (100 paise or cents). */
+const MIN_PAYABLE_MINOR = 100;
 
 type RazorpayInvoiceRecord = {
   id: string;
@@ -92,6 +94,7 @@ export class PaymentsService {
       dto.planMonths,
       dto.couponCode,
       dto.applyReferralDiscount === true,
+      dto.domainVerificationId,
     );
     return this.toQuoteResponse(quote);
   }
@@ -107,11 +110,16 @@ export class PaymentsService {
         dto.planMonths,
         dto.couponCode,
         dto.applyReferralDiscount === true,
+        dto.domainVerificationId,
       );
-      if (
-        dto.expectedAmountPaise != null &&
-        dto.expectedAmountPaise !== quote.amountPaise
-      ) {
+      // Client must confirm the discounted payable (UI amount) before we open
+      // the gateway — prevents charging list price after a coupon was shown.
+      if (dto.expectedAmountPaise == null) {
+        throw new BadRequestException(
+          'Confirm the payable amount from the quote before starting payment.',
+        );
+      }
+      if (dto.expectedAmountPaise !== quote.amountPaise) {
         throw new BadRequestException(
           'The membership price was updated. Please review the new amount and try again.',
         );
@@ -148,12 +156,25 @@ export class PaymentsService {
       // Razorpay Invoices often block international cards even when the merchant
       // account has International Payments enabled (error: "International cards
       // are not supported"). Orders inherit the account's card settings.
+      //
+      // Payable amount is always quote.amountPaise (after coupon/referral + ₹1/$1 floor).
+      // Never charge list/original price here.
       const order = await this.createRazorpayOrder({
         amountPaise: quote.amountPaise,
         currency: quote.currency,
         receipt,
         notes,
       });
+
+      const gatewayAmount = Number(order.amount);
+      if (
+        !Number.isFinite(gatewayAmount) ||
+        gatewayAmount !== quote.amountPaise
+      ) {
+        throw new InternalServerErrorException(
+          'Payment gateway amount did not match the discounted payable amount.',
+        );
+      }
 
       await this.orders.save(
         this.orders.create({
@@ -166,6 +187,8 @@ export class PaymentsService {
           receipt,
           planMonths: quote.plan.months,
           couponCode: quote.couponCode,
+          verifiedEmail: quote.verifiedEmail,
+          domainVerificationId: quote.domainVerificationId,
           startMode,
           startsOn,
           listPricePaise: quote.listPricePaise,
@@ -423,8 +446,27 @@ export class PaymentsService {
         ? trial
         : null;
 
-    const lastExpired =
+    const lastExpiredDefault =
       rows.find((row) => row.status === 'expired') ?? null;
+    // After an admin upgrade, prefer the superseded original membership so its
+    // invoice remains available on My Membership alongside the upgrade invoice.
+    const lastExpired = (() => {
+      if (!current) return lastExpiredDefault;
+      const isUpgrade =
+        current.paymentOrderId.startsWith('admin-upgrade-') ||
+        current.planName.toLowerCase().includes('membership upgrade');
+      if (!isUpgrade) return lastExpiredDefault;
+      const currentStart = this.startOfLocalDay(current.startsAt).getTime();
+      const superseded =
+        rows.find((row) => {
+          if (row.status !== 'expired' || row.id === current.id) return false;
+          if (row.planMonths >= current.planMonths) return false;
+          return (
+            this.startOfLocalDay(row.startsAt).getTime() === currentStart
+          );
+        }) ?? null;
+      return superseded ?? lastExpiredDefault;
+    })();
 
     let state: 'trial' | 'active' | 'expired' | 'scheduled' | 'pending' =
       'pending';
@@ -433,11 +475,37 @@ export class PaymentsService {
     else if (trialScheduled) state = 'scheduled';
     else if (lastExpired) state = 'expired';
 
+    const invoiceMembershipIds = [current, scheduled, lastExpired]
+      .filter((row): row is Membership => Boolean(row))
+      .map((row) => row.id);
+    const invoices =
+      await this.invoices.findByMembershipIds(invoiceMembershipIds);
+    const invoiceByMembershipId = new Map(
+      invoices
+        .filter((row) => row.membershipId)
+        .map((row) => [row.membershipId as string, row]),
+    );
+
     return {
       state,
-      current: current ? this.toPublicMembership(current) : null,
-      scheduled: scheduled ? this.toPublicMembership(scheduled) : null,
-      lastExpired: lastExpired ? this.toPublicMembership(lastExpired) : null,
+      current: current
+        ? this.toPublicMembership(
+            current,
+            invoiceByMembershipId.get(current.id) ?? null,
+          )
+        : null,
+      scheduled: scheduled
+        ? this.toPublicMembership(
+            scheduled,
+            invoiceByMembershipId.get(scheduled.id) ?? null,
+          )
+        : null,
+      lastExpired: lastExpired
+        ? this.toPublicMembership(
+            lastExpired,
+            invoiceByMembershipId.get(lastExpired.id) ?? null,
+          )
+        : null,
       trial: trial
         ? {
             status: trial.status,
@@ -462,27 +530,39 @@ export class PaymentsService {
       );
     }
 
-    const order = membership.paymentOrderId.startsWith('admin-manual-')
-      ? null
-      : await this.orders.findOne({
-          where: { id: membership.paymentOrderId, userId: user.id },
-        });
+    const order =
+      membership.paymentOrderId.startsWith('admin-manual-') ||
+      membership.paymentOrderId.startsWith('admin-upgrade-')
+        ? null
+        : await this.orders.findOne({
+            where: { id: membership.paymentOrderId, userId: user.id },
+          });
 
     const paymentRef =
       membership.razorpayPaymentId?.trim() ||
       order?.razorpayPaymentId?.trim() ||
       null;
-    const adminManual = membership.paymentOrderId.startsWith('admin-manual-');
+    const adminManual =
+      membership.paymentOrderId.startsWith('admin-manual-') ||
+      membership.paymentOrderId.startsWith('admin-upgrade-');
     const paymentMethod =
       membership.paymentMethod?.trim() ||
-      (adminManual ? 'Admin assigned' : 'Online (Razorpay)');
+      (adminManual
+        ? membership.paymentOrderId.startsWith('admin-upgrade-')
+          ? 'Membership Upgrade'
+          : 'Admin assigned'
+        : 'Online (Razorpay)');
 
     const invoice = await this.invoices.ensureMembershipInvoice({
       membership,
       user,
       paymentMethod,
       paymentReference: paymentRef,
-      discountLabel: order?.couponCode?.trim() || null,
+      discountLabel:
+        order?.couponCode?.trim() ||
+        (membership.paymentOrderId.startsWith('admin-upgrade-')
+          ? 'Membership Upgrade'
+          : null),
     });
     if (!invoice) {
       throw new BadRequestException(
@@ -548,6 +628,8 @@ export class PaymentsService {
         receipt,
         planMonths: quote.plan.months,
         couponCode: quote.couponCode,
+        verifiedEmail: quote.verifiedEmail,
+        domainVerificationId: quote.domainVerificationId,
         startMode,
         startsOn,
         listPricePaise: quote.listPricePaise,
@@ -687,6 +769,7 @@ export class PaymentsService {
         discountPaise: order.discountPaise,
         amountPaidPaise: order.amountPaise,
         currency: order.currency || 'INR',
+        paymentMethod: 'Online (Razorpay)',
         status,
         startsAt,
         endsAt,
@@ -711,8 +794,15 @@ export class PaymentsService {
         code: order.couponCode,
         userId: user.id,
         paymentOrderId: order.id,
+        verifiedEmail: order.verifiedEmail,
       })
       .catch(() => null);
+
+    if (order.domainVerificationId) {
+      await this.coupons
+        .markDomainVerificationUsed(order.domainVerificationId)
+        .catch(() => null);
+    }
 
     await this.invoices
       .ensureMembershipInvoice({
@@ -1089,6 +1179,7 @@ export class PaymentsService {
     planMonths: number,
     couponCode?: string,
     applyReferralDiscount = false,
+    domainVerificationId?: string,
   ) {
     const plan = await this.membershipPlans.requireActiveByMonths(planMonths);
     const currency = user.region === Region.OutsideIndia ? ('USD' as const) : ('INR' as const);
@@ -1107,6 +1198,8 @@ export class PaymentsService {
     let discountPaise = 0;
     let appliedCoupon: string | null = null;
     let discountLabel = '—';
+    let verifiedEmail: string | null = null;
+    let resolvedDomainVerificationId: string | null = null;
     const referralDiscountPercent =
       await this.settings.getReferralDiscountPercent();
     const referralDiscountAvailable = Boolean(user.referredByUserId);
@@ -1127,16 +1220,46 @@ export class PaymentsService {
       if (!coupon) {
         throw new BadRequestException('Invalid coupon');
       }
-      await this.coupons.assertRedeemable(coupon, user.id);
+
+      if (this.coupons.isCorporateCoupon(coupon)) {
+        const verificationId = domainVerificationId?.trim();
+        if (!verificationId) {
+          throw new BadRequestException(
+            'Verify your work email to apply this corporate coupon.',
+          );
+        }
+        const verification = await this.coupons.requireValidDomainVerification({
+          userId: user.id,
+          couponId: coupon.id,
+          domainVerificationId: verificationId,
+        });
+        verifiedEmail = verification.email;
+        resolvedDomainVerificationId = verification.id;
+      }
+
+      await this.coupons.assertRedeemable(coupon, user.id, {
+        verifiedEmail,
+      });
       appliedCoupon = coupon.code;
       if (coupon.discountType === 'percent') {
-        discountPaise = Math.floor((listPricePaise * coupon.discountValue) / 100);
-      } else if (currency === 'INR') {
-        discountPaise = coupon.discountValue * 100;
+        discountPaise = Math.floor(
+          (listPricePaise * coupon.discountValue) / 100,
+        );
       } else {
-        throw new BadRequestException('Invalid coupon');
+        // Fixed value is major units of the member's checkout currency
+        // (₹ for India, $ for outside-India). Same *100 → paise/cents.
+        discountPaise = coupon.discountValue * 100;
       }
       discountLabel = coupon.discountLabel || `${coupon.discountValue} off`;
+
+      // Full company-paid corporate seat: allow ₹0 / $0 checkout.
+      if (
+        coupon.discountType === 'percent' &&
+        coupon.discountValue >= 100 &&
+        this.coupons.isCorporateCoupon(coupon)
+      ) {
+        discountPaise = listPricePaise;
+      }
     } else if (
       wantsReferral &&
       referralDiscountAvailable &&
@@ -1158,7 +1281,17 @@ export class PaymentsService {
     }
 
     if (discountPaise > listPricePaise) discountPaise = listPricePaise;
-    const amountPaise = listPricePaise - discountPaise;
+    let amountPaise = listPricePaise - discountPaise;
+    const fullyCoveredCorporate =
+      Boolean(appliedCoupon) &&
+      amountPaise === 0 &&
+      Boolean(resolvedDomainVerificationId);
+    // Coupon/referral may wipe the price; keep at least ₹1 / $1 unless a
+    // corporate coupon covers 100% of the seat.
+    if (amountPaise < MIN_PAYABLE_MINOR && !fullyCoveredCorporate) {
+      amountPaise = MIN_PAYABLE_MINOR;
+      discountPaise = Math.max(0, listPricePaise - amountPaise);
+    }
 
     return {
       plan,
@@ -1169,6 +1302,8 @@ export class PaymentsService {
       amountPaise,
       couponCode: appliedCoupon,
       discountLabel,
+      verifiedEmail,
+      domainVerificationId: resolvedDomainVerificationId,
       referralDiscountAvailable,
       referralDiscountApplied,
       referralDiscountPercent:
@@ -1200,7 +1335,14 @@ export class PaymentsService {
     };
   }
 
-  private toPublicMembership(membership: Membership) {
+  private toPublicMembership(
+    membership: Membership,
+    invoice?: { invoiceNumber: string } | null,
+  ) {
+    const isUpgrade =
+      membership.paymentOrderId.startsWith('admin-upgrade-') ||
+      membership.planName.toLowerCase().includes('membership upgrade');
+    const invoiceDownloadable = membership.amountPaidPaise > 0;
     return {
       id: membership.id,
       planName: membership.planName,
@@ -1216,8 +1358,10 @@ export class PaymentsService {
       razorpayInvoiceId: membership.razorpayInvoiceId,
       razorpayInvoiceUrl: membership.razorpayInvoiceUrl,
       paidAt: membership.createdAt.toISOString(),
-      /** Healing Mat branded PDF — only for paid memberships (not 100% discount). */
-      invoiceDownloadable: membership.amountPaidPaise > 0,
+      /** Healing Mat branded PDF — only for paid memberships (not complimentary). */
+      invoiceDownloadable,
+      invoiceNumber: invoice?.invoiceNumber ?? null,
+      isUpgrade,
     };
   }
 

@@ -29,6 +29,10 @@ export type InvoicePdfInput = {
   paymentMethod: string;
   startsAt: Date;
   endsAt: Date;
+  /** Line-item quantity (corporate seat count). Defaults to 1. */
+  quantity?: number;
+  /** Per-unit price; defaults to listPricePaise when quantity is 1. */
+  unitPricePaise?: number;
 };
 
 const PAGE_W = 595;
@@ -66,6 +70,43 @@ function logoPath() {
   const fullSrc = path.join(assetsRoot(), 'images', 'full-logo.png');
   if (existsSync(fullSrc)) return fullSrc;
   return path.join(assetsRoot(), 'images', 'logo-icon-invoice.png');
+}
+
+/** Invoice fonts omit many Unicode glyphs (e.g. →); keep labels ASCII-safe. */
+function sanitizeInvoiceText(value: string): string {
+  return value
+    .replace(/\u2192/g, ' to ')
+    .replace(/\u2013|\u2014/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Keep the discount cell on one line inside the table column.
+ * Corporate labels like "Company 50% · Employee share via coupon" are compacted.
+ */
+function compactDiscountLabel(discountLabel: string | null): string {
+  if (!discountLabel?.trim()) return 'Discount';
+  const raw = sanitizeInvoiceText(discountLabel);
+
+  const companyPct = raw.match(/Company\s+(\d+)\s*%/i);
+  if (companyPct && /employee/i.test(raw)) {
+    const company = Number(companyPct[1]);
+    const employee = Math.max(0, 100 - company);
+    return employee > 0
+      ? `Discount (Employee ${employee}%)`
+      : 'Discount (Full company)';
+  }
+
+  const employeePct = raw.match(/Employee share\s+(\d+)\s*%/i);
+  if (employeePct) {
+    return `Discount (Employee ${employeePct[1]}%)`;
+  }
+
+  if (/^full company/i.test(raw)) return 'Discount (Full company)';
+
+  const wrapped = `Discount (${raw})`;
+  return wrapped.length > 34 ? `${wrapped.slice(0, 31)}...` : wrapped;
 }
 
 function formatMoney(minorUnits: number, currency: 'INR' | 'USD'): string {
@@ -382,17 +423,34 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
   const xAmt = xUnit + colUnitW;
 
   const headH = 40;
-  const itemH = 84;
-  const sumH = 34;
   const totalH = 44;
-  const unitStr = formatMoney(input.listPricePaise, input.currency);
-  const discLabel = input.discountLabel
-    ? `Discount (${input.discountLabel})`
-    : 'Discount';
+  const descPadX = 12;
+  const descW = colDescW - 18;
+  const planTitle = sanitizeInvoiceText(input.planName);
+  const quantity = Math.max(1, Math.floor(input.quantity ?? 1));
+  const unitPricePaise = input.unitPricePaise ?? input.listPricePaise;
+  const unitStr = formatMoney(unitPricePaise, input.currency);
+  const lineAmountStr = formatMoney(input.listPricePaise, input.currency);
+  const discLabel = compactDiscountLabel(input.discountLabel);
   const discValue =
     input.discountPaise > 0
       ? `-${formatMoney(input.discountPaise, input.currency)}`
       : formatMoney(0, input.currency);
+
+  doc.font('Invoice-Bold').fontSize(13);
+  const titleBlockH = doc.heightOfString(planTitle, { width: descW });
+  const itemPadTop = 12;
+  const titleGap = 6;
+  const dateLineH = 13;
+  const itemPadBottom = 8;
+  const itemH = Math.max(
+    72,
+    Math.ceil(
+      itemPadTop + titleBlockH + titleGap + dateLineH * 2 + itemPadBottom,
+    ),
+  );
+
+  const sumH = 34;
 
   const tableH = headH + itemH + sumH + sumH + totalH;
   const tableTop = y;
@@ -446,33 +504,37 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
     lineBreak: false,
   });
 
-  // Item row
+  // Item row — description height grows for long upgrade titles.
   const itemTop = tableTop + headH;
+  let descY = itemTop + itemPadTop;
   doc
     .font('Invoice-Bold')
     .fontSize(13)
     .fillColor(NAVY)
-    .text(input.planName, tableX + 12, itemTop + 16, {
-      width: colDescW - 18,
-      lineBreak: false,
+    .text(planTitle, tableX + descPadX, descY, {
+      width: descW,
+      lineBreak: true,
     });
+  descY += titleBlockH + titleGap;
   doc
     .font('Invoice')
     .fontSize(11)
     .fillColor(MUTED)
     .text(
       `Start Date: ${formatDate(input.startsAt)}`,
-      tableX + 12,
-      itemTop + 38,
-      { width: colDescW - 18 },
+      tableX + descPadX,
+      descY,
+      { width: descW, lineBreak: true },
     );
-  doc.text(`End Date: ${formatDate(input.endsAt)}`, tableX + 12, itemTop + 54, {
-    width: colDescW - 18,
+  descY += dateLineH;
+  doc.text(`End Date: ${formatDate(input.endsAt)}`, tableX + descPadX, descY, {
+    width: descW,
+    lineBreak: true,
   });
 
-  const itemMidY = itemTop + 34;
+  const itemMidY = itemTop + Math.floor(itemH / 2) - 6;
   doc.font('Invoice').fontSize(12).fillColor(NAVY);
-  doc.text('1', xQty, itemMidY, {
+  doc.text(String(quantity), xQty, itemMidY, {
     width: colQtyW,
     align: 'center',
     lineBreak: false,
@@ -482,7 +544,7 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
     align: 'center',
     lineBreak: false,
   });
-  doc.text(unitStr, xAmt, itemMidY, {
+  doc.text(lineAmountStr, xAmt, itemMidY, {
     width: colAmtW,
     align: 'center',
     lineBreak: false,
@@ -506,10 +568,18 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
     },
   );
 
-  // Discount row
+  // Discount row — compact single-line label (no wrap into total row)
   sumY += sumH;
-  doc.text(discLabel, tableX + 12, sumY + 10, { lineBreak: false });
-  doc.text(discValue, xAmt, sumY + 10, {
+  doc
+    .font('Invoice')
+    .fontSize(11)
+    .fillColor(NAVY)
+    .text(discLabel, tableX + descPadX, sumY + 11, {
+      width: descW,
+      height: 14,
+      lineBreak: false,
+    });
+  doc.fontSize(12).text(discValue, xAmt, sumY + 10, {
     width: colAmtW,
     align: 'center',
     lineBreak: false,
@@ -534,7 +604,7 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
       { width: colAmtW, align: 'center', lineBreak: false },
     );
 
-  y = tableTop + tableH + 30;
+  y = tableTop + tableH + 22;
 
   // ========== PAYMENT DETAILS ==========
   doc
@@ -542,7 +612,7 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
     .fontSize(15)
     .fillColor(NAVY)
     .text('Payment Details', sectionLeft, y);
-  y += 26;
+  y += 22;
 
   const payLabelW = 168;
   const payValueX = sectionLeft + payLabelW + 16;
@@ -560,7 +630,7 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
         width: contentW - (payValueX - MARGIN_X),
         lineBreak: false,
       });
-    y += 24;
+    y += 20;
   };
 
   payRow('Payment Method', input.paymentMethod);
@@ -570,21 +640,16 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
     formatPaymentDate(input.paidAt, input.isInternational),
   );
 
-  // ========== GST then thank-you, with bottom page margin ==========
-  const gstH = 30;
-  const bottomPad = 66;
-  const gapPayToGst = 28;
-  const gapGstToRule = 16;
-  const gapRuleToThanks = 12;
-  const thanksLineH = 16;
-  const stackH = gstH + gapGstToRule + gapRuleToThanks + thanksLineH;
+  // ========== GST + thank-you pinned to bottom of page 1 ==========
+  const gstH = 28;
+  const bottomPad = 32;
+  const gapGstToRule = 12;
+  const gapRuleToThanks = 10;
+  const thanksLineH = 14;
 
-  let footerY = y + gapPayToGst;
-  const maxGstY = PAGE_H - bottomPad - stackH;
-  if (footerY > maxGstY && maxGstY >= y + 20) {
-    // Pull footer up only enough to keep bottom margin; never into payment rows.
-    footerY = maxGstY;
-  }
+  const thanksY = PAGE_H - bottomPad - thanksLineH;
+  const footerRuleY = thanksY - gapRuleToThanks;
+  const footerY = footerRuleY - gapGstToRule - gstH;
 
   doc.rect(MARGIN_X, footerY, contentW, gstH).fill(GREY_BOX);
   doc
@@ -594,11 +659,10 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
     .text(
       'GST is not applicable to this invoice under the applicable GST threshold provisions.',
       MARGIN_X + 14,
-      footerY + 9,
+      footerY + 8,
       { width: contentW - 28, lineBreak: false },
     );
 
-  const footerRuleY = footerY + gstH + gapGstToRule;
   doc
     .moveTo(MARGIN_X, footerRuleY)
     .lineTo(right, footerRuleY)
@@ -609,13 +673,9 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
     .font('Invoice')
     .fontSize(11)
     .fillColor(MUTED)
-    .text(
-      'Thank you for choosing The Healing Mat.',
-      MARGIN_X,
-      footerRuleY + gapRuleToThanks,
-      {
-        width: contentW,
-        align: 'center',
-      },
-    );
+    .text('Thank you for choosing The Healing Mat.', MARGIN_X, thanksY, {
+      width: contentW,
+      align: 'center',
+      lineBreak: false,
+    });
 }

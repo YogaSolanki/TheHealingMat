@@ -41,6 +41,12 @@ export class CreateOrderDto {
   @MaxLength(40)
   couponCode?: string;
 
+  /** Required when applying a corporate (domain-locked) coupon. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  domainVerificationId?: string;
+
   @IsOptional()
   @IsIn(['now', 'after_current'])
   startMode?: 'now' | 'after_current';
@@ -57,8 +63,9 @@ export class CreateOrderDto {
   applyReferralDiscount?: boolean;
 
   /**
-   * Client-confirmed payable amount (paise) from the latest /memberships/quote.
-   * Rejected when it no longer matches the server quote.
+   * Client-confirmed payable amount (paise/cents) from the latest /memberships/quote.
+   * Required for membership orders. Must match the server quote after coupon/referral
+   * (never the original list price once a discount is applied).
    */
   @IsOptional()
   @Type(() => Number)

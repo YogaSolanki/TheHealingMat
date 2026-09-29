@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
+import { CorporateDomainVerification } from '../corporate/corporate-domain-verification.entity';
 import { User } from '../users/user.entity';
 import { CouponRedemption } from './coupon-redemption.entity';
 import { Coupon, type CouponDiscountType } from './coupon.entity';
@@ -33,6 +34,8 @@ export class CouponsService {
     private readonly redemptions: Repository<CouponRedemption>,
     @InjectRepository(User)
     private readonly users: Repository<User>,
+    @InjectRepository(CorporateDomainVerification)
+    private readonly domainVerifications: Repository<CorporateDomainVerification>,
   ) {}
 
   async list() {
@@ -105,6 +108,8 @@ export class CouponsService {
       expiresAt: this.parseExpiresAt(dto.expiresAt),
       assignedUserId: null,
       assignedReferralCode: null,
+      allowedDomains: null,
+      corporatePlanId: null,
     });
     return this.toAdminCoupon(await this.coupons.save(coupon));
   }
@@ -190,7 +195,11 @@ export class CouponsService {
    * Validate a coupon can be applied by this member right now.
    * Always returns a generic error — never leak why it failed.
    */
-  async assertRedeemable(coupon: Coupon, userId: string) {
+  async assertRedeemable(
+    coupon: Coupon,
+    userId: string,
+    options?: { verifiedEmail?: string | null },
+  ) {
     const invalid = () => {
       throw new BadRequestException('Invalid coupon');
     };
@@ -200,6 +209,16 @@ export class CouponsService {
     if (coupon.usageCount >= coupon.maxUses) invalid();
     if (coupon.assignedUserId && coupon.assignedUserId !== userId) invalid();
 
+    const domains = (coupon.allowedDomains ?? [])
+      .map((d) => d.trim().toLowerCase())
+      .filter(Boolean);
+    if (domains.length > 0) {
+      const email = options?.verifiedEmail?.trim().toLowerCase() ?? '';
+      const at = email.lastIndexOf('@');
+      const domain = at >= 0 ? email.slice(at + 1) : '';
+      if (!email || !domain || !domains.includes(domain)) invalid();
+    }
+
     const alreadyUsed = await this.redemptions.exists({
       where: { couponId: coupon.id, userId },
     });
@@ -208,11 +227,64 @@ export class CouponsService {
     return coupon;
   }
 
+  isCorporateCoupon(coupon: Coupon) {
+    return Boolean(coupon.corporatePlanId) || (coupon.allowedDomains?.length ?? 0) > 0;
+  }
+
+  /** Create an open multi-use coupon for a corporate plan (not assigned to one member). */
+  async createCorporatePlanCoupon(input: {
+    companyName: string;
+    planMonths: number;
+    discountPercent: number;
+    maxUses: number;
+    allowedDomains: string[];
+    corporatePlanId: string;
+  }) {
+    const discountType: CouponDiscountType = 'percent';
+    const discountValue = Math.min(100, Math.max(0, Math.round(input.discountPercent)));
+    this.assertDiscount(discountType, discountValue);
+    this.assertMaxUses(input.maxUses);
+
+    const userName = `${input.companyName} ${input.planMonths}M`.replace(/\s+/g, ' ').trim();
+    const discountLabel = this.buildDiscountLabel(discountType, discountValue);
+    let code = this.buildCode(userName, discountType, discountValue);
+    let attempts = 0;
+    while (await this.coupons.exists({ where: { code } })) {
+      attempts += 1;
+      if (attempts > 12) {
+        throw new ConflictException(
+          'Unable to generate a unique corporate coupon. Try again.',
+        );
+      }
+      code = this.buildCode(userName, discountType, discountValue);
+    }
+
+    const coupon = this.coupons.create({
+      code,
+      userName,
+      discountType,
+      discountValue,
+      discountLabel,
+      maxUses: input.maxUses,
+      usageCount: 0,
+      active: true,
+      expiresAt: null,
+      assignedUserId: null,
+      assignedReferralCode: null,
+      allowedDomains: input.allowedDomains
+        .map((d) => d.trim().toLowerCase())
+        .filter(Boolean),
+      corporatePlanId: input.corporatePlanId,
+    });
+    return this.coupons.save(coupon);
+  }
+
   /** Record a successful paid checkout that used this coupon. */
   async recordRedemption(input: {
     code: string | null | undefined;
     userId: string;
     paymentOrderId: string;
+    verifiedEmail?: string | null;
   }) {
     const code = input.code?.trim();
     if (!code) return null;
@@ -226,7 +298,9 @@ export class CouponsService {
     if (existing) return existing;
 
     // Re-check limits at write time (race-safe enough for this volume).
-    await this.assertRedeemable(coupon, input.userId);
+    await this.assertRedeemable(coupon, input.userId, {
+      verifiedEmail: input.verifiedEmail,
+    });
 
     const redemption = await this.redemptions.save(
       this.redemptions.create({
@@ -234,6 +308,7 @@ export class CouponsService {
         userId: input.userId,
         paymentOrderId: input.paymentOrderId,
         couponCode: coupon.code,
+        verifiedEmail: input.verifiedEmail?.trim().toLowerCase() || null,
       }),
     );
 
@@ -243,6 +318,47 @@ export class CouponsService {
     }
     await this.coupons.save(coupon);
     return redemption;
+  }
+
+  async listRedemptionsForCoupon(couponId: string) {
+    return this.redemptions.find({
+      where: { couponId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async requireValidDomainVerification(input: {
+    userId: string;
+    couponId: string;
+    domainVerificationId: string;
+  }) {
+    const row = await this.domainVerifications.findOne({
+      where: {
+        id: input.domainVerificationId,
+        userId: input.userId,
+        couponId: input.couponId,
+      },
+    });
+    if (!row || row.usedAt) {
+      throw new BadRequestException(
+        'Work email verification required for this coupon.',
+      );
+    }
+    if (row.expiresAt.getTime() <= Date.now()) {
+      throw new BadRequestException(
+        'Work email verification expired. Verify again.',
+      );
+    }
+    return row;
+  }
+
+  async markDomainVerificationUsed(verificationId: string) {
+    const row = await this.domainVerifications.findOne({
+      where: { id: verificationId },
+    });
+    if (!row || row.usedAt) return;
+    row.usedAt = new Date();
+    await this.domainVerifications.save(row);
   }
 
   private async requireCoupon(id: string) {
@@ -280,6 +396,8 @@ export class CouponsService {
       active: coupon.active,
       expiresAt: coupon.expiresAt?.toISOString() ?? null,
       status: this.lifecycleStatus(coupon),
+      allowedDomains: coupon.allowedDomains ?? [],
+      corporatePlanId: coupon.corporatePlanId,
       createdAt: coupon.createdAt.toISOString(),
       updatedAt: coupon.updatedAt.toISOString(),
     };
@@ -295,6 +413,8 @@ export class CouponsService {
       maxUses: coupon.maxUses,
       usageCount: coupon.usageCount,
       expiresAt: coupon.expiresAt?.toISOString() ?? null,
+      requiresDomainVerification: this.isCorporateCoupon(coupon),
+      allowedDomains: coupon.allowedDomains ?? [],
     };
   }
 

@@ -28,6 +28,7 @@ import {
   isUniqueViolation,
 } from '../users/account-identity';
 import { buildMemberAccessLink } from '../common/frontend-url';
+import { AccountStatus } from '../users/enums/account-status.enum';
 import { Region } from '../users/enums/region.enum';
 import { TrialStatus } from '../users/enums/trial-status.enum';
 import { OtpChallenge } from '../users/otp-challenge.entity';
@@ -36,6 +37,7 @@ import { CreateAdminMembershipDto } from './dto/create-admin-membership.dto';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { UpdateAdminMembershipDto } from './dto/update-admin-membership.dto';
 import { UpdateAdminUserDto } from './dto/update-admin-user.dto';
+import { UpgradeAdminMembershipDto } from './dto/upgrade-admin-membership.dto';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -266,6 +268,7 @@ export class AdminDashboardService {
         accessLinkToken: user.accessLinkToken,
         hasUsedFreeTrial: user.hasUsedFreeTrial,
         passwordSetByUser: user.passwordSetByUser,
+        accountStatus: user.accountStatus ?? AccountStatus.Active,
         referredByUserId: user.referredByUserId,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
@@ -308,26 +311,44 @@ export class AdminDashboardService {
           updatedAt: membership.updatedAt,
         };
       }),
-      payments: payments.map((payment) => ({
-        id: payment.id,
-        razorpayOrderId: payment.razorpayOrderId,
-        razorpayPaymentId: payment.razorpayPaymentId,
-        razorpayInvoiceId: payment.razorpayInvoiceId,
-        razorpayInvoiceUrl: payment.razorpayInvoiceUrl,
-        amountPaise: payment.amountPaise,
-        currency: payment.currency,
-        receipt: payment.receipt,
-        planMonths: payment.planMonths,
-        couponCode: payment.couponCode,
-        startMode: payment.startMode,
-        startsOn: payment.startsOn,
-        listPricePaise: payment.listPricePaise,
-        discountPaise: payment.discountPaise,
-        status: payment.status,
-        createdAt: payment.createdAt,
-        updatedAt: payment.updatedAt,
-      })),
+      payments: payments.map((payment) => {
+        const membership =
+          memberships.find((row) => row.paymentOrderId === payment.id) ?? null;
+        const invoice = membership
+          ? (invoiceByMembershipId.get(membership.id) ?? null)
+          : null;
+        return {
+          id: payment.id,
+          razorpayOrderId: payment.razorpayOrderId,
+          razorpayPaymentId: payment.razorpayPaymentId,
+          razorpayInvoiceId: payment.razorpayInvoiceId,
+          razorpayInvoiceUrl: payment.razorpayInvoiceUrl,
+          amountPaise: payment.amountPaise,
+          currency: payment.currency,
+          receipt: payment.receipt,
+          planMonths: payment.planMonths,
+          couponCode: payment.couponCode,
+          startMode: payment.startMode,
+          startsOn: payment.startsOn,
+          listPricePaise: payment.listPricePaise,
+          discountPaise: payment.discountPaise,
+          status: payment.status,
+          membershipId: membership?.id ?? null,
+          invoiceNumber: invoice?.invoiceNumber ?? null,
+          source: 'razorpay' as const,
+          createdAt: payment.createdAt,
+          updatedAt: payment.updatedAt,
+        };
+      }),
     };
+  }
+
+  async getMembershipInvoice(userId: string, membershipId: string) {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+    return this.payments.getInvoice(user, membershipId);
   }
 
   async checkUserExists(input: { mobile?: string; email?: string }) {
@@ -841,6 +862,23 @@ export class AdminDashboardService {
       throw new NotFoundException('Membership not found.');
     }
 
+    if (
+      dto.planMonths !== undefined &&
+      dto.planMonths !== membership.planMonths
+    ) {
+      throw new BadRequestException(
+        'Use Upgrade to change plan duration. Upgrade creates a new membership on top of the current one and does not overwrite it.',
+      );
+    }
+    if (
+      dto.planName !== undefined &&
+      dto.planName.trim() !== membership.planName
+    ) {
+      throw new BadRequestException(
+        'Use Upgrade to change the plan. Upgrade creates a new membership on top of the current one.',
+      );
+    }
+
     if (dto.status !== undefined) {
       membership.status = dto.status;
     }
@@ -849,12 +887,6 @@ export class AdminDashboardService {
     }
     if (dto.endsAt !== undefined) {
       membership.endsAt = new Date(dto.endsAt);
-    }
-    if (dto.planMonths !== undefined) {
-      membership.planMonths = dto.planMonths;
-    }
-    if (dto.planName !== undefined) {
-      membership.planName = dto.planName.trim();
     }
 
     if (membership.endsAt.getTime() <= membership.startsAt.getTime()) {
@@ -866,6 +898,195 @@ export class AdminDashboardService {
     if (membership.status === 'active') {
       await this.supersedeOtherActiveMemberships(userId, membership.id);
       await this.completeTrialForMembership(userId);
+    }
+
+    return this.getUserDetail(userId);
+  }
+
+  /**
+   * Upgrade to a longer plan without overwriting the source membership.
+   * Creates a new membership on top (same start, longer end) and retires the
+   * previous record with its original plan/dates/payment/invoice kept intact.
+   * Admin can record the additional payment for the upgrade; a separate
+   * "Membership Upgrade" invoice is issued when that amount is greater than zero.
+   * Allowed: 3→6, 3→12, 6→12. Same or shorter duration is rejected.
+   */
+  async upgradeMembership(
+    userId: string,
+    membershipId: string,
+    dto: UpgradeAdminMembershipDto,
+  ) {
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    const source = await this.memberships.findOne({
+      where: { id: membershipId, userId },
+    });
+    if (!source) {
+      throw new NotFoundException('Membership not found.');
+    }
+    if (source.status !== 'active' && source.status !== 'scheduled') {
+      throw new BadRequestException(
+        'Only the current membership or a scheduled renew can be upgraded.',
+      );
+    }
+
+    const nextMonths = dto.planMonths;
+    if (!Number.isInteger(nextMonths) || nextMonths < 1) {
+      throw new BadRequestException('Select a valid longer plan.');
+    }
+    if (nextMonths <= source.planMonths) {
+      throw new BadRequestException(
+        'Upgrade must be to a longer plan. A longer membership cannot be changed to a shorter one.',
+      );
+    }
+
+    const plan =
+      (await this.membershipPlans.findByMonths(nextMonths)) ?? null;
+    if (!plan) {
+      throw new BadRequestException(
+        `No membership plan found for ${nextMonths} months.`,
+      );
+    }
+
+    const startsAt = new Date(source.startsAt);
+    const endsAt = this.membershipEndsAt(startsAt, nextMonths);
+    if (endsAt.getTime() <= startsAt.getTime()) {
+      throw new BadRequestException('endsAt must be after startsAt.');
+    }
+
+    const currency =
+      source.currency?.toUpperCase() ||
+      (user.region === Region.OutsideIndia ? 'USD' : 'INR');
+    const catalogListPrice =
+      currency === 'USD'
+        ? (plan.listPriceUsdCents ?? 0)
+        : (plan.listPricePaise ?? 0);
+    const alreadyPaidPaise = Math.max(0, source.amountPaidPaise ?? 0);
+
+    const listPricePaise = dto.listPricePaise ?? catalogListPrice;
+    if (listPricePaise < 0) {
+      throw new BadRequestException('List price cannot be negative.');
+    }
+
+    // Discount defaults to prior payment credit; admin may increase (extra discount).
+    const defaultCredit = Math.min(alreadyPaidPaise, listPricePaise);
+    const discountPaise = dto.discountPaise ?? defaultCredit;
+    if (discountPaise < 0) {
+      throw new BadRequestException('Discount cannot be negative.');
+    }
+    if (discountPaise > listPricePaise) {
+      throw new BadRequestException('Discount cannot exceed the new plan price.');
+    }
+
+    const expectedAdditional = Math.max(0, listPricePaise - discountPaise);
+    const amountPaidPaise = dto.amountPaidPaise ?? expectedAdditional;
+    if (amountPaidPaise < 0) {
+      throw new BadRequestException('Additional amount cannot be negative.');
+    }
+    if (amountPaidPaise > listPricePaise) {
+      throw new BadRequestException(
+        'Additional amount cannot exceed the new plan price.',
+      );
+    }
+    if (amountPaidPaise !== expectedAdditional) {
+      throw new BadRequestException(
+        'Additional amount must equal new plan price minus discount.',
+      );
+    }
+
+    const priorCredit = defaultCredit;
+    const extraDiscount = Math.max(0, discountPaise - priorCredit);
+    let upgradeDiscountLabel = `Prior ${source.planMonths}-month payment`;
+    if (extraDiscount > 0) {
+      upgradeDiscountLabel += ' + admin discount';
+    }
+
+    const paymentMethod = dto.paymentMethod?.trim() || null;
+    const paymentRef = dto.paymentRef?.trim() || null;
+
+    if (amountPaidPaise > 0) {
+      if (!paymentMethod) {
+        throw new BadRequestException(
+          'Payment method is required when recording an additional upgrade payment.',
+        );
+      }
+      if (!paymentRef) {
+        throw new BadRequestException(
+          'Payment reference is required when recording an additional upgrade payment.',
+        );
+      }
+    }
+
+    const noteFromAdmin = dto.adminNote?.trim();
+    const adminNote =
+      noteFromAdmin && noteFromAdmin.length >= 3
+        ? noteFromAdmin
+        : `Membership Upgrade: ${source.planMonths}-month → ${nextMonths}-month. Original payment ${alreadyPaidPaise / 100} ${currency} credited; additional ${amountPaidPaise / 100} ${currency} recorded. Previous membership kept intact.`;
+
+    const planName = `Membership Upgrade (${source.planMonths} to ${nextMonths} months)`;
+
+    let razorpayPaymentId = paymentRef;
+    let razorpayInvoiceId: string | null = null;
+    let razorpayInvoiceUrl: string | null = null;
+    if (paymentRef?.startsWith('pay_')) {
+      const resolved =
+        await this.payments.resolveRazorpayPaymentInvoice(paymentRef);
+      if (resolved) {
+        razorpayPaymentId = resolved.paymentId;
+        if (resolved.invoiceId) razorpayInvoiceId = resolved.invoiceId;
+        if (resolved.invoiceUrl) razorpayInvoiceUrl = resolved.invoiceUrl;
+      }
+    }
+
+    const upgraded = await this.memberships.save(
+      this.memberships.create({
+        userId,
+        planMonths: nextMonths,
+        planName,
+        listPricePaise,
+        discountPaise,
+        amountPaidPaise,
+        currency,
+        status: source.status,
+        startsAt,
+        endsAt,
+        paymentOrderId: `admin-upgrade-${randomUUID()}`,
+        razorpayPaymentId: amountPaidPaise > 0 ? razorpayPaymentId : null,
+        razorpayInvoiceId,
+        razorpayInvoiceUrl,
+        paymentMethod:
+          amountPaidPaise > 0
+            ? paymentMethod
+            : 'Membership Upgrade (no additional payment)',
+        adminNote,
+      }),
+    );
+
+    // Retire the previous record without changing its plan, dates, payment, or invoice.
+    source.status = 'expired';
+    await this.memberships.save(source);
+
+    if (upgraded.status === 'active') {
+      await this.supersedeOtherActiveMemberships(userId, upgraded.id);
+      await this.completeTrialForMembership(userId);
+    }
+
+    if (amountPaidPaise > 0) {
+      const invoice = await this.invoices.ensureMembershipInvoice({
+        membership: upgraded,
+        user,
+        paymentMethod: paymentMethod || 'Membership Upgrade',
+        paymentReference: razorpayPaymentId,
+        discountLabel: upgradeDiscountLabel,
+      });
+      if (!invoice) {
+        throw new BadRequestException(
+          'Upgrade was created but the Membership Upgrade invoice could not be issued. Please try again.',
+        );
+      }
     }
 
     return this.getUserDetail(userId);
@@ -950,6 +1171,33 @@ export class AdminDashboardService {
     return next;
   }
 
+  async deactivateUser(id: string) {
+    const user = await this.users.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+    if (user.accountStatus === AccountStatus.Inactive) {
+      return this.getUserDetail(id);
+    }
+    user.accountStatus = AccountStatus.Inactive;
+    await this.users.save(user);
+    return this.getUserDetail(id);
+  }
+
+  async reactivateUser(id: string) {
+    const user = await this.users.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+    if (user.accountStatus === AccountStatus.Active) {
+      return this.getUserDetail(id);
+    }
+    user.accountStatus = AccountStatus.Active;
+    await this.users.save(user);
+    return this.getUserDetail(id);
+  }
+
+  /** Exceptional permanent removal — use only with explicit user-approved requests. */
   async deleteUser(id: string) {
     const user = await this.users.findOne({ where: { id } });
     if (!user) {
@@ -1058,6 +1306,7 @@ export class AdminDashboardService {
       email: user.email,
       referralCode: user.referralCode,
       hasUsedFreeTrial: user.hasUsedFreeTrial,
+      accountStatus: user.accountStatus ?? AccountStatus.Active,
       createdAt: user.createdAt,
     };
   }

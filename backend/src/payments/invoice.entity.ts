@@ -35,9 +35,22 @@ export class Invoice {
   @Column({ type: 'uuid', nullable: true, unique: true })
   membershipId: string | null;
 
+  /** Corporate plan invoice (CO sequence) — mutually exclusive with membershipId. */
+  @Index({ unique: true })
+  @Column({ type: 'uuid', nullable: true, unique: true })
+  corporatePlanId: string | null;
+
+  @Index()
+  @Column({ type: 'uuid', nullable: true })
+  companyId: string | null;
+
   @Index()
   @Column({ type: 'uuid', nullable: true })
   userId: string | null;
+
+  /** Bill-to display name (member or company). */
+  @Column({ type: 'varchar', nullable: true })
+  billToName: string | null;
 
   @Column({ type: 'varchar', length: 8, default: 'INR' })
   currency: string;

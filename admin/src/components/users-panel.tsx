@@ -17,9 +17,9 @@ import {
   ADMIN_TOKEN_KEY,
   checkAdminUserExists,
   createAdminUser,
-  deleteAdminUser,
-  deleteAllAdminUsers,
+  deactivateAdminUser,
   getAdminUsers,
+  reactivateAdminUser,
   type AdminUserRow,
 } from "@/lib/api";
 import {
@@ -53,7 +53,9 @@ function statusTone(status: string) {
   }
 }
 
-const CONFIRM_PHRASE = "DELETE ALL";
+function isUserInactive(user: AdminUserRow) {
+  return user.accountStatus === "inactive";
+}
 
 type AddUserForm = {
   fullName: string;
@@ -102,10 +104,7 @@ export function UsersPanel() {
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deletingAll, setDeletingAll] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmText, setConfirmText] = useState("");
-  const [pendingDeleteUser, setPendingDeleteUser] =
+  const [pendingDeactivateUser, setPendingDeactivateUser] =
     useState<AdminUserRow | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [loading, setLoading] = useState(() => !hasCached(cacheKey));
@@ -201,18 +200,6 @@ export function UsersPanel() {
       return haystack.includes(q);
     });
   }, [users, query]);
-
-  function openDeleteAllConfirm() {
-    setConfirmText("");
-    setConfirmOpen(true);
-    setError(null);
-  }
-
-  function closeDeleteAllConfirm() {
-    if (deletingAll) return;
-    setConfirmOpen(false);
-    setConfirmText("");
-  }
 
   function openAddUser() {
     setAddForm(emptyAddUserForm());
@@ -344,63 +331,65 @@ export function UsersPanel() {
     }
   }
 
-  async function onDelete(user: AdminUserRow) {
+  async function onDeactivate(user: AdminUserRow) {
     setMenuOpenId(null);
-    setPendingDeleteUser(user);
+    setPendingDeactivateUser(user);
   }
 
-  async function confirmDeleteUser() {
-    const user = pendingDeleteUser;
+  async function confirmDeactivateUser() {
+    const user = pendingDeactivateUser;
     if (!user || deletingId) return;
 
     const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
     if (!token) {
       setError("Please sign in again.");
-      setPendingDeleteUser(null);
+      setPendingDeactivateUser(null);
       return;
     }
 
     setDeletingId(user.id);
     setError(null);
     try {
-      await deleteAdminUser(token, user.id);
-      const next = users.filter((row) => row.id !== user.id);
+      await deactivateAdminUser(token, user.id);
+      const next = users.map((row) =>
+        row.id === user.id ? { ...row, accountStatus: "inactive" as const } : row,
+      );
       setUsers(next);
       setCached(cacheKey, next);
       invalidateCached(DASHBOARD_CACHE_KEYS.overview);
-      setPendingDeleteUser(null);
+      setPendingDeactivateUser(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete user");
+      setError(
+        err instanceof Error ? err.message : "Failed to deactivate user",
+      );
     } finally {
       setDeletingId(null);
     }
   }
 
-  async function onConfirmDeleteAll(event: FormEvent) {
-    event.preventDefault();
-    if (confirmText.trim() !== CONFIRM_PHRASE || deletingAll) return;
-
+  async function onReactivate(user: AdminUserRow) {
+    setMenuOpenId(null);
     const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
     if (!token) {
       setError("Please sign in again.");
       return;
     }
-
-    setDeletingAll(true);
+    setDeletingId(user.id);
     setError(null);
     try {
-      await deleteAllAdminUsers(token);
-      setUsers([]);
-      setCached(cacheKey, []);
+      await reactivateAdminUser(token, user.id);
+      const next = users.map((row) =>
+        row.id === user.id ? { ...row, accountStatus: "active" as const } : row,
+      );
+      setUsers(next);
+      setCached(cacheKey, next);
       invalidateCached(DASHBOARD_CACHE_KEYS.overview);
-      setConfirmOpen(false);
-      setConfirmText("");
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to delete all users",
+        err instanceof Error ? err.message : "Failed to reactivate user",
       );
     } finally {
-      setDeletingAll(false);
+      setDeletingId(null);
     }
   }
 
@@ -408,7 +397,7 @@ export function UsersPanel() {
     return <PanelLoader label="Loading users…" />;
   }
 
-  if (error && users.length === 0 && !confirmOpen) {
+  if (error && users.length === 0) {
     return (
       <section className="flex min-h-[calc(100dvh-7rem)] flex-col">
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_rgba(21,32,25,0.04)]">
@@ -428,24 +417,23 @@ export function UsersPanel() {
     );
   }
 
-  const canConfirmDeleteAll = confirmText.trim() === CONFIRM_PHRASE;
-
   return (
     <>
       <AdminConfirmDialog
-        open={Boolean(pendingDeleteUser)}
-        title="Delete user?"
+        open={Boolean(pendingDeactivateUser)}
+        title="Deactivate user?"
         description={
-          pendingDeleteUser
-            ? `Delete user “${pendingDeleteUser.fullName}”? This permanently removes their account, trial, and membership records.`
+          pendingDeactivateUser
+            ? `Deactivate “${pendingDeactivateUser.fullName}”? They will not be able to sign in. Membership, payment, invoice, and referral records are kept. You can reactivate the account later.`
             : ""
         }
-        confirmLabel="Delete user"
+        confirmLabel="Deactivate user"
+        variant="default"
         busy={Boolean(deletingId)}
         onCancel={() => {
-          if (!deletingId) setPendingDeleteUser(null);
+          if (!deletingId) setPendingDeactivateUser(null);
         }}
-        onConfirm={() => void confirmDeleteUser()}
+        onConfirm={() => void confirmDeactivateUser()}
       />
       <section className="flex min-h-[calc(100dvh-7rem)] flex-col">
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_rgba(21,32,25,0.04)]">
@@ -466,7 +454,7 @@ export function UsersPanel() {
             <button
               type="button"
               onClick={openAddUser}
-              disabled={deletingAll || Boolean(deletingId)}
+              disabled={Boolean(deletingId)}
               className="inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-[#1f6b3a] px-3.5 text-xs font-semibold text-white transition hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Add user
@@ -476,14 +464,6 @@ export function UsersPanel() {
               loading={loading}
               label="Reload users"
             />
-            <button
-              type="button"
-              onClick={openDeleteAllConfirm}
-              disabled={users.length === 0 || deletingAll || Boolean(deletingId)}
-              className="inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-[#ead9d9] bg-[#faf4f4] px-3.5 text-xs font-semibold text-[#8a2f2f] transition hover:bg-[#f3e7e7] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Delete all
-            </button>
           </div>
         </div>
 
@@ -541,6 +521,11 @@ export function UsersPanel() {
                             <p className="truncate text-xs text-[#8a978c]">
                               {user.referralCode}
                             </p>
+                            {isUserInactive(user) ? (
+                              <span className="mt-1 inline-flex rounded-full bg-[#f1ece6] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#6b5b4a]">
+                                Inactive
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                       </td>
@@ -580,7 +565,7 @@ export function UsersPanel() {
                             type="button"
                             aria-label={`Actions for ${user.fullName}`}
                             aria-expanded={menuOpen}
-                            disabled={deletingId === user.id || deletingAll}
+                            disabled={deletingId === user.id}
                             onClick={() =>
                               setMenuOpenId((current) =>
                                 current === user.id ? null : user.id,
@@ -613,14 +598,25 @@ export function UsersPanel() {
                               >
                                 Open
                               </Link>
-                              <button
-                                type="button"
-                                onClick={() => void onDelete(user)}
-                                disabled={deletingId === user.id || deletingAll}
-                                className="block w-full px-3.5 py-2 text-left text-sm font-medium text-[#8a2f2f] hover:bg-[#faf4f4] disabled:cursor-not-allowed disabled:opacity-50"
-                              >
-                                Delete
-                              </button>
+                              {isUserInactive(user) ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void onReactivate(user)}
+                                  disabled={deletingId === user.id}
+                                  className="block w-full px-3.5 py-2 text-left text-sm font-medium text-[#1f6b3a] hover:bg-[#f4f7f4] disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  Reactivate
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => void onDeactivate(user)}
+                                  disabled={deletingId === user.id}
+                                  className="block w-full px-3.5 py-2 text-left text-sm font-medium text-[#5f4a3a] hover:bg-[#f7f4ef] disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  Deactivate
+                                </button>
+                              )}
                             </div>
                           ) : null}
                         </div>
@@ -877,68 +873,6 @@ export function UsersPanel() {
                 </div>
               </form>
             )}
-          </div>
-        </div>
-      ) : null}
-
-      {confirmOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-all-users-title"
-            className="w-full max-w-md rounded-2xl border border-[#e6ebe3] bg-white p-5 shadow-[0_20px_48px_rgba(21,32,25,0.18)] sm:p-6"
-          >
-            <h2
-              id="delete-all-users-title"
-              className="text-lg font-semibold text-[#243028]"
-            >
-              Delete all users?
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-[#5f6f64]">
-              This permanently removes all{" "}
-              <span className="font-semibold text-[#8a2f2f]">
-                {users.length}
-              </span>{" "}
-              accounts, plus their trials, memberships, payments, and related
-              records. This cannot be undone.
-            </p>
-            <form
-              onSubmit={(event) => void onConfirmDeleteAll(event)}
-              className="mt-5 space-y-4"
-            >
-              <label className="block text-sm font-medium text-[#243028]">
-                Type <span className="font-bold">{CONFIRM_PHRASE}</span> to
-                confirm
-                <input
-                  autoFocus
-                  value={confirmText}
-                  onChange={(event) => setConfirmText(event.target.value)}
-                  disabled={deletingAll}
-                  placeholder={CONFIRM_PHRASE}
-                  className="mt-1.5 h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#243028] outline-none focus:border-[#8a2f2f] focus:ring-2 focus:ring-[#8a2f2f]/15 disabled:opacity-60"
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-              </label>
-              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={closeDeleteAllConfirm}
-                  disabled={deletingAll}
-                  className="h-11 rounded-xl border border-[#e2e8df] px-4 text-sm font-semibold text-[#3d4a3c] transition hover:bg-[#f6f8f5] disabled:opacity-60"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!canConfirmDeleteAll || deletingAll}
-                  className="h-11 rounded-xl bg-[#8a2f2f] px-4 text-sm font-semibold text-white transition hover:bg-[#742626] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {deletingAll ? "Deleting…" : "Delete all users"}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       ) : null}

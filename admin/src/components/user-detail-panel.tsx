@@ -2,17 +2,22 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { AdminConfirmDialog } from "@/components/admin-confirm-dialog";
 import { AdminToast } from "@/components/admin-toast";
 import { ReloadButton } from "@/components/reload-button";
 import {
   ADMIN_TOKEN_KEY,
   activateAdminMembershipFromPayment,
   createAdminUserMembership,
+  deactivateAdminUser,
+  downloadAdminMembershipInvoice,
   getAdminUserDetail,
   listAdminMembershipPlans,
   listAdminSessionTimings,
+  reactivateAdminUser,
   updateAdminUser,
   updateAdminUserMembership,
+  upgradeAdminUserMembership,
   type AdminMembershipPlan,
   type AdminUserDetail,
   type AdminUserMembership,
@@ -65,6 +70,17 @@ type NewMembershipForm = {
 
 type UpgradeForm = {
   planMonths: string;
+  /** New plan catalogue price (major units). */
+  listPriceMajor: string;
+  /** Amount already paid on the original membership (display only). */
+  alreadyPaidMajor: string;
+  /** Total discount on upgrade invoice (includes prior payment credit + any extra). */
+  discountMajor: string;
+  /** Additional amount for the upgrade (major units). */
+  amountPaidMajor: string;
+  paymentMethod: string;
+  paymentRef: string;
+  adminNote: string;
 };
 
 type MembershipComposer = "add" | "renew" | "upgrade" | null;
@@ -113,13 +129,78 @@ function emptyNewMembershipForm(
 function emptyUpgradeForm(
   active: AdminUserMembership | null,
   plans?: AdminMembershipPlan[],
+  currency = "INR",
 ): UpgradeForm {
-  if (active) {
-    return { planMonths: String(active.planMonths) };
+  const options = upgradePlanOptions(active?.planMonths ?? 0, plans);
+  if (!active || options.length === 0) {
+    return {
+      planMonths: "",
+      listPriceMajor: "0",
+      alreadyPaidMajor: "0",
+      discountMajor: "0",
+      amountPaidMajor: "0",
+      paymentMethod: "",
+      paymentRef: "",
+      adminNote: "",
+    };
   }
-  const preferred =
-    plans?.find((p) => p.months === 3) ?? plans?.[0] ?? null;
-  return { planMonths: preferred ? String(preferred.months) : "3" };
+  return buildUpgradeForm(active, options[0].months, plans, currency);
+}
+
+function formatMajorFromMinor(minor: number, currency: string) {
+  return (Math.max(0, minor) / 100).toFixed(currency === "USD" ? 2 : 0);
+}
+
+/** Build upgrade form with credit for original payment and suggested additional due. */
+function buildUpgradeForm(
+  source: AdminUserMembership,
+  planMonths: number,
+  plans: AdminMembershipPlan[] | undefined,
+  currency: string,
+): UpgradeForm {
+  const plan =
+    plans?.find((p) => p.months === planMonths) ?? null;
+  const listMinor = catalogListMinor(plan, currency);
+  const alreadyPaid = Math.max(0, source.amountPaidPaise ?? 0);
+  const credit = Math.min(alreadyPaid, listMinor);
+  const discountMajor = formatMajorFromMinor(credit, currency);
+  const amountMajor = payableFromListAndDiscount(
+    formatMajorFromMinor(listMinor, currency),
+    discountMajor,
+    currency,
+  );
+  return {
+    planMonths: String(planMonths),
+    listPriceMajor: formatMajorFromMinor(listMinor, currency),
+    alreadyPaidMajor: formatMajorFromMinor(alreadyPaid, currency),
+    discountMajor,
+    amountPaidMajor: amountMajor,
+    paymentMethod: "",
+    paymentRef: "",
+    adminNote: `Membership Upgrade: ${source.planMonths} → ${planMonths} months.`,
+  };
+}
+
+/** Longer plans only — never same or shorter duration. */
+function upgradePlanOptions(
+  currentMonths: number,
+  plans?: AdminMembershipPlan[],
+): { id: string; months: number; name: string }[] {
+  const catalog =
+    plans && plans.length > 0
+      ? plans.map((plan) => ({
+          id: plan.id,
+          months: plan.months,
+          name: plan.name,
+        }))
+      : [3, 6, 12].map((months) => ({
+          id: String(months),
+          months,
+          name: `${months}-Month Membership`,
+        }));
+  return catalog
+    .filter((plan) => plan.months > currentMonths)
+    .sort((a, b) => a.months - b.months);
 }
 
 /** Match payments/admin membershipEndsAt: start + N months − 1 day, end of day. */
@@ -203,6 +284,22 @@ function majorToMinorUnits(value: string): number | null {
   const n = Number(trimmed);
   if (!Number.isFinite(n) || n < 0) return null;
   return Math.round(n * 100);
+}
+
+/** List − discount → payable (never below zero). */
+function payableFromListAndDiscount(
+  listMajor: string,
+  discountMajor: string,
+  currency: string,
+): string {
+  const list = Number(listMajor.trim());
+  const discount = Number((discountMajor.trim() || "0"));
+  if (!Number.isFinite(list) || list < 0) return listMajor;
+  const clippedDiscount =
+    Number.isFinite(discount) && discount > 0 ? Math.min(discount, list) : 0;
+  return Math.max(0, list - clippedDiscount).toFixed(
+    currency === "USD" ? 2 : 0,
+  );
 }
 
 function catalogListMinor(
@@ -339,7 +436,14 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     emptyNewMembershipForm,
   );
   const [upgradeForm, setUpgradeForm] = useState<UpgradeForm>({
-    planMonths: "3",
+    planMonths: "",
+    listPriceMajor: "0",
+    alreadyPaidMajor: "0",
+    discountMajor: "0",
+    amountPaidMajor: "0",
+    paymentMethod: "",
+    paymentRef: "",
+    adminNote: "",
   });
   const [catalogPlans, setCatalogPlans] = useState<AdminMembershipPlan[]>([]);
   const [membershipComposer, setMembershipComposer] =
@@ -355,6 +459,9 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   const [activatingPaymentId, setActivatingPaymentId] = useState<string | null>(
     null,
   );
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<
+    string | null
+  >(null);
   const [pendingSave, setPendingSave] = useState<PendingSave | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{
@@ -371,6 +478,8 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   >(null);
   const [accessLinkCopied, setAccessLinkCopied] = useState(false);
   const [preferredClassTimes, setPreferredClassTimes] = useState<string[]>([]);
+  const [pendingDeactivate, setPendingDeactivate] = useState(false);
+  const [accountActionBusy, setAccountActionBusy] = useState(false);
 
   const token = useMemo(
     () =>
@@ -419,7 +528,9 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     if (!token) return;
     try {
       const timings = await listAdminSessionTimings(token, { activeOnly: true });
-      setPreferredClassTimes(timings.map((row) => row.label));
+      setPreferredClassTimes([
+        ...new Set(timings.map((row) => row.label).filter(Boolean)),
+      ]);
     } catch {
       setPreferredClassTimes([]);
     }
@@ -449,7 +560,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       setNewMembershipForm(emptyNewMembershipForm(plans, currency));
       const active =
         next.memberships.find((m) => m.status === "active") ?? null;
-      setUpgradeForm(emptyUpgradeForm(active, plans));
+      setUpgradeForm(emptyUpgradeForm(active, plans, currency));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load user.");
       setDetail(null);
@@ -469,8 +580,52 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     void load();
   }, [load]);
 
+  async function confirmDeactivateAccount() {
+    if (!token || accountActionBusy || !detail) return;
+    setAccountActionBusy(true);
+    setError(null);
+    try {
+      const next = await deactivateAdminUser(token, userId);
+      applyDetail(next);
+      invalidateCached(DASHBOARD_CACHE_KEYS.users);
+      invalidateCached(DASHBOARD_CACHE_KEYS.overview);
+      setPendingDeactivate(false);
+      setEditing(false);
+      setMembershipComposer(null);
+      setUpgradeTargetId(null);
+      setPendingSave(null);
+      showSuccess("Account deactivated. The member cannot sign in until reactivated.");
+    } catch (err) {
+      showError(
+        err instanceof Error ? err.message : "Failed to deactivate account.",
+      );
+    } finally {
+      setAccountActionBusy(false);
+    }
+  }
+
+  async function reactivateAccount() {
+    if (!token || accountActionBusy || !detail) return;
+    setAccountActionBusy(true);
+    setError(null);
+    try {
+      const next = await reactivateAdminUser(token, userId);
+      applyDetail(next);
+      invalidateCached(DASHBOARD_CACHE_KEYS.users);
+      invalidateCached(DASHBOARD_CACHE_KEYS.overview);
+      showSuccess("Account reactivated. The member can sign in again.");
+    } catch (err) {
+      showError(
+        err instanceof Error ? err.message : "Failed to reactivate account.",
+      );
+    } finally {
+      setAccountActionBusy(false);
+    }
+  }
+
   function enterEditMode() {
     if (!detail) return;
+    if (detail.profile.accountStatus === "inactive") return;
     applyDetail(detail);
     setEditing(true);
     setMembershipComposer(null);
@@ -480,7 +635,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     setNewMembershipForm(emptyNewMembershipForm(catalogPlans, currency));
     const active =
       detail.memberships.find((m) => m.status === "active") ?? null;
-    setUpgradeForm(emptyUpgradeForm(active, catalogPlans));
+    setUpgradeForm(emptyUpgradeForm(active, catalogPlans, currency));
     setProfileSaved(false);
     setMembershipSavedId(null);
     setMembershipCreated(false);
@@ -489,7 +644,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     if (catalogPlans.length === 0) {
       void loadCatalogPlans().then((plans) => {
         setNewMembershipForm(emptyNewMembershipForm(plans, currency));
-        setUpgradeForm(emptyUpgradeForm(active, plans));
+        setUpgradeForm(emptyUpgradeForm(active, plans, currency));
       });
     }
   }
@@ -505,7 +660,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     setNewMembershipForm(emptyNewMembershipForm(catalogPlans, currency));
     const active =
       detail.memberships.find((m) => m.status === "active") ?? null;
-    setUpgradeForm(emptyUpgradeForm(active, catalogPlans));
+    setUpgradeForm(emptyUpgradeForm(active, catalogPlans, currency));
     setPendingSave(null);
     setProfileSaved(false);
     setMembershipSavedId(null);
@@ -515,6 +670,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   }
 
   function openMembershipComposer(mode: Exclude<MembershipComposer, null>) {
+    if (detail?.profile.accountStatus === "inactive") return;
     const currency =
       detail?.profile.region === "outside_india" ? "USD" : "INR";
     setMembershipComposer((current) => {
@@ -550,8 +706,24 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
   function startUpgrade(membershipId: string) {
     if (!detail) return;
+    if (detail.profile.accountStatus === "inactive") return;
     const target = detail.memberships.find((m) => m.id === membershipId);
     if (!target) return;
+
+    if (target.status !== "active" && target.status !== "scheduled") {
+      showError(
+        "Only the current membership or a scheduled renew can be upgraded.",
+      );
+      return;
+    }
+
+    const longerPlans = upgradePlanOptions(target.planMonths, catalogPlans);
+    if (longerPlans.length === 0) {
+      showError(
+        "This plan is already the longest duration — no upgrade available.",
+      );
+      return;
+    }
 
     if (!editing) {
       applyDetail(detail);
@@ -572,19 +744,33 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       return;
     }
 
+    const nextPlan = longerPlans[0];
+    const currency =
+      detail.profile.region === "outside_india" ? "USD" : "INR";
+    const nextUpgrade = buildUpgradeForm(
+      target,
+      nextPlan.months,
+      catalogPlans,
+      currency,
+    );
+    const nextEnds = calcMembershipEndsAt(
+      new Date(target.startsAt),
+      nextPlan.months,
+    );
+
     setMembershipComposer("upgrade");
     setUpgradeTargetId(membershipId);
-    setUpgradeForm({ planMonths: String(target.planMonths) });
+    setUpgradeForm(nextUpgrade);
     setMembershipForms((forms) => {
       const existing = forms[membershipId] ?? membershipFormFromRow(target);
       return {
         ...forms,
         [membershipId]: {
           ...existing,
-          planMonths: String(target.planMonths),
-          planName: target.planName,
+          planMonths: nextUpgrade.planMonths,
+          planName: `Membership Upgrade (${target.planMonths} → ${nextPlan.months} months)`,
           startsAt: toDateTimeLocal(target.startsAt),
-          endsAt: toDateTimeLocal(target.endsAt),
+          endsAt: toDateTimeLocal(nextEnds.toISOString()),
           status: target.status,
         },
       };
@@ -597,6 +783,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   function requestSaveProfile(event: FormEvent) {
     event.preventDefault();
     if (!editing || !profileForm || savingProfile) return;
+    if (detail?.profile.accountStatus === "inactive") return;
     if (!detail || !isProfileDirty(profileForm, profileFromDetail(detail))) {
       return;
     }
@@ -629,6 +816,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
   function requestSaveMembership(membershipId: string) {
     if (!editing || savingMembershipId) return;
+    if (detail?.profile.accountStatus === "inactive") return;
     const form = membershipForms[membershipId];
     if (!form) return;
     const row = detail?.memberships.find((m) => m.id === membershipId);
@@ -647,6 +835,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
   function requestCreateMembership(mode: "add" | "renew") {
     if (!editing || savingNewMembership || !detail) return;
+    if (detail.profile.accountStatus === "inactive") return;
     const planMonths = Number(newMembershipForm.planMonths);
     if (!Number.isInteger(planMonths) || planMonths < 1) {
       showError("Select a valid plan.");
@@ -659,19 +848,15 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
     const listPricePaise = majorToMinorUnits(newMembershipForm.listPriceMajor);
     const discountPaise = majorToMinorUnits(newMembershipForm.discountMajor);
-    const amountPaidPaise = majorToMinorUnits(newMembershipForm.amountPaidMajor);
-    if (listPricePaise == null || discountPaise == null || amountPaidPaise == null) {
-      showError("Enter valid list price, discount, and amount paid.");
+    if (listPricePaise == null || discountPaise == null) {
+      showError("Enter valid list price and discount.");
       return;
     }
     if (discountPaise > listPricePaise) {
       showError("Discount cannot exceed list price.");
       return;
     }
-    if (amountPaidPaise > listPricePaise) {
-      showError("Amount paid cannot exceed list price.");
-      return;
-    }
+    const amountPaidPaise = Math.max(0, listPricePaise - discountPaise);
     if (amountPaidPaise > 0) {
       if (!newMembershipForm.paymentMethod.trim()) {
         showError("Payment method is required for paid memberships.");
@@ -699,21 +884,81 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
   function requestUpgradeMembership(membershipId: string) {
     if (!editing || savingMembershipId) return;
+    if (detail?.profile.accountStatus === "inactive") return;
     const planMonths = Number(upgradeForm.planMonths);
     if (!Number.isInteger(planMonths) || planMonths < 1) {
-      showError("Select a valid plan.");
+      showError("Select a valid longer plan.");
       return;
     }
     const row = detail?.memberships.find((m) => m.id === membershipId);
-    if (row && String(row.planMonths) === upgradeForm.planMonths) {
+    if (!row) {
+      showError("Membership not found.");
       return;
+    }
+    if (planMonths <= row.planMonths) {
+      showError(
+        "Upgrade must be to a longer plan. Shorter or same duration is not allowed.",
+      );
+      return;
+    }
+    const listPricePaise = majorToMinorUnits(upgradeForm.listPriceMajor);
+    const discountPaise = majorToMinorUnits(upgradeForm.discountMajor);
+    const amountPaidPaise = majorToMinorUnits(upgradeForm.amountPaidMajor);
+    if (
+      listPricePaise == null ||
+      discountPaise == null ||
+      amountPaidPaise == null
+    ) {
+      showError("Enter a valid new plan price, discount, and additional amount.");
+      return;
+    }
+    if (discountPaise > listPricePaise) {
+      showError("Discount cannot exceed the new plan price.");
+      return;
+    }
+    if (amountPaidPaise > listPricePaise) {
+      showError("Additional amount cannot exceed the new plan price.");
+      return;
+    }
+    if (listPricePaise - discountPaise !== amountPaidPaise) {
+      showError("Additional amount must equal new plan price minus discount.");
+      return;
+    }
+    if (amountPaidPaise > 0) {
+      if (!upgradeForm.paymentMethod.trim()) {
+        showError("Select a payment method for the additional upgrade payment.");
+        return;
+      }
+      if (upgradeForm.paymentRef.trim().length < 2) {
+        showError(
+          "Enter a payment reference for the additional upgrade payment.",
+        );
+        return;
+      }
     }
     setPendingSave({ type: "upgrade-membership", membershipId });
   }
 
   function requestActivatePayment(paymentOrderId: string) {
     if (!editing || activatingPaymentId) return;
+    if (detail?.profile.accountStatus === "inactive") return;
     setPendingSave({ type: "activate-payment", paymentOrderId });
+  }
+
+  async function downloadInvoice(membershipId: string) {
+    if (!token || downloadingInvoiceId) return;
+    setDownloadingInvoiceId(membershipId);
+    setError(null);
+    try {
+      await downloadAdminMembershipInvoice(token, userId, membershipId);
+      showSuccess("Invoice downloaded.");
+    } catch (err) {
+      showError(
+        err instanceof Error ? err.message : "Unable to download invoice.",
+      );
+    } finally {
+      setDownloadingInvoiceId(null);
+    }
   }
 
   async function confirmPendingSave() {
@@ -763,18 +1008,17 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         detail?.profile.region === "outside_india" ? "USD" : "INR";
       const listPricePaise = majorToMinorUnits(newMembershipForm.listPriceMajor);
       const discountPaise = majorToMinorUnits(newMembershipForm.discountMajor);
-      const amountPaidPaise = majorToMinorUnits(
-        newMembershipForm.amountPaidMajor,
-      );
-      if (
-        listPricePaise == null ||
-        discountPaise == null ||
-        amountPaidPaise == null
-      ) {
-        showError("Enter valid list price, discount, and amount paid.");
+      if (listPricePaise == null || discountPaise == null) {
+        showError("Enter valid list price and discount.");
         setPendingSave(null);
         return;
       }
+      if (discountPaise > listPricePaise) {
+        showError("Discount cannot exceed list price.");
+        setPendingSave(null);
+        return;
+      }
+      const amountPaidPaise = Math.max(0, listPricePaise - discountPaise);
 
       setSavingNewMembership(true);
       setError(null);
@@ -816,7 +1060,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         setNewMembershipForm(emptyNewMembershipForm(catalogPlans, currency));
         const active =
           next.memberships.find((m) => m.status === "active") ?? null;
-        setUpgradeForm(emptyUpgradeForm(active, catalogPlans));
+        setUpgradeForm(emptyUpgradeForm(active, catalogPlans, currency));
       } catch (err) {
         showError(
           err instanceof Error
@@ -874,12 +1118,43 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         return;
       }
       const planMonths = Number(upgradeForm.planMonths);
-      const plan = catalogPlans.find((p) => p.months === planMonths) ?? null;
-      const planName = plan?.name ?? `${planMonths}-Month Membership`;
-      const endsAt = calcMembershipEndsAt(
-        new Date(membership.startsAt),
-        planMonths,
-      );
+      if (!Number.isInteger(planMonths) || planMonths <= membership.planMonths) {
+        setPendingSave(null);
+        showError(
+          "Upgrade must be to a longer plan. Shorter or same duration is not allowed.",
+        );
+        return;
+      }
+
+      const currency =
+        detail?.profile.region === "outside_india" ? "USD" : "INR";
+      const listPricePaise = majorToMinorUnits(upgradeForm.listPriceMajor);
+      const discountPaise = majorToMinorUnits(upgradeForm.discountMajor);
+      const amountPaidPaise = majorToMinorUnits(upgradeForm.amountPaidMajor);
+      if (
+        listPricePaise == null ||
+        discountPaise == null ||
+        amountPaidPaise == null
+      ) {
+        setPendingSave(null);
+        showError("Enter a valid new plan price, discount, and additional amount.");
+        return;
+      }
+      if (discountPaise > listPricePaise) {
+        setPendingSave(null);
+        showError("Discount cannot exceed the new plan price.");
+        return;
+      }
+      if (amountPaidPaise > listPricePaise) {
+        setPendingSave(null);
+        showError("Additional amount cannot exceed the new plan price.");
+        return;
+      }
+      if (listPricePaise - discountPaise !== amountPaidPaise) {
+        setPendingSave(null);
+        showError("Additional amount must equal new plan price minus discount.");
+        return;
+      }
 
       setSavingMembershipId(membershipId);
       setError(null);
@@ -887,25 +1162,44 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       setMembershipActionMessage(null);
       setPendingSave(null);
       try {
-        const next = await updateAdminUserMembership(
+        const next = await upgradeAdminUserMembership(
           token,
           userId,
           membershipId,
           {
             planMonths,
-            planName,
-            endsAt: endsAt.toISOString(),
-            status: membership.status,
+            listPricePaise,
+            discountPaise,
+            amountPaidPaise,
+            ...(amountPaidPaise > 0
+              ? {
+                  paymentMethod: upgradeForm.paymentMethod.trim(),
+                  paymentRef: upgradeForm.paymentRef.trim(),
+                }
+              : {}),
+            ...(upgradeForm.adminNote.trim().length >= 3
+              ? { adminNote: upgradeForm.adminNote.trim() }
+              : {}),
           },
         );
         applyDetail(next);
         invalidateCached(DASHBOARD_CACHE_KEYS.users);
         invalidateCached(DASHBOARD_CACHE_KEYS.overview);
-        setMembershipSavedId(membershipId);
+        const upgraded =
+          next.memberships.find(
+            (m) =>
+              (m.status === "active" || m.status === "scheduled") &&
+              m.planMonths === planMonths,
+          ) ?? null;
+        setMembershipSavedId(upgraded?.id ?? null);
         const successMessage =
-          membership.status === "scheduled"
-            ? "Scheduled renew upgraded successfully."
-            : "Current membership upgraded successfully.";
+          amountPaidPaise > 0
+            ? membership.status === "scheduled"
+              ? "Scheduled renew upgraded — Membership Upgrade invoice created."
+              : "Membership upgraded — Membership Upgrade invoice created."
+            : membership.status === "scheduled"
+              ? "Scheduled renew upgraded — previous renew kept in history."
+              : "Membership upgraded — previous plan kept in history.";
         setMembershipActionMessage(successMessage);
         showSuccess(successMessage);
         setMembershipComposer(null);
@@ -914,6 +1208,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           emptyUpgradeForm(
             next.memberships.find((m) => m.status === "active") ?? null,
             catalogPlans,
+            currency,
           ),
         );
       } catch (err) {
@@ -989,8 +1284,10 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     );
   }
 
+  const accountInactive = detail.profile.accountStatus === "inactive";
+  const adminCanModify = !accountInactive && editing;
   const fieldsLocked =
-    !editing ||
+    !adminCanModify ||
     savingProfile ||
     Boolean(savingMembershipId) ||
     savingNewMembership ||
@@ -999,7 +1296,8 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     savingProfile ||
     Boolean(savingMembershipId) ||
     savingNewMembership ||
-    Boolean(activatingPaymentId);
+    Boolean(activatingPaymentId) ||
+    accountActionBusy;
   const membershipCurrency =
     detail.profile.region === "outside_india" ? "USD" : "INR";
   const needsBillingLocation = !detail.profile.state?.trim();
@@ -1027,6 +1325,66 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       !membershipPaymentIds.has(payment.id) &&
       (payment.status === "paid" || Boolean(payment.razorpayPaymentId)),
   );
+  type PaymentRow = {
+    key: string;
+    when: string;
+    amountPaise: number;
+    currency: string;
+    statusLabel: string;
+    planMonths: number | null;
+    couponCode: string | null;
+    sourceLabel: string;
+    reference: string;
+    membershipId: string | null;
+    invoiceNumber: string | null;
+    razorpayInvoiceUrl: string | null;
+    needsActivation: boolean;
+  };
+  const paymentRows: PaymentRow[] = [
+    ...detail.payments.map((payment) => ({
+      key: `pay-${payment.id}`,
+      when: payment.createdAt,
+      amountPaise: payment.amountPaise,
+      currency: payment.currency,
+      statusLabel: payment.status,
+      planMonths: payment.planMonths,
+      couponCode: payment.couponCode,
+      sourceLabel: "Razorpay",
+      reference:
+        payment.razorpayPaymentId ?? payment.razorpayOrderId ?? payment.id,
+      membershipId: payment.membershipId ?? null,
+      invoiceNumber: payment.invoiceNumber ?? null,
+      razorpayInvoiceUrl: payment.razorpayInvoiceUrl,
+      needsActivation:
+        !membershipPaymentIds.has(payment.id) &&
+        payment.planMonths != null &&
+        (payment.status === "paid" || Boolean(payment.razorpayPaymentId)),
+    })),
+    ...detail.memberships
+      .filter((membership) =>
+        membership.paymentOrderId.startsWith("admin-manual-"),
+      )
+      .map((membership) => ({
+        key: `admin-${membership.id}`,
+        when: membership.createdAt,
+        amountPaise: membership.amountPaidPaise,
+        currency: membership.currency,
+        statusLabel: "paid",
+        planMonths: membership.planMonths,
+        couponCode: null,
+        sourceLabel: "Admin manual",
+        reference:
+          membership.razorpayPaymentId ??
+          membership.paymentMethod ??
+          "Manual grant",
+        membershipId: membership.id,
+        invoiceNumber: membership.invoiceNumber,
+        razorpayInvoiceUrl: null,
+        needsActivation: false,
+      })),
+  ].sort(
+    (a, b) => new Date(b.when).getTime() - new Date(a.when).getTime(),
+  );
   const now = new Date();
   const activeMembership =
     detail.memberships.find(
@@ -1040,7 +1398,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     detail.memberships.find((m) => m.id === upgradeTargetId) ?? null;
   const upgradeDirty = Boolean(
     upgradeTarget &&
-      String(upgradeTarget.planMonths) !== upgradeForm.planMonths,
+      Number(upgradeForm.planMonths) > upgradeTarget.planMonths,
   );
   const renewStartsAt = activeMembership
     ? dayAfterDate(new Date(activeMembership.endsAt))
@@ -1048,10 +1406,6 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   const selectedCatalogPlan =
     catalogPlans.find(
       (plan) => String(plan.months) === newMembershipForm.planMonths,
-    ) ?? null;
-  const selectedUpgradePlan =
-    catalogPlans.find(
-      (plan) => String(plan.months) === upgradeForm.planMonths,
     ) ?? null;
   const planOptions: { id: string; months: number; name: string }[] =
     catalogPlans.length > 0
@@ -1065,6 +1419,18 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           months,
           name: `${months}-Month Membership`,
         }));
+  const upgradeOptions = upgradeTarget
+    ? upgradePlanOptions(upgradeTarget.planMonths, catalogPlans)
+    : [];
+  const canUpgradeActive = Boolean(
+    activeMembership &&
+      upgradePlanOptions(activeMembership.planMonths, catalogPlans).length > 0,
+  );
+  const canUpgradeScheduled = Boolean(
+    scheduledMembership &&
+      upgradePlanOptions(scheduledMembership.planMonths, catalogPlans).length >
+        0,
+  );
   const upgradePreviewEndsAt =
     upgradeTarget && Number(upgradeForm.planMonths) > 0
       ? calcMembershipEndsAt(
@@ -1075,11 +1441,30 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
+      <AdminConfirmDialog
+        open={pendingDeactivate}
+        title="Deactivate user?"
+        description={`Deactivate “${detail.profile.fullName}”? They will not be able to sign in. Membership, payment, invoice, and referral records are kept. You can reactivate the account later.`}
+        confirmLabel="Deactivate user"
+        variant="default"
+        busy={accountActionBusy}
+        onCancel={() => {
+          if (!accountActionBusy) setPendingDeactivate(false);
+        }}
+        onConfirm={() => void confirmDeactivateAccount()}
+      />
       <AdminToast
         message={toast?.message ?? null}
         variant={toast?.variant ?? "success"}
         onDismiss={() => setToast(null)}
       />
+      {accountInactive ? (
+        <p className="rounded-xl border border-[#e8dfd0] bg-[#faf6f0] px-4 py-3 text-sm text-[#6b5b4a]">
+          This account is <strong className="font-semibold">inactive</strong>.
+          The member cannot sign in. Records are retained; use Reactivate to
+          restore access.
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link
@@ -1092,32 +1477,55 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             {detail.profile.fullName}
           </h1>
           <p className="mt-1 text-sm text-[#5f6f64]">
-            {editing
-              ? "Editing enabled — save changes to apply"
-              : "Viewing member details"}
+            {accountInactive
+              ? "Inactive account — view only"
+              : editing
+                ? "Editing enabled — save changes to apply"
+                : "Viewing member details"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {editing ? (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {accountInactive ? (
             <button
               type="button"
-              onClick={cancelEditMode}
+              onClick={() => void reactivateAccount()}
               disabled={confirmBusy}
-              className="inline-flex h-10 items-center justify-center rounded-full border border-[#d7e0d6] bg-white px-4 text-sm font-semibold text-[#3d4a3c] transition hover:bg-[#f6f8f5] disabled:opacity-60"
+              className="inline-flex h-10 items-center justify-center rounded-full bg-[#1f6b3a] px-4 text-sm font-semibold text-white transition hover:bg-[#185830] disabled:opacity-60"
             >
-              Cancel
+              Reactivate account
             </button>
           ) : (
             <button
               type="button"
-              onClick={enterEditMode}
-              aria-label="Edit member"
-              title="Edit member"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#e8f2ea] text-[#1f6b3a] transition hover:bg-[#dceadf]"
+              onClick={() => setPendingDeactivate(true)}
+              disabled={confirmBusy}
+              className="inline-flex h-10 items-center justify-center rounded-full border border-[#e0d8cc] bg-[#faf8f5] px-4 text-sm font-semibold text-[#5f4a3a] transition hover:bg-[#f3efe8] disabled:opacity-60"
             >
-              <EditIcon />
+              Deactivate account
             </button>
           )}
+          {!accountInactive ? (
+            editing ? (
+              <button
+                type="button"
+                onClick={cancelEditMode}
+                disabled={confirmBusy}
+                className="inline-flex h-10 items-center justify-center rounded-full border border-[#d7e0d6] bg-white px-4 text-sm font-semibold text-[#3d4a3c] transition hover:bg-[#f6f8f5] disabled:opacity-60"
+              >
+                Cancel
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={enterEditMode}
+                aria-label="Edit member"
+                title="Edit member"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#e8f2ea] text-[#1f6b3a] transition hover:bg-[#dceadf]"
+              >
+                <EditIcon />
+              </button>
+            )
+          ) : null}
           <ReloadButton
             onClick={() => void load()}
             disabled={loading || confirmBusy}
@@ -1144,11 +1552,20 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             <span className="rounded-md bg-[#e8f2ea] px-2 py-0.5 text-[11px] font-medium capitalize text-[#1f6b3a]">
               {detail.profile.region.replaceAll("_", " ")}
             </span>
+            <span
+              className={`rounded-md px-2 py-0.5 text-[11px] font-medium capitalize ${
+                accountInactive
+                  ? "bg-[#f1ece6] text-[#6b5b4a]"
+                  : "bg-[#e8f2ea] text-[#1f6b3a]"
+              }`}
+            >
+              {accountInactive ? "Inactive account" : "Active account"}
+            </span>
             <span className="rounded-md bg-[#f4f7f4] px-2 py-0.5 text-[11px] font-medium text-[#5f6f64]">
               {detail.referralCount} referral
               {detail.referralCount === 1 ? "" : "s"}
             </span>
-            {editing ? (
+            {adminCanModify ? (
               <span className="rounded-md bg-[#fff4e8] px-2 py-0.5 text-[11px] font-medium text-[#8a5a2f]">
                 Editing
               </span>
@@ -1385,7 +1802,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             </div>
           </div>
 
-          {editing ? (
+          {adminCanModify ? (
             <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2">
               <label className={labelClass}>
                 New password
@@ -1426,7 +1843,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             </div>
           ) : null}
 
-          {editing ? (
+          {adminCanModify ? (
             <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
               <button
                 type="submit"
@@ -1485,14 +1902,16 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           <div>
             <h2 className="text-sm font-semibold text-[#243028]">Memberships</h2>
             <p className="mt-0.5 text-xs text-[#8a978c]">
-              {editing
-                ? canAdd
-                  ? "Add a membership to grant access"
-                  : "Upgrade current or renew from the cards above, or schedule one renew"
-                : "Current plan, scheduled renew, and past memberships"}
+              {accountInactive
+                ? "View only while the account is inactive"
+                : adminCanModify
+                  ? canAdd
+                    ? "Add a membership to grant access"
+                    : "Upgrade current or renew from the cards above, or schedule one renew"
+                  : "Current plan, scheduled renew, and past memberships"}
             </p>
           </div>
-          {editing ? (
+          {adminCanModify ? (
             <div className="flex flex-wrap items-center gap-2">
               {canAdd ? (
                 <button
@@ -1526,7 +1945,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           ) : null}
         </div>
 
-        {editing && activeMembership && scheduledMembership ? (
+        {adminCanModify && activeMembership && scheduledMembership ? (
           <p className="rounded-xl bg-[#fff8ef] px-3.5 py-2.5 text-sm text-[#8a5a2f]">
             A renew is already scheduled
             {scheduledMembership.startsAt
@@ -1546,7 +1965,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           </p>
         ) : null}
 
-        {editing && membershipComposer === "add" ? (
+        {adminCanModify && membershipComposer === "add" ? (
           <div className={cardClass}>
             <h3 className="text-sm font-semibold text-[#243028]">
               Add membership
@@ -1650,12 +2069,18 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   min={0}
                   step={membershipCurrency === "USD" ? "0.01" : "1"}
                   value={newMembershipForm.listPriceMajor}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const listPriceMajor = e.target.value;
                     setNewMembershipForm({
                       ...newMembershipForm,
-                      listPriceMajor: e.target.value,
-                    })
-                  }
+                      listPriceMajor,
+                      amountPaidMajor: payableFromListAndDiscount(
+                        listPriceMajor,
+                        newMembershipForm.discountMajor,
+                        membershipCurrency,
+                      ),
+                    });
+                  }}
                   className={inputClass}
                   disabled={fieldsLocked}
                 />
@@ -1667,31 +2092,33 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   min={0}
                   step={membershipCurrency === "USD" ? "0.01" : "1"}
                   value={newMembershipForm.discountMajor}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const discountMajor = e.target.value;
                     setNewMembershipForm({
                       ...newMembershipForm,
-                      discountMajor: e.target.value,
-                    })
-                  }
+                      discountMajor,
+                      amountPaidMajor: payableFromListAndDiscount(
+                        newMembershipForm.listPriceMajor,
+                        discountMajor,
+                        membershipCurrency,
+                      ),
+                    });
+                  }}
                   className={inputClass}
                   disabled={fieldsLocked}
                 />
               </label>
               <label className={labelClass}>
-                Amount paid ({moneySuffix})
+                Amount payable ({moneySuffix})
                 <input
                   type="number"
                   min={0}
                   step={membershipCurrency === "USD" ? "0.01" : "1"}
                   value={newMembershipForm.amountPaidMajor}
-                  onChange={(e) =>
-                    setNewMembershipForm({
-                      ...newMembershipForm,
-                      amountPaidMajor: e.target.value,
-                    })
-                  }
+                  readOnly
                   className={inputClass}
                   disabled={fieldsLocked}
+                  title="List price − discount"
                 />
               </label>
               <label className={labelClass}>
@@ -1811,19 +2238,27 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-[#1f6b3a]">
                     Current membership
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => startUpgrade(activeMembership.id)}
-                    disabled={confirmBusy}
-                    className={`inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-semibold transition disabled:opacity-60 ${
-                      membershipComposer === "upgrade" &&
-                      upgradeTargetId === activeMembership.id
-                        ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
-                        : "border-[#1f6b3a]/35 bg-white text-[#1f6b3a] hover:bg-[#e8f2ea]"
-                    }`}
-                  >
-                    Upgrade
-                  </button>
+                  {!accountInactive ? (
+                    canUpgradeActive ? (
+                      <button
+                        type="button"
+                        onClick={() => startUpgrade(activeMembership.id)}
+                        disabled={confirmBusy}
+                        className={`inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-semibold transition disabled:opacity-60 ${
+                          membershipComposer === "upgrade" &&
+                          upgradeTargetId === activeMembership.id
+                            ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
+                            : "border-[#1f6b3a]/35 bg-white text-[#1f6b3a] hover:bg-[#e8f2ea]"
+                        }`}
+                      >
+                        Upgrade
+                      </button>
+                    ) : (
+                      <span className="inline-flex h-8 items-center rounded-full border border-[#d7e5d9] bg-[#f7faf6] px-3 text-[11px] font-semibold text-[#8a978c]">
+                        No upgrade
+                      </span>
+                    )
+                  ) : null}
                 </div>
                 <p className="mt-1.5 text-sm font-semibold text-[#243028]">
                   {activeMembership.planName}
@@ -1840,19 +2275,27 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-[#8a5a2f]">
                     Next renew
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => startUpgrade(scheduledMembership.id)}
-                    disabled={confirmBusy}
-                    className={`inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-semibold transition disabled:opacity-60 ${
-                      membershipComposer === "upgrade" &&
-                      upgradeTargetId === scheduledMembership.id
-                        ? "border-[#8a5a2f] bg-[#8a5a2f] text-white"
-                        : "border-[#e8d4a8] bg-white text-[#8a5a2f] hover:bg-[#fff8ef]"
-                    }`}
-                  >
-                    Upgrade
-                  </button>
+                  {!accountInactive ? (
+                    canUpgradeScheduled ? (
+                      <button
+                        type="button"
+                        onClick={() => startUpgrade(scheduledMembership.id)}
+                        disabled={confirmBusy}
+                        className={`inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-semibold transition disabled:opacity-60 ${
+                          membershipComposer === "upgrade" &&
+                          upgradeTargetId === scheduledMembership.id
+                            ? "border-[#8a5a2f] bg-[#8a5a2f] text-white"
+                            : "border-[#e8d4a8] bg-white text-[#8a5a2f] hover:bg-[#fff8ef]"
+                        }`}
+                      >
+                        Upgrade
+                      </button>
+                    ) : (
+                      <span className="inline-flex h-8 items-center rounded-full border border-[#e8d4a8] bg-[#fff8ef] px-3 text-[11px] font-semibold text-[#8a978c]">
+                        No upgrade
+                      </span>
+                    )
+                  ) : null}
                 </div>
                 <p className="mt-1.5 text-sm font-semibold text-[#243028]">
                   {scheduledMembership.planName}
@@ -1870,9 +2313,11 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         {detail.memberships.length === 0 ? (
           <p className={`${cardClass} text-sm text-[#8a978c]`}>
             No memberships yet.
-            {editing
-              ? " Use Add membership above to grant access."
-              : " Click the edit icon to add a membership."}
+            {accountInactive
+              ? " Reactivate the account to add or change memberships."
+              : adminCanModify
+                ? " Use Add membership above to grant access."
+                : " Click the edit icon to add a membership."}
           </p>
         ) : (
           [...detail.memberships]
@@ -1930,8 +2375,8 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                     {isUpgradeTarget ? (
                       <p className="mt-0.5 text-xs font-medium text-[#1f6b3a]">
                         {membership.status === "scheduled"
-                          ? "Upgrade this renew — end date recalculates from its start date"
-                          : "Upgrade this plan — end date recalculates from start date"}
+                          ? "Upgrade creates a longer renew on top — previous renew stays in history"
+                          : "Upgrade creates a longer plan on top — previous membership stays in history"}
                       </p>
                     ) : null}
                     {isRenewTarget ? (
@@ -1939,7 +2384,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                         Current plan stays as-is — schedule renew after it ends
                       </p>
                     ) : null}
-                    {!editing && isRenewCard ? (
+                    {!adminCanModify && isRenewCard ? (
                       <p className="mt-0.5 text-xs text-[#8a5a2f]">
                         Begins automatically when the current plan ends
                       </p>
@@ -1952,49 +2397,48 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   </span>
                 </div>
 
-                {isUpgradeTarget ? (
+                {isUpgradeTarget && adminCanModify ? (
                   <>
                     <div className="mt-4 grid gap-4 sm:grid-cols-2">
                       <label className={labelClass}>
-                        New plan
+                        Upgrade to
                         <select
                           value={upgradeForm.planMonths}
                           onChange={(e) => {
-                            const months = e.target.value;
-                            const monthsNum = Number(months);
-                            setUpgradeForm({ planMonths: months });
-                            const plan =
-                              catalogPlans.find((p) => String(p.months) === months) ??
-                              null;
-                            const nextForm = {
-                              ...form,
-                              planMonths: months,
-                              planName:
-                                plan?.name ?? `${months}-Month Membership`,
-                              status: membership.status,
-                            };
+                            const monthsNum = Number(e.target.value);
                             if (
-                              Number.isInteger(monthsNum) &&
-                              monthsNum >= 1 &&
-                              form.startsAt
+                              !Number.isInteger(monthsNum) ||
+                              monthsNum <= membership.planMonths
                             ) {
-                              const ends = calcMembershipEndsAt(
-                                new Date(fromDateTimeLocal(form.startsAt)),
-                                monthsNum,
-                              );
-                              nextForm.endsAt = toDateTimeLocal(
-                                ends.toISOString(),
-                              );
+                              return;
                             }
+                            const next = buildUpgradeForm(
+                              membership,
+                              monthsNum,
+                              catalogPlans,
+                              membershipCurrency,
+                            );
+                            setUpgradeForm(next);
+                            const ends = calcMembershipEndsAt(
+                              new Date(membership.startsAt),
+                              monthsNum,
+                            );
                             setMembershipForms({
                               ...membershipForms,
-                              [membership.id]: nextForm,
+                              [membership.id]: {
+                                ...form,
+                                planMonths: next.planMonths,
+                                planName: `Membership Upgrade (${membership.planMonths} → ${monthsNum} months)`,
+                                status: membership.status,
+                                startsAt: toDateTimeLocal(membership.startsAt),
+                                endsAt: toDateTimeLocal(ends.toISOString()),
+                              },
                             });
                           }}
                           className={inputClass}
                           disabled={fieldsLocked}
                         >
-                          {planOptions.map((plan) => (
+                          {upgradeOptions.map((plan) => (
                             <option key={plan.id ?? plan.months} value={plan.months}>
                               {plan.months} months
                             </option>
@@ -2002,10 +2446,11 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                         </select>
                       </label>
                       <div>
-                        <p className={labelClass}>Plan name</p>
+                        <p className={labelClass}>Upgrade label</p>
                         <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
-                          {selectedUpgradePlan?.name ??
-                            `${upgradeForm.planMonths}-Month Membership`}
+                          Membership Upgrade (
+                          {membership.planMonths} → {upgradeForm.planMonths}{" "}
+                          months)
                         </p>
                       </div>
                       <div>
@@ -2024,7 +2469,139 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                               : "—"}
                         </p>
                       </div>
+                      <div>
+                        <p className={labelClass}>
+                          Already paid ({moneySuffix})
+                        </p>
+                        <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
+                          {upgradeForm.alreadyPaidMajor} (credited)
+                        </p>
+                      </div>
+                      <label className={labelClass}>
+                        New plan price ({moneySuffix})
+                        <input
+                          type="number"
+                          min={0}
+                          step={membershipCurrency === "USD" ? "0.01" : "1"}
+                          value={upgradeForm.listPriceMajor}
+                          onChange={(e) => {
+                            const listPriceMajor = e.target.value;
+                            setUpgradeForm({
+                              ...upgradeForm,
+                              listPriceMajor,
+                              amountPaidMajor: payableFromListAndDiscount(
+                                listPriceMajor,
+                                upgradeForm.discountMajor,
+                                membershipCurrency,
+                              ),
+                            });
+                          }}
+                          className={inputClass}
+                          disabled={fieldsLocked}
+                        />
+                      </label>
+                      <label className={labelClass}>
+                        Discount ({moneySuffix})
+                        <input
+                          type="number"
+                          min={0}
+                          step={membershipCurrency === "USD" ? "0.01" : "1"}
+                          value={upgradeForm.discountMajor}
+                          onChange={(e) => {
+                            const discountMajor = e.target.value;
+                            setUpgradeForm({
+                              ...upgradeForm,
+                              discountMajor,
+                              amountPaidMajor: payableFromListAndDiscount(
+                                upgradeForm.listPriceMajor,
+                                discountMajor,
+                                membershipCurrency,
+                              ),
+                            });
+                          }}
+                          className={inputClass}
+                          disabled={fieldsLocked}
+                          title="Includes prior payment credit; increase for extra discount"
+                        />
+                      </label>
+                      <label className={labelClass}>
+                        Additional amount ({moneySuffix})
+                        <input
+                          type="number"
+                          min={0}
+                          step={membershipCurrency === "USD" ? "0.01" : "1"}
+                          value={upgradeForm.amountPaidMajor}
+                          readOnly
+                          className={inputClass}
+                          disabled={fieldsLocked}
+                          title="New plan price − discount"
+                        />
+                      </label>
+                      <label className={labelClass}>
+                        Payment method
+                        <select
+                          value={upgradeForm.paymentMethod}
+                          onChange={(e) =>
+                            setUpgradeForm({
+                              ...upgradeForm,
+                              paymentMethod: e.target.value,
+                            })
+                          }
+                          className={inputClass}
+                          disabled={fieldsLocked}
+                        >
+                          <option value="">
+                            {Number(upgradeForm.amountPaidMajor) > 0
+                              ? "Select method"
+                              : "Not required (₹0 / $0 additional)"}
+                          </option>
+                          {PAYMENT_METHOD_OPTIONS.map((method) => (
+                            <option key={method} value={method}>
+                              {method}
+                            </option>
+                          ))}
+                          <option value="Online (Razorpay)">
+                            Online (Razorpay)
+                          </option>
+                        </select>
+                      </label>
+                      <label className={labelClass}>
+                        Payment reference
+                        <input
+                          value={upgradeForm.paymentRef}
+                          onChange={(e) =>
+                            setUpgradeForm({
+                              ...upgradeForm,
+                              paymentRef: e.target.value,
+                            })
+                          }
+                          className={inputClass}
+                          disabled={fieldsLocked}
+                          placeholder="pay_… / UTR / bank transfer note"
+                        />
+                      </label>
+                      <label className={`${labelClass} sm:col-span-2`}>
+                        Admin note
+                        <textarea
+                          value={upgradeForm.adminNote}
+                          onChange={(e) =>
+                            setUpgradeForm({
+                              ...upgradeForm,
+                              adminNote: e.target.value,
+                            })
+                          }
+                          className="mt-1.5 min-h-[4.5rem] w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 py-2.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 disabled:cursor-default disabled:bg-[#f7faf6] disabled:text-[#5f6f64]"
+                          disabled={fieldsLocked}
+                          placeholder="Membership Upgrade note"
+                        />
+                      </label>
                     </div>
+                    <p className="mt-3 rounded-xl bg-[#f3faf5] px-3.5 py-2.5 text-xs leading-relaxed text-[#5f6f64]">
+                      Discount starts at the member&apos;s prior payment credit;
+                      increase it for an extra admin discount. Additional amount
+                      is new plan price minus discount. Original membership,
+                      payment, and invoice stay intact.
+                    </p>
                     <div className="mt-4 flex flex-wrap items-center gap-3">
                       <button
                         type="button"
@@ -2051,7 +2628,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                       </button>
                     </div>
                   </>
-                ) : !editing ? (
+                ) : !adminCanModify ? (
                   <>
                     <div className="mt-4 grid gap-3 sm:grid-cols-3">
                       <InfoTile
@@ -2098,6 +2675,23 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                           {membership.invoiceCategory
                             ? ` (${membership.invoiceCategory})`
                             : ""}
+                          {membership.amountPaidPaise > 0 ? (
+                            <>
+                              {" · "}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void downloadInvoice(membership.id)
+                                }
+                                disabled={Boolean(downloadingInvoiceId)}
+                                className="font-semibold text-[#1f6b3a] hover:underline disabled:opacity-60"
+                              >
+                                {downloadingInvoiceId === membership.id
+                                  ? "Downloading…"
+                                  : "Download invoice"}
+                              </button>
+                            </>
+                          ) : null}
                         </p>
                       ) : null}
                       {membership.adminNote ? (
@@ -2184,12 +2778,18 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                             min={0}
                             step={membershipCurrency === "USD" ? "0.01" : "1"}
                             value={newMembershipForm.listPriceMajor}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              const listPriceMajor = e.target.value;
                               setNewMembershipForm({
                                 ...newMembershipForm,
-                                listPriceMajor: e.target.value,
-                              })
-                            }
+                                listPriceMajor,
+                                amountPaidMajor: payableFromListAndDiscount(
+                                  listPriceMajor,
+                                  newMembershipForm.discountMajor,
+                                  membershipCurrency,
+                                ),
+                              });
+                            }}
                             className={inputClass}
                             disabled={fieldsLocked}
                           />
@@ -2201,31 +2801,33 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                             min={0}
                             step={membershipCurrency === "USD" ? "0.01" : "1"}
                             value={newMembershipForm.discountMajor}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              const discountMajor = e.target.value;
                               setNewMembershipForm({
                                 ...newMembershipForm,
-                                discountMajor: e.target.value,
-                              })
-                            }
+                                discountMajor,
+                                amountPaidMajor: payableFromListAndDiscount(
+                                  newMembershipForm.listPriceMajor,
+                                  discountMajor,
+                                  membershipCurrency,
+                                ),
+                              });
+                            }}
                             className={inputClass}
                             disabled={fieldsLocked}
                           />
                         </label>
                         <label className={labelClass}>
-                          Amount paid ({moneySuffix})
+                          Amount payable ({moneySuffix})
                           <input
                             type="number"
                             min={0}
                             step={membershipCurrency === "USD" ? "0.01" : "1"}
                             value={newMembershipForm.amountPaidMajor}
-                            onChange={(e) =>
-                              setNewMembershipForm({
-                                ...newMembershipForm,
-                                amountPaidMajor: e.target.value,
-                              })
-                            }
+                            readOnly
                             className={inputClass}
                             disabled={fieldsLocked}
+                            title="List price − discount"
                           />
                         </label>
                         <label className={labelClass}>
@@ -2414,6 +3016,21 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                         <span className="font-semibold text-[#243028]">
                           {membership.invoiceNumber}
                         </span>
+                        {membership.amountPaidPaise > 0 ? (
+                          <>
+                            {" · "}
+                            <button
+                              type="button"
+                              onClick={() => void downloadInvoice(membership.id)}
+                              disabled={Boolean(downloadingInvoiceId)}
+                              className="font-semibold text-[#1f6b3a] hover:underline disabled:opacity-60"
+                            >
+                              {downloadingInvoiceId === membership.id
+                                ? "Downloading…"
+                                : "Download"}
+                            </button>
+                          </>
+                        ) : null}
                       </p>
                     ) : null}
                     {membership.adminNote ? (
@@ -2473,7 +3090,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   </label>
                 </div>
 
-                {editing && !isActionTarget ? (
+                {adminCanModify && !isActionTarget ? (
                   <div className="mt-4 flex flex-wrap items-center gap-3">
                     <button
                       type="button"
@@ -2511,7 +3128,10 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
       <section className={cardClass}>
         <h2 className="text-sm font-semibold text-[#243028]">Payments</h2>
-        {recoverablePayments.length > 0 && editing ? (
+        <p className="mt-1 text-xs text-[#8a978c]">
+          Razorpay checkouts and admin-assigned memberships with invoices.
+        </p>
+        {recoverablePayments.length > 0 && adminCanModify ? (
           <div className="mt-3 rounded-xl border border-[#f0d9b5] bg-[#fff8ef] px-3.5 py-3">
             <p className="text-sm font-semibold text-[#8a5a2f]">
               Payments without membership
@@ -2551,71 +3171,105 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             </ul>
           </div>
         ) : null}
-        {detail.payments.length === 0 ? (
-          <p className="mt-3 text-sm text-[#8a978c]">No payment orders yet.</p>
+        {paymentRows.length === 0 ? (
+          <p className="mt-3 text-sm text-[#8a978c]">
+            No payments or admin-assigned memberships yet.
+          </p>
         ) : (
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-[820px] text-left text-sm">
               <thead className="text-[#5f6f64]">
                 <tr>
                   <th className="px-2 py-2 font-medium">When</th>
                   <th className="px-2 py-2 font-medium">Amount</th>
                   <th className="px-2 py-2 font-medium">Status</th>
                   <th className="px-2 py-2 font-medium">Plan</th>
-                  <th className="px-2 py-2 font-medium">Coupon</th>
-                  <th className="px-2 py-2 font-medium">Razorpay</th>
+                  <th className="px-2 py-2 font-medium">Source</th>
+                  <th className="px-2 py-2 font-medium">Reference</th>
+                  <th className="px-2 py-2 font-medium">Invoice</th>
                 </tr>
               </thead>
               <tbody>
-                {detail.payments.map((payment) => (
-                  <tr key={payment.id} className="border-t border-[#f4f7f4]">
-                    <td className="px-2 py-3 whitespace-nowrap text-[#5f6f64]">
-                      {formatDateTime(payment.createdAt)}
-                    </td>
-                    <td className="px-2 py-3 font-medium text-[#243028]">
-                      {formatMoney(payment.amountPaise, payment.currency)}
-                    </td>
-                    <td className="px-2 py-3 capitalize text-[#5f6f64]">
-                      {payment.status}
-                      {!membershipPaymentIds.has(payment.id) &&
-                      payment.planMonths != null &&
-                      (payment.status === "paid" ||
-                        Boolean(payment.razorpayPaymentId)) ? (
-                        <span className="ml-1 text-[11px] font-medium text-[#8a5a2f]">
-                          (no membership)
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-2 py-3 text-[#5f6f64]">
-                      {payment.planMonths
-                        ? `${payment.planMonths} mo`
-                        : "—"}
-                    </td>
-                    <td className="px-2 py-3 text-[#5f6f64]">
-                      {payment.couponCode ?? "—"}
-                    </td>
-                    <td className="px-2 py-3">
-                      <div className="space-y-1">
-                        <p
-                          className="truncate text-xs text-[#8a978c]"
-                          title={payment.razorpayOrderId}
-                        >
-                          {payment.razorpayOrderId}
-                        </p>
-                        {payment.razorpayInvoiceUrl ? (
-                          <a
-                            href={payment.razorpayInvoiceUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs font-semibold text-[#1f6b3a] hover:underline"
-                          >
-                            Invoice
-                          </a>
+                {paymentRows.map((row) => {
+                  const downloading =
+                    row.membershipId != null &&
+                    downloadingInvoiceId === row.membershipId;
+                  const canDownloadThm =
+                    Boolean(row.membershipId) &&
+                    Boolean(row.invoiceNumber) &&
+                    row.amountPaise > 0;
+                  return (
+                    <tr key={row.key} className="border-t border-[#f4f7f4]">
+                      <td className="px-2 py-3 whitespace-nowrap text-[#5f6f64]">
+                        {formatDateTime(row.when)}
+                      </td>
+                      <td className="px-2 py-3 font-medium text-[#243028]">
+                        {formatMoney(row.amountPaise, row.currency)}
+                      </td>
+                      <td className="px-2 py-3 capitalize text-[#5f6f64]">
+                        {row.statusLabel}
+                        {row.needsActivation ? (
+                          <span className="ml-1 text-[11px] font-medium text-[#8a5a2f]">
+                            (no membership)
+                          </span>
                         ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-2 py-3 text-[#5f6f64]">
+                        {row.planMonths ? `${row.planMonths} mo` : "—"}
+                        {row.couponCode ? (
+                          <span className="block text-[11px] text-[#8a978c]">
+                            {row.couponCode}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="px-2 py-3 text-[#5f6f64]">
+                        {row.sourceLabel}
+                      </td>
+                      <td className="px-2 py-3">
+                        <p
+                          className="max-w-[180px] truncate text-xs text-[#8a978c]"
+                          title={row.reference}
+                        >
+                          {row.reference}
+                        </p>
+                      </td>
+                      <td className="px-2 py-3">
+                        <div className="flex flex-col gap-1">
+                          {row.invoiceNumber ? (
+                            <span className="text-[11px] font-medium text-[#243028]">
+                              {row.invoiceNumber}
+                            </span>
+                          ) : null}
+                          {canDownloadThm && row.membershipId ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void downloadInvoice(row.membershipId!)
+                              }
+                              disabled={Boolean(downloadingInvoiceId)}
+                              className="w-fit text-xs font-semibold text-[#1f6b3a] hover:underline disabled:opacity-60"
+                            >
+                              {downloading ? "Downloading…" : "Download invoice"}
+                            </button>
+                          ) : null}
+                          {row.razorpayInvoiceUrl ? (
+                            <a
+                              href={row.razorpayInvoiceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="w-fit text-xs font-semibold text-[#1f6b3a] hover:underline"
+                            >
+                              Razorpay invoice
+                            </a>
+                          ) : null}
+                          {!canDownloadThm && !row.razorpayInvoiceUrl ? (
+                            <span className="text-xs text-[#8a978c]">—</span>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -2645,8 +3299,8 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                     : "This will add a new active membership for this member."
                   : pendingSave.type === "upgrade-membership"
                     ? pendingSave.membershipId === scheduledMembership?.id
-                      ? "This will upgrade the scheduled renew plan."
-                      : "This will upgrade the current membership plan."
+                      ? "This creates a longer scheduled renew on top and records any additional Membership Upgrade payment as a separate invoice. The previous renew stays intact."
+                      : "This creates a longer membership on top and records any additional Membership Upgrade payment as a separate invoice. The original membership, payment, and invoice stay intact."
                     : pendingSave.type === "activate-payment"
                       ? "This will create a membership from the selected payment order."
                       : "This will update this member’s membership plan and dates."}{" "}

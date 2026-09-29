@@ -3,11 +3,13 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
+  StreamableFile,
 } from '@nestjs/common';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
@@ -16,6 +18,7 @@ import { CreateAdminMembershipDto } from './dto/create-admin-membership.dto';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
 import { UpdateAdminMembershipDto } from './dto/update-admin-membership.dto';
 import { UpdateAdminUserDto } from './dto/update-admin-user.dto';
+import { UpgradeAdminMembershipDto } from './dto/upgrade-admin-membership.dto';
 
 @Controller('admin')
 @Roles(Role.Admin)
@@ -66,12 +69,34 @@ export class AdminDashboardController {
     return this.dashboard.createMembership(id, dto);
   }
 
+  @Get('users/:id/memberships/:membershipId/invoice')
+  @Header('Content-Type', 'application/pdf')
+  async downloadMembershipInvoice(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('membershipId', ParseUUIDPipe) membershipId: string,
+  ) {
+    const invoice = await this.dashboard.getMembershipInvoice(id, membershipId);
+    return new StreamableFile(invoice.pdf, {
+      type: 'application/pdf',
+      disposition: `attachment; filename="${invoice.filename}"`,
+    });
+  }
+
   @Post('users/:id/payments/:paymentOrderId/activate-membership')
   activateMembershipFromPayment(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('paymentOrderId', ParseUUIDPipe) paymentOrderId: string,
   ) {
     return this.dashboard.activateMembershipFromPayment(id, paymentOrderId);
+  }
+
+  @Post('users/:id/memberships/:membershipId/upgrade')
+  upgradeMembership(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('membershipId', ParseUUIDPipe) membershipId: string,
+    @Body() dto: UpgradeAdminMembershipDto,
+  ) {
+    return this.dashboard.upgradeMembership(id, membershipId, dto);
   }
 
   @Patch('users/:id/memberships/:membershipId')
@@ -86,6 +111,16 @@ export class AdminDashboardController {
   @Delete('users')
   deleteAllUsers() {
     return this.dashboard.deleteAllUsers();
+  }
+
+  @Post('users/:id/deactivate')
+  deactivateUser(@Param('id', ParseUUIDPipe) id: string) {
+    return this.dashboard.deactivateUser(id);
+  }
+
+  @Post('users/:id/reactivate')
+  reactivateUser(@Param('id', ParseUUIDPipe) id: string) {
+    return this.dashboard.reactivateUser(id);
   }
 
   @Delete('users/:id')

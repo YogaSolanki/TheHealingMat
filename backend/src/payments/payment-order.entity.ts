@@ -47,6 +47,13 @@ export class PaymentOrder {
   @Column({ type: 'varchar', nullable: true })
   couponCode: string | null;
 
+  /** Corporate work-email verification used at checkout (not the member profile email). */
+  @Column({ type: 'varchar', nullable: true })
+  verifiedEmail: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  domainVerificationId: string | null;
+
   @Column({ type: 'varchar', default: 'now' })
   startMode: MembershipStartMode;
 

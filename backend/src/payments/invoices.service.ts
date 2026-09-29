@@ -22,6 +22,20 @@ export type IssueMembershipInvoiceInput = {
   category?: InvoiceCategory;
 };
 
+export type IssueCorporatePlanInvoiceInput = {
+  corporatePlanId: string;
+  companyId: string;
+  companyName: string;
+  currency: string;
+  listPricePaise: number;
+  discountPaise: number;
+  amountPaidPaise: number;
+  paymentMethod: string;
+  paymentReference: string | null;
+  discountLabel?: string | null;
+  issuedAt?: Date;
+};
+
 @Injectable()
 export class InvoicesService implements OnModuleInit {
   private readonly logger = new Logger(InvoicesService.name);
@@ -122,6 +136,61 @@ export class InvoicesService implements OnModuleInit {
 
       return manager.save(invoice);
     });
+  }
+
+  /**
+   * Issue (or return existing) CO-sequence invoice for a confirmed corporate plan.
+   * Returns null when company amount paid is zero.
+   */
+  async ensureCorporatePlanInvoice(
+    input: IssueCorporatePlanInvoiceInput,
+  ): Promise<Invoice | null> {
+    if (input.amountPaidPaise <= 0) {
+      return null;
+    }
+
+    const existing = await this.invoices.findOne({
+      where: { corporatePlanId: input.corporatePlanId },
+    });
+    if (existing) return existing;
+
+    const issuedAt = input.issuedAt ?? new Date();
+    const category = InvoiceCategory.Corporate;
+
+    return this.dataSource.transaction(async (manager) => {
+      const again = await manager.findOne(Invoice, {
+        where: { corporatePlanId: input.corporatePlanId },
+      });
+      if (again) return again;
+
+      const allocated = await this.allocateNumber(category, issuedAt, manager);
+
+      const invoice = manager.create(Invoice, {
+        invoiceNumber: allocated.invoiceNumber,
+        category,
+        financialYear: allocated.financialYear,
+        serial: allocated.serial,
+        membershipId: null,
+        corporatePlanId: input.corporatePlanId,
+        companyId: input.companyId,
+        userId: null,
+        billToName: input.companyName,
+        currency: input.currency || 'INR',
+        listPricePaise: input.listPricePaise,
+        discountPaise: input.discountPaise,
+        amountPaidPaise: input.amountPaidPaise,
+        paymentReference: input.paymentReference,
+        paymentMethod: input.paymentMethod,
+        discountLabel: input.discountLabel?.trim() || null,
+        issuedAt,
+      });
+
+      return manager.save(invoice);
+    });
+  }
+
+  async findByCorporatePlanId(corporatePlanId: string) {
+    return this.invoices.findOne({ where: { corporatePlanId } });
   }
 
   /**

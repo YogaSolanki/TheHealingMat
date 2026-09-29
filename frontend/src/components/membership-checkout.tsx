@@ -14,6 +14,8 @@ import {
   getMyCoupons,
   getMyMembership,
   quoteMembership,
+  requestCorporateCouponOtp,
+  verifyCorporateCouponOtp,
   verifyRazorpayPayment,
   type MemberCoupon,
   type MembershipQuote,
@@ -130,6 +132,13 @@ export function MembershipCheckoutPanel({
   );
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
+  const [domainVerificationId, setDomainVerificationId] = useState<
+    string | null
+  >(null);
+  const [workEmail, setWorkEmail] = useState("");
+  const [workOtp, setWorkOtp] = useState("");
+  const [workEmailPrompt, setWorkEmailPrompt] = useState(false);
+  const [workOtpSent, setWorkOtpSent] = useState(false);
   const [applyReferralDiscount, setApplyReferralDiscount] = useState(false);
   const [assignedCoupons, setAssignedCoupons] = useState<MemberCoupon[]>([]);
   const [paying, setPaying] = useState(false);
@@ -146,6 +155,11 @@ export function MembershipCheckoutPanel({
     setQuote(quoteFromPlan(resolvePlan(planMonths)));
     setCouponInput("");
     setAppliedCoupon("");
+    setDomainVerificationId(null);
+    setWorkEmail("");
+    setWorkOtp("");
+    setWorkEmailPrompt(false);
+    setWorkOtpSent(false);
     setApplyReferralDiscount(false);
     setAssignedCoupons([]);
     setError(null);
@@ -278,13 +292,29 @@ export function MembershipCheckoutPanel({
           planMonths,
           couponCode: code,
           applyReferralDiscount: false,
+          ...(domainVerificationId
+            ? { domainVerificationId }
+            : {}),
         });
         setQuote(next);
         setAppliedCoupon(next.couponCode ?? code);
         setCouponInput(next.couponCode ?? code);
         setApplyReferralDiscount(false);
+        setWorkEmailPrompt(false);
         return;
-      } catch {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "";
+        if (/work email|corporate coupon/i.test(message)) {
+          setWorkEmailPrompt(true);
+          setWorkOtpSent(false);
+          setWorkOtp("");
+          setDomainVerificationId(null);
+          setAppliedCoupon("");
+          setError(
+            "This is a corporate coupon. Verify a work email on the company domain to apply it.",
+          );
+          return;
+        }
         // Fall through — try as referral when eligible, else show Invalid coupon.
       }
 
@@ -307,9 +337,69 @@ export function MembershipCheckoutPanel({
         setApplyReferralDiscount(true);
         setAppliedCoupon("");
         setCouponInput("");
+        setDomainVerificationId(null);
+        setWorkEmailPrompt(false);
       } catch {
         setError("Invalid coupon");
       }
+    } finally {
+      setPromoBusy(false);
+    }
+  }
+
+  async function sendWorkEmailOtp() {
+    const token = getStoredToken();
+    const code = couponInput.trim();
+    if (!token || !code || !workEmail.trim() || promoBusy) return;
+    setPromoBusy(true);
+    setError(null);
+    try {
+      await requestCorporateCouponOtp(token, {
+        couponCode: code,
+        email: workEmail.trim(),
+      });
+      setWorkOtpSent(true);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Unable to send verification code.",
+      );
+    } finally {
+      setPromoBusy(false);
+    }
+  }
+
+  async function confirmWorkEmailOtp() {
+    const token = getStoredToken();
+    const code = couponInput.trim();
+    if (!token || !code || !workEmail.trim() || !workOtp.trim() || promoBusy) {
+      return;
+    }
+    setPromoBusy(true);
+    setError(null);
+    try {
+      const verified = await verifyCorporateCouponOtp(token, {
+        couponCode: code,
+        email: workEmail.trim(),
+        code: workOtp.trim(),
+      });
+      setDomainVerificationId(verified.domainVerificationId);
+      const next = await quoteMembership(token, {
+        planMonths,
+        couponCode: code,
+        applyReferralDiscount: false,
+        domainVerificationId: verified.domainVerificationId,
+      });
+      setQuote(next);
+      setAppliedCoupon(next.couponCode ?? code);
+      setCouponInput(next.couponCode ?? code);
+      setApplyReferralDiscount(false);
+      setWorkEmailPrompt(false);
+      setWorkOtpSent(false);
+      setWorkOtp("");
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Unable to verify work email.",
+      );
     } finally {
       setPromoBusy(false);
     }
@@ -329,6 +419,11 @@ export function MembershipCheckoutPanel({
       setAppliedCoupon("");
       setCouponInput("");
       setApplyReferralDiscount(false);
+      setDomainVerificationId(null);
+      setWorkEmailPrompt(false);
+      setWorkEmail("");
+      setWorkOtp("");
+      setWorkOtpSent(false);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unable to remove code.");
     } finally {
@@ -424,9 +519,10 @@ export function MembershipCheckoutPanel({
     setError(null);
 
     try {
+      // Only an explicitly applied coupon counts — never charge from typed-but-unapplied input.
       const couponCode =
-        !applyReferralDiscount
-          ? appliedCoupon || couponInput.trim() || undefined
+        !applyReferralDiscount && appliedCoupon.trim()
+          ? appliedCoupon.trim()
           : undefined;
       const applyReferral = applyReferralDiscount && !couponCode;
 
@@ -435,15 +531,25 @@ export function MembershipCheckoutPanel({
         planMonths,
         couponCode,
         applyReferralDiscount: applyReferral,
+        ...(couponCode && domainVerificationId
+          ? { domainVerificationId }
+          : {}),
       });
       setQuote(confirmedQuote);
+      if (confirmedQuote.couponCode) {
+        setAppliedCoupon(confirmedQuote.couponCode);
+        setCouponInput(confirmedQuote.couponCode);
+      }
 
       const order = await createRazorpayOrder(token, {
         planMonths,
-        couponCode,
+        couponCode: confirmedQuote.couponCode ?? couponCode,
         startMode,
         ...(startsOn ? { startsOn } : {}),
         applyReferralDiscount: applyReferral,
+        ...(couponCode && domainVerificationId
+          ? { domainVerificationId }
+          : {}),
         expectedAmountPaise: confirmedQuote.amountPaise,
       });
 
@@ -456,21 +562,30 @@ export function MembershipCheckoutPanel({
         throw new Error("Unable to start payment.");
       }
 
+      // Gateway must receive the same final payable as the quote (after coupon).
+      if (order.amount !== confirmedQuote.amountPaise) {
+        throw new Error(
+          "Payment amount mismatch. Please refresh and try again.",
+        );
+      }
+
       // Keep UI in sync with the amount the order was created for.
-      setQuote((prev) => ({
-        ...prev,
+      setQuote({
+        ...confirmedQuote,
         amountPaise: order.amount,
         currency:
           order.currency === "USD" || order.currency === "INR"
             ? order.currency
-            : prev.currency,
-      }));
+            : confirmedQuote.currency,
+      });
 
       const razorpayOrderId = String(order.order_id);
       const checkoutCurrency =
         order.currency === "USD" || order.currency === "INR"
           ? order.currency
-          : "INR";
+          : confirmedQuote.currency === "USD"
+            ? "USD"
+            : "INR";
       const isUsd = checkoutCurrency === "USD";
       // Razorpay rejects international checkout when prefill.contact is forced to +91.
       const prefillContact = (() => {
@@ -485,6 +600,7 @@ export function MembershipCheckoutPanel({
 
       const checkout = new window.Razorpay({
         key: order.key_id || keyId,
+        // Always the discounted payable — never list/original price.
         amount: order.amount,
         currency: checkoutCurrency,
         name: "The Healing Mat",
@@ -732,6 +848,14 @@ export function MembershipCheckoutPanel({
                     : "—"}
                 </dd>
               </div>
+              {quote.couponCode ? (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-[#5f6f64]">Coupon</dt>
+                  <dd className="font-mono font-semibold tracking-wide text-[#243028]">
+                    {quote.couponCode}
+                  </dd>
+                </div>
+              ) : null}
               <div className="flex justify-between gap-4 border-t border-[#d7e5d9] pt-2">
                 <dt className="font-bold text-[#243028]">Amount payable</dt>
                 <dd className="font-bold text-[#1f6b3a]">{payableLabel}</dd>
@@ -780,6 +904,12 @@ export function MembershipCheckoutPanel({
                     <p className="mt-0.5 font-mono text-[13px] font-bold tracking-wide text-[#243028]">
                       {appliedCoupon}
                     </p>
+                    {quote.discountPaise > 0 ? (
+                      <p className="mt-1 text-[12px] font-semibold text-[#1f6b3a]">
+                        − {formatMoney(quote.discountPaise, quote.currency)} ·
+                        payable {payableLabel}
+                      </p>
+                    ) : null}
                     {referralAvailable ? (
                       <p className="mt-1 text-[12px] text-[#6b7c6e]">
                         Remove this coupon to use your referral discount instead.
@@ -865,6 +995,50 @@ export function MembershipCheckoutPanel({
                       {promoBusy ? "Applying…" : "Apply"}
                     </button>
                   </div>
+
+                  {workEmailPrompt ? (
+                    <div className="mt-3 space-y-2 rounded-[12px] border border-[#e8d4a8] bg-[#fffdf5] px-3 py-3">
+                      <p className="text-[12px] font-semibold text-[#8a5a2f]">
+                        Verify work email for this corporate coupon
+                      </p>
+                      <input
+                        type="email"
+                        value={workEmail}
+                        onChange={(e) => setWorkEmail(e.target.value)}
+                        disabled={paying || verifying || promoBusy}
+                        placeholder="you@company.com"
+                        className="w-full rounded-[12px] border border-[#e8d4a8] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#1f6b3a] disabled:opacity-60"
+                      />
+                      {!workOtpSent ? (
+                        <button
+                          type="button"
+                          disabled={paying || verifying || promoBusy}
+                          onClick={() => void sendWorkEmailOtp()}
+                          className="inline-flex h-9 items-center justify-center rounded-full bg-[#1f6b3a] px-3 text-[12px] font-bold text-white disabled:opacity-60"
+                        >
+                          Send OTP
+                        </button>
+                      ) : (
+                        <div className="flex gap-2">
+                          <input
+                            value={workOtp}
+                            onChange={(e) => setWorkOtp(e.target.value)}
+                            disabled={paying || verifying || promoBusy}
+                            placeholder="6-digit OTP"
+                            className="min-w-0 flex-1 rounded-[12px] border border-[#e8d4a8] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#1f6b3a] disabled:opacity-60"
+                          />
+                          <button
+                            type="button"
+                            disabled={paying || verifying || promoBusy}
+                            onClick={() => void confirmWorkEmailOtp()}
+                            className="inline-flex items-center justify-center rounded-[12px] bg-[#1f6b3a] px-3 text-[12px] font-bold text-white disabled:opacity-60"
+                          >
+                            Verify
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
 
                   {!referralAvailable &&
                   applyReferralDiscount &&

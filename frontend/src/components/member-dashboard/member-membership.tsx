@@ -35,6 +35,10 @@ export function MemberMembershipPage() {
   const [scheduledInvoiceError, setScheduledInvoiceError] = useState<
     string | null
   >(null);
+  const [downloadingPriorInvoice, setDownloadingPriorInvoice] = useState(false);
+  const [priorInvoiceError, setPriorInvoiceError] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     sessionStore.attachClient();
@@ -166,6 +170,32 @@ export function MemberMembershipPage() {
     }
   }
 
+  async function onDownloadPriorInvoice() {
+    const token = getStoredToken();
+    if (!token || downloadingPriorInvoice) return;
+    setPriorInvoiceError(null);
+    setDownloadingPriorInvoice(true);
+    try {
+      let membershipId = access.priorInvoiceMembershipId;
+      if (!membershipId) {
+        const data = await getMyMembership(token);
+        const mapped = mapMembershipAccess(data);
+        sessionStore.setAccess(mapped);
+        membershipId = mapped.priorInvoiceMembershipId;
+      }
+      if (!membershipId) {
+        throw new Error("No original membership invoice found.");
+      }
+      await downloadMembershipInvoice(token, membershipId);
+    } catch (err: unknown) {
+      setPriorInvoiceError(
+        err instanceof Error ? err.message : "Unable to download invoice.",
+      );
+    } finally {
+      setDownloadingPriorInvoice(false);
+    }
+  }
+
   return (
     <div className="w-full bg-[#FBF9F5]">
       <div className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-8 sm:px-6 sm:pt-8 sm:pb-10 lg:px-6 lg:pb-10 xl:px-8">
@@ -225,6 +255,11 @@ export function MemberMembershipPage() {
                       {statusLabel}
                     </span>
                   ) : null}
+                  {!loading && access.isUpgrade ? (
+                    <span className="inline-flex rounded-[6px] bg-[#fff4e8] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#8a5a2f] uppercase">
+                      Upgraded
+                    </span>
+                  ) : null}
                 </div>
                 <p className="mt-2 text-[13px] leading-relaxed text-[#5f6f64] sm:max-w-[320px] sm:text-[14px] lg:max-w-[280px]">
                   {statusMessage}
@@ -266,7 +301,7 @@ export function MemberMembershipPage() {
                   </p>
                 ) : null}
                 {isPending || loading || !access.invoiceDownloadable ? null : (
-                  <div className="mt-2">
+                  <div className="mt-2 space-y-1.5">
                     <button
                       type="button"
                       disabled={downloadingInvoice}
@@ -275,16 +310,77 @@ export function MemberMembershipPage() {
                     >
                       {downloadingInvoice
                         ? "Downloading…"
-                        : "Download Invoice / Receipt"}
+                        : access.isUpgrade
+                          ? "Download Membership Upgrade Invoice"
+                          : "Download Invoice / Receipt"}
                       <DownloadIcon className="h-4 w-4" />
                     </button>
+                    {access.invoiceNumber ? (
+                      <p className="text-[11px] text-[#6b7c6e]">
+                        Invoice {access.invoiceNumber}
+                      </p>
+                    ) : null}
                     {invoiceError ? (
-                      <p className="mt-1 text-[12px] font-medium text-[#b42318]">
+                      <p className="text-[12px] font-medium text-[#b42318]">
                         {invoiceError}
                       </p>
                     ) : null}
+                    {access.priorInvoiceDownloadable ? (
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          disabled={downloadingPriorInvoice}
+                          onClick={() => void onDownloadPriorInvoice()}
+                          className="inline-flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a] decoration-dotted underline-offset-[3px] transition hover:text-[#185830] disabled:cursor-wait disabled:opacity-60 sm:text-[13px]"
+                        >
+                          {downloadingPriorInvoice
+                            ? "Downloading…"
+                            : "Download original invoice"}
+                          <DownloadIcon className="h-4 w-4" />
+                        </button>
+                        {access.priorInvoiceNumber ? (
+                          <p className="mt-0.5 text-[11px] text-[#6b7c6e]">
+                            Invoice {access.priorInvoiceNumber}
+                          </p>
+                        ) : null}
+                        {priorInvoiceError ? (
+                          <p className="mt-1 text-[12px] font-medium text-[#b42318]">
+                            {priorInvoiceError}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                 )}
+                {/* Upgrade with no additional payment still shows original invoice if available. */}
+                {!loading &&
+                !isPending &&
+                !access.invoiceDownloadable &&
+                access.priorInvoiceDownloadable ? (
+                  <div className="mt-2 space-y-1.5">
+                    <button
+                      type="button"
+                      disabled={downloadingPriorInvoice}
+                      onClick={() => void onDownloadPriorInvoice()}
+                      className="inline-flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a] decoration-dotted underline-offset-[3px] transition hover:text-[#185830] disabled:cursor-wait disabled:opacity-60 sm:text-[13px]"
+                    >
+                      {downloadingPriorInvoice
+                        ? "Downloading…"
+                        : "Download original invoice"}
+                      <DownloadIcon className="h-4 w-4" />
+                    </button>
+                    {access.priorInvoiceNumber ? (
+                      <p className="text-[11px] text-[#6b7c6e]">
+                        Invoice {access.priorInvoiceNumber}
+                      </p>
+                    ) : null}
+                    {priorInvoiceError ? (
+                      <p className="text-[12px] font-medium text-[#b42318]">
+                        {priorInvoiceError}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
               ) : null}
             </div>

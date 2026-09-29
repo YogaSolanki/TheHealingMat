@@ -30,6 +30,10 @@ export class CouponRedemption {
   @Column({ type: 'varchar', nullable: true })
   couponCode: string | null;
 
+  /** Work email verified for a corporate coupon (not written to user profile). */
+  @Column({ type: 'varchar', nullable: true })
+  verifiedEmail: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }
