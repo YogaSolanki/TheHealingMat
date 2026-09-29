@@ -32,6 +32,8 @@ import { MembershipPlansService } from './membership-plans.service';
 import { PaymentOrder } from './payment-order.entity';
 
 const MIN_ORDER_PAISE = 100;
+/** Minimum payable after coupon/referral: ₹1 / $1 (100 paise or cents). */
+const MIN_PAYABLE_MINOR = 100;
 
 type RazorpayInvoiceRecord = {
   id: string;
@@ -1160,7 +1162,12 @@ export class PaymentsService {
     }
 
     if (discountPaise > listPricePaise) discountPaise = listPricePaise;
-    const amountPaise = listPricePaise - discountPaise;
+    let amountPaise = listPricePaise - discountPaise;
+    // Coupon/referral may wipe the price; keep at least ₹1 / $1 for checkout + invoice.
+    if (amountPaise < MIN_PAYABLE_MINOR) {
+      amountPaise = MIN_PAYABLE_MINOR;
+      discountPaise = Math.max(0, listPricePaise - amountPaise);
+    }
 
     return {
       plan,
