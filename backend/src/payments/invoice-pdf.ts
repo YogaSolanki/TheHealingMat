@@ -89,6 +89,15 @@ function compactDiscountLabel(discountLabel: string | null): string {
   if (!discountLabel?.trim()) return 'Discount';
   const raw = sanitizeInvoiceText(discountLabel);
 
+  // ₹1 × N employee seat(s) (member invoices) → Discount (₹1 × N seats)
+  const seatReserve = raw.match(
+    /(?:₹\s*)?1\s*[×xX]\s*(\d+)\s*employee\s*seats?/i,
+  );
+  if (seatReserve) {
+    const n = Number(seatReserve[1]);
+    return `Discount (₹1 × ${n} seat${n === 1 ? '' : 's'})`;
+  }
+
   const companyPct = raw.match(/Company\s+(\d+)\s*%/i);
   if (companyPct && /employee/i.test(raw)) {
     const company = Number(companyPct[1]);

@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CouponsModule } from '../coupons/coupons.module';
 import { Coupon } from '../coupons/coupon.entity';
 import { PaymentsModule } from '../payments/payments.module';
+import { Membership } from '../payments/membership.entity';
 import { OtpChallenge } from '../users/otp-challenge.entity';
 import { User } from '../users/user.entity';
 import { Company } from './company.entity';
@@ -23,6 +24,7 @@ import { CorporateService } from './corporate.service';
       Coupon,
       OtpChallenge,
       User,
+      Membership,
     ]),
   ],
   controllers: [CorporateAdminController, CorporateMemberController],
