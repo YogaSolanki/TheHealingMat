@@ -155,3 +155,9 @@ export class VerifyCorporateCouponOtpDto {
   @MaxLength(8)
   code: string;
 }
+
+export class InspectCorporateCouponDto {
+  @IsString()
+  @MinLength(3)
+  couponCode: string;
+}

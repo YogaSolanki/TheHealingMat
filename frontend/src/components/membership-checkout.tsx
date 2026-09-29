@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useAuthModal } from "@/components/auth-modal-provider";
 import {
@@ -13,10 +14,12 @@ import {
   downloadMembershipInvoice,
   getMyCoupons,
   getMyMembership,
+  inspectCorporateCoupon,
   quoteMembership,
   requestCorporateCouponOtp,
   verifyCorporateCouponOtp,
   verifyRazorpayPayment,
+  type CorporateCouponInspect,
   type MemberCoupon,
   type MembershipQuote,
   type PublicMembershipPlan,
@@ -79,6 +82,22 @@ function formatMoney(minorUnits: number, currency: MembershipQuote["currency"]) 
   return formatMembershipMoney(minorUnits, currency);
 }
 
+function emailMatchesAllowedDomains(
+  email: string,
+  allowedDomains: string[],
+): boolean {
+  const trimmed = email.trim().toLowerCase();
+  const at = trimmed.lastIndexOf("@");
+  if (at <= 0 || at === trimmed.length - 1) return false;
+  const local = trimmed.slice(0, at);
+  const domain = trimmed.slice(at + 1);
+  if (!local || !domain.includes(".")) return false;
+  const allowed = allowedDomains
+    .map((d) => d.trim().toLowerCase().replace(/^@/, ""))
+    .filter(Boolean);
+  return allowed.length > 0 && allowed.includes(domain);
+}
+
 function resolvePlan(planMonths: number): PublicMembershipPlan {
   return (
     membershipPlansStore.getPlanByMonths(planMonths) ??
@@ -130,6 +149,8 @@ export function MembershipCheckoutPanel({
   const [quote, setQuote] = useState<MembershipQuote>(() =>
     quoteFromPlan(resolvePlan(planMonths)),
   );
+  /** May switch when a corporate seat coupon is for a different term. */
+  const [activePlanMonths, setActivePlanMonths] = useState(planMonths);
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
   const [domainVerificationId, setDomainVerificationId] = useState<
@@ -137,8 +158,11 @@ export function MembershipCheckoutPanel({
   >(null);
   const [workEmail, setWorkEmail] = useState("");
   const [workOtp, setWorkOtp] = useState("");
-  const [workEmailPrompt, setWorkEmailPrompt] = useState(false);
-  const [workOtpSent, setWorkOtpSent] = useState(false);
+  const [corporateModal, setCorporateModal] = useState<{
+    info: Extract<CorporateCouponInspect, { isCorporate: true }>;
+    phase: "intro" | "email" | "otp";
+  } | null>(null);
+  const [otpHint, setOtpHint] = useState<string | null>(null);
   const [applyReferralDiscount, setApplyReferralDiscount] = useState(false);
   const [assignedCoupons, setAssignedCoupons] = useState<MemberCoupon[]>([]);
   const [paying, setPaying] = useState(false);
@@ -152,14 +176,15 @@ export function MembershipCheckoutPanel({
   const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "";
 
   useEffect(() => {
+    setActivePlanMonths(planMonths);
     setQuote(quoteFromPlan(resolvePlan(planMonths)));
     setCouponInput("");
     setAppliedCoupon("");
     setDomainVerificationId(null);
     setWorkEmail("");
     setWorkOtp("");
-    setWorkEmailPrompt(false);
-    setWorkOtpSent(false);
+    setCorporateModal(null);
+    setOtpHint(null);
     setApplyReferralDiscount(false);
     setAssignedCoupons([]);
     setError(null);
@@ -205,6 +230,7 @@ export function MembershipCheckoutPanel({
           await membershipPlansStore.refresh(me.region);
           if (cancelled) return;
           setQuote(quoteFromPlan(resolvePlan(planMonths)));
+          setActivePlanMonths(planMonths);
         }
 
         if (membershipAccess?.state === "active" && membershipAccess.current?.endsAt) {
@@ -232,9 +258,12 @@ export function MembershipCheckoutPanel({
         });
         if (cancelled) return;
         setQuote(nextQuote);
+        setActivePlanMonths(planMonths);
         setApplyReferralDiscount(false);
         setAppliedCoupon("");
         setCouponInput("");
+        setDomainVerificationId(null);
+        setCorporateModal(null);
       })
       .catch(() => {
         // Keep catalog quote on screen if soft sync fails.
@@ -257,6 +286,13 @@ export function MembershipCheckoutPanel({
   const referralLocked = applyReferralDiscount;
   const referralDiscountPercent =
     quote.referralDiscountPercent ?? 20;
+  const workEmailDomainValid = corporateModal
+    ? emailMatchesAllowedDomains(
+        workEmail,
+        corporateModal.info.allowedDomains ?? [],
+      )
+    : false;
+  const workEmailTouched = workEmail.trim().length > 0;
 
   async function onDetailsContinue(value: MembershipCheckoutDetailsValue) {
     setStartsOn(value.startsOn);
@@ -267,6 +303,15 @@ export function MembershipCheckoutPanel({
     }
     setStepAnim("forward");
     setStep("payment");
+  }
+
+  function closeCorporateModal() {
+    setCorporateModal(null);
+    setWorkEmail("");
+    setWorkOtp("");
+    setOtpHint(null);
+    setDomainVerificationId(null);
+    setError(null);
   }
 
   async function applyPromoCode(codeOverride?: string) {
@@ -287,31 +332,48 @@ export function MembershipCheckoutPanel({
     setPromoBusy(true);
 
     try {
+      // Always clear prior domain verification — corporate apply requires OTP each time.
+      setDomainVerificationId(null);
+
+      let inspected: CorporateCouponInspect | null = null;
+      try {
+        inspected = await inspectCorporateCoupon(token, code);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "";
+        // Exhausted / inactive corporate codes throw here — do not treat as referral.
+        if (/invalid coupon/i.test(message)) {
+          setError("Invalid coupon");
+          return;
+        }
+        inspected = null;
+      }
+
+      if (inspected?.isCorporate) {
+        setCorporateModal({ info: inspected, phase: "intro" });
+        setWorkEmail("");
+        setWorkOtp("");
+        setOtpHint(null);
+        return;
+      }
+
       try {
         const next = await quoteMembership(token, {
-          planMonths,
+          planMonths: activePlanMonths,
           couponCode: code,
           applyReferralDiscount: false,
-          ...(domainVerificationId
-            ? { domainVerificationId }
-            : {}),
         });
         setQuote(next);
         setAppliedCoupon(next.couponCode ?? code);
         setCouponInput(next.couponCode ?? code);
         setApplyReferralDiscount(false);
-        setWorkEmailPrompt(false);
+        setCorporateModal(null);
         return;
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "";
+        // Never treat a domain-locked corporate code as a referral.
         if (/work email|corporate coupon/i.test(message)) {
-          setWorkEmailPrompt(true);
-          setWorkOtpSent(false);
-          setWorkOtp("");
-          setDomainVerificationId(null);
-          setAppliedCoupon("");
           setError(
-            "This is a corporate coupon. Verify a work email on the company domain to apply it.",
+            "This is a corporate coupon. Verify your work email to apply it.",
           );
           return;
         }
@@ -324,13 +386,13 @@ export function MembershipCheckoutPanel({
         return;
       }
 
-      // Unknown / invalid coupon → try as a referral code (allowed later, not only at trial).
+      // Unknown / invalid coupon → try as a referral code.
       try {
         const referralResult = await applyReferralCode(token, code);
         setUser(referralResult.user);
         updateMemberAuthCache(referralResult.user);
         const next = await quoteMembership(token, {
-          planMonths,
+          planMonths: activePlanMonths,
           applyReferralDiscount: true,
         });
         setQuote(next);
@@ -338,7 +400,7 @@ export function MembershipCheckoutPanel({
         setAppliedCoupon("");
         setCouponInput("");
         setDomainVerificationId(null);
-        setWorkEmailPrompt(false);
+        setCorporateModal(null);
       } catch {
         setError("Invalid coupon");
       }
@@ -354,11 +416,15 @@ export function MembershipCheckoutPanel({
     setPromoBusy(true);
     setError(null);
     try {
-      await requestCorporateCouponOtp(token, {
+      const sent = await requestCorporateCouponOtp(token, {
         couponCode: code,
         email: workEmail.trim(),
       });
-      setWorkOtpSent(true);
+      setOtpHint(sent.devOtp ? `Use OTP ${sent.devOtp}` : sent.message);
+      setCorporateModal((prev) =>
+        prev ? { ...prev, phase: "otp" } : prev,
+      );
+      setWorkOtp("");
     } catch (err: unknown) {
       setError(
         err instanceof Error ? err.message : "Unable to send verification code.",
@@ -383,23 +449,28 @@ export function MembershipCheckoutPanel({
         code: workOtp.trim(),
       });
       setDomainVerificationId(verified.domainVerificationId);
+      const seatMonths =
+        corporateModal?.info.planMonths && corporateModal.info.planMonths > 0
+          ? corporateModal.info.planMonths
+          : activePlanMonths;
       const next = await quoteMembership(token, {
-        planMonths,
+        planMonths: seatMonths,
         couponCode: code,
         applyReferralDiscount: false,
         domainVerificationId: verified.domainVerificationId,
       });
+      setActivePlanMonths(seatMonths);
       setQuote(next);
       setAppliedCoupon(next.couponCode ?? code);
       setCouponInput(next.couponCode ?? code);
       setApplyReferralDiscount(false);
-      setWorkEmailPrompt(false);
-      setWorkOtpSent(false);
+      setCorporateModal(null);
+      setWorkEmail("");
       setWorkOtp("");
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "Unable to verify work email.",
-      );
+      setOtpHint(null);
+    } catch {
+      setError("Invalid coupon");
+      setWorkOtp("");
     } finally {
       setPromoBusy(false);
     }
@@ -416,14 +487,15 @@ export function MembershipCheckoutPanel({
         applyReferralDiscount: false,
       });
       setQuote(next);
+      setActivePlanMonths(planMonths);
       setAppliedCoupon("");
       setCouponInput("");
       setApplyReferralDiscount(false);
       setDomainVerificationId(null);
-      setWorkEmailPrompt(false);
+      setCorporateModal(null);
       setWorkEmail("");
       setWorkOtp("");
-      setWorkOtpSent(false);
+      setOtpHint(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unable to remove code.");
     } finally {
@@ -441,7 +513,7 @@ export function MembershipCheckoutPanel({
     setApplyReferralDiscount(nextValue);
     try {
       const next = await quoteMembership(token, {
-        planMonths,
+        planMonths: activePlanMonths,
         applyReferralDiscount: nextValue,
       });
       setQuote(next);
@@ -473,7 +545,7 @@ export function MembershipCheckoutPanel({
     setPaying(false);
     setVerifying(false);
     openPaymentRetryModal({
-      planMonths,
+      planMonths: activePlanMonths,
       startMode,
       message: message || PAYMENT_INCOMPLETE,
     });
@@ -528,7 +600,7 @@ export function MembershipCheckoutPanel({
 
       // Re-confirm payable amount from the backend before charging.
       const confirmedQuote = await quoteMembership(token, {
-        planMonths,
+        planMonths: activePlanMonths,
         couponCode,
         applyReferralDiscount: applyReferral,
         ...(couponCode && domainVerificationId
@@ -542,7 +614,7 @@ export function MembershipCheckoutPanel({
       }
 
       const order = await createRazorpayOrder(token, {
-        planMonths,
+        planMonths: activePlanMonths,
         couponCode: confirmedQuote.couponCode ?? couponCode,
         startMode,
         ...(startsOn ? { startsOn } : {}),
@@ -767,6 +839,255 @@ export function MembershipCheckoutPanel({
       ) : (
         <div key="payment" className="checkout-step-in">
           <CheckoutCard className="relative">
+            {corporateModal && typeof document !== "undefined"
+              ? createPortal(
+                  <div
+                    className="fixed inset-0 z-[320] flex items-center justify-center px-4 py-5"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Corporate coupon verification"
+                  >
+                    <button
+                      type="button"
+                      aria-label="Close corporate coupon dialog"
+                      className="absolute inset-0 bg-[#0f1a14]/50 backdrop-blur-[4px]"
+                      onClick={closeCorporateModal}
+                    />
+                    <div className="relative z-10 flex max-h-[min(34rem,calc(100dvh-2.5rem))] w-full max-w-[22.5rem] flex-col overflow-hidden rounded-[20px] border border-[#d7e5d9] bg-white shadow-[0_22px_60px_rgba(15,26,20,0.28)]">
+                      {corporateModal.phase === "intro" ? (
+                        <>
+                          <div className="thm-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-2">
+                            <p className="text-[11px] font-bold tracking-[0.18em] text-[#8a5a2f] uppercase">
+                              Corporate coupon
+                            </p>
+                            <h2 className="mt-2 font-serif text-[1.4rem] leading-tight font-bold text-[#1f6b3a]">
+                              This is a corporate coupon
+                            </h2>
+                            <p className="mt-2 text-[13px] leading-relaxed text-[#5f6f64]">
+                              To redeem this seat, verify a work email on the
+                              company domain below.
+                            </p>
+                            <dl className="mt-4 space-y-2.5 rounded-[14px] border border-[#e6ebe3] bg-[#F4F8F2] px-3.5 py-3.5 text-[13px]">
+                              {corporateModal.info.companyName ? (
+                                <div className="flex items-start justify-between gap-3">
+                                  <dt className="shrink-0 text-[#6b7c6e]">
+                                    Company
+                                  </dt>
+                                  <dd className="text-right font-semibold text-[#243028]">
+                                    {corporateModal.info.companyName}
+                                  </dd>
+                                </div>
+                              ) : null}
+                              {corporateModal.info.planMonths ? (
+                                <div className="flex items-start justify-between gap-3">
+                                  <dt className="shrink-0 text-[#6b7c6e]">
+                                    Plan
+                                  </dt>
+                                  <dd className="text-right font-semibold text-[#243028]">
+                                    {corporateModal.info.planMonths} month
+                                    {corporateModal.info.planMonths === 1
+                                      ? ""
+                                      : "s"}
+                                    {corporateModal.info.planName
+                                      ? ` · ${corporateModal.info.planName}`
+                                      : ""}
+                                  </dd>
+                                </div>
+                              ) : null}
+                              <div className="flex items-start justify-between gap-3">
+                                <dt className="shrink-0 text-[#6b7c6e]">
+                                  Discount
+                                </dt>
+                                <dd className="text-right font-semibold text-[#1f6b3a]">
+                                  {corporateModal.info.discountLabel}
+                                </dd>
+                              </div>
+                              <div className="flex items-start justify-between gap-3">
+                                <dt className="shrink-0 text-[#6b7c6e]">
+                                  Domain
+                                </dt>
+                                <dd className="text-right font-semibold text-[#243028]">
+                                  {(corporateModal.info.allowedDomains ?? [])
+                                    .map((d) => `@${d}`)
+                                    .join(", ") || "—"}
+                                </dd>
+                              </div>
+                            </dl>
+                            {corporateModal.info.planMonths &&
+                            corporateModal.info.planMonths !==
+                              activePlanMonths ? (
+                              <p className="mt-3 rounded-[12px] border border-[#e8d4a8] bg-[#fffdf5] px-3 py-2 text-[12px] leading-snug text-[#8a5a2f]">
+                                Checkout will switch to the{" "}
+                                {corporateModal.info.planMonths}-month plan when
+                                you verify.
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="shrink-0 border-t border-[#eef3ee] bg-white px-5 py-4">
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                disabled={promoBusy}
+                                onClick={closeCorporateModal}
+                                className="flex-1 rounded-[12px] border border-[#d7e5d9] px-3 py-2.5 text-[13px] font-bold text-[#5f6f64] disabled:opacity-60"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                disabled={promoBusy}
+                                onClick={() => {
+                                  setError(null);
+                                  setCorporateModal((prev) =>
+                                    prev ? { ...prev, phase: "email" } : prev,
+                                  );
+                                }}
+                                className="flex-1 rounded-[12px] bg-[#1f6b3a] px-3 py-2.5 text-[13px] font-bold text-white disabled:opacity-60"
+                              >
+                                Verify
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <form
+                          className="flex min-h-0 flex-1 flex-col"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            if (promoBusy) return;
+                            if (corporateModal.phase === "email") {
+                              if (!workEmailDomainValid) return;
+                              void sendWorkEmailOtp();
+                              return;
+                            }
+                            if (!workOtp.trim()) return;
+                            void confirmWorkEmailOtp();
+                          }}
+                        >
+                          <div className="thm-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-2">
+                            <p className="text-[11px] font-bold tracking-[0.18em] text-[#8a5a2f] uppercase">
+                              Domain verification
+                            </p>
+                            <h2 className="mt-2 font-serif text-[1.3rem] leading-tight font-bold text-[#1f6b3a]">
+                              {corporateModal.phase === "email"
+                                ? "Enter work email"
+                                : "Enter OTP"}
+                            </h2>
+                            <p className="mt-2 text-[13px] leading-relaxed text-[#5f6f64]">
+                              Use an email ending with{" "}
+                              <span className="font-semibold text-[#243028]">
+                                {(corporateModal.info.allowedDomains ?? [])
+                                  .map((d) => `@${d}`)
+                                  .join(" or ") || "the company domain"}
+                              </span>
+                              .
+                            </p>
+                            <label className="mt-4 block">
+                              <span className="mb-1.5 block text-[12px] font-semibold text-[#5f6f64]">
+                                Work email
+                              </span>
+                              <input
+                                type="email"
+                                value={workEmail}
+                                onChange={(e) => setWorkEmail(e.target.value)}
+                                disabled={
+                                  promoBusy || corporateModal.phase === "otp"
+                                }
+                                placeholder={`you@${corporateModal.info.allowedDomains[0] ?? "company.com"}`}
+                                className={`w-full rounded-[12px] border bg-white px-3 py-2.5 text-[14px] outline-none disabled:bg-[#f7faf6] disabled:opacity-80 ${
+                                  workEmailTouched && !workEmailDomainValid
+                                    ? "border-[#e0a8a2] focus:border-[#b42318]"
+                                    : "border-[#d7e5d9] focus:border-[#1f6b3a]"
+                                }`}
+                                autoComplete="email"
+                                autoFocus={corporateModal.phase === "email"}
+                              />
+                              {workEmailTouched && !workEmailDomainValid ? (
+                                <p className="mt-1.5 text-[12px] font-medium text-[#b42318]">
+                                  Use an email ending with{" "}
+                                  {(corporateModal.info.allowedDomains ?? [])
+                                    .map((d) => `@${d}`)
+                                    .join(" or ") || "the company domain"}
+                                  .
+                                </p>
+                              ) : null}
+                            </label>
+                            {corporateModal.phase === "otp" ? (
+                              <label className="mt-3 block">
+                                <span className="mb-1.5 block text-[12px] font-semibold text-[#5f6f64]">
+                                  OTP
+                                </span>
+                                <input
+                                  value={workOtp}
+                                  onChange={(e) => setWorkOtp(e.target.value)}
+                                  disabled={promoBusy}
+                                  placeholder="Enter OTP"
+                                  inputMode="numeric"
+                                  className="w-full rounded-[12px] border border-[#d7e5d9] bg-white px-3 py-2.5 text-[14px] outline-none focus:border-[#1f6b3a] disabled:opacity-60"
+                                  autoComplete="one-time-code"
+                                  autoFocus
+                                />
+                                {otpHint ? (
+                                  <p className="mt-2 text-[12px] font-medium text-[#1f6b3a]">
+                                    {otpHint}
+                                  </p>
+                                ) : null}
+                              </label>
+                            ) : null}
+                            {error ? (
+                              <p className="mt-3 text-[13px] font-medium text-[#b42318]">
+                                {error}
+                              </p>
+                            ) : null}
+                          </div>
+
+                          <div className="shrink-0 border-t border-[#eef3ee] bg-white px-5 py-4">
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                disabled={promoBusy}
+                                onClick={closeCorporateModal}
+                                className="flex-1 rounded-[12px] border border-[#d7e5d9] px-3 py-2.5 text-[13px] font-bold text-[#5f6f64] disabled:opacity-60"
+                              >
+                                Cancel
+                              </button>
+                              {corporateModal.phase === "email" ? (
+                                <button
+                                  type="submit"
+                                  disabled={
+                                    promoBusy ||
+                                    !workEmail.trim() ||
+                                    !workEmailDomainValid
+                                  }
+                                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-[12px] bg-[#1f6b3a] px-3 py-2.5 text-[13px] font-bold text-white disabled:opacity-60"
+                                >
+                                  {promoBusy ? (
+                                    <ButtonLoader tone="brand" size="sm" />
+                                  ) : null}
+                                  {promoBusy ? "Sending…" : "Send OTP"}
+                                </button>
+                              ) : (
+                                <button
+                                  type="submit"
+                                  disabled={promoBusy || !workOtp.trim()}
+                                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-[12px] bg-[#1f6b3a] px-3 py-2.5 text-[13px] font-bold text-white disabled:opacity-60"
+                                >
+                                  {promoBusy ? (
+                                    <ButtonLoader tone="brand" size="sm" />
+                                  ) : null}
+                                  {promoBusy ? "Verifying…" : "Verify OTP"}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </form>
+                      )}
+                    </div>
+                  </div>,
+                  document.body,
+                )
+              : null}
+
             {verifying ? (
               <div
                 className="payment-verify-overlay absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-[22px] bg-white/78 backdrop-blur-[6px]"
@@ -995,50 +1316,6 @@ export function MembershipCheckoutPanel({
                       {promoBusy ? "Applying…" : "Apply"}
                     </button>
                   </div>
-
-                  {workEmailPrompt ? (
-                    <div className="mt-3 space-y-2 rounded-[12px] border border-[#e8d4a8] bg-[#fffdf5] px-3 py-3">
-                      <p className="text-[12px] font-semibold text-[#8a5a2f]">
-                        Verify work email for this corporate coupon
-                      </p>
-                      <input
-                        type="email"
-                        value={workEmail}
-                        onChange={(e) => setWorkEmail(e.target.value)}
-                        disabled={paying || verifying || promoBusy}
-                        placeholder="you@company.com"
-                        className="w-full rounded-[12px] border border-[#e8d4a8] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#1f6b3a] disabled:opacity-60"
-                      />
-                      {!workOtpSent ? (
-                        <button
-                          type="button"
-                          disabled={paying || verifying || promoBusy}
-                          onClick={() => void sendWorkEmailOtp()}
-                          className="inline-flex h-9 items-center justify-center rounded-full bg-[#1f6b3a] px-3 text-[12px] font-bold text-white disabled:opacity-60"
-                        >
-                          Send OTP
-                        </button>
-                      ) : (
-                        <div className="flex gap-2">
-                          <input
-                            value={workOtp}
-                            onChange={(e) => setWorkOtp(e.target.value)}
-                            disabled={paying || verifying || promoBusy}
-                            placeholder="6-digit OTP"
-                            className="min-w-0 flex-1 rounded-[12px] border border-[#e8d4a8] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#1f6b3a] disabled:opacity-60"
-                          />
-                          <button
-                            type="button"
-                            disabled={paying || verifying || promoBusy}
-                            onClick={() => void confirmWorkEmailOtp()}
-                            className="inline-flex items-center justify-center rounded-[12px] bg-[#1f6b3a] px-3 text-[12px] font-bold text-white disabled:opacity-60"
-                          >
-                            Verify
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ) : null}
 
                   {!referralAvailable &&
                   applyReferralDiscount &&

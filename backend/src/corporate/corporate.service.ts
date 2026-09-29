@@ -10,7 +10,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { randomInt } from 'crypto';
 import { DataSource, MoreThanOrEqual, Repository } from 'typeorm';
 import { CouponsService } from '../coupons/coupons.service';
 import { Coupon } from '../coupons/coupon.entity';
@@ -344,14 +343,80 @@ export class CorporateService implements OnModuleInit {
 
   // ─── Member: domain OTP for corporate coupons ───────────────────────────
 
+  /** Temporary fixed OTP until real domain email delivery is enabled. */
+  private readonly corporateDomainOtp = '1111';
+
+  async inspectCorporateCoupon(userId: string, couponCode: string) {
+    const coupon = await this.coupons.findByCode(couponCode);
+    if (!coupon || !this.coupons.isCorporateCoupon(coupon)) {
+      return { isCorporate: false as const };
+    }
+
+    if (!coupon.active) {
+      throw new BadRequestException('Invalid coupon');
+    }
+    if (coupon.expiresAt && coupon.expiresAt.getTime() <= Date.now()) {
+      throw new BadRequestException('Invalid coupon');
+    }
+    if (coupon.usageCount >= coupon.maxUses) {
+      throw new BadRequestException('Invalid coupon');
+    }
+    const alreadyUsed = await this.coupons
+      .listRedemptionsForCoupon(coupon.id)
+      .then((rows) => rows.some((row) => row.userId === userId));
+    if (alreadyUsed) {
+      throw new BadRequestException('Invalid coupon');
+    }
+
+    let planMonths: number | null = null;
+    let planName: string | null = null;
+    let companyName: string | null = null;
+    let employeeCount: number | null = null;
+    if (coupon.corporatePlanId) {
+      const plan = await this.plans.findOne({
+        where: { id: coupon.corporatePlanId },
+      });
+      if (plan) {
+        planMonths = plan.planMonths;
+        planName = plan.planName;
+        employeeCount = plan.employeeCount;
+        const company = await this.companies.findOne({
+          where: { id: plan.companyId },
+        });
+        companyName = company?.companyName ?? null;
+      }
+    }
+
+    return {
+      isCorporate: true as const,
+      code: coupon.code,
+      discountType: coupon.discountType,
+      discountValue: coupon.discountValue,
+      discountLabel: coupon.discountLabel,
+      allowedDomains: coupon.allowedDomains ?? [],
+      planMonths,
+      planName,
+      companyName,
+      employeeCount,
+      remainingUses: Math.max(0, coupon.maxUses - coupon.usageCount),
+    };
+  }
+
   async requestCouponDomainOtp(userId: string, dto: RequestCorporateCouponOtpDto) {
     const coupon = await this.requireOpenCorporateCoupon(dto.couponCode);
-    await this.coupons.assertRedeemable(coupon, userId, {
-      verifiedEmail: dto.email.trim().toLowerCase(),
-    });
-
     const email = dto.email.trim().toLowerCase();
     this.assertEmailMatchesDomains(email, coupon.allowedDomains ?? []);
+
+    // Soft redeemability check without requiring verification id yet.
+    if (!coupon.active || coupon.usageCount >= coupon.maxUses) {
+      throw new BadRequestException('Invalid coupon');
+    }
+    const alreadyUsed = await this.coupons
+      .listRedemptionsForCoupon(coupon.id)
+      .then((rows) => rows.some((row) => row.userId === userId));
+    if (alreadyUsed) {
+      throw new BadRequestException('Invalid coupon');
+    }
 
     const dayStart = this.startOfIstDay(new Date());
     const sendsToday = await this.otpChallenges.count({
@@ -367,7 +432,7 @@ export class CorporateService implements OnModuleInit {
       );
     }
 
-    const code = String(randomInt(100000, 999999));
+    const code = this.corporateDomainOtp;
     const codeHash = await bcrypt.hash(code, BCRYPT_ROUNDS);
     const expiresAt = new Date(Date.now() + OTP_TTL_SECONDS * 1000);
     await this.otpChallenges.save(
@@ -383,14 +448,19 @@ export class CorporateService implements OnModuleInit {
       }),
     );
 
-    await this.sendDomainOtpEmail({ email, code });
+    // Real domain email delivery comes later — use fixed OTP for now.
+    this.logger.log(
+      `[corporate-otp] ${email} → use OTP ${code} (email send disabled)`,
+    );
 
     return {
       success: true,
-      message: 'OTP sent to your work email.',
+      message: `Enter OTP ${code} to verify your work email.`,
       expiresInSeconds: OTP_TTL_SECONDS,
       email,
       allowedDomains: coupon.allowedDomains ?? [],
+      /** UI hint while real email delivery is off. */
+      devOtp: code,
     };
   }
 
@@ -417,11 +487,14 @@ export class CorporateService implements OnModuleInit {
       throw new UnauthorizedException('Too many incorrect attempts.');
     }
 
-    const ok = await bcrypt.compare(dto.code.trim(), challenge.codeHash);
+    const submitted = dto.code.trim();
+    const ok =
+      submitted === this.corporateDomainOtp ||
+      (await bcrypt.compare(submitted, challenge.codeHash));
     if (!ok) {
       challenge.attempts += 1;
       await this.otpChallenges.save(challenge);
-      throw new UnauthorizedException('Incorrect OTP.');
+      throw new UnauthorizedException('Invalid coupon');
     }
 
     challenge.verifiedAt = new Date();

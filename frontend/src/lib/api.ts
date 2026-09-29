@@ -615,6 +615,37 @@ export async function quoteMembership(
   return parseJson<MembershipQuote>(response);
 }
 
+export type CorporateCouponInspect =
+  | { isCorporate: false }
+  | {
+      isCorporate: true;
+      code: string;
+      discountType: string;
+      discountValue: number;
+      discountLabel: string;
+      allowedDomains: string[];
+      planMonths: number | null;
+      planName: string | null;
+      companyName: string | null;
+      employeeCount: number | null;
+      remainingUses: number;
+    };
+
+export async function inspectCorporateCoupon(
+  accessToken: string,
+  couponCode: string,
+): Promise<CorporateCouponInspect> {
+  const response = await fetch(
+    `${API_URL}/memberships/corporate-coupon/inspect`,
+    {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify({ couponCode }),
+    },
+  );
+  return parseJson<CorporateCouponInspect>(response);
+}
+
 export async function requestCorporateCouponOtp(
   accessToken: string,
   input: { couponCode: string; email: string },
@@ -633,6 +664,8 @@ export async function requestCorporateCouponOtp(
     expiresInSeconds: number;
     email: string;
     allowedDomains: string[];
+    /** Present while real email delivery is off. */
+    devOtp?: string;
   }>(response);
 }
 

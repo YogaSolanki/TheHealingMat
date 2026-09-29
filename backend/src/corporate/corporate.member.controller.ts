@@ -5,6 +5,7 @@ import { Role } from '../auth/enums/role.enum';
 import { User } from '../users/user.entity';
 import { CorporateService } from './corporate.service';
 import {
+  InspectCorporateCouponDto,
   RequestCorporateCouponOtpDto,
   VerifyCorporateCouponOtpDto,
 } from './dto/corporate.dto';
@@ -12,6 +13,15 @@ import {
 @Controller('memberships/corporate-coupon')
 export class CorporateMemberController {
   constructor(private readonly corporate: CorporateService) {}
+
+  @Roles(Role.User)
+  @Post('inspect')
+  inspect(
+    @CurrentUser() user: User,
+    @Body() dto: InspectCorporateCouponDto,
+  ) {
+    return this.corporate.inspectCorporateCoupon(user.id, dto.couponCode);
+  }
 
   @Roles(Role.User)
   @Post('request-otp')
