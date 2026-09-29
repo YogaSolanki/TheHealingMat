@@ -8,7 +8,12 @@ import {
   type MyReferralsResponse,
   type PublicUser,
 } from "@/lib/api";
-import { clearStoredToken, getStoredToken } from "@/lib/auth-storage";
+import {
+  clearStoredToken,
+  FORCE_LOGOUT_EVENT,
+  getStoredToken,
+  isAccountDeactivatedMessage,
+} from "@/lib/auth-storage";
 import {
   emptyMemberAccess,
   mapMembershipAccess,
@@ -100,6 +105,12 @@ class SessionStore {
     this.clientAttached = true;
     this.hydrateFromStorage();
     this.emit();
+
+    if (typeof window !== "undefined") {
+      window.addEventListener(FORCE_LOGOUT_EVENT, () => {
+        this.clear();
+      });
+    }
 
     // After a full page refresh, pull latest membership once so admin/plan
     // updates show up. In-app dashboard tab switches reuse in-memory cache.
@@ -317,7 +328,13 @@ class SessionStore {
         this.setAccess(mapped);
         return mapped;
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : "";
+        if (isAccountDeactivatedMessage(message)) {
+          this.clear();
+          clearStoredToken();
+          return emptyMemberAccess("pending");
+        }
         const fallback = this.accessReady
           ? this.access
           : emptyMemberAccess("pending");
@@ -358,7 +375,13 @@ class SessionStore {
         this.setReferrals(normalized);
         return normalized;
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : "";
+        if (isAccountDeactivatedMessage(message)) {
+          this.clear();
+          clearStoredToken();
+          return EMPTY_REFERRALS;
+        }
         const fallback = this.referralsReady ? this.referrals : EMPTY_REFERRALS;
         this.setReferrals(fallback);
         return fallback;

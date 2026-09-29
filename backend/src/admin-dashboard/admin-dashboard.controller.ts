@@ -113,6 +113,16 @@ export class AdminDashboardController {
     return this.dashboard.deleteAllUsers();
   }
 
+  @Post('users/:id/deactivate')
+  deactivateUser(@Param('id', ParseUUIDPipe) id: string) {
+    return this.dashboard.deactivateUser(id);
+  }
+
+  @Post('users/:id/reactivate')
+  reactivateUser(@Param('id', ParseUUIDPipe) id: string) {
+    return this.dashboard.reactivateUser(id);
+  }
+
   @Delete('users/:id')
   deleteUser(@Param('id', ParseUUIDPipe) id: string) {
     return this.dashboard.deleteUser(id);

@@ -11,7 +11,7 @@ import { SiteHeaderAuthSkeleton } from "@/components/site-header-auth-skeleton";
 import { LoggedInRedirect } from "@/components/logged-in-redirect";
 import { MemberDashboardHeader } from "@/components/member-dashboard/member-dashboard-header";
 import { ReferralCapture } from "@/components/referral-capture";
-import { getStoredToken } from "@/lib/auth-storage";
+import { FORCE_LOGOUT_EVENT, getStoredToken } from "@/lib/auth-storage";
 import { isDashboardPath, shouldShowMemberHeader } from "@/lib/member-routes";
 import { sessionStore } from "@/lib/session-store";
 
@@ -40,6 +40,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setSignedIn(Boolean(getStoredToken()));
     setAuthChecked(true);
   }, [pathname]);
+
+  useEffect(() => {
+    function onForceLogout() {
+      setSignedIn(false);
+      setAuthChecked(true);
+    }
+    window.addEventListener(FORCE_LOGOUT_EVENT, onForceLogout);
+    return () => window.removeEventListener(FORCE_LOGOUT_EVENT, onForceLogout);
+  }, []);
 
   return (
     <ReferEarnPopupProvider>

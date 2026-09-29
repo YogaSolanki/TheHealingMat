@@ -2,6 +2,12 @@
  * Browser: prefer same-origin `/api` (Next rewrite → backend).
  * Server Components: relative URLs fail in Node fetch — call the backend absolute URL.
  */
+import {
+  forceLogoutDeactivatedAccount,
+  getStoredToken,
+  isAccountDeactivatedMessage,
+} from "@/lib/auth-storage";
+
 function resolveApiUrl() {
   let configured = (process.env.NEXT_PUBLIC_API_URL ?? "/api").replace(/\/$/, "") || "/api";
 
@@ -197,7 +203,16 @@ function readResponseErrorMessage(
 async function parseJson<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(readResponseErrorMessage(data, response.status));
+    const message = readResponseErrorMessage(data, response.status);
+    // Inactive account: drop local session so the member cannot stay signed in.
+    if (
+      response.status === 401 &&
+      isAccountDeactivatedMessage(message) &&
+      getStoredToken()
+    ) {
+      forceLogoutDeactivatedAccount(message);
+    }
+    throw new Error(message);
   }
   return data as T;
 }

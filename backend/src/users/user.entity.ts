@@ -5,6 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { AccountStatus } from './enums/account-status.enum';
 import { Region } from './enums/region.enum';
 import { Gender } from './enums/gender.enum';
 
@@ -68,6 +69,10 @@ export class User {
   /** One Free Trial per user (lifetime). */
   @Column({ default: false })
   hasUsedFreeTrial: boolean;
+
+  /** inactive = deactivated by admin; login blocked, records retained. */
+  @Column({ type: 'varchar', default: AccountStatus.Active })
+  accountStatus: AccountStatus;
 
   @CreateDateColumn()
   createdAt: Date;

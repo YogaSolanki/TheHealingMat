@@ -28,6 +28,7 @@ import {
   isUniqueViolation,
 } from '../users/account-identity';
 import { buildMemberAccessLink } from '../common/frontend-url';
+import { AccountStatus } from '../users/enums/account-status.enum';
 import { Region } from '../users/enums/region.enum';
 import { TrialStatus } from '../users/enums/trial-status.enum';
 import { OtpChallenge } from '../users/otp-challenge.entity';
@@ -267,6 +268,7 @@ export class AdminDashboardService {
         accessLinkToken: user.accessLinkToken,
         hasUsedFreeTrial: user.hasUsedFreeTrial,
         passwordSetByUser: user.passwordSetByUser,
+        accountStatus: user.accountStatus ?? AccountStatus.Active,
         referredByUserId: user.referredByUserId,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
@@ -1169,6 +1171,33 @@ export class AdminDashboardService {
     return next;
   }
 
+  async deactivateUser(id: string) {
+    const user = await this.users.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+    if (user.accountStatus === AccountStatus.Inactive) {
+      return this.getUserDetail(id);
+    }
+    user.accountStatus = AccountStatus.Inactive;
+    await this.users.save(user);
+    return this.getUserDetail(id);
+  }
+
+  async reactivateUser(id: string) {
+    const user = await this.users.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+    if (user.accountStatus === AccountStatus.Active) {
+      return this.getUserDetail(id);
+    }
+    user.accountStatus = AccountStatus.Active;
+    await this.users.save(user);
+    return this.getUserDetail(id);
+  }
+
+  /** Exceptional permanent removal — use only with explicit user-approved requests. */
   async deleteUser(id: string) {
     const user = await this.users.findOne({ where: { id } });
     if (!user) {
@@ -1277,6 +1306,7 @@ export class AdminDashboardService {
       email: user.email,
       referralCode: user.referralCode,
       hasUsedFreeTrial: user.hasUsedFreeTrial,
+      accountStatus: user.accountStatus ?? AccountStatus.Active,
       createdAt: user.createdAt,
     };
   }

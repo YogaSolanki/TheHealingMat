@@ -119,6 +119,7 @@ export type AdminUserRow = {
   email: string | null;
   referralCode: string;
   hasUsedFreeTrial: boolean;
+  accountStatus?: "active" | "inactive";
   createdAt: string;
   trial?: {
     status: string;
@@ -186,19 +187,21 @@ export function checkAdminUserExists(
   );
 }
 
-export function deleteAdminUser(token: string, id: string) {
-  return authJson<{ success: boolean }>(
-    "DELETE",
-    `/admin/users/${id}`,
+export function deactivateAdminUser(token: string, id: string) {
+  return authJson<AdminUserDetail>(
+    "POST",
+    `/admin/users/${id}/deactivate`,
     token,
-  ).then(() => undefined);
+    {},
+  );
 }
 
-export function deleteAllAdminUsers(token: string) {
-  return authJson<{ success: boolean; deletedCount: number }>(
-    "DELETE",
-    "/admin/users",
+export function reactivateAdminUser(token: string, id: string) {
+  return authJson<AdminUserDetail>(
+    "POST",
+    `/admin/users/${id}/reactivate`,
     token,
+    {},
   );
 }
 
@@ -218,6 +221,7 @@ export type AdminUserDetail = {
     accessLinkToken: string;
     hasUsedFreeTrial: boolean;
     passwordSetByUser: boolean;
+    accountStatus?: "active" | "inactive";
     referredByUserId: string | null;
     createdAt: string;
     updatedAt: string;

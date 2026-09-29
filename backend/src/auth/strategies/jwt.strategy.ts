@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Repository } from 'typeorm';
 import { Admin } from '../../admins/admin.entity';
+import { assertUserAccountActive } from '../../users/account-access';
 import { User } from '../../users/user.entity';
 
 export type JwtPayload = {
@@ -43,6 +44,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       if (!user) {
         throw new UnauthorizedException('Please sign in.');
       }
+      assertUserAccountActive(user);
       return user;
     }
 

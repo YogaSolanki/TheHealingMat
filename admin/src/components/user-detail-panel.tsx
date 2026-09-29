@@ -2,16 +2,19 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { AdminConfirmDialog } from "@/components/admin-confirm-dialog";
 import { AdminToast } from "@/components/admin-toast";
 import { ReloadButton } from "@/components/reload-button";
 import {
   ADMIN_TOKEN_KEY,
   activateAdminMembershipFromPayment,
   createAdminUserMembership,
+  deactivateAdminUser,
   downloadAdminMembershipInvoice,
   getAdminUserDetail,
   listAdminMembershipPlans,
   listAdminSessionTimings,
+  reactivateAdminUser,
   updateAdminUser,
   updateAdminUserMembership,
   upgradeAdminUserMembership,
@@ -475,6 +478,8 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   >(null);
   const [accessLinkCopied, setAccessLinkCopied] = useState(false);
   const [preferredClassTimes, setPreferredClassTimes] = useState<string[]>([]);
+  const [pendingDeactivate, setPendingDeactivate] = useState(false);
+  const [accountActionBusy, setAccountActionBusy] = useState(false);
 
   const token = useMemo(
     () =>
@@ -575,8 +580,52 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     void load();
   }, [load]);
 
+  async function confirmDeactivateAccount() {
+    if (!token || accountActionBusy || !detail) return;
+    setAccountActionBusy(true);
+    setError(null);
+    try {
+      const next = await deactivateAdminUser(token, userId);
+      applyDetail(next);
+      invalidateCached(DASHBOARD_CACHE_KEYS.users);
+      invalidateCached(DASHBOARD_CACHE_KEYS.overview);
+      setPendingDeactivate(false);
+      setEditing(false);
+      setMembershipComposer(null);
+      setUpgradeTargetId(null);
+      setPendingSave(null);
+      showSuccess("Account deactivated. The member cannot sign in until reactivated.");
+    } catch (err) {
+      showError(
+        err instanceof Error ? err.message : "Failed to deactivate account.",
+      );
+    } finally {
+      setAccountActionBusy(false);
+    }
+  }
+
+  async function reactivateAccount() {
+    if (!token || accountActionBusy || !detail) return;
+    setAccountActionBusy(true);
+    setError(null);
+    try {
+      const next = await reactivateAdminUser(token, userId);
+      applyDetail(next);
+      invalidateCached(DASHBOARD_CACHE_KEYS.users);
+      invalidateCached(DASHBOARD_CACHE_KEYS.overview);
+      showSuccess("Account reactivated. The member can sign in again.");
+    } catch (err) {
+      showError(
+        err instanceof Error ? err.message : "Failed to reactivate account.",
+      );
+    } finally {
+      setAccountActionBusy(false);
+    }
+  }
+
   function enterEditMode() {
     if (!detail) return;
+    if (detail.profile.accountStatus === "inactive") return;
     applyDetail(detail);
     setEditing(true);
     setMembershipComposer(null);
@@ -621,6 +670,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   }
 
   function openMembershipComposer(mode: Exclude<MembershipComposer, null>) {
+    if (detail?.profile.accountStatus === "inactive") return;
     const currency =
       detail?.profile.region === "outside_india" ? "USD" : "INR";
     setMembershipComposer((current) => {
@@ -656,6 +706,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
   function startUpgrade(membershipId: string) {
     if (!detail) return;
+    if (detail.profile.accountStatus === "inactive") return;
     const target = detail.memberships.find((m) => m.id === membershipId);
     if (!target) return;
 
@@ -732,6 +783,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   function requestSaveProfile(event: FormEvent) {
     event.preventDefault();
     if (!editing || !profileForm || savingProfile) return;
+    if (detail?.profile.accountStatus === "inactive") return;
     if (!detail || !isProfileDirty(profileForm, profileFromDetail(detail))) {
       return;
     }
@@ -764,6 +816,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
   function requestSaveMembership(membershipId: string) {
     if (!editing || savingMembershipId) return;
+    if (detail?.profile.accountStatus === "inactive") return;
     const form = membershipForms[membershipId];
     if (!form) return;
     const row = detail?.memberships.find((m) => m.id === membershipId);
@@ -782,6 +835,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
   function requestCreateMembership(mode: "add" | "renew") {
     if (!editing || savingNewMembership || !detail) return;
+    if (detail.profile.accountStatus === "inactive") return;
     const planMonths = Number(newMembershipForm.planMonths);
     if (!Number.isInteger(planMonths) || planMonths < 1) {
       showError("Select a valid plan.");
@@ -830,6 +884,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
   function requestUpgradeMembership(membershipId: string) {
     if (!editing || savingMembershipId) return;
+    if (detail?.profile.accountStatus === "inactive") return;
     const planMonths = Number(upgradeForm.planMonths);
     if (!Number.isInteger(planMonths) || planMonths < 1) {
       showError("Select a valid longer plan.");
@@ -886,6 +941,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
   function requestActivatePayment(paymentOrderId: string) {
     if (!editing || activatingPaymentId) return;
+    if (detail?.profile.accountStatus === "inactive") return;
     setPendingSave({ type: "activate-payment", paymentOrderId });
   }
 
@@ -1228,8 +1284,10 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     );
   }
 
+  const accountInactive = detail.profile.accountStatus === "inactive";
+  const adminCanModify = !accountInactive && editing;
   const fieldsLocked =
-    !editing ||
+    !adminCanModify ||
     savingProfile ||
     Boolean(savingMembershipId) ||
     savingNewMembership ||
@@ -1238,7 +1296,8 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     savingProfile ||
     Boolean(savingMembershipId) ||
     savingNewMembership ||
-    Boolean(activatingPaymentId);
+    Boolean(activatingPaymentId) ||
+    accountActionBusy;
   const membershipCurrency =
     detail.profile.region === "outside_india" ? "USD" : "INR";
   const needsBillingLocation = !detail.profile.state?.trim();
@@ -1382,11 +1441,30 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
+      <AdminConfirmDialog
+        open={pendingDeactivate}
+        title="Deactivate user?"
+        description={`Deactivate “${detail.profile.fullName}”? They will not be able to sign in. Membership, payment, invoice, and referral records are kept. You can reactivate the account later.`}
+        confirmLabel="Deactivate user"
+        variant="default"
+        busy={accountActionBusy}
+        onCancel={() => {
+          if (!accountActionBusy) setPendingDeactivate(false);
+        }}
+        onConfirm={() => void confirmDeactivateAccount()}
+      />
       <AdminToast
         message={toast?.message ?? null}
         variant={toast?.variant ?? "success"}
         onDismiss={() => setToast(null)}
       />
+      {accountInactive ? (
+        <p className="rounded-xl border border-[#e8dfd0] bg-[#faf6f0] px-4 py-3 text-sm text-[#6b5b4a]">
+          This account is <strong className="font-semibold">inactive</strong>.
+          The member cannot sign in. Records are retained; use Reactivate to
+          restore access.
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link
@@ -1399,32 +1477,55 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             {detail.profile.fullName}
           </h1>
           <p className="mt-1 text-sm text-[#5f6f64]">
-            {editing
-              ? "Editing enabled — save changes to apply"
-              : "Viewing member details"}
+            {accountInactive
+              ? "Inactive account — view only"
+              : editing
+                ? "Editing enabled — save changes to apply"
+                : "Viewing member details"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {editing ? (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {accountInactive ? (
             <button
               type="button"
-              onClick={cancelEditMode}
+              onClick={() => void reactivateAccount()}
               disabled={confirmBusy}
-              className="inline-flex h-10 items-center justify-center rounded-full border border-[#d7e0d6] bg-white px-4 text-sm font-semibold text-[#3d4a3c] transition hover:bg-[#f6f8f5] disabled:opacity-60"
+              className="inline-flex h-10 items-center justify-center rounded-full bg-[#1f6b3a] px-4 text-sm font-semibold text-white transition hover:bg-[#185830] disabled:opacity-60"
             >
-              Cancel
+              Reactivate account
             </button>
           ) : (
             <button
               type="button"
-              onClick={enterEditMode}
-              aria-label="Edit member"
-              title="Edit member"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#e8f2ea] text-[#1f6b3a] transition hover:bg-[#dceadf]"
+              onClick={() => setPendingDeactivate(true)}
+              disabled={confirmBusy}
+              className="inline-flex h-10 items-center justify-center rounded-full border border-[#e0d8cc] bg-[#faf8f5] px-4 text-sm font-semibold text-[#5f4a3a] transition hover:bg-[#f3efe8] disabled:opacity-60"
             >
-              <EditIcon />
+              Deactivate account
             </button>
           )}
+          {!accountInactive ? (
+            editing ? (
+              <button
+                type="button"
+                onClick={cancelEditMode}
+                disabled={confirmBusy}
+                className="inline-flex h-10 items-center justify-center rounded-full border border-[#d7e0d6] bg-white px-4 text-sm font-semibold text-[#3d4a3c] transition hover:bg-[#f6f8f5] disabled:opacity-60"
+              >
+                Cancel
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={enterEditMode}
+                aria-label="Edit member"
+                title="Edit member"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#e8f2ea] text-[#1f6b3a] transition hover:bg-[#dceadf]"
+              >
+                <EditIcon />
+              </button>
+            )
+          ) : null}
           <ReloadButton
             onClick={() => void load()}
             disabled={loading || confirmBusy}
@@ -1451,11 +1552,20 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             <span className="rounded-md bg-[#e8f2ea] px-2 py-0.5 text-[11px] font-medium capitalize text-[#1f6b3a]">
               {detail.profile.region.replaceAll("_", " ")}
             </span>
+            <span
+              className={`rounded-md px-2 py-0.5 text-[11px] font-medium capitalize ${
+                accountInactive
+                  ? "bg-[#f1ece6] text-[#6b5b4a]"
+                  : "bg-[#e8f2ea] text-[#1f6b3a]"
+              }`}
+            >
+              {accountInactive ? "Inactive account" : "Active account"}
+            </span>
             <span className="rounded-md bg-[#f4f7f4] px-2 py-0.5 text-[11px] font-medium text-[#5f6f64]">
               {detail.referralCount} referral
               {detail.referralCount === 1 ? "" : "s"}
             </span>
-            {editing ? (
+            {adminCanModify ? (
               <span className="rounded-md bg-[#fff4e8] px-2 py-0.5 text-[11px] font-medium text-[#8a5a2f]">
                 Editing
               </span>
@@ -1692,7 +1802,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             </div>
           </div>
 
-          {editing ? (
+          {adminCanModify ? (
             <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2">
               <label className={labelClass}>
                 New password
@@ -1733,7 +1843,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             </div>
           ) : null}
 
-          {editing ? (
+          {adminCanModify ? (
             <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
               <button
                 type="submit"
@@ -1792,14 +1902,16 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           <div>
             <h2 className="text-sm font-semibold text-[#243028]">Memberships</h2>
             <p className="mt-0.5 text-xs text-[#8a978c]">
-              {editing
-                ? canAdd
-                  ? "Add a membership to grant access"
-                  : "Upgrade current or renew from the cards above, or schedule one renew"
-                : "Current plan, scheduled renew, and past memberships"}
+              {accountInactive
+                ? "View only while the account is inactive"
+                : adminCanModify
+                  ? canAdd
+                    ? "Add a membership to grant access"
+                    : "Upgrade current or renew from the cards above, or schedule one renew"
+                  : "Current plan, scheduled renew, and past memberships"}
             </p>
           </div>
-          {editing ? (
+          {adminCanModify ? (
             <div className="flex flex-wrap items-center gap-2">
               {canAdd ? (
                 <button
@@ -1833,7 +1945,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           ) : null}
         </div>
 
-        {editing && activeMembership && scheduledMembership ? (
+        {adminCanModify && activeMembership && scheduledMembership ? (
           <p className="rounded-xl bg-[#fff8ef] px-3.5 py-2.5 text-sm text-[#8a5a2f]">
             A renew is already scheduled
             {scheduledMembership.startsAt
@@ -1853,7 +1965,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           </p>
         ) : null}
 
-        {editing && membershipComposer === "add" ? (
+        {adminCanModify && membershipComposer === "add" ? (
           <div className={cardClass}>
             <h3 className="text-sm font-semibold text-[#243028]">
               Add membership
@@ -2126,25 +2238,27 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-[#1f6b3a]">
                     Current membership
                   </p>
-                  {canUpgradeActive ? (
-                    <button
-                      type="button"
-                      onClick={() => startUpgrade(activeMembership.id)}
-                      disabled={confirmBusy}
-                      className={`inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-semibold transition disabled:opacity-60 ${
-                        membershipComposer === "upgrade" &&
-                        upgradeTargetId === activeMembership.id
-                          ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
-                          : "border-[#1f6b3a]/35 bg-white text-[#1f6b3a] hover:bg-[#e8f2ea]"
-                      }`}
-                    >
-                      Upgrade
-                    </button>
-                  ) : (
-                    <span className="inline-flex h-8 items-center rounded-full border border-[#d7e5d9] bg-[#f7faf6] px-3 text-[11px] font-semibold text-[#8a978c]">
-                      No upgrade
-                    </span>
-                  )}
+                  {!accountInactive ? (
+                    canUpgradeActive ? (
+                      <button
+                        type="button"
+                        onClick={() => startUpgrade(activeMembership.id)}
+                        disabled={confirmBusy}
+                        className={`inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-semibold transition disabled:opacity-60 ${
+                          membershipComposer === "upgrade" &&
+                          upgradeTargetId === activeMembership.id
+                            ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
+                            : "border-[#1f6b3a]/35 bg-white text-[#1f6b3a] hover:bg-[#e8f2ea]"
+                        }`}
+                      >
+                        Upgrade
+                      </button>
+                    ) : (
+                      <span className="inline-flex h-8 items-center rounded-full border border-[#d7e5d9] bg-[#f7faf6] px-3 text-[11px] font-semibold text-[#8a978c]">
+                        No upgrade
+                      </span>
+                    )
+                  ) : null}
                 </div>
                 <p className="mt-1.5 text-sm font-semibold text-[#243028]">
                   {activeMembership.planName}
@@ -2161,25 +2275,27 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-[#8a5a2f]">
                     Next renew
                   </p>
-                  {canUpgradeScheduled ? (
-                    <button
-                      type="button"
-                      onClick={() => startUpgrade(scheduledMembership.id)}
-                      disabled={confirmBusy}
-                      className={`inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-semibold transition disabled:opacity-60 ${
-                        membershipComposer === "upgrade" &&
-                        upgradeTargetId === scheduledMembership.id
-                          ? "border-[#8a5a2f] bg-[#8a5a2f] text-white"
-                          : "border-[#e8d4a8] bg-white text-[#8a5a2f] hover:bg-[#fff8ef]"
-                      }`}
-                    >
-                      Upgrade
-                    </button>
-                  ) : (
-                    <span className="inline-flex h-8 items-center rounded-full border border-[#e8d4a8] bg-[#fff8ef] px-3 text-[11px] font-semibold text-[#8a978c]">
-                      No upgrade
-                    </span>
-                  )}
+                  {!accountInactive ? (
+                    canUpgradeScheduled ? (
+                      <button
+                        type="button"
+                        onClick={() => startUpgrade(scheduledMembership.id)}
+                        disabled={confirmBusy}
+                        className={`inline-flex h-8 items-center justify-center rounded-full border px-3 text-xs font-semibold transition disabled:opacity-60 ${
+                          membershipComposer === "upgrade" &&
+                          upgradeTargetId === scheduledMembership.id
+                            ? "border-[#8a5a2f] bg-[#8a5a2f] text-white"
+                            : "border-[#e8d4a8] bg-white text-[#8a5a2f] hover:bg-[#fff8ef]"
+                        }`}
+                      >
+                        Upgrade
+                      </button>
+                    ) : (
+                      <span className="inline-flex h-8 items-center rounded-full border border-[#e8d4a8] bg-[#fff8ef] px-3 text-[11px] font-semibold text-[#8a978c]">
+                        No upgrade
+                      </span>
+                    )
+                  ) : null}
                 </div>
                 <p className="mt-1.5 text-sm font-semibold text-[#243028]">
                   {scheduledMembership.planName}
@@ -2197,9 +2313,11 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         {detail.memberships.length === 0 ? (
           <p className={`${cardClass} text-sm text-[#8a978c]`}>
             No memberships yet.
-            {editing
-              ? " Use Add membership above to grant access."
-              : " Click the edit icon to add a membership."}
+            {accountInactive
+              ? " Reactivate the account to add or change memberships."
+              : adminCanModify
+                ? " Use Add membership above to grant access."
+                : " Click the edit icon to add a membership."}
           </p>
         ) : (
           [...detail.memberships]
@@ -2266,7 +2384,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                         Current plan stays as-is — schedule renew after it ends
                       </p>
                     ) : null}
-                    {!editing && isRenewCard ? (
+                    {!adminCanModify && isRenewCard ? (
                       <p className="mt-0.5 text-xs text-[#8a5a2f]">
                         Begins automatically when the current plan ends
                       </p>
@@ -2279,7 +2397,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   </span>
                 </div>
 
-                {isUpgradeTarget ? (
+                {isUpgradeTarget && adminCanModify ? (
                   <>
                     <div className="mt-4 grid gap-4 sm:grid-cols-2">
                       <label className={labelClass}>
@@ -2510,7 +2628,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                       </button>
                     </div>
                   </>
-                ) : !editing ? (
+                ) : !adminCanModify ? (
                   <>
                     <div className="mt-4 grid gap-3 sm:grid-cols-3">
                       <InfoTile
@@ -2972,7 +3090,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   </label>
                 </div>
 
-                {editing && !isActionTarget ? (
+                {adminCanModify && !isActionTarget ? (
                   <div className="mt-4 flex flex-wrap items-center gap-3">
                     <button
                       type="button"
@@ -3013,7 +3131,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         <p className="mt-1 text-xs text-[#8a978c]">
           Razorpay checkouts and admin-assigned memberships with invoices.
         </p>
-        {recoverablePayments.length > 0 && editing ? (
+        {recoverablePayments.length > 0 && adminCanModify ? (
           <div className="mt-3 rounded-xl border border-[#f0d9b5] bg-[#fff8ef] px-3.5 py-3">
             <p className="text-sm font-semibold text-[#8a5a2f]">
               Payments without membership

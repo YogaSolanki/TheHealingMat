@@ -59,15 +59,11 @@ export function MemberAuthGate({ children }: MemberAuthGateProps) {
       return;
     }
 
-    // Profile already in the frontend session store — do not refetch /auth/me.
-    if (sessionStore.getUser()) {
-      setFetchFailed(false);
-      return;
-    }
-
+    // Always re-check /auth/me so a deactivated account cannot stay signed in
+    // from a cached profile in sessionStorage.
     let cancelled = false;
     void sessionStore
-      .ensureUser()
+      .ensureUser({ force: true })
       .then((me) => {
         if (cancelled) return;
         if (!me) {
@@ -76,17 +72,20 @@ export function MemberAuthGate({ children }: MemberAuthGateProps) {
         }
         setFetchFailed(false);
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
-        clearStoredToken();
         setFetchFailed(true);
+        const message = err instanceof Error ? err.message : "";
+        // Deactivated accounts are redirected by forceLogoutDeactivatedAccount.
+        if (/account has been deactivated/i.test(message)) return;
+        clearStoredToken();
         router.replace("/?auth=login");
       });
 
     return () => {
       cancelled = true;
     };
-  }, [mounted, router, signingOut, user]);
+  }, [mounted, router, signingOut]);
 
   function signOut() {
     if (signingOut) return;
