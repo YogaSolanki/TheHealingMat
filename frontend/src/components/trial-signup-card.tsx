@@ -88,6 +88,10 @@ export function TrialSignupCard({
   const [destinationMasked, setDestinationMasked] = useState<string | null>(
     null,
   );
+  /** India OTP: WhatsApp first; SMS only when user opts in. */
+  const [otpDelivery, setOtpDelivery] = useState<"whatsapp" | "sms">(
+    "whatsapp",
+  );
   const [otpExpiresIn, setOtpExpiresIn] = useState(DEFAULT_OTP_TTL);
   const [otpSecondsLeft, setOtpSecondsLeft] = useState(DEFAULT_OTP_TTL);
   const [error, setError] = useState<string | null>(initialError);
@@ -181,9 +185,11 @@ export function TrialSignupCard({
     challengeId: string;
     destinationMasked: string;
     expiresIn?: number;
+    delivery?: "whatsapp" | "sms" | "email";
   }) {
     setChallengeId(input.challengeId);
     setDestinationMasked(input.destinationMasked);
+    setOtpDelivery(input.delivery === "sms" ? "sms" : "whatsapp");
     setOtpExpiresIn(input.expiresIn ?? DEFAULT_OTP_TTL);
     setOtp("");
     setStep("otp");
@@ -228,13 +234,14 @@ export function TrialSignupCard({
         region: activeRegion,
         purpose: "signup",
         ...(activeRegion === "india"
-          ? { mobile: normalizeIndiaMobile(mobile) }
+          ? { mobile: normalizeIndiaMobile(mobile), delivery: "whatsapp" }
           : { email: email.trim() }),
       });
       beginOtpStep({
         challengeId: result.challengeId,
         destinationMasked: result.destinationMasked,
         expiresIn: result.expiresIn,
+        delivery: result.delivery,
       });
     } catch (err) {
       const message = toUserFacingError(err);
@@ -253,17 +260,46 @@ export function TrialSignupCard({
         region,
         purpose: "signup",
         ...(region === "india"
-          ? { mobile: normalizeIndiaMobile(mobile) }
+          ? {
+              mobile: normalizeIndiaMobile(mobile),
+              delivery: otpDelivery,
+            }
           : { email: email.trim() }),
       });
       beginOtpStep({
         challengeId: result.challengeId,
         destinationMasked: result.destinationMasked,
         expiresIn: result.expiresIn,
+        delivery: result.delivery,
       });
     } catch (err) {
       setStep("identity");
       showAuthToast(toUserFacingError(err, "Could not resend OTP"), "error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onSendOtpSms() {
+    if (loading || region !== "india") return;
+    setError(null);
+    setLoading(true);
+    try {
+      const result = await requestOtp({
+        region,
+        purpose: "signup",
+        mobile: normalizeIndiaMobile(mobile),
+        delivery: "sms",
+      });
+      beginOtpStep({
+        challengeId: result.challengeId,
+        destinationMasked: result.destinationMasked,
+        expiresIn: result.expiresIn,
+        delivery: "sms",
+      });
+      showAuthToast("OTP sent on SMS", "success");
+    } catch (err) {
+      showAuthToast(toUserFacingError(err, "Could not send SMS OTP"), "error");
     } finally {
       setLoading(false);
     }
@@ -397,11 +433,20 @@ export function TrialSignupCard({
         ) : (
           <>
             <h2 className="mt-2 font-serif text-[1.35rem] leading-[1.15] font-bold text-[#1f6b3a] sm:text-[1.45rem]">
-              {isIndia ? "Verify Your WhatsApp Number" : "Verify Your Email Address"}
+              {isIndia
+                ? otpDelivery === "sms"
+                  ? "Verify Your Mobile Number"
+                  : "Verify Your WhatsApp Number"
+                : "Verify Your Email Address"}
             </h2>
             <p className="mx-auto mt-1 max-w-[300px] text-[12px] leading-snug text-[#6d8474]">
               We&apos;ve sent a {OTP_LENGTH}-digit OTP
-              {isIndia ? " on WhatsApp" : ""} to{" "}
+              {isIndia
+                ? otpDelivery === "sms"
+                  ? " via SMS"
+                  : " on WhatsApp"
+                : ""}{" "}
+              to{" "}
               <span className="font-semibold text-[#1f6b3a]">{otpDestination}</span>
             </p>
           </>
@@ -625,6 +670,17 @@ export function TrialSignupCard({
           >
             Resend OTP
           </button>
+
+          {isIndia && otpDelivery === "whatsapp" ? (
+            <button
+              type="button"
+              onClick={() => void onSendOtpSms()}
+              disabled={loading}
+              className="w-full cursor-pointer text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              No WhatsApp? Send OTP on SMS
+            </button>
+          ) : null}
         </form>
       )}
     </div>

@@ -2,6 +2,7 @@ import {
   IsEmail,
   IsEnum,
   IsIn,
+  IsOptional,
   IsString,
   Matches,
   ValidateIf,
@@ -14,6 +15,14 @@ export class RequestOtpDto {
 
   @IsIn(['login', 'signup', 'password_reset'])
   purpose: 'login' | 'signup' | 'password_reset';
+
+  /**
+   * India mobile OTP delivery.
+   * Default: WhatsApp (AiSensy). Pass `sms` to send via MSG91 SMS instead.
+   */
+  @IsOptional()
+  @IsIn(['whatsapp', 'sms'])
+  delivery?: 'whatsapp' | 'sms';
 
   @ValidateIf((dto: RequestOtpDto) => dto.region === Region.India)
   @IsString()
