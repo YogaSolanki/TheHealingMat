@@ -807,6 +807,14 @@ export class AdminDashboardService {
       );
     }
 
+    if (invoice && amountPaidPaise > 0) {
+      void this.payments.notifyMembershipPurchaseWhatsApp(
+        user,
+        membership,
+        invoice,
+      );
+    }
+
     return this.getUserDetail(userId);
   }
 
@@ -1087,6 +1095,12 @@ export class AdminDashboardService {
           'Upgrade was created but the Membership Upgrade invoice could not be issued. Please try again.',
         );
       }
+
+      void this.payments.notifyMembershipPurchaseWhatsApp(
+        user,
+        upgraded,
+        invoice,
+      );
     }
 
     return this.getUserDetail(userId);

@@ -42,6 +42,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UserLoginDto } from './dto/user-login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { TrialsService } from '../trials/trials.service';
+import { TrialMessagingService } from '../trials/trial-messaging.service';
 import { PaymentsService } from '../payments/payments.service';
 import { ScheduledClassesService } from '../settings/scheduled-classes.service';
 
@@ -94,6 +95,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly trials: TrialsService,
+    private readonly trialMessaging: TrialMessagingService,
     private readonly payments: PaymentsService,
     private readonly scheduledClasses: ScheduledClassesService,
   ) {}
@@ -568,6 +570,17 @@ export class AuthService {
     const withTrial = shouldStartTrial
       ? await this.trials.ensureFreeTrial(user)
       : user;
+
+    if (isNewAccount) {
+      void this.trialMessaging.sendAppWelcomeOnSignup(withTrial).catch((err) => {
+        console.warn(
+          `[app-welcome] signup send failed for ${withTrial.id}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      });
+    }
+
     const accessToken = await this.jwt.signAsync(
       { sub: withTrial.id, typ: 'user' },
       { expiresIn: USER_TOKEN_TTL_SECONDS },

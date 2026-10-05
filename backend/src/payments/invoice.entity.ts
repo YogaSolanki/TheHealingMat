@@ -76,6 +76,10 @@ export class Invoice {
   @Column({ type: 'timestamptz' })
   issuedAt: Date;
 
+  /** AiSensy app_membership_confirm sent after paid membership purchase. */
+  @Column({ type: 'timestamptz', nullable: true })
+  membershipWhatsAppSentAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }

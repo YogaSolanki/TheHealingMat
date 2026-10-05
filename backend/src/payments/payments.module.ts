@@ -15,6 +15,7 @@ import { MembershipOffersService } from './membership-offers.service';
 import { MembershipPlan } from './membership-plan.entity';
 import { MembershipPlansService } from './membership-plans.service';
 import { PaymentOrder } from './payment-order.entity';
+import { MembershipWhatsAppService } from './membership-whatsapp.service';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 
@@ -40,6 +41,7 @@ import { PaymentsService } from './payments.service';
     MembershipPlansService,
     MembershipOffersService,
     InvoicesService,
+    MembershipWhatsAppService,
   ],
   exports: [
     MembershipPlansService,

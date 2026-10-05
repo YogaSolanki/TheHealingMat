@@ -3,8 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThanOrEqual, IsNull, Repository } from 'typeorm';
 import { sendResendEmail } from '../mail/resend';
+import { sendAiSensyCampaign } from '../sms/aisensy-whatsapp';
 import { sendMsg91WhatsAppTemplate } from '../sms/msg91-whatsapp';
 import { resolveFrontendBaseUrl } from '../common/frontend-url';
+import { Region } from '../users/enums/region.enum';
 import { SessionTimingsService } from '../settings/session-timings.service';
 import { User } from '../users/user.entity';
 import { TrialStatus } from '../users/enums/trial-status.enum';
@@ -45,6 +47,59 @@ export class TrialMessagingService implements OnModuleInit, OnModuleDestroy {
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
+    }
+  }
+
+  /**
+   * AiSensy app_welcome — sent once after any new India signup (trial or membership).
+   * Does not block signup; failures are logged only.
+   */
+  async sendAppWelcomeOnSignup(user: User): Promise<void> {
+    if (user.region !== Region.India) return;
+    const mobile = user.mobile?.trim();
+    if (!mobile) return;
+
+    const apiKey = this.config.get<string>('AISENSY_API_KEY')?.trim();
+    const campaignName =
+      this.config.get<string>('AISENSY_WELCOME_CAMPAIGN_NAME')?.trim() ||
+      'app_welcome';
+
+    if (!apiKey || !campaignName) {
+      this.logger.log(
+        `[app-welcome] Skipped for ${user.id}: missing AISENSY_API_KEY or AISENSY_WELCOME_CAMPAIGN_NAME`,
+      );
+      return;
+    }
+
+    const firstName =
+      user.fullName?.trim().split(/\s+/)[0] || 'Member';
+    const paramCountRaw = Number(
+      this.config.get<string>('AISENSY_WELCOME_PARAM_COUNT')?.trim() || '0',
+    );
+    // Welcome Live API campaign may have 0 body vars even if the template name suggests otherwise.
+    const paramCount = Number.isFinite(paramCountRaw)
+      ? Math.max(0, Math.min(4, paramCountRaw))
+      : 0;
+    const templateParams = Array.from({ length: paramCount }, () => firstName);
+
+    try {
+      await sendAiSensyCampaign({
+        apiKey,
+        campaignName,
+        mobile,
+        userName: firstName,
+        source:
+          this.config.get<string>('AISENSY_SOURCE')?.trim() ||
+          'The Healing Mat',
+        templateParams,
+      });
+      this.logger.log(`[app-welcome] Sent to ${mobile} for user ${user.id}`);
+    } catch (err) {
+      this.logger.warn(
+        `[app-welcome] Failed for ${mobile}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
     }
   }
 
