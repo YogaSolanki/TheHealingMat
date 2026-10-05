@@ -77,7 +77,7 @@ const USER_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30;
 /** bcrypt cost factor - higher = slower brute-force. */
 const BCRYPT_ROUNDS = 12;
 /** Max OTP sends per destination per day: 1 initial + up to 3 resends. */
-const OTP_MAX_SENDS_PER_DAY = 4;
+const OTP_MAX_SENDS_PER_DAY = 10;
 /** Max incorrect OTP guesses per destination per calendar day. */
 const OTP_MAX_FAILED_ATTEMPTS_PER_DAY = 5;
 /** Max incorrect guesses against a single OTP challenge. */
