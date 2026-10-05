@@ -57,6 +57,10 @@ export class InvoicesService implements OnModuleInit {
         ALTER TABLE "memberships"
         ADD COLUMN IF NOT EXISTS "adminNote" text NULL
       `);
+      await this.dataSource.query(`
+        ALTER TABLE "invoices"
+        ADD COLUMN IF NOT EXISTS "membershipWhatsAppSentAt" timestamptz NULL
+      `);
     } catch (err) {
       this.logger.warn(
         `Could not ensure membership invoice columns: ${
@@ -70,6 +74,10 @@ export class InvoicesService implements OnModuleInit {
     return region === Region.OutsideIndia
       ? InvoiceCategory.Export
       : InvoiceCategory.Domestic;
+  }
+
+  async findById(id: string) {
+    return this.invoices.findOne({ where: { id } });
   }
 
   async findByMembershipId(membershipId: string) {

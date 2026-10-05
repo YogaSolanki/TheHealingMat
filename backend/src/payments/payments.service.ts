@@ -29,6 +29,8 @@ import { MembershipPlan } from './membership-plan.entity';
 import { DEFAULT_REFERRAL_DISCOUNT_PERCENT } from './membership-plans';
 import { MembershipOffersService } from './membership-offers.service';
 import { MembershipPlansService } from './membership-plans.service';
+import { Invoice } from './invoice.entity';
+import { MembershipWhatsAppService } from './membership-whatsapp.service';
 import { PaymentOrder } from './payment-order.entity';
 
 const MIN_ORDER_PAISE = 100;
@@ -56,6 +58,7 @@ export class PaymentsService {
     private readonly membershipOffers: MembershipOffersService,
     private readonly settings: SettingsService,
     private readonly invoices: InvoicesService,
+    private readonly membershipWhatsApp: MembershipWhatsAppService,
     @InjectRepository(PaymentOrder)
     private readonly orders: Repository<PaymentOrder>,
     @InjectRepository(Membership)
@@ -516,6 +519,51 @@ export class PaymentsService {
     };
   }
 
+  async notifyMembershipPurchaseWhatsApp(
+    user: User,
+    membership: Membership,
+    invoice: Invoice,
+  ) {
+    try {
+      await this.membershipWhatsApp.sendMembershipPurchaseConfirm(
+        user,
+        membership,
+        invoice,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `[membership-confirm] WhatsApp failed for membership ${membership.id}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+
+  async getPublicInvoicePdf(invoiceId: string, token: string) {
+    if (!this.membershipWhatsApp.verifyInvoiceDownloadToken(invoiceId, token)) {
+      throw new NotFoundException('Invoice link is invalid or expired.');
+    }
+
+    const invoice = await this.invoices.findById(invoiceId);
+    if (!invoice?.membershipId) {
+      throw new NotFoundException('Invoice not found.');
+    }
+
+    const membership = await this.memberships.findOne({
+      where: { id: invoice.membershipId },
+    });
+    if (!membership || membership.amountPaidPaise <= 0) {
+      throw new NotFoundException('Invoice not found.');
+    }
+
+    const user = await this.users.findOne({ where: { id: membership.userId } });
+    if (!user) {
+      throw new NotFoundException('Invoice not found.');
+    }
+
+    return this.buildMembershipInvoiceFile(user, membership, invoice);
+  }
+
   async getInvoice(user: User, membershipId: string) {
     const membership = await this.memberships.findOne({
       where: { id: membershipId, userId: user.id },
@@ -570,9 +618,27 @@ export class PaymentsService {
       );
     }
 
+    return this.buildMembershipInvoiceFile(user, membership, invoice);
+  }
+
+  private async buildMembershipInvoiceFile(
+    user: User,
+    membership: Membership,
+    invoice: Invoice,
+  ) {
+    const adminManual =
+      membership.paymentOrderId.startsWith('admin-manual-') ||
+      membership.paymentOrderId.startsWith('admin-upgrade-');
+    const paymentMethod =
+      membership.paymentMethod?.trim() ||
+      (adminManual
+        ? membership.paymentOrderId.startsWith('admin-upgrade-')
+          ? 'Membership Upgrade'
+          : 'Admin assigned'
+        : 'Online (Razorpay)');
+
     const currency =
       membership.currency?.toUpperCase() === 'USD' ? ('USD' as const) : ('INR' as const);
-    // Billing location label follows account region (signup), not device location.
     const isInternational = user.region === Region.OutsideIndia;
 
     const location = user.state?.trim() || null;
@@ -804,21 +870,30 @@ export class PaymentsService {
         .catch(() => null);
     }
 
-    await this.invoices
-      .ensureMembershipInvoice({
+    let issuedInvoice: Invoice | null = null;
+    try {
+      issuedInvoice = await this.invoices.ensureMembershipInvoice({
         membership,
         user,
         paymentMethod: 'Online (Razorpay)',
         paymentReference: order.razorpayPaymentId,
         discountLabel: order.couponCode?.trim() || null,
-      })
-      .catch((err) => {
-        this.logger.warn(
-          `Invoice issue failed for membership ${membership.id}: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
       });
+    } catch (err) {
+      this.logger.warn(
+        `Invoice issue failed for membership ${membership.id}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+
+    if (issuedInvoice && membership.amountPaidPaise > 0) {
+      void this.notifyMembershipPurchaseWhatsApp(
+        user,
+        membership,
+        issuedInvoice,
+      );
+    }
 
     await this.deliverRazorpayInvoice(user, membership).catch((err) => {
       this.logger.warn(

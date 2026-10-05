@@ -331,6 +331,8 @@ export class CorporateService implements OnModuleInit {
       memberEmail: company.billingEmail,
       memberMobile: company.billingPhone,
       memberLocation: company.state,
+      billingAddress: company.billingAddress,
+      gstNumber: company.gstNumber,
       isInternational: false,
       planName: plan.planName,
       planMonths: plan.planMonths,

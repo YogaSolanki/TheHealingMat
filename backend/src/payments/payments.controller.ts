@@ -28,6 +28,22 @@ import { PaymentsService } from './payments.service';
 export class PaymentsController {
   constructor(private readonly payments: PaymentsService) {}
 
+  /**
+   * Public invoice PDF for AiSensy WhatsApp document attachment (signed URL).
+   */
+  @Public()
+  @Get('invoices/public/:invoiceId')
+  async publicInvoice(
+    @Param('invoiceId', ParseUUIDPipe) invoiceId: string,
+    @Query('token') token?: string,
+  ) {
+    const invoice = await this.payments.getPublicInvoicePdf(invoiceId, token ?? '');
+    return new StreamableFile(invoice.pdf, {
+      type: 'application/pdf',
+      disposition: `inline; filename="${invoice.filename}"`,
+    });
+  }
+
   @Public()
   @Get('memberships/plans')
   async listPlans(

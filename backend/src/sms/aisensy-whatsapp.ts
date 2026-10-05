@@ -7,6 +7,29 @@
 const AISENSY_CAMPAIGN_URL =
   'https://backend.aisensy.com/campaign/t1/api/v2';
 
+export type SendAiSensyCampaignInput = {
+  apiKey: string;
+  campaignName: string;
+  /** E.164 or India 10-digit local */
+  mobile: string;
+  userName?: string;
+  source?: string;
+  /** Body variables for the live campaign. Empty array when the campaign has no {{n}} vars. */
+  templateParams?: string[];
+  /** Document/image header (e.g. invoice PDF). URL must be publicly accessible. */
+  media?: {
+    url: string;
+    filename: string;
+  };
+  /** Authentication OTP templates only. */
+  buttons?: Array<{
+    type: string;
+    sub_type: string;
+    index: number;
+    parameters: Array<{ type: string; text: string }>;
+  }>;
+};
+
 export type SendAiSensyOtpInput = {
   apiKey: string;
   campaignName: string;
@@ -54,26 +77,23 @@ function extractErrorMessage(payload: unknown, status: number): string {
 }
 
 /**
- * Sends an India WhatsApp OTP via an AiSensy live API campaign.
- * We generate/verify OTP ourselves; AiSensy only delivers the message.
+ * Sends a WhatsApp template via an AiSensy live API campaign.
  */
-export async function sendAiSensyOtp(input: SendAiSensyOtpInput) {
+export async function sendAiSensyCampaign(input: SendAiSensyCampaignInput) {
   const apiKey = input.apiKey.trim();
   const campaignName = input.campaignName.trim();
   const destination = toAiSensyDestination(input.mobile);
-  const otp = input.otp.trim();
   const userName = input.userName?.trim() || 'Member';
   const source = input.source?.trim() || 'The Healing Mat';
-  const paramCount = Math.max(1, Math.min(4, input.templateParamCount ?? 1));
+  const templateParams = (input.templateParams ?? []).map((p) =>
+    String(p).trim(),
+  );
 
   if (!apiKey) {
     throw new Error('AISENSY_API_KEY is missing.');
   }
   if (!campaignName) {
-    throw new Error('AISENSY_CAMPAIGN_NAME is missing.');
-  }
-  if (!/^\d{4,8}$/.test(otp)) {
-    throw new Error('OTP must be 4–8 digits for WhatsApp authentication.');
+    throw new Error('AiSensy campaign name is missing.');
   }
 
   const body: Record<string, unknown> = {
@@ -82,18 +102,21 @@ export async function sendAiSensyOtp(input: SendAiSensyOtpInput) {
     destination,
     userName,
     source,
-    templateParams: Array.from({ length: paramCount }, () => otp),
   };
+  // Some Live API campaigns (e.g. Welcome) have zero body variables.
+  if (templateParams.length > 0) {
+    body.templateParams = templateParams;
+  }
 
-  if (input.includeCopyCodeButton !== false) {
-    body.buttons = [
-      {
-        type: 'button',
-        sub_type: 'url',
-        index: 0,
-        parameters: [{ type: 'text', text: otp }],
-      },
-    ];
+  if (input.buttons?.length) {
+    body.buttons = input.buttons;
+  }
+
+  if (input.media?.url?.trim()) {
+    body.media = {
+      url: input.media.url.trim(),
+      filename: input.media.filename?.trim() || 'document.pdf',
+    };
   }
 
   const response = await fetch(AISENSY_CAMPAIGN_URL, {
@@ -120,4 +143,39 @@ export async function sendAiSensyOtp(input: SendAiSensyOtpInput) {
   }
 
   return payload;
+}
+
+/**
+ * Sends an India WhatsApp OTP via an AiSensy live API campaign.
+ * We generate/verify OTP ourselves; AiSensy only delivers the message.
+ */
+export async function sendAiSensyOtp(input: SendAiSensyOtpInput) {
+  const otp = input.otp.trim();
+  const paramCount = Math.max(1, Math.min(4, input.templateParamCount ?? 1));
+
+  if (!/^\d{4,8}$/.test(otp)) {
+    throw new Error('OTP must be 4–8 digits for WhatsApp authentication.');
+  }
+
+  const buttons =
+    input.includeCopyCodeButton !== false
+      ? [
+          {
+            type: 'button',
+            sub_type: 'url',
+            index: 0,
+            parameters: [{ type: 'text', text: otp }],
+          },
+        ]
+      : undefined;
+
+  return sendAiSensyCampaign({
+    apiKey: input.apiKey,
+    campaignName: input.campaignName,
+    mobile: input.mobile,
+    userName: input.userName,
+    source: input.source,
+    templateParams: Array.from({ length: paramCount }, () => otp),
+    buttons,
+  });
 }
