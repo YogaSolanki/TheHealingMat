@@ -35,7 +35,7 @@ import {
 const OTP_TTL_SECONDS = 10 * 60;
 const DOMAIN_VERIFY_TTL_MS = 30 * 60 * 1000;
 const BCRYPT_ROUNDS = 12;
-const OTP_MAX_SENDS_PER_DAY = 4;
+const OTP_MAX_SENDS_PER_DAY = 10;
 
 @Injectable()
 export class CorporateService implements OnModuleInit {
