@@ -33,6 +33,13 @@ export type InvoicePdfInput = {
   quantity?: number;
   /** Per-unit price; defaults to listPricePaise when quantity is 1. */
   unitPricePaise?: number;
+  /**
+   * Corporate invoices only. When set, Bill To shows Address instead of State
+   * and does not affect domestic / international membership invoices.
+   */
+  billingAddress?: string | null;
+  /** Corporate invoices only — shown under company name. */
+  gstNumber?: string | null;
 };
 
 const PAGE_W = 595;
@@ -394,27 +401,37 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
 
   const billLabelW = 78;
   const billValueX = sectionLeft + billLabelW + 18;
-  const billRow = (label: string, value: string) => {
+  const billValueW = contentW - (billValueX - MARGIN_X);
+  const billRow = (label: string, value: string, allowWrap = false) => {
+    const rowTop = y;
     doc
       .font('Invoice')
       .fontSize(12)
       .fillColor(MUTED)
-      .text(label, sectionLeft, y, { lineBreak: false });
+      .text(label, sectionLeft, rowTop, { lineBreak: false });
     doc
       .font('Invoice')
       .fontSize(12)
       .fillColor(NAVY)
-      .text(value, billValueX, y, {
-        width: contentW - (billValueX - MARGIN_X),
-        lineBreak: false,
+      .text(value, billValueX, rowTop, {
+        width: billValueW,
+        lineBreak: allowWrap,
       });
-    y += 24;
+    y = allowWrap ? Math.max(doc.y + 6, rowTop + 24) : rowTop + 24;
   };
 
   billRow('Name', input.memberName);
+  // Corporate only: GST under company name (domestic / international omit gstNumber).
+  if (input.gstNumber?.trim()) {
+    billRow('GSTIN', sanitizeInvoiceText(input.gstNumber.trim()));
+  }
   if (input.memberEmail) billRow('Email', input.memberEmail);
   if (input.memberMobile) billRow('Mobile', input.memberMobile);
-  if (input.memberLocation) {
+  // Corporate: Address replaces State. Membership invoices keep State / Country.
+  const corporateAddress = input.billingAddress?.trim();
+  if (corporateAddress) {
+    billRow('Address', sanitizeInvoiceText(corporateAddress), true);
+  } else if (input.memberLocation) {
     billRow(input.isInternational ? 'Country' : 'State', input.memberLocation);
   }
 
