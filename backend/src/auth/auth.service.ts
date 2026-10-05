@@ -24,6 +24,7 @@ import {
 } from '../users/account-identity';
 import { sendResendEmail } from '../mail/resend';
 import { sendAiSensyOtp } from '../sms/aisensy-whatsapp';
+import { sendMsg91Otp } from '../sms/msg91';
 import { detectVisitorRegion as detectVisitorRegionFromRequest } from '../common/visitor-region';
 import {
   buildMemberAccessLink,
@@ -198,6 +199,13 @@ export class AuthService {
 
     const isProd = this.config.get('NODE_ENV') === 'production';
     let delivered = false;
+    /** India: WhatsApp (AiSensy) by default; SMS (MSG91) when client asks. */
+    const delivery: 'whatsapp' | 'sms' | 'email' =
+      channel === 'email'
+        ? 'email'
+        : dto.delivery === 'sms'
+          ? 'sms'
+          : 'whatsapp';
 
     if (channel === 'email') {
       await this.sendOtpEmail({
@@ -206,6 +214,12 @@ export class AuthService {
         purpose: dto.purpose,
       });
       delivered = true;
+    } else if (delivery === 'sms') {
+      delivered = await this.sendOtpSms({
+        destination,
+        code,
+        purpose: dto.purpose,
+      });
     } else {
       delivered = await this.sendOtpWhatsApp({
         destination,
@@ -218,9 +232,10 @@ export class AuthService {
       challengeId: challenge.id,
       expiresIn: OTP_TTL_SECONDS,
       channel,
+      delivery,
       destinationMasked: this.maskDestination(destination, channel),
       accountExists: Boolean(existing),
-      // Never expose OTP for SMS. For email, only in non-prod when undelivered.
+      // Never expose OTP for SMS/WhatsApp. For email, only in non-prod when undelivered.
       ...(channel === 'sms' || isProd || delivered ? {} : { devOtp: code }),
     };
   }
@@ -853,6 +868,58 @@ export class AuthService {
       forceRegion: this.config.get<string>('FORCE_REGION'),
       defaultRegion: this.config.get<string>('DEFAULT_REGION'),
     });
+  }
+
+  /**
+   * India SMS OTP via MSG91 (opt-in fallback when user has no WhatsApp).
+   * We generate/verify OTP ourselves; MSG91 only delivers the SMS.
+   */
+  private async sendOtpSms(input: {
+    destination: string;
+    code: string;
+    purpose: string;
+  }): Promise<boolean> {
+    const authKey = this.config.get<string>('MSG91_AUTH_KEY')?.trim();
+    const templateId = this.config.get<string>('MSG91_OTP_TEMPLATE_ID')?.trim();
+    const isProd = this.config.get('NODE_ENV') === 'production';
+
+    if (!authKey || !templateId) {
+      if (isProd) {
+        throw new ServiceUnavailableException(
+          'SMS OTP is not configured yet (missing MSG91_AUTH_KEY or MSG91_OTP_TEMPLATE_ID).',
+        );
+      }
+      console.log(
+        `[OTP][dev-fallback] sms → ${input.destination}: ${input.code} (purpose=${input.purpose})`,
+      );
+      return false;
+    }
+
+    const modeRaw = this.config.get<string>('MSG91_API_MODE')?.trim().toLowerCase();
+    const mode = modeRaw === 'flow' ? 'flow' : 'otp';
+    const senderId = this.config.get<string>('MSG91_SENDER_ID')?.trim();
+    const otpVariable =
+      this.config.get<string>('MSG91_OTP_VAR')?.trim() || 'otp';
+
+    try {
+      await sendMsg91Otp({
+        authKey,
+        templateId,
+        mobile: input.destination,
+        otp: input.code,
+        otpExpiryMinutes: Math.ceil(OTP_TTL_SECONDS / 60),
+        mode,
+        senderId: senderId || undefined,
+        otpVariable,
+      });
+      return true;
+    } catch (error) {
+      const detail =
+        error instanceof Error ? error.message : 'Unknown MSG91 error';
+      throw new ServiceUnavailableException(
+        `Unable to send SMS OTP right now. ${detail}`,
+      );
+    }
   }
 
   /**

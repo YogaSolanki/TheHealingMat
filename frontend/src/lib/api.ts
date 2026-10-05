@@ -89,6 +89,8 @@ export type OtpRequestResponse = {
   challengeId: string;
   expiresIn: number;
   channel: "sms" | "email";
+  /** India: how the code was delivered. Defaults to whatsapp when omitted by older APIs. */
+  delivery?: "whatsapp" | "sms" | "email";
   destinationMasked: string;
   accountExists: boolean;
   devOtp?: string;
@@ -242,6 +244,8 @@ export async function requestOtp(input: {
   purpose: "login" | "signup" | "password_reset";
   mobile?: string;
   email?: string;
+  /** India only. Default WhatsApp (AiSensy); pass `sms` for MSG91 SMS. */
+  delivery?: "whatsapp" | "sms";
 }): Promise<OtpRequestResponse> {
   const response = await fetch(`${API_URL}/auth/otp/request`, {
     method: "POST",

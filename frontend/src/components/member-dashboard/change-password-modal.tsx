@@ -54,12 +54,16 @@ function normalizeIndiaMobile(value: string) {
   return value.trim();
 }
 
-function buildPasswordResetOtpPayload(user: PublicUser) {
+function buildPasswordResetOtpPayload(
+  user: PublicUser,
+  delivery: "whatsapp" | "sms" = "whatsapp",
+) {
   // Prefer WhatsApp when a mobile is on file; otherwise email OTP (e.g. Google India accounts).
   if (user.mobile) {
     return {
       region: "india" as Region,
       mobile: normalizeIndiaMobile(user.mobile),
+      delivery,
     };
   }
 
@@ -94,6 +98,7 @@ export function ChangePasswordModal({
   const [otp, setOtp] = useState("");
   const [challengeId, setChallengeId] = useState("");
   const [destinationMasked, setDestinationMasked] = useState<string | null>(null);
+  const [otpDelivery, setOtpDelivery] = useState<"whatsapp" | "sms">("whatsapp");
   const [otpSent, setOtpSent] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -116,6 +121,7 @@ export function ChangePasswordModal({
       setOtp("");
       setChallengeId("");
       setDestinationMasked(null);
+      setOtpDelivery("whatsapp");
       setOtpSent(false);
       setSendingOtp(false);
       setError(null);
@@ -151,18 +157,23 @@ export function ChangePasswordModal({
     };
   }, [rendered, exiting, loading, onClose, step]);
 
-  async function sendOtp(options?: { keepPasswords?: boolean }) {
+  async function sendOtp(options?: {
+    keepPasswords?: boolean;
+    delivery?: "whatsapp" | "sms";
+  }) {
     setError(null);
     setSendingOtp(true);
 
     try {
-      const payload = buildPasswordResetOtpPayload(user);
+      const delivery = options?.delivery ?? "whatsapp";
+      const payload = buildPasswordResetOtpPayload(user, delivery);
       const result = await requestOtp({
         ...payload,
         purpose: "password_reset",
       });
       setChallengeId(result.challengeId);
       setDestinationMasked(result.destinationMasked);
+      setOtpDelivery(result.delivery === "sms" ? "sms" : "whatsapp");
       setOtp("");
       setOtpSent(true);
       if (!options?.keepPasswords) {
@@ -182,13 +193,14 @@ export function ChangePasswordModal({
     setLoading(true);
 
     try {
-      const payload = buildPasswordResetOtpPayload(user);
+      const payload = buildPasswordResetOtpPayload(user, "whatsapp");
       const result = await requestOtp({
         ...payload,
         purpose: "password_reset",
       });
       setChallengeId(result.challengeId);
       setDestinationMasked(result.destinationMasked);
+      setOtpDelivery(result.delivery === "sms" ? "sms" : "whatsapp");
       setOtp("");
       setNewPassword("");
       setConfirmPassword("");
@@ -204,22 +216,48 @@ export function ChangePasswordModal({
   async function handleResendOtp() {
     if (loading || sendingOtp) return;
     if (needsSetPassword) {
-      await sendOtp({ keepPasswords: true });
+      await sendOtp({ keepPasswords: true, delivery: otpDelivery });
       return;
     }
     setError(null);
     setLoading(true);
     try {
-      const payload = buildPasswordResetOtpPayload(user);
+      const payload = buildPasswordResetOtpPayload(user, otpDelivery);
       const result = await requestOtp({
         ...payload,
         purpose: "password_reset",
       });
       setChallengeId(result.challengeId);
       setDestinationMasked(result.destinationMasked);
+      setOtpDelivery(result.delivery === "sms" ? "sms" : "whatsapp");
       setOtp("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not resend verification code.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSendOtpSms() {
+    if (loading || sendingOtp || !user.mobile) return;
+    if (needsSetPassword) {
+      await sendOtp({ keepPasswords: true, delivery: "sms" });
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const payload = buildPasswordResetOtpPayload(user, "sms");
+      const result = await requestOtp({
+        ...payload,
+        purpose: "password_reset",
+      });
+      setChallengeId(result.challengeId);
+      setDestinationMasked(result.destinationMasked);
+      setOtpDelivery("sms");
+      setOtp("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not send SMS OTP.");
     } finally {
       setLoading(false);
     }
@@ -238,7 +276,7 @@ export function ChangePasswordModal({
       return;
     }
 
-    await sendOtp({ keepPasswords: true });
+    await sendOtp({ keepPasswords: true, delivery: otpSent ? otpDelivery : "whatsapp" });
   }
 
   async function handleChangeSubmit(event: FormEvent) {
@@ -443,26 +481,38 @@ export function ChangePasswordModal({
                 <div>
                   <label className={`${labelClass} text-center`}>Verification Code</label>
                   <OtpDigitInputs value={otp} onChange={setOtp} disabled={loading} />
-                  <div className="mt-3 flex items-center justify-center gap-3 text-[12px]">
-                    <button
-                      type="button"
-                      onClick={() => void handleResendOtp()}
-                      disabled={loading}
-                      className="cursor-pointer font-semibold text-[#1f6b3a] transition hover:text-[#185830] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Resend code
-                    </button>
-                    <span className="text-[#d7e0d6]" aria-hidden="true">
-                      |
-                    </span>
-                    <button
-                      type="button"
-                      onClick={backToChangeStep}
-                      disabled={loading}
-                      className="cursor-pointer font-semibold text-[#6b7c6e] transition hover:text-[#243028] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Back
-                    </button>
+                  <div className="mt-3 flex flex-col items-center gap-2 text-[12px]">
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => void handleResendOtp()}
+                        disabled={loading}
+                        className="cursor-pointer font-semibold text-[#1f6b3a] transition hover:text-[#185830] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Resend code
+                      </button>
+                      <span className="text-[#d7e0d6]" aria-hidden="true">
+                        |
+                      </span>
+                      <button
+                        type="button"
+                        onClick={backToChangeStep}
+                        disabled={loading}
+                        className="cursor-pointer font-semibold text-[#6b7c6e] transition hover:text-[#243028] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Back
+                      </button>
+                    </div>
+                    {user.mobile && otpDelivery === "whatsapp" ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleSendOtpSms()}
+                        disabled={loading || sendingOtp}
+                        className="cursor-pointer font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        No WhatsApp? Send OTP on SMS
+                      </button>
+                    ) : null}
                   </div>
                 </div>
 
@@ -569,6 +619,15 @@ export function ChangePasswordModal({
                       <p className="mt-2 text-center text-[11px] text-[#8a968c]">
                         Enter matching passwords, then tap Send OTP
                       </p>
+                    ) : user.mobile && otpDelivery === "whatsapp" ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleSendOtpSms()}
+                        disabled={loading || sendingOtp}
+                        className="mt-2 w-full cursor-pointer text-center text-[11px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        No WhatsApp? Send OTP on SMS
+                      </button>
                     ) : null}
                   </div>
                 </div>
