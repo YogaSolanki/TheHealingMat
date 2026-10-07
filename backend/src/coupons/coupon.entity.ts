@@ -56,6 +56,10 @@ export class Coupon {
   @Column({ default: true })
   active: boolean;
 
+  /** Campaign / promo code — shown with a badge; usage tracked for admin reporting. */
+  @Column({ default: false })
+  isPromotional: boolean;
+
   /** Optional time expiry (UTC). */
   @Column({ type: 'timestamptz', nullable: true })
   expiresAt: Date | null;

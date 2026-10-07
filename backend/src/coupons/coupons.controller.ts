@@ -40,6 +40,12 @@ export class CouponsController {
     return this.coupons.create(dto);
   }
 
+  /** Coupon + redemption list (member names / referral codes). */
+  @Get(':id')
+  details(@Param('id', ParseUUIDPipe) id: string) {
+    return this.coupons.getDetails(id);
+  }
+
   /** Lock a coupon to a member via their unique referral code (single-use by default). */
   @Patch(':id/assign')
   assign(
