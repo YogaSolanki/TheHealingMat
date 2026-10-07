@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import { submitCorporateEnquiry } from "@/lib/api";
 
 const fieldClass =
@@ -8,6 +8,38 @@ const fieldClass =
 
 const labelClass =
   "mb-1 block text-[12px] font-semibold text-[#1f6b3a] sm:text-[13px]";
+
+/** Digits only, optional leading +, 8–15 digits (matches auth mobile validation). */
+const PHONE_PATTERN = /^\+?[0-9]{8,15}$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function sanitizePhoneInput(value: string): string {
+  // Allow digits, spaces, hyphens; optional leading +. Strip letters and other chars.
+  const withoutLetters = value.replace(/[^\d+\s-]/g, "");
+  const hasPlus = withoutLetters.includes("+");
+  const body = withoutLetters.replace(/\+/g, "");
+  return hasPlus ? `+${body}` : body;
+}
+
+function normalizePhone(value: string): string {
+  return value.trim().replace(/[\s-]/g, "");
+}
+
+function isFormValid(input: {
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  message: string;
+}): boolean {
+  return (
+    input.name.trim().length >= 2 &&
+    input.company.trim().length >= 2 &&
+    EMAIL_PATTERN.test(input.email.trim()) &&
+    PHONE_PATTERN.test(normalizePhone(input.phone)) &&
+    input.message.trim().length >= 5
+  );
+}
 
 export function CorporateEnquiryForm() {
   const [name, setName] = useState("");
@@ -19,16 +51,32 @@ export function CorporateEnquiryForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const formValid = isFormValid({ name, company, email, phone, message });
+  const canSubmit = formValid && !loading;
+
+  function onPhoneChange(event: ChangeEvent<HTMLInputElement>) {
+    setPhone(sanitizePhoneInput(event.target.value));
+    if (error) setError(null);
+  }
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
     setError(null);
+
+    if (!formValid) {
+      setError("Please fill in all fields with valid details before submitting.");
+      return;
+    }
+
+    const normalizedPhone = normalizePhone(phone);
+
+    setLoading(true);
     try {
       await submitCorporateEnquiry({
         name: name.trim(),
         company: company.trim(),
         email: email.trim(),
-        phone: phone.trim(),
+        phone: normalizedPhone,
         message: message.trim(),
       });
       setSubmitted(true);
@@ -130,8 +178,9 @@ export function CorporateEnquiryForm() {
           id="enquiry-phone"
           required
           type="tel"
+          inputMode="tel"
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={onPhoneChange}
           className={fieldClass}
           placeholder="Enter your phone number"
           autoComplete="tel"
@@ -163,8 +212,9 @@ export function CorporateEnquiryForm() {
 
       <button
         type="submit"
-        disabled={loading}
-        className="btn-primary mt-0.5 flex w-full items-center justify-center gap-2 rounded-full bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.2)] hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-70"
+        disabled={!canSubmit}
+        aria-disabled={!canSubmit}
+        className="btn-primary mt-0.5 flex w-full items-center justify-center gap-2 rounded-full bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.2)] hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[#1f6b3a]"
       >
         {loading ? "Sending…" : "Submit Enquiry"}
         {!loading ? <span aria-hidden="true">→</span> : null}
