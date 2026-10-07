@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
+import { isValidPhoneNumber } from "libphonenumber-js";
+import { PhoneInput } from "react-international-phone";
+import "react-international-phone/style.css";
 import { submitCorporateEnquiry } from "@/lib/api";
 
 const fieldClass =
@@ -9,20 +12,15 @@ const fieldClass =
 const labelClass =
   "mb-1 block text-[12px] font-semibold text-[#1f6b3a] sm:text-[13px]";
 
-/** Digits only, optional leading +, 8–15 digits (matches auth mobile validation). */
-const PHONE_PATTERN = /^\+?[0-9]{8,15}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function sanitizePhoneInput(value: string): string {
-  // Allow digits, spaces, hyphens; optional leading +. Strip letters and other chars.
-  const withoutLetters = value.replace(/[^\d+\s-]/g, "");
-  const hasPlus = withoutLetters.includes("+");
-  const body = withoutLetters.replace(/\+/g, "");
-  return hasPlus ? `+${body}` : body;
-}
-
-function normalizePhone(value: string): string {
-  return value.trim().replace(/[\s-]/g, "");
+function isPhoneValid(phone: string): boolean {
+  if (!phone || phone.replace(/\D/g, "").length < 8) return false;
+  try {
+    return isValidPhoneNumber(phone);
+  } catch {
+    return false;
+  }
 }
 
 function isFormValid(input: {
@@ -36,7 +34,7 @@ function isFormValid(input: {
     input.name.trim().length >= 2 &&
     input.company.trim().length >= 2 &&
     EMAIL_PATTERN.test(input.email.trim()) &&
-    PHONE_PATTERN.test(normalizePhone(input.phone)) &&
+    isPhoneValid(input.phone) &&
     input.message.trim().length >= 5
   );
 }
@@ -53,22 +51,21 @@ export function CorporateEnquiryForm() {
 
   const formValid = isFormValid({ name, company, email, phone, message });
   const canSubmit = formValid && !loading;
-
-  function onPhoneChange(event: ChangeEvent<HTMLInputElement>) {
-    setPhone(sanitizePhoneInput(event.target.value));
-    if (error) setError(null);
-  }
+  const phoneDigits = phone.replace(/\D/g, "");
+  const phoneInvalid = phoneDigits.length > 3 && !isPhoneValid(phone);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
     if (!formValid) {
-      setError("Please fill in all fields with valid details before submitting.");
+      setError(
+        !isPhoneValid(phone)
+          ? "Please enter a valid phone number."
+          : "Please fill in all fields with valid details before submitting.",
+      );
       return;
     }
-
-    const normalizedPhone = normalizePhone(phone);
 
     setLoading(true);
     try {
@@ -76,7 +73,7 @@ export function CorporateEnquiryForm() {
         name: name.trim(),
         company: company.trim(),
         email: email.trim(),
-        phone: normalizedPhone,
+        phone: phone.replace(/[^\d+]/g, ""),
         message: message.trim(),
       });
       setSubmitted(true);
@@ -174,18 +171,30 @@ export function CorporateEnquiryForm() {
         <label htmlFor="enquiry-phone" className={labelClass}>
           Phone Number <span className="text-[#c45c3a]">*</span>
         </label>
-        <input
-          id="enquiry-phone"
-          required
-          type="tel"
-          inputMode="tel"
+        <PhoneInput
+          defaultCountry="in"
+          preferredCountries={["in", "us", "gb", "ae", "au", "sg"]}
           value={phone}
-          onChange={onPhoneChange}
-          className={fieldClass}
-          placeholder="Enter your phone number"
-          autoComplete="tel"
+          onChange={(next) => {
+            setPhone(next);
+            if (error) setError(null);
+          }}
           disabled={loading}
+          placeholder="Enter your phone number"
+          className={`corporate-phone-input ${phoneInvalid ? "corporate-phone-input--invalid" : ""}`}
+          inputProps={{
+            id: "enquiry-phone",
+            required: true,
+            name: "phone",
+            autoComplete: "tel",
+            "aria-invalid": phoneInvalid,
+          }}
         />
+        {phoneInvalid ? (
+          <p className="mt-1.5 text-[12px] leading-snug text-[#a14a32]">
+            Please enter a valid phone number.
+          </p>
+        ) : null}
       </div>
 
       <div>
