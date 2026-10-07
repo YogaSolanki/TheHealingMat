@@ -58,13 +58,29 @@ function formatUsdPerDay(cents: number) {
   }).format(cents / 100);
 }
 
+/** Annualized ≈ / day from list price (÷ 365, rounded). */
+function calcPerDayRupees(priceRupees: string): string {
+  const n = Number(priceRupees);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return String(Math.max(1, Math.round(n / 365)));
+}
+
+function calcPerDayUsdCents(priceUsd: string): string {
+  const n = Number(priceUsd);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return String(Math.max(1, Math.round((n * 100) / 365)));
+}
+
 function toForm(plan: AdminMembershipPlan): PlanForm {
+  const priceRupees = String(Math.round(plan.listPricePaise / 100));
+  const priceUsd = String(Math.round((plan.listPriceUsdCents ?? 0) / 100));
   return {
     name: plan.name,
-    priceRupees: String(Math.round(plan.listPricePaise / 100)),
-    perDayRupees: String(plan.perDayRupees),
-    priceUsd: String(Math.round((plan.listPriceUsdCents ?? 0) / 100)),
-    perDayUsdCents: String(plan.perDayUsdCents ?? 0),
+    priceRupees,
+    perDayRupees: calcPerDayRupees(priceRupees) || String(plan.perDayRupees),
+    priceUsd,
+    perDayUsdCents:
+      calcPerDayUsdCents(priceUsd) || String(plan.perDayUsdCents ?? 0),
     featured: plan.featured,
     perk: plan.perk ?? "",
     sortOrder: String(plan.sortOrder),
@@ -428,11 +444,18 @@ export function MembershipPlansPanel() {
                 className={inputClass}
                 inputMode="numeric"
                 value={form.priceRupees}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const priceRupees = e.target.value;
                   setForm((prev) =>
-                    prev ? { ...prev, priceRupees: e.target.value } : prev,
-                  )
-                }
+                    prev
+                      ? {
+                          ...prev,
+                          priceRupees,
+                          perDayRupees: calcPerDayRupees(priceRupees),
+                        }
+                      : prev,
+                  );
+                }}
                 placeholder="3650"
                 required
               />
@@ -440,17 +463,18 @@ export function MembershipPlansPanel() {
             <label className="block text-sm text-[#5f6f64]">
               ≈ ₹ / day
               <input
-                className={inputClass}
+                className={`${inputClass} bg-[#f6f8f5] text-[#5f6f64]`}
                 inputMode="numeric"
                 value={form.perDayRupees}
-                onChange={(e) =>
-                  setForm((prev) =>
-                    prev ? { ...prev, perDayRupees: e.target.value } : prev,
-                  )
-                }
-                placeholder="10"
+                readOnly
+                tabIndex={-1}
+                placeholder="auto"
+                aria-describedby="per-day-inr-hint"
                 required
               />
+              <span id="per-day-inr-hint" className="mt-1 block text-[11px] text-[#8a968c]">
+                Auto: list price ÷ 365
+              </span>
             </label>
             <label className="block text-sm text-[#5f6f64]">
               USD list price ($)
@@ -458,11 +482,18 @@ export function MembershipPlansPanel() {
                 className={inputClass}
                 inputMode="numeric"
                 value={form.priceUsd}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const priceUsd = e.target.value;
                   setForm((prev) =>
-                    prev ? { ...prev, priceUsd: e.target.value } : prev,
-                  )
-                }
+                    prev
+                      ? {
+                          ...prev,
+                          priceUsd,
+                          perDayUsdCents: calcPerDayUsdCents(priceUsd),
+                        }
+                      : prev,
+                  );
+                }}
                 placeholder="49"
                 required
               />
@@ -470,19 +501,18 @@ export function MembershipPlansPanel() {
             <label className="block text-sm text-[#5f6f64]">
               ≈ ¢ / day (USD cents)
               <input
-                className={inputClass}
+                className={`${inputClass} bg-[#f6f8f5] text-[#5f6f64]`}
                 inputMode="numeric"
                 value={form.perDayUsdCents}
-                onChange={(e) =>
-                  setForm((prev) =>
-                    prev
-                      ? { ...prev, perDayUsdCents: e.target.value }
-                      : prev,
-                  )
-                }
-                placeholder="14"
+                readOnly
+                tabIndex={-1}
+                placeholder="auto"
+                aria-describedby="per-day-usd-hint"
                 required
               />
+              <span id="per-day-usd-hint" className="mt-1 block text-[11px] text-[#8a968c]">
+                Auto: (USD × 100) ÷ 365
+              </span>
             </label>
           </div>
 
