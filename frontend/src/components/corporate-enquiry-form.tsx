@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { isValidPhoneNumber } from "libphonenumber-js";
+import { PhoneInput } from "react-international-phone";
+import "react-international-phone/style.css";
 import { submitCorporateEnquiry } from "@/lib/api";
 
 const fieldClass =
@@ -8,6 +11,33 @@ const fieldClass =
 
 const labelClass =
   "mb-1 block text-[12px] font-semibold text-[#1f6b3a] sm:text-[13px]";
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function isPhoneValid(phone: string): boolean {
+  if (!phone || phone.replace(/\D/g, "").length < 8) return false;
+  try {
+    return isValidPhoneNumber(phone);
+  } catch {
+    return false;
+  }
+}
+
+function isFormValid(input: {
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  message: string;
+}): boolean {
+  return (
+    input.name.trim().length >= 2 &&
+    input.company.trim().length >= 2 &&
+    EMAIL_PATTERN.test(input.email.trim()) &&
+    isPhoneValid(input.phone) &&
+    input.message.trim().length >= 5
+  );
+}
 
 export function CorporateEnquiryForm() {
   const [name, setName] = useState("");
@@ -19,16 +49,31 @@ export function CorporateEnquiryForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const formValid = isFormValid({ name, company, email, phone, message });
+  const canSubmit = formValid && !loading;
+  const phoneDigits = phone.replace(/\D/g, "");
+  const phoneInvalid = phoneDigits.length > 3 && !isPhoneValid(phone);
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
     setError(null);
+
+    if (!formValid) {
+      setError(
+        !isPhoneValid(phone)
+          ? "Please enter a valid phone number."
+          : "Please fill in all fields with valid details before submitting.",
+      );
+      return;
+    }
+
+    setLoading(true);
     try {
       await submitCorporateEnquiry({
         name: name.trim(),
         company: company.trim(),
         email: email.trim(),
-        phone: phone.trim(),
+        phone: phone.replace(/[^\d+]/g, ""),
         message: message.trim(),
       });
       setSubmitted(true);
@@ -126,17 +171,30 @@ export function CorporateEnquiryForm() {
         <label htmlFor="enquiry-phone" className={labelClass}>
           Phone Number <span className="text-[#c45c3a]">*</span>
         </label>
-        <input
-          id="enquiry-phone"
-          required
-          type="tel"
+        <PhoneInput
+          defaultCountry="in"
+          preferredCountries={["in", "us", "gb", "ae", "au", "sg"]}
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          className={fieldClass}
-          placeholder="Enter your phone number"
-          autoComplete="tel"
+          onChange={(next) => {
+            setPhone(next);
+            if (error) setError(null);
+          }}
           disabled={loading}
+          placeholder="Enter your phone number"
+          className={`corporate-phone-input ${phoneInvalid ? "corporate-phone-input--invalid" : ""}`}
+          inputProps={{
+            id: "enquiry-phone",
+            required: true,
+            name: "phone",
+            autoComplete: "tel",
+            "aria-invalid": phoneInvalid,
+          }}
         />
+        {phoneInvalid ? (
+          <p className="mt-1.5 text-[12px] leading-snug text-[#a14a32]">
+            Please enter a valid phone number.
+          </p>
+        ) : null}
       </div>
 
       <div>
@@ -163,8 +221,9 @@ export function CorporateEnquiryForm() {
 
       <button
         type="submit"
-        disabled={loading}
-        className="btn-primary mt-0.5 flex w-full items-center justify-center gap-2 rounded-full bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.2)] hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-70"
+        disabled={!canSubmit}
+        aria-disabled={!canSubmit}
+        className="btn-primary mt-0.5 flex w-full items-center justify-center gap-2 rounded-full bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white shadow-[0_8px_20px_rgba(31,107,58,0.2)] hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[#1f6b3a]"
       >
         {loading ? "Sending…" : "Submit Enquiry"}
         {!loading ? <span aria-hidden="true">→</span> : null}

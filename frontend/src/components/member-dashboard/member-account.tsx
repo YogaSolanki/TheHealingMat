@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { CountrySelect } from "@/components/country-select";
 import { ChangePasswordModal } from "@/components/member-dashboard/change-password-modal";
 import { memberPrimaryBtnClass } from "@/components/member-dashboard/member-button-styles";
 import { MemberSelect } from "@/components/member-dashboard/member-select";
@@ -332,14 +333,11 @@ export function MemberAccountPage() {
                       ]}
                     />
                   ) : (
-                    <input
-                      type="text"
+                    <CountrySelect
                       value={state}
-                      onChange={(event) => setState(event.target.value)}
-                      className={inlineFieldClass}
-                      placeholder="Enter your country"
-                      autoComplete="country-name"
-                      maxLength={120}
+                      onChange={setState}
+                      placeholder="Select your country"
+                      className="sm:max-w-[300px]"
                     />
                   )
                 }

@@ -20,6 +20,63 @@
   --font-serif: var(--font-fraunces);
 }
 
+/* Corporate enquiry — react-international-phone (flags + country list) */
+.corporate-phone-input {
+  --react-international-phone-height: 42px;
+  --react-international-phone-font-size: 13px;
+  --react-international-phone-border-radius: 12px;
+  --react-international-phone-border-color: #e4ebe0;
+  --react-international-phone-background-color: #ffffff;
+  --react-international-phone-text-color: #1f6b3a;
+  --react-international-phone-country-selector-background-color: #fafcfb;
+  --react-international-phone-country-selector-background-color-hover: #f3f7f2;
+  --react-international-phone-country-selector-border-color: #e4ebe0;
+  --react-international-phone-selected-dropdown-item-background-color: #eef6f0;
+  --react-international-phone-dropdown-item-text-color: #243028;
+  --react-international-phone-dropdown-item-dial-code-color: #6d8474;
+  --react-international-phone-dropdown-shadow: 0 16px 40px rgba(31, 107, 58, 0.14);
+  --react-international-phone-dropdown-preferred-list-divider-color: #e8ebe4;
+  --react-international-phone-flag-width: 22px;
+  --react-international-phone-flag-height: 16px;
+  width: 100%;
+}
+
+.corporate-phone-input.react-international-phone-input-container {
+  width: 100%;
+}
+
+.corporate-phone-input .react-international-phone-input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+}
+
+.corporate-phone-input .react-international-phone-input:focus {
+  border-color: #1f6b3a;
+  box-shadow: 0 0 0 2px rgba(31, 107, 58, 0.12);
+  z-index: 1;
+}
+
+.corporate-phone-input .react-international-phone-country-selector-button:focus {
+  border-color: #1f6b3a;
+  box-shadow: 0 0 0 2px rgba(31, 107, 58, 0.12);
+  z-index: 1;
+}
+
+.corporate-phone-input .react-international-phone-country-selector-dropdown {
+  z-index: 50;
+  width: min(18.5rem, calc(100vw - 2.5rem));
+  max-height: 240px;
+  border: 1px solid #d9e2d8;
+  border-radius: 12px;
+  overflow-y: auto;
+}
+
+.corporate-phone-input--invalid {
+  --react-international-phone-border-color: #e8b4b4;
+  --react-international-phone-country-selector-border-color: #e8b4b4;
+}
+
 html {
   background: var(--background);
   overscroll-behavior: none;

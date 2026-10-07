@@ -35,5 +35,5 @@ export function useAdminSession() {
     router.replace("/");
   }
 
-  return { admin, checking, signOut };
+  return { admin, setAdmin, checking, signOut };
 }

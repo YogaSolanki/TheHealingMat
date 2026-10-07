@@ -3,10 +3,11 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
-import { Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { CorporateDomainVerification } from '../corporate/corporate-domain-verification.entity';
 import { User } from '../users/user.entity';
 import { CouponRedemption } from './coupon-redemption.entity';
@@ -26,8 +27,10 @@ export type CouponLifecycleStatus =
   | 'assigned';
 
 @Injectable()
-export class CouponsService {
+export class CouponsService implements OnModuleInit {
   constructor(
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     @InjectRepository(Coupon)
     private readonly coupons: Repository<Coupon>,
     @InjectRepository(CouponRedemption)
@@ -37,6 +40,17 @@ export class CouponsService {
     @InjectRepository(CorporateDomainVerification)
     private readonly domainVerifications: Repository<CorporateDomainVerification>,
   ) {}
+
+  async onModuleInit() {
+    try {
+      await this.dataSource.query(`
+        ALTER TABLE "coupons"
+        ADD COLUMN IF NOT EXISTS "isPromotional" boolean NOT NULL DEFAULT false
+      `);
+    } catch {
+      // Column may already exist via synchronize.
+    }
+  }
 
   async list() {
     const rows = await this.coupons.find({
@@ -75,6 +89,7 @@ export class CouponsService {
       discountLabel,
       maxUses,
       expiresAt: dto.expiresAt ?? null,
+      isPromotional: Boolean(dto.isPromotional),
     };
   }
 
@@ -105,6 +120,7 @@ export class CouponsService {
       maxUses,
       usageCount: 0,
       active: true,
+      isPromotional: Boolean(dto.isPromotional),
       expiresAt: this.parseExpiresAt(dto.expiresAt),
       assignedUserId: null,
       assignedReferralCode: null,
@@ -112,6 +128,46 @@ export class CouponsService {
       corporatePlanId: null,
     });
     return this.toAdminCoupon(await this.coupons.save(coupon));
+  }
+
+  async getDetails(id: string) {
+    const coupon = await this.requireCoupon(id);
+    const redemptions = await this.redemptions.find({
+      where: { couponId: id },
+      order: { createdAt: 'DESC' },
+    });
+    const userIds = [...new Set(redemptions.map((row) => row.userId))];
+    const users =
+      userIds.length > 0
+        ? await this.users.find({
+            where: { id: In(userIds) },
+            select: {
+              id: true,
+              fullName: true,
+              referralCode: true,
+              email: true,
+              mobile: true,
+            },
+          })
+        : [];
+    const byId = new Map(users.map((user) => [user.id, user]));
+
+    return {
+      ...this.toAdminCoupon(coupon),
+      uniqueUserCount: userIds.length,
+      redemptions: redemptions.map((row) => {
+        const user = byId.get(row.userId);
+        return {
+          id: row.id,
+          userId: row.userId,
+          fullName: user?.fullName?.trim() || 'Unknown member',
+          referralCode: user?.referralCode ?? null,
+          email: user?.email ?? null,
+          mobile: user?.mobile ?? null,
+          redeemedAt: row.createdAt.toISOString(),
+        };
+      }),
+    };
   }
 
   findByCode(code: string) {
@@ -156,8 +212,9 @@ export class CouponsService {
       throw new NotFoundException('No member found with that referral code.');
     }
 
-    // Assigned coupons are personal: default single-use for that member.
-    const maxUses = dto.maxUses ?? 1;
+    // Personal assign defaults to single-use; promotional keeps its campaign limit.
+    const maxUses =
+      dto.maxUses ?? (coupon.isPromotional ? coupon.maxUses : 1);
     this.assertMaxUses(maxUses);
 
     coupon.assignedUserId = user.id;
@@ -268,6 +325,7 @@ export class CouponsService {
       maxUses: input.maxUses,
       usageCount: 0,
       active: true,
+      isPromotional: false,
       expiresAt: null,
       assignedUserId: null,
       assignedReferralCode: null,
@@ -394,6 +452,7 @@ export class CouponsService {
       usageCount: coupon.usageCount,
       remainingUses: Math.max(0, coupon.maxUses - coupon.usageCount),
       active: coupon.active,
+      isPromotional: Boolean(coupon.isPromotional),
       expiresAt: coupon.expiresAt?.toISOString() ?? null,
       status: this.lifecycleStatus(coupon),
       allowedDomains: coupon.allowedDomains ?? [],

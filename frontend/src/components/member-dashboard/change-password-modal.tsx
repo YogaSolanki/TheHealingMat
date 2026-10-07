@@ -18,6 +18,12 @@ import {
   type Region,
 } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
+import {
+  formatOtpResendLabel,
+  otpSentToastMessage,
+  useOtpResendCooldown,
+} from "@/hooks/use-otp-resend-cooldown";
+import { useAuthModal } from "@/components/auth-modal-provider";
 
 type ChangePasswordModalProps = {
   open: boolean;
@@ -85,6 +91,7 @@ export function ChangePasswordModal({
   onSuccess,
 }: ChangePasswordModalProps) {
   const needsSetPassword = !user.hasPassword;
+  const { showAuthToast } = useAuthModal();
   const [mounted, setMounted] = useState(false);
   const [rendered, setRendered] = useState(open);
   const [exiting, setExiting] = useState(false);
@@ -103,6 +110,12 @@ export function ChangePasswordModal({
   const [sendingOtp, setSendingOtp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const {
+    secondsLeft: resendSecondsLeft,
+    canResend,
+    startCooldown,
+    clearCooldown,
+  } = useOtpResendCooldown();
 
   useEffect(() => {
     setMounted(true);
@@ -126,6 +139,7 @@ export function ChangePasswordModal({
       setSendingOtp(false);
       setError(null);
       setLoading(false);
+      clearCooldown();
       return;
     }
 
@@ -176,6 +190,8 @@ export function ChangePasswordModal({
       setOtpDelivery(result.delivery === "sms" ? "sms" : "whatsapp");
       setOtp("");
       setOtpSent(true);
+      startCooldown();
+      showAuthToast(otpSentToastMessage(result.delivery), "success");
       if (!options?.keepPasswords) {
         setNewPassword("");
         setConfirmPassword("");
@@ -204,9 +220,12 @@ export function ChangePasswordModal({
       setOtp("");
       setNewPassword("");
       setConfirmPassword("");
+      startCooldown();
       setStep("forgot_otp");
+      showAuthToast(otpSentToastMessage(result.delivery), "success");
     } catch (err) {
       setStep("change");
+      clearCooldown();
       setError(err instanceof Error ? err.message : "Could not send verification code.");
     } finally {
       setLoading(false);
@@ -214,7 +233,7 @@ export function ChangePasswordModal({
   }
 
   async function handleResendOtp() {
-    if (loading || sendingOtp) return;
+    if (loading || sendingOtp || !canResend) return;
     if (needsSetPassword) {
       await sendOtp({ keepPasswords: true, delivery: otpDelivery });
       return;
@@ -231,6 +250,8 @@ export function ChangePasswordModal({
       setDestinationMasked(result.destinationMasked);
       setOtpDelivery(result.delivery === "sms" ? "sms" : "whatsapp");
       setOtp("");
+      startCooldown();
+      showAuthToast(otpSentToastMessage(result.delivery), "success");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not resend verification code.");
     } finally {
@@ -239,6 +260,7 @@ export function ChangePasswordModal({
   }
 
   async function handleSendOtpSms() {
+    // First SMS switch is always allowed; cooldown starts after this send.
     if (loading || sendingOtp || !user.mobile) return;
     if (needsSetPassword) {
       await sendOtp({ keepPasswords: true, delivery: "sms" });
@@ -256,6 +278,8 @@ export function ChangePasswordModal({
       setDestinationMasked(result.destinationMasked);
       setOtpDelivery("sms");
       setOtp("");
+      startCooldown();
+      showAuthToast(otpSentToastMessage("sms"), "success");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not send SMS OTP.");
     } finally {
@@ -265,6 +289,7 @@ export function ChangePasswordModal({
 
   async function handleSendOtpClick() {
     if (sendingOtp || loading) return;
+    if (otpSent && !canResend) return;
     setError(null);
 
     if (!isStrongPassword(newPassword)) {
@@ -388,6 +413,7 @@ export function ChangePasswordModal({
     setOtp("");
     setNewPassword("");
     setConfirmPassword("");
+    clearCooldown();
   }
 
   if (!mounted || !rendered) return null;
@@ -486,10 +512,10 @@ export function ChangePasswordModal({
                       <button
                         type="button"
                         onClick={() => void handleResendOtp()}
-                        disabled={loading}
+                        disabled={loading || sendingOtp || !canResend}
                         className="cursor-pointer font-semibold text-[#1f6b3a] transition hover:text-[#185830] disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        Resend code
+                        {formatOtpResendLabel("Resend code", resendSecondsLeft)}
                       </button>
                       <span className="text-[#d7e0d6]" aria-hidden="true">
                         |
@@ -601,11 +627,16 @@ export function ChangePasswordModal({
                         sendingOtp ||
                         loading ||
                         !newPasswordValid ||
-                        !confirmValid
+                        !confirmValid ||
+                        (otpSent && !canResend)
                       }
                       className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-[#1f6b3a] bg-white px-3.5 py-1.5 text-[12px] font-bold text-[#1f6b3a] transition hover:bg-[#eef6f0] disabled:cursor-not-allowed disabled:border-[#d7e0d6] disabled:text-[#8a968c] disabled:hover:bg-white"
                     >
-                      {sendingOtp ? "Sending…" : otpSent ? "Resend OTP" : "Send OTP"}
+                      {sendingOtp
+                        ? "Sending…"
+                        : otpSent
+                          ? formatOtpResendLabel("Resend OTP", resendSecondsLeft)
+                          : "Send OTP"}
                     </button>
                   </div>
 

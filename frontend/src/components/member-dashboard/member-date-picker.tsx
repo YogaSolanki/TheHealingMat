@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
+import { createPortal } from "react-dom";
 
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MONTHS = [
@@ -142,14 +151,23 @@ export function MemberDatePicker({
   }, [maxDateProp, today]);
   const selected = parseIso(value);
   const [open, setOpen] = useState(false);
-  const [panelSide, setPanelSide] = useState<"above" | "below">(
-    placement === "above" ? "above" : "below",
-  );
   const [viewMonth, setViewMonth] = useState(() =>
     startOfMonth(selected ?? (maxDate < today ? maxDate : today)),
   );
+  const [mounted, setMounted] = useState(false);
+  const [panelPos, setPanelPos] = useState<{
+    top?: number;
+    bottom?: number;
+    left: number;
+    width: number;
+  } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (selected) {
@@ -157,52 +175,81 @@ export function MemberDatePicker({
     }
   }, [value]);
 
-  useEffect(() => {
-    if (!open) return;
+  useLayoutEffect(() => {
+    if (!open) {
+      setPanelPos(null);
+      return;
+    }
 
-    function resolvePlacement() {
-      if (placement === "above" || placement === "below") {
-        setPanelSide(placement);
-        return;
-      }
+    function updatePosition() {
       const root = rootRef.current;
       if (!root) return;
       const rect = root.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
+      const gap = 6;
       const panelHeight = compact ? 260 : 340;
-      setPanelSide(
-        spaceBelow < panelHeight && spaceAbove > spaceBelow ? "above" : "below",
+      const spaceBelow = window.innerHeight - rect.bottom - gap - 8;
+      const spaceAbove = rect.top - gap - 8;
+
+      const side: "above" | "below" =
+        placement === "above" || placement === "below"
+          ? placement
+          : spaceBelow < panelHeight && spaceAbove > spaceBelow
+            ? "above"
+            : "below";
+
+      const width = compact
+        ? Math.min(236, Math.max(rect.width, 220))
+        : Math.max(rect.width, 260);
+      const left = Math.min(
+        Math.max(8, rect.right - width),
+        window.innerWidth - width - 8,
+      );
+
+      setPanelPos(
+        side === "above"
+          ? {
+              bottom: window.innerHeight - rect.top + gap,
+              left,
+              width,
+            }
+          : {
+              top: rect.bottom + gap,
+              left,
+              width,
+            },
       );
     }
 
-    resolvePlacement();
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open, placement, compact]);
+
+  useEffect(() => {
+    if (!open) return;
 
     function onPointerDown(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
     }
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") setOpen(false);
     }
 
-    function onViewportChange() {
-      resolvePlacement();
-    }
-
     document.addEventListener("mousedown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("resize", onViewportChange);
-    window.addEventListener("scroll", onViewportChange, true);
     return () => {
       document.removeEventListener("mousedown", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("resize", onViewportChange);
-      window.removeEventListener("scroll", onViewportChange, true);
     };
-  }, [open, placement, compact]);
+  }, [open]);
 
   const cells = useMemo(() => buildCalendarDays(viewMonth), [viewMonth]);
   const years = useMemo(() => {
@@ -285,21 +332,27 @@ export function MemberDatePicker({
         <CalendarGlyph className="pointer-events-none absolute inset-y-0 right-3 my-auto h-4 w-4 text-[#6d8474]" />
       </button>
 
-      {open ? (
-        <div
-          id={panelId}
-          role="dialog"
-          aria-label={dialogLabel}
-          className={`absolute z-40 overflow-hidden rounded-[14px] border border-[#d9e2d8] bg-white shadow-[0_16px_40px_rgba(31,107,58,0.14)] ${
-            compact
-              ? "right-0 left-auto w-[236px] p-2.5"
-              : "right-0 left-0 max-h-[min(340px,70vh)] overflow-y-auto overscroll-contain p-3 sm:p-4"
-          } ${
-            panelSide === "above"
-              ? "bottom-[calc(100%+6px)]"
-              : "top-[calc(100%+6px)]"
-          }`}
-        >
+      {open && mounted && panelPos
+        ? createPortal(
+            <div
+              ref={panelRef}
+              id={panelId}
+              role="dialog"
+              aria-label={dialogLabel}
+              style={
+                {
+                  top: panelPos.top,
+                  bottom: panelPos.bottom,
+                  left: panelPos.left,
+                  width: panelPos.width,
+                } satisfies CSSProperties
+              }
+              className={`fixed z-[400] overflow-hidden rounded-[14px] border border-[#d9e2d8] bg-white shadow-[0_16px_40px_rgba(31,107,58,0.14)] ${
+                compact
+                  ? "p-2.5"
+                  : "max-h-[min(340px,70vh)] overflow-y-auto overscroll-contain p-3 sm:p-4"
+              }`}
+            >
           {compact ? (
             <div className="relative mb-2 flex h-7 items-center justify-center">
               {showCompactBack ? (
@@ -455,8 +508,10 @@ export function MemberDatePicker({
               Clear date
             </button>
           ) : null}
-        </div>
-      ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

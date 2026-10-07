@@ -1,4 +1,11 @@
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import { Transform } from 'class-transformer';
+import {
+  IsEmail,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class SubmitCorporateEnquiryDto {
   @IsString()
@@ -15,9 +22,12 @@ export class SubmitCorporateEnquiryDto {
   @MaxLength(180)
   email: string;
 
-  @IsString()
-  @MinLength(6)
-  @MaxLength(40)
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().replace(/[\s-]/g, '') : value,
+  )
+  @Matches(/^\+?[0-9]{8,15}$/, {
+    message: 'phone must be a valid phone number',
+  })
   phone: string;
 
   @IsString()

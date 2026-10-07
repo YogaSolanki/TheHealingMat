@@ -42,6 +42,11 @@ import {
   readCheckoutIntent,
   shouldResumeCheckoutAfterAuth,
 } from "@/lib/checkout-intent";
+import {
+  formatOtpResendLabel,
+  otpSentToastMessage,
+  useOtpResendCooldown,
+} from "@/hooks/use-otp-resend-cooldown";
 
 type Mode = "login" | "signup" | "forgot";
 type Step = "identity" | "otp" | "reset_done";
@@ -352,6 +357,13 @@ export function AuthTrialCard({
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const {
+    secondsLeft: resendSecondsLeft,
+    canResend,
+    startCooldown,
+    clearCooldown,
+  } = useOtpResendCooldown();
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -441,6 +453,10 @@ export function AuthTrialCard({
         setError(nameError);
         return;
       }
+      if (!ageConfirmed) {
+        setError("Please confirm that you are 18 years of age or older.");
+        return;
+      }
       if (!termsAccepted) {
         setError("Please agree to the Terms & Conditions to continue.");
         return;
@@ -470,16 +486,16 @@ export function AuthTrialCard({
       });
       setChallengeId(result.challengeId);
       setDestinationMasked(result.destinationMasked);
-      setOtpDelivery(
-        result.delivery === "sms" ? "sms" : "whatsapp",
-      );
+      setOtpDelivery(result.delivery === "sms" ? "sms" : "whatsapp");
       setOtp("");
       // Keep signup password for verify step; clear only for password reset.
       if (mode === "forgot") {
         setPassword("");
         setConfirmPassword("");
       }
+      startCooldown();
       setStep("otp");
+      showAuthToast(otpSentToastMessage(result.delivery), "success");
     } catch (err) {
       showAuthToast(
         mode === "login"
@@ -493,7 +509,7 @@ export function AuthTrialCard({
   }
 
   async function onResendOtp() {
-    if (loading) return;
+    if (loading || !canResend) return;
     setError(null);
     setLoading(true);
     try {
@@ -509,10 +525,10 @@ export function AuthTrialCard({
       });
       setChallengeId(result.challengeId);
       setDestinationMasked(result.destinationMasked);
-      setOtpDelivery(
-        result.delivery === "sms" ? "sms" : "whatsapp",
-      );
+      setOtpDelivery(result.delivery === "sms" ? "sms" : "whatsapp");
       setOtp("");
+      startCooldown();
+      showAuthToast(otpSentToastMessage(result.delivery), "success");
     } catch (err) {
       showAuthToast(toUserFacingError(err, "Could not resend OTP"), "error");
       if (mode === "signup") setStep("identity");
@@ -522,6 +538,7 @@ export function AuthTrialCard({
   }
 
   async function onSendOtpSms() {
+    // First SMS switch is always allowed; cooldown starts after this send.
     if (loading || region !== "india") return;
     setError(null);
     setLoading(true);
@@ -536,7 +553,8 @@ export function AuthTrialCard({
       setDestinationMasked(result.destinationMasked);
       setOtpDelivery("sms");
       setOtp("");
-      showAuthToast("OTP sent on SMS", "success");
+      startCooldown();
+      showAuthToast(otpSentToastMessage("sms"), "success");
     } catch (err) {
       showAuthToast(toUserFacingError(err, "Could not send SMS OTP"), "error");
     } finally {
@@ -598,6 +616,8 @@ export function AuthTrialCard({
     setOtpDelivery("whatsapp");
     setResetMessage(null);
     setTermsAccepted(false);
+    setAgeConfirmed(false);
+    clearCooldown();
     if (nextMode === "signup") {
       setReferralCodeInput(initialReferralCode.trim());
     }
@@ -617,6 +637,7 @@ export function AuthTrialCard({
     setDestinationMasked(null);
     setOtpDelivery("whatsapp");
     setResetMessage(null);
+    clearCooldown();
   }
 
   function normalizeIndiaMobile(value: string) {
@@ -1002,11 +1023,29 @@ export function AuthTrialCard({
           ) : null}
 
           {mode === "signup" ? (
-            <TermsAcceptanceField
-              checked={termsAccepted}
-              onChange={setTermsAccepted}
-              disabled={loading}
-            />
+            <>
+              <label
+                htmlFor="auth-signup-age-confirm"
+                className="flex cursor-pointer items-start gap-2 rounded-[10px] border border-[#e2e8df] bg-[#f7faf7] px-2.5 py-1.5 text-left"
+              >
+                <input
+                  id="auth-signup-age-confirm"
+                  type="checkbox"
+                  checked={ageConfirmed}
+                  disabled={loading}
+                  onChange={(event) => setAgeConfirmed(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-[#b7cbb8] text-[#1f6b3a] focus:ring-[#1f6b3a]/20"
+                />
+                <span className="text-[12px] leading-snug text-[#3d4a3c]">
+                  I confirm that I am 18 years of age or older.
+                </span>
+              </label>
+              <TermsAcceptanceField
+                checked={termsAccepted}
+                onChange={setTermsAccepted}
+                disabled={loading}
+              />
+            </>
           ) : null}
 
           <button
@@ -1014,7 +1053,9 @@ export function AuthTrialCard({
             disabled={
               loading ||
               (mode === "signup" &&
-                (!termsAccepted || !isValidFullName(fullName)))
+                (!ageConfirmed ||
+                  !termsAccepted ||
+                  !isValidFullName(fullName)))
             }
             className={primaryBtnClass}
           >
@@ -1134,10 +1175,10 @@ export function AuthTrialCard({
           <button
             type="button"
             onClick={onResendOtp}
-            disabled={loading}
+            disabled={loading || !canResend}
             className="w-full cursor-pointer text-[13px] font-semibold text-[#1f6b3a] transition hover:text-[#185830] disabled:cursor-not-allowed disabled:opacity-45"
           >
-            Resend OTP
+            {formatOtpResendLabel("Resend OTP", resendSecondsLeft)}
           </button>
 
           {region === "india" && otpDelivery === "whatsapp" ? (

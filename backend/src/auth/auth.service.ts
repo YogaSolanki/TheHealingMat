@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
@@ -9,7 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { randomBytes, randomInt } from 'crypto';
+import { randomBytes, randomInt, timingSafeEqual } from 'crypto';
 import { MoreThanOrEqual, Repository } from 'typeorm';
 import { Admin } from '../admins/admin.entity';
 import { Region } from '../users/enums/region.enum';
@@ -31,6 +32,10 @@ import {
   resolveFrontendBaseUrl,
 } from '../common/frontend-url';
 import { AdminLoginDto } from './dto/admin-login.dto';
+import { UpdateAdminAccountDto } from './dto/update-admin-account.dto';
+import { UpdatePrivateSpacePasswordDto } from './dto/update-private-space-password.dto';
+import { VerifyPrivateSpaceDto } from './dto/verify-private-space.dto';
+import { SettingsService } from '../settings/settings.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -98,6 +103,7 @@ export class AuthService {
     private readonly trialMessaging: TrialMessagingService,
     private readonly payments: PaymentsService,
     private readonly scheduledClasses: ScheduledClassesService,
+    private readonly settings: SettingsService,
   ) {}
 
   async login(dto: AdminLoginDto) {
@@ -126,6 +132,102 @@ export class AuthService {
       tokenType: 'Bearer',
       expiresIn: 60 * 60 * 8,
       admin: this.toPublicAdmin(admin),
+    };
+  }
+
+  async verifyPrivateSpace(dto: VerifyPrivateSpaceDto) {
+    const matches = await this.privateSpacePasswordMatches(dto.password);
+    if (!matches) {
+      throw new UnauthorizedException('Incorrect private space password.');
+    }
+    return { ok: true as const };
+  }
+
+  async updatePrivateSpacePassword(dto: UpdatePrivateSpacePasswordDto) {
+    const currentOk = await this.privateSpacePasswordMatches(
+      dto.currentPassword,
+    );
+    if (!currentOk) {
+      throw new UnauthorizedException(
+        'Current private space password is incorrect.',
+      );
+    }
+
+    const next = dto.newPassword.trim();
+    if (next.length < 6) {
+      throw new BadRequestException(
+        'New private space password must be at least 6 characters.',
+      );
+    }
+
+    await this.settings.setPrivateSpacePasswordHash(next);
+    return {
+      ok: true as const,
+      message: 'Private space password updated.',
+    };
+  }
+
+  private async privateSpacePasswordMatches(password: string) {
+    const provided = password ?? '';
+    const storedHash = await this.settings.getPrivateSpacePasswordHash();
+    if (storedHash) {
+      return bcrypt.compare(provided, storedHash);
+    }
+
+    const expected =
+      this.config.get<string>('ADMIN_PRIVATE_SPACE_PASSWORD')?.trim() ?? '';
+    if (!expected) {
+      throw new ServiceUnavailableException(
+        'Private space is not configured on the server.',
+      );
+    }
+
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    return a.length === b.length && timingSafeEqual(a, b);
+  }
+
+  async updateAdminAccount(admin: Admin, dto: UpdateAdminAccountDto) {
+    const newEmail = dto.newEmail?.trim().toLowerCase();
+    const newPassword = dto.newPassword?.trim();
+
+    if (!newEmail && !newPassword) {
+      throw new BadRequestException(
+        'Provide a new email and/or a new password.',
+      );
+    }
+
+    const currentMatches = await bcrypt.compare(
+      dto.currentPassword,
+      admin.passwordHash,
+    );
+    if (!currentMatches) {
+      throw new UnauthorizedException('Current admin password is incorrect.');
+    }
+
+    if (newEmail && newEmail !== admin.email) {
+      const existing = await this.admins.findOne({ where: { email: newEmail } });
+      if (existing && existing.id !== admin.id) {
+        throw new ConflictException('That email is already in use.');
+      }
+      admin.email = newEmail;
+    }
+
+    if (newPassword) {
+      admin.passwordHash = await bcrypt.hash(newPassword, 10);
+    }
+
+    const saved = await this.admins.save(admin);
+    const accessToken = await this.jwt.signAsync({
+      sub: saved.id,
+      typ: 'admin',
+    });
+
+    return {
+      accessToken,
+      tokenType: 'Bearer' as const,
+      expiresIn: 60 * 60 * 8,
+      admin: this.toPublicAdmin(saved),
     };
   }
 

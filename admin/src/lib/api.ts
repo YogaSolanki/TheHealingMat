@@ -205,6 +205,51 @@ export function reactivateAdminUser(token: string, id: string) {
   );
 }
 
+/** Temporary bulk wipe — removes all member users and related records. */
+export function deleteAllAdminUsers(token: string) {
+  return authJson<{ success: boolean; deletedCount: number }>(
+    "DELETE",
+    "/admin/users",
+    token,
+  );
+}
+
+export function verifyAdminPrivateSpace(token: string, password: string) {
+  return authJson<{ ok: true }>("POST", "/admin/private-space/verify", token, {
+    password,
+  });
+}
+
+export function updateAdminPrivateSpacePassword(
+  token: string,
+  payload: { currentPassword: string; newPassword: string },
+) {
+  return authJson<{ ok: true; message: string }>(
+    "PATCH",
+    "/admin/private-space/password",
+    token,
+    payload,
+  );
+}
+
+type AdminAccountUpdateResponse = AdminLoginResponse;
+
+export function updateAdminAccount(
+  token: string,
+  payload: {
+    currentPassword: string;
+    newEmail?: string;
+    newPassword?: string;
+  },
+) {
+  return authJson<AdminAccountUpdateResponse>(
+    "PATCH",
+    "/admin/auth/account",
+    token,
+    payload,
+  );
+}
+
 export type AdminCompanyRow = {
   id: string;
   companyName: string;
@@ -732,10 +777,26 @@ export type AdminCoupon = {
   usageCount: number;
   remainingUses: number;
   active: boolean;
+  isPromotional: boolean;
   expiresAt: string | null;
   status: CouponLifecycleStatus;
   createdAt: string;
   updatedAt: string;
+};
+
+export type AdminCouponRedemption = {
+  id: string;
+  userId: string;
+  fullName: string;
+  referralCode: string | null;
+  email: string | null;
+  mobile: string | null;
+  redeemedAt: string;
+};
+
+export type AdminCouponDetails = AdminCoupon & {
+  uniqueUserCount: number;
+  redemptions: AdminCouponRedemption[];
 };
 
 export type GeneratedCoupon = {
@@ -746,10 +807,15 @@ export type GeneratedCoupon = {
   discountLabel: string;
   maxUses: number;
   expiresAt: string | null;
+  isPromotional: boolean;
 };
 
 export function listAdminCoupons(token: string) {
   return authJson<AdminCoupon[]>("GET", "/admin/coupons", token);
+}
+
+export function getAdminCouponDetails(token: string, id: string) {
+  return authJson<AdminCouponDetails>("GET", `/admin/coupons/${id}`, token);
 }
 
 export function generateAdminCoupon(
@@ -760,6 +826,7 @@ export function generateAdminCoupon(
     discountValue: number;
     maxUses?: number;
     expiresAt?: string | null;
+    isPromotional?: boolean;
   },
 ) {
   return authJson<GeneratedCoupon>("POST", "/admin/coupons/generate", token, body);
@@ -775,6 +842,7 @@ export function createAdminCoupon(
     discountLabel: string;
     maxUses?: number;
     expiresAt?: string | null;
+    isPromotional?: boolean;
   },
 ) {
   return authJson<AdminCoupon>("POST", "/admin/coupons", token, body);

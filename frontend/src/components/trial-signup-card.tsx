@@ -36,9 +36,13 @@ import {
 } from "@/lib/checkout-intent";
 import { openCheckoutModal } from "@/components/checkout-modal-provider";
 import { formatFullNameInput, isValidFullName, validateFullName } from "@/lib/full-name";
+import {
+  formatOtpResendLabel,
+  otpSentToastMessage,
+  useOtpResendCooldown,
+} from "@/hooks/use-otp-resend-cooldown";
 
 const OTP_LENGTH = 4;
-const DEFAULT_OTP_TTL = 10 * 60;
 
 function normalizeIndiaMobile(value: string) {
   const digits = value.replace(/\D/g, "");
@@ -52,13 +56,6 @@ function formatIndiaMobileDisplay(value: string) {
   const digits = value.replace(/\D/g, "").slice(-10);
   if (digits.length !== 10) return value;
   return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
-}
-
-function formatCountdown(totalSeconds: number) {
-  const safe = Math.max(0, totalSeconds);
-  const minutes = Math.floor(safe / 60);
-  const seconds = safe % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 type TrialSignupCardProps = {
@@ -92,8 +89,6 @@ export function TrialSignupCard({
   const [otpDelivery, setOtpDelivery] = useState<"whatsapp" | "sms">(
     "whatsapp",
   );
-  const [otpExpiresIn, setOtpExpiresIn] = useState(DEFAULT_OTP_TTL);
-  const [otpSecondsLeft, setOtpSecondsLeft] = useState(DEFAULT_OTP_TTL);
   const [error, setError] = useState<string | null>(initialError);
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -102,6 +97,12 @@ export function TrialSignupCard({
   const [referralCodeInput, setReferralCodeInput] = useState(
     () => initialReferralCode.trim(),
   );
+  const {
+    secondsLeft: resendSecondsLeft,
+    canResend,
+    startCooldown,
+    clearCooldown,
+  } = useOtpResendCooldown();
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -146,15 +147,6 @@ export function TrialSignupCard({
     };
   }, [router, isMembership]);
 
-  useEffect(() => {
-    if (step !== "otp") return;
-    setOtpSecondsLeft(otpExpiresIn);
-    const id = window.setInterval(() => {
-      setOtpSecondsLeft((current) => Math.max(0, current - 1));
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [step, otpExpiresIn, challengeId]);
-
   async function afterAuth(accessToken: string, authedUser: PublicUser) {
     setStoredToken(accessToken);
     applyAuthenticatedSession(authedUser);
@@ -184,15 +176,15 @@ export function TrialSignupCard({
   function beginOtpStep(input: {
     challengeId: string;
     destinationMasked: string;
-    expiresIn?: number;
     delivery?: "whatsapp" | "sms" | "email";
   }) {
     setChallengeId(input.challengeId);
     setDestinationMasked(input.destinationMasked);
     setOtpDelivery(input.delivery === "sms" ? "sms" : "whatsapp");
-    setOtpExpiresIn(input.expiresIn ?? DEFAULT_OTP_TTL);
     setOtp("");
+    startCooldown();
     setStep("otp");
+    showAuthToast(otpSentToastMessage(input.delivery), "success");
   }
 
   async function onRequestOtp(event: FormEvent) {
@@ -212,7 +204,7 @@ export function TrialSignupCard({
       setError("Please accept the Terms & Conditions and Privacy Policy to continue.");
       return;
     }
-    if (isMembership && !ageConfirmed) {
+    if (!ageConfirmed) {
       setError("Please confirm that you are 18 years of age or older.");
       return;
     }
@@ -240,7 +232,6 @@ export function TrialSignupCard({
       beginOtpStep({
         challengeId: result.challengeId,
         destinationMasked: result.destinationMasked,
-        expiresIn: result.expiresIn,
         delivery: result.delivery,
       });
     } catch (err) {
@@ -252,7 +243,7 @@ export function TrialSignupCard({
   }
 
   async function onResendOtp() {
-    if (loading || !region) return;
+    if (loading || !canResend || !region) return;
     setError(null);
     setLoading(true);
     try {
@@ -269,11 +260,11 @@ export function TrialSignupCard({
       beginOtpStep({
         challengeId: result.challengeId,
         destinationMasked: result.destinationMasked,
-        expiresIn: result.expiresIn,
         delivery: result.delivery,
       });
     } catch (err) {
       setStep("identity");
+      clearCooldown();
       showAuthToast(toUserFacingError(err, "Could not resend OTP"), "error");
     } finally {
       setLoading(false);
@@ -281,6 +272,7 @@ export function TrialSignupCard({
   }
 
   async function onSendOtpSms() {
+    // First SMS switch is always allowed; cooldown starts after this send.
     if (loading || region !== "india") return;
     setError(null);
     setLoading(true);
@@ -294,10 +286,8 @@ export function TrialSignupCard({
       beginOtpStep({
         challengeId: result.challengeId,
         destinationMasked: result.destinationMasked,
-        expiresIn: result.expiresIn,
         delivery: "sms",
       });
-      showAuthToast("OTP sent on SMS", "success");
     } catch (err) {
       showAuthToast(toUserFacingError(err, "Could not send SMS OTP"), "error");
     } finally {
@@ -342,7 +332,7 @@ export function TrialSignupCard({
   const mobileDigits = mobile.replace(/\D/g, "").slice(0, 10);
   const canSubmitIdentity =
     termsAccepted &&
-    (!isMembership || ageConfirmed) &&
+    ageConfirmed &&
     isValidFullName(fullName) &&
     (isIndia
       ? mobileDigits.length === 10
@@ -367,6 +357,7 @@ export function TrialSignupCard({
             setError(null);
             setToast(null);
             setOtp("");
+            clearCooldown();
           }}
           aria-label="Back"
           className="absolute top-2 left-2 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-[#8a968c] transition hover:bg-[#eef2ee] hover:text-[#1f6b3a]"
@@ -573,24 +564,22 @@ export function TrialSignupCard({
             )}
           </div>
 
-          {isMembership ? (
-            <label
-              htmlFor="membership-age-confirm"
-              className="flex cursor-pointer items-start gap-2 rounded-[10px] border border-[#e2e8df] bg-[#f7faf7] px-2.5 py-1.5 text-left"
-            >
-              <input
-                id="membership-age-confirm"
-                type="checkbox"
-                checked={ageConfirmed}
-                disabled={loading}
-                onChange={(event) => setAgeConfirmed(event.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-[#b7cbb8] text-[#1f6b3a] focus:ring-[#1f6b3a]/20"
-              />
-              <span className="text-[12px] leading-snug text-[#3d4a3c]">
-                I confirm that I am 18 years of age or older.
-              </span>
-            </label>
-          ) : null}
+          <label
+            htmlFor="signup-age-confirm"
+            className="flex cursor-pointer items-start gap-2 rounded-[10px] border border-[#e2e8df] bg-[#f7faf7] px-2.5 py-1.5 text-left"
+          >
+            <input
+              id="signup-age-confirm"
+              type="checkbox"
+              checked={ageConfirmed}
+              disabled={loading}
+              onChange={(event) => setAgeConfirmed(event.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-[#b7cbb8] text-[#1f6b3a] focus:ring-[#1f6b3a]/20"
+            />
+            <span className="text-[12px] leading-snug text-[#3d4a3c]">
+              I confirm that I am 18 years of age or older.
+            </span>
+          </label>
 
           <TermsAcceptanceField
             id="trial-signup-terms"
@@ -638,15 +627,6 @@ export function TrialSignupCard({
         <form onSubmit={onVerifyOtp} className="mt-3.5 space-y-2.5">
           <OtpDigitInputs value={otp} onChange={setOtp} disabled={loading} />
 
-          <p className="flex items-center justify-center gap-1.5 text-[12px] text-[#8a968c]">
-            <ClockIcon />
-            {otpSecondsLeft > 0 ? (
-              <>OTP will expire in {formatCountdown(otpSecondsLeft)}</>
-            ) : (
-              <>OTP expired. Please resend.</>
-            )}
-          </p>
-
           <button
             type="submit"
             disabled={loading || otp.length < OTP_LENGTH}
@@ -665,10 +645,10 @@ export function TrialSignupCard({
           <button
             type="button"
             onClick={() => void onResendOtp()}
-            disabled={loading}
+            disabled={loading || !canResend}
             className="w-full cursor-pointer text-sm font-semibold text-[#1f6b3a] transition hover:text-[#185830] disabled:cursor-not-allowed disabled:opacity-45"
           >
-            Resend OTP
+            {formatOtpResendLabel("Resend OTP", resendSecondsLeft)}
           </button>
 
           {isIndia && otpDelivery === "whatsapp" ? (
@@ -784,21 +764,6 @@ function ShieldCheckIcon() {
       />
       <path
         d="M10 12.2 11.4 13.6 14.3 10.5"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function ClockIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="8.25" stroke="currentColor" strokeWidth="1.7" />
-      <path
-        d="M12 8v4.2l2.6 1.6"
         stroke="currentColor"
         strokeWidth="1.7"
         strokeLinecap="round"

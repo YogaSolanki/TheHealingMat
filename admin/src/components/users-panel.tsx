@@ -103,6 +103,7 @@ export function UsersPanel() {
   );
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pendingDeactivateUser, setPendingDeactivateUser] =
     useState<AdminUserRow | null>(null);
@@ -443,7 +444,7 @@ export function UsersPanel() {
               {users.length} permanent THM accounts
             </p>
           </div>
-          <div className="flex w-full items-center gap-2 sm:w-auto sm:justify-end">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             <input
               type="search"
               value={query}
@@ -470,6 +471,11 @@ export function UsersPanel() {
         {error ? (
           <p className="shrink-0 border-b border-[#e6ebe3] bg-[#fff8f7] px-5 py-3 text-sm text-[#8a2f2f]">
             {error}
+          </p>
+        ) : null}
+        {notice ? (
+          <p className="shrink-0 border-b border-[#cfe8d6] bg-[#f3faf5] px-5 py-3 text-sm text-[#1f6b3a]">
+            {notice}
           </p>
         ) : null}
 

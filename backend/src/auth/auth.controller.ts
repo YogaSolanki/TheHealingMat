@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpException,
   Param,
+  Patch,
   Post,
   Query,
   Res,
@@ -19,6 +20,9 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
 import { AdminLoginDto } from './dto/admin-login.dto';
+import { UpdateAdminAccountDto } from './dto/update-admin-account.dto';
+import { UpdatePrivateSpacePasswordDto } from './dto/update-private-space-password.dto';
+import { VerifyPrivateSpaceDto } from './dto/verify-private-space.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -57,6 +61,30 @@ export class AuthController {
   @Get('admin/auth/me')
   adminMe(@CurrentAdmin() admin: Admin) {
     return this.authService.toPublicAdmin(admin);
+  }
+
+  @Roles(Role.Admin)
+  @Post('admin/private-space/verify')
+  @HttpCode(200)
+  verifyPrivateSpace(@Body() dto: VerifyPrivateSpaceDto) {
+    return this.authService.verifyPrivateSpace(dto);
+  }
+
+  @Roles(Role.Admin)
+  @Patch('admin/private-space/password')
+  @HttpCode(200)
+  updatePrivateSpacePassword(@Body() dto: UpdatePrivateSpacePasswordDto) {
+    return this.authService.updatePrivateSpacePassword(dto);
+  }
+
+  @Roles(Role.Admin)
+  @Patch('admin/auth/account')
+  @HttpCode(200)
+  updateAdminAccount(
+    @CurrentAdmin() admin: Admin,
+    @Body() dto: UpdateAdminAccountDto,
+  ) {
+    return this.authService.updateAdminAccount(admin, dto);
   }
 
   @Public()

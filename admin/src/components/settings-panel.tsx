@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { AdminConfirmDialog } from "@/components/admin-confirm-dialog";
 import { AdminToast } from "@/components/admin-toast";
 import { PanelLoader } from "@/components/panel-loader";
+import { AdminSettingsPrivateSpace } from "@/components/admin-settings-private-space";
 import { ReloadButton } from "@/components/reload-button";
 import {
   ADMIN_TOKEN_KEY,
@@ -738,6 +739,8 @@ export function SettingsPanel() {
           </ul>
         )}
       </section>
+
+      {token ? <AdminSettingsPrivateSpace token={token} /> : null}
     </div>
   );
 }

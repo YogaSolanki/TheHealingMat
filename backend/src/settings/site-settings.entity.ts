@@ -23,6 +23,13 @@ export class SiteSettings {
   @Column({ type: 'int', default: 20 })
   referralDiscountPercent: number;
 
+  /**
+   * bcrypt hash of the Admin → Settings → Private space gate password.
+   * When null, AuthService falls back to ADMIN_PRIVATE_SPACE_PASSWORD env.
+   */
+  @Column({ type: 'varchar', nullable: true })
+  privateSpacePasswordHash: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
