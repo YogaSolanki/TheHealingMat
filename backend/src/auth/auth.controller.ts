@@ -171,11 +171,12 @@ export class AuthController {
   googleStart(
     @Query('intent') intent: string | undefined,
     @Query('ref') referralCode: string | undefined,
+    @Query('region') region: string | undefined,
     @Res() res: Response,
   ) {
     try {
       return res.redirect(
-        this.authService.getGoogleAuthUrl(intent, referralCode),
+        this.authService.getGoogleAuthUrl(intent, referralCode, region),
       );
     } catch (err) {
       const message = redirectErrorMessage(

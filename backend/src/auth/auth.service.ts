@@ -583,6 +583,21 @@ export class AuthService {
       const nextTime = dto.preferredClassTime?.trim() || null;
       user.preferredClassTime = nextTime;
     }
+    if (dto.region !== undefined && dto.region !== user.region) {
+      if (dto.region === Region.OutsideIndia && !user.email?.trim()) {
+        throw new BadRequestException(
+          'Add an email address before switching to international (USD) billing.',
+        );
+      }
+      if (dto.region === Region.India && !user.mobile?.trim()) {
+        throw new BadRequestException(
+          'Add a mobile number before switching to India (INR) billing.',
+        );
+      }
+      user.region = dto.region;
+      // Location field means state (India) vs country (outside) — clear stale value.
+      user.state = null;
+    }
 
     const saved = await this.users.save(user);
 
@@ -1280,15 +1295,24 @@ export class AuthService {
     return { clientId, clientSecret };
   }
 
-  getGoogleAuthUrl(intent: string = 'login', referralCode?: string) {
+  getGoogleAuthUrl(
+    intent: string = 'login',
+    referralCode?: string,
+    regionHint?: string,
+  ) {
     const { clientId } = this.requireGoogleConfig();
     const safeIntent = intent === 'signup' ? 'signup' : 'login';
     const code = referralCode?.trim().toLowerCase() || undefined;
+    const region =
+      regionHint === Region.India || regionHint === Region.OutsideIndia
+        ? regionHint
+        : undefined;
     const state = Buffer.from(
       JSON.stringify({
         intent: safeIntent,
         nonce: randomBytes(8).toString('hex'),
         ...(code ? { referralCode: code } : {}),
+        ...(region ? { region } : {}),
       }),
     ).toString('base64url');
 
@@ -1319,8 +1343,14 @@ export class AuthService {
     }
 
     const { clientId, clientSecret } = this.requireGoogleConfig();
-    const referralCode = this.parseGoogleStateReferral(input.state);
+    const googleState = this.parseGoogleState(input.state);
     const visitor = await this.detectVisitorRegion(input.headers ?? {});
+    // Prefer client region hint when geo detection is uncertain (common on
+    // Render without CDN country headers) so international members get USD.
+    const signupRegion =
+      !visitor.detected && googleState.region
+        ? googleState.region
+        : visitor.region;
 
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -1375,8 +1405,8 @@ export class AuthService {
     const { user, isNewAccount } = await this.findOrCreateGoogleUser({
       email,
       fullName,
-      referralCode,
-      region: visitor.region,
+      referralCode: googleState.referralCode,
+      region: signupRegion,
     });
 
     const issued = await this.issueUserToken(user, isNewAccount);
@@ -1441,16 +1471,27 @@ export class AuthService {
     }
   }
 
-  private parseGoogleStateReferral(state?: string) {
-    if (!state) return undefined;
+  private parseGoogleState(state?: string): {
+    referralCode?: string;
+    region?: Region;
+  } {
+    if (!state) return {};
     try {
       const parsed = JSON.parse(
         Buffer.from(state, 'base64url').toString('utf8'),
-      ) as { referralCode?: string };
+      ) as { referralCode?: string; region?: string };
       const code = parsed.referralCode?.trim().toLowerCase();
-      return code || undefined;
+      const region =
+        parsed.region === Region.India ||
+        parsed.region === Region.OutsideIndia
+          ? parsed.region
+          : undefined;
+      return {
+        ...(code ? { referralCode: code } : {}),
+        ...(region ? { region } : {}),
+      };
     } catch {
-      return undefined;
+      return {};
     }
   }
 

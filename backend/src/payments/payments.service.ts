@@ -162,6 +162,20 @@ export class PaymentsService {
       //
       // Payable amount is always quote.amountPaise (after coupon/referral + ₹1/$1 floor).
       // Never charge list/original price here.
+      if (quote.currency === 'USD') {
+        const email = user.email?.trim();
+        if (!email) {
+          throw new BadRequestException(
+            'An email address is required for international (USD) payments. Add an email on your account and try again.',
+          );
+        }
+        if (quote.originalPricePaise < MIN_PAYABLE_MINOR) {
+          throw new BadRequestException(
+            'This membership plan has no USD price configured. Ask an admin to set the international price.',
+          );
+        }
+      }
+
       const order = await this.createRazorpayOrder({
         amountPaise: quote.amountPaise,
         currency: quote.currency,
@@ -1688,10 +1702,11 @@ export class PaymentsService {
     notes: Record<string, string>;
   }) {
     const client = this.requireClient();
+    const currency = input.currency.toUpperCase();
     try {
       return await client.orders.create({
         amount: input.amountPaise,
-        currency: input.currency.toUpperCase(),
+        currency,
         receipt: input.receipt?.slice(0, 40) || this.makeReceipt(),
         notes: input.notes,
         payment_capture: true,
@@ -1702,6 +1717,19 @@ export class PaymentsService {
       if (status === 401) {
         throw new ServiceUnavailableException(
           'Razorpay rejected the API keys. Copy Key ID and Key Secret from Razorpay Dashboard → Account & Settings → API Keys (Test mode), put them in backend/.env as RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET, then restart the API.',
+        );
+      }
+      const lowered = (detail || '').toLowerCase();
+      if (
+        currency === 'USD' &&
+        (lowered.includes('international') ||
+          lowered.includes('currency') ||
+          lowered.includes('not supported') ||
+          lowered.includes('not enabled'))
+      ) {
+        throw new BadRequestException(
+          detail ||
+            'International (USD) payments are not enabled on this Razorpay account. Enable International Payments / multi-currency in the Razorpay Dashboard, then try again.',
         );
       }
       throw new InternalServerErrorException(

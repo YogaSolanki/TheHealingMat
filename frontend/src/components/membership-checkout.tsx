@@ -591,6 +591,12 @@ export function MembershipCheckoutPanel({
     setError(null);
 
     try {
+      if (user?.region === "outside_india" && !user.email?.trim()) {
+        throw new Error(
+          "An email address is required for international payments. Add an email on your account and try again.",
+        );
+      }
+
       // Only an explicitly applied coupon counts — never charge from typed-but-unapplied input.
       const couponCode =
         !applyReferralDiscount && appliedCoupon.trim()
@@ -680,9 +686,27 @@ export function MembershipCheckoutPanel({
         order_id: razorpayOrderId,
         prefill: {
           name: user?.fullName,
-          email: user?.email ?? undefined,
+          // Razorpay international checkout expects an email on the order.
+          email: user?.email?.trim() || undefined,
           ...(prefillContact ? { contact: prefillContact } : {}),
         },
+        ...(isUsd
+          ? {
+              // Prefer cards for USD; UPI/netbanking are India-only.
+              config: {
+                display: {
+                  blocks: {
+                    international: {
+                      name: "Card",
+                      instruments: [{ method: "card" }],
+                    },
+                  },
+                  sequence: ["block.international"],
+                  preferences: { show_default_blocks: false },
+                },
+              },
+            }
+          : {}),
         theme: { color: "#1f6b3a" },
         modal: {
           ondismiss: () => {
@@ -716,9 +740,17 @@ export function MembershipCheckoutPanel({
         },
       });
 
-      checkout.on("payment.failed", () => {
-        failPayment();
-      });
+      checkout.on(
+        "payment.failed",
+        (response: {
+          error?: { description?: string; reason?: string; code?: string };
+        }) => {
+          const description =
+            response?.error?.description?.trim() ||
+            response?.error?.reason?.trim();
+          failPayment(description || PAYMENT_INCOMPLETE);
+        },
+      );
 
       checkout.open();
     } catch (err: unknown) {
