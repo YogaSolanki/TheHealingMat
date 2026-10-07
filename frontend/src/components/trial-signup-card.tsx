@@ -204,7 +204,7 @@ export function TrialSignupCard({
       setError("Please accept the Terms & Conditions and Privacy Policy to continue.");
       return;
     }
-    if (isMembership && !ageConfirmed) {
+    if (!ageConfirmed) {
       setError("Please confirm that you are 18 years of age or older.");
       return;
     }
@@ -332,7 +332,7 @@ export function TrialSignupCard({
   const mobileDigits = mobile.replace(/\D/g, "").slice(0, 10);
   const canSubmitIdentity =
     termsAccepted &&
-    (!isMembership || ageConfirmed) &&
+    ageConfirmed &&
     isValidFullName(fullName) &&
     (isIndia
       ? mobileDigits.length === 10
@@ -564,24 +564,22 @@ export function TrialSignupCard({
             )}
           </div>
 
-          {isMembership ? (
-            <label
-              htmlFor="membership-age-confirm"
-              className="flex cursor-pointer items-start gap-2 rounded-[10px] border border-[#e2e8df] bg-[#f7faf7] px-2.5 py-1.5 text-left"
-            >
-              <input
-                id="membership-age-confirm"
-                type="checkbox"
-                checked={ageConfirmed}
-                disabled={loading}
-                onChange={(event) => setAgeConfirmed(event.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-[#b7cbb8] text-[#1f6b3a] focus:ring-[#1f6b3a]/20"
-              />
-              <span className="text-[12px] leading-snug text-[#3d4a3c]">
-                I confirm that I am 18 years of age or older.
-              </span>
-            </label>
-          ) : null}
+          <label
+            htmlFor="signup-age-confirm"
+            className="flex cursor-pointer items-start gap-2 rounded-[10px] border border-[#e2e8df] bg-[#f7faf7] px-2.5 py-1.5 text-left"
+          >
+            <input
+              id="signup-age-confirm"
+              type="checkbox"
+              checked={ageConfirmed}
+              disabled={loading}
+              onChange={(event) => setAgeConfirmed(event.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-[#b7cbb8] text-[#1f6b3a] focus:ring-[#1f6b3a]/20"
+            />
+            <span className="text-[12px] leading-snug text-[#3d4a3c]">
+              I confirm that I am 18 years of age or older.
+            </span>
+          </label>
 
           <TermsAcceptanceField
             id="trial-signup-terms"

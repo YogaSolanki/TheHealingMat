@@ -357,6 +357,7 @@ export function AuthTrialCard({
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
   const {
     secondsLeft: resendSecondsLeft,
     canResend,
@@ -450,6 +451,10 @@ export function AuthTrialCard({
       const nameError = validateFullName(fullName);
       if (nameError) {
         setError(nameError);
+        return;
+      }
+      if (!ageConfirmed) {
+        setError("Please confirm that you are 18 years of age or older.");
         return;
       }
       if (!termsAccepted) {
@@ -611,6 +616,7 @@ export function AuthTrialCard({
     setOtpDelivery("whatsapp");
     setResetMessage(null);
     setTermsAccepted(false);
+    setAgeConfirmed(false);
     clearCooldown();
     if (nextMode === "signup") {
       setReferralCodeInput(initialReferralCode.trim());
@@ -1017,11 +1023,29 @@ export function AuthTrialCard({
           ) : null}
 
           {mode === "signup" ? (
-            <TermsAcceptanceField
-              checked={termsAccepted}
-              onChange={setTermsAccepted}
-              disabled={loading}
-            />
+            <>
+              <label
+                htmlFor="auth-signup-age-confirm"
+                className="flex cursor-pointer items-start gap-2 rounded-[10px] border border-[#e2e8df] bg-[#f7faf7] px-2.5 py-1.5 text-left"
+              >
+                <input
+                  id="auth-signup-age-confirm"
+                  type="checkbox"
+                  checked={ageConfirmed}
+                  disabled={loading}
+                  onChange={(event) => setAgeConfirmed(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-[#b7cbb8] text-[#1f6b3a] focus:ring-[#1f6b3a]/20"
+                />
+                <span className="text-[12px] leading-snug text-[#3d4a3c]">
+                  I confirm that I am 18 years of age or older.
+                </span>
+              </label>
+              <TermsAcceptanceField
+                checked={termsAccepted}
+                onChange={setTermsAccepted}
+                disabled={loading}
+              />
+            </>
           ) : null}
 
           <button
@@ -1029,7 +1053,9 @@ export function AuthTrialCard({
             disabled={
               loading ||
               (mode === "signup" &&
-                (!termsAccepted || !isValidFullName(fullName)))
+                (!ageConfirmed ||
+                  !termsAccepted ||
+                  !isValidFullName(fullName)))
             }
             className={primaryBtnClass}
           >
