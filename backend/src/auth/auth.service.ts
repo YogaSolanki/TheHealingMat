@@ -33,7 +33,9 @@ import {
 } from '../common/frontend-url';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { UpdateAdminAccountDto } from './dto/update-admin-account.dto';
+import { UpdatePrivateSpacePasswordDto } from './dto/update-private-space-password.dto';
 import { VerifyPrivateSpaceDto } from './dto/verify-private-space.dto';
+import { SettingsService } from '../settings/settings.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -101,6 +103,7 @@ export class AuthService {
     private readonly trialMessaging: TrialMessagingService,
     private readonly payments: PaymentsService,
     private readonly scheduledClasses: ScheduledClassesService,
+    private readonly settings: SettingsService,
   ) {}
 
   async login(dto: AdminLoginDto) {
@@ -132,7 +135,45 @@ export class AuthService {
     };
   }
 
-  verifyPrivateSpace(dto: VerifyPrivateSpaceDto) {
+  async verifyPrivateSpace(dto: VerifyPrivateSpaceDto) {
+    const matches = await this.privateSpacePasswordMatches(dto.password);
+    if (!matches) {
+      throw new UnauthorizedException('Incorrect private space password.');
+    }
+    return { ok: true as const };
+  }
+
+  async updatePrivateSpacePassword(dto: UpdatePrivateSpacePasswordDto) {
+    const currentOk = await this.privateSpacePasswordMatches(
+      dto.currentPassword,
+    );
+    if (!currentOk) {
+      throw new UnauthorizedException(
+        'Current private space password is incorrect.',
+      );
+    }
+
+    const next = dto.newPassword.trim();
+    if (next.length < 6) {
+      throw new BadRequestException(
+        'New private space password must be at least 6 characters.',
+      );
+    }
+
+    await this.settings.setPrivateSpacePasswordHash(next);
+    return {
+      ok: true as const,
+      message: 'Private space password updated.',
+    };
+  }
+
+  private async privateSpacePasswordMatches(password: string) {
+    const provided = password ?? '';
+    const storedHash = await this.settings.getPrivateSpacePasswordHash();
+    if (storedHash) {
+      return bcrypt.compare(provided, storedHash);
+    }
+
     const expected =
       this.config.get<string>('ADMIN_PRIVATE_SPACE_PASSWORD')?.trim() ?? '';
     if (!expected) {
@@ -141,17 +182,9 @@ export class AuthService {
       );
     }
 
-    const provided = Buffer.from(dto.password);
-    const secret = Buffer.from(expected);
-    const matches =
-      provided.length === secret.length &&
-      timingSafeEqual(provided, secret);
-
-    if (!matches) {
-      throw new UnauthorizedException('Incorrect private space password.');
-    }
-
-    return { ok: true as const };
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    return a.length === b.length && timingSafeEqual(a, b);
   }
 
   async updateAdminAccount(admin: Admin, dto: UpdateAdminAccountDto) {

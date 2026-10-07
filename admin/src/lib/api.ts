@@ -220,6 +220,18 @@ export function verifyAdminPrivateSpace(token: string, password: string) {
   });
 }
 
+export function updateAdminPrivateSpacePassword(
+  token: string,
+  payload: { currentPassword: string; newPassword: string },
+) {
+  return authJson<{ ok: true; message: string }>(
+    "PATCH",
+    "/admin/private-space/password",
+    token,
+    payload,
+  );
+}
+
 type AdminAccountUpdateResponse = AdminLoginResponse;
 
 export function updateAdminAccount(

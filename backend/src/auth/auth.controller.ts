@@ -21,6 +21,7 @@ import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { UpdateAdminAccountDto } from './dto/update-admin-account.dto';
+import { UpdatePrivateSpacePasswordDto } from './dto/update-private-space-password.dto';
 import { VerifyPrivateSpaceDto } from './dto/verify-private-space.dto';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -67,6 +68,13 @@ export class AuthController {
   @HttpCode(200)
   verifyPrivateSpace(@Body() dto: VerifyPrivateSpaceDto) {
     return this.authService.verifyPrivateSpace(dto);
+  }
+
+  @Roles(Role.Admin)
+  @Patch('admin/private-space/password')
+  @HttpCode(200)
+  updatePrivateSpacePassword(@Body() dto: UpdatePrivateSpacePasswordDto) {
+    return this.authService.updatePrivateSpacePassword(dto);
   }
 
   @Roles(Role.Admin)

@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
+import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { DEFAULT_REFERRAL_DISCOUNT_PERCENT } from '../payments/membership-plans';
 import { UpdateSiteSettingsDto } from './dto/update-site-settings.dto';
@@ -16,6 +17,7 @@ export class SettingsService implements OnModuleInit {
 
   async onModuleInit() {
     await this.ensureReferralDiscountColumn();
+    await this.ensurePrivateSpacePasswordColumn();
     await this.ensureRow();
   }
 
@@ -33,6 +35,19 @@ export class SettingsService implements OnModuleInit {
   async getReferralDiscountPercent(): Promise<number> {
     const row = await this.ensureRow();
     return this.normalizePercent(row.referralDiscountPercent);
+  }
+
+  /** Stored private-space password hash, or null when using env fallback only. */
+  async getPrivateSpacePasswordHash(): Promise<string | null> {
+    const row = await this.ensureRow();
+    const hash = row.privateSpacePasswordHash?.trim();
+    return hash || null;
+  }
+
+  async setPrivateSpacePasswordHash(password: string) {
+    const row = await this.ensureRow();
+    row.privateSpacePasswordHash = await bcrypt.hash(password, 10);
+    await this.settings.save(row);
   }
 
   async updateSettings(dto: UpdateSiteSettingsDto) {
@@ -74,6 +89,13 @@ export class SettingsService implements OnModuleInit {
     `);
   }
 
+  private async ensurePrivateSpacePasswordColumn() {
+    await this.settings.query(`
+      ALTER TABLE "site_settings"
+      ADD COLUMN IF NOT EXISTS "privateSpacePasswordHash" varchar NULL
+    `);
+  }
+
   private async ensureRow(): Promise<SiteSettings> {
     const existing = await this.settings.find({
       order: { createdAt: 'ASC' },
@@ -90,6 +112,7 @@ export class SettingsService implements OnModuleInit {
       this.settings.create({
         liveSessionUrl: fromEnv,
         referralDiscountPercent: DEFAULT_REFERRAL_DISCOUNT_PERCENT,
+        privateSpacePasswordHash: null,
       }),
     );
   }
