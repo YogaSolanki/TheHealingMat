@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { CountrySelect } from "@/components/country-select";
 import { MemberDatePicker } from "@/components/member-dashboard/member-date-picker";
 import { MemberSelect } from "@/components/member-dashboard/member-select";
 import { ButtonLoader } from "@/components/site-loader";
@@ -105,7 +106,7 @@ export function MembershipCheckoutDetails({
       setError(
         isIndia
           ? "Please select your state to continue."
-          : "Please enter your country to continue.",
+          : "Please select your country to continue.",
       );
       return;
     }
@@ -182,14 +183,10 @@ export function MembershipCheckoutDetails({
                 className="!max-w-none"
               />
             ) : (
-              <input
-                type="text"
+              <CountrySelect
                 value={location}
-                onChange={(event) => setLocation(event.target.value)}
-                placeholder="Enter your country"
-                autoComplete="country-name"
-                maxLength={120}
-                className="w-full rounded-[12px] border border-[#d7e0d6] bg-white px-3.5 py-2.5 text-[14px] font-semibold text-[#243028] outline-none transition placeholder:font-medium placeholder:text-[#9aa89c] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
+                onChange={setLocation}
+                placeholder="Select your country"
               />
             )}
           </div>
