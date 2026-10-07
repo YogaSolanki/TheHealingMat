@@ -205,6 +205,39 @@ export function reactivateAdminUser(token: string, id: string) {
   );
 }
 
+/** Temporary bulk wipe — removes all member users and related records. */
+export function deleteAllAdminUsers(token: string) {
+  return authJson<{ success: boolean; deletedCount: number }>(
+    "DELETE",
+    "/admin/users",
+    token,
+  );
+}
+
+export function verifyAdminPrivateSpace(token: string, password: string) {
+  return authJson<{ ok: true }>("POST", "/admin/private-space/verify", token, {
+    password,
+  });
+}
+
+type AdminAccountUpdateResponse = AdminLoginResponse;
+
+export function updateAdminAccount(
+  token: string,
+  payload: {
+    currentPassword: string;
+    newEmail?: string;
+    newPassword?: string;
+  },
+) {
+  return authJson<AdminAccountUpdateResponse>(
+    "PATCH",
+    "/admin/auth/account",
+    token,
+    payload,
+  );
+}
+
 export type AdminCompanyRow = {
   id: string;
   companyName: string;

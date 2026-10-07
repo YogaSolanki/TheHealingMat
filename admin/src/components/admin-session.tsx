@@ -5,6 +5,7 @@ import type { PublicAdmin } from "@/lib/api";
 
 type AdminSessionValue = {
   admin: PublicAdmin;
+  setAdmin: (admin: PublicAdmin) => void;
 };
 
 const AdminSessionContext = createContext<AdminSessionValue | null>(null);

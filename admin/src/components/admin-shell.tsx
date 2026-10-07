@@ -14,7 +14,7 @@ import fullLogo from "@/assets/full-logo.png";
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { admin, checking, signOut } = useAdminSession();
+  const { admin, setAdmin, checking, signOut } = useAdminSession();
   const [menuOpen, setMenuOpen] = useState(false);
 
   if (checking || !admin) {
@@ -101,7 +101,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </header>
 
         <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-8">
-          <AdminSessionProvider value={{ admin }}>
+          <AdminSessionProvider value={{ admin, setAdmin }}>
             <PageTransition>{children}</PageTransition>
           </AdminSessionProvider>
         </div>
