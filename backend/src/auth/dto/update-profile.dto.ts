@@ -8,6 +8,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Gender } from '../../users/enums/gender.enum';
+import { Region } from '../../users/enums/region.enum';
 
 export class UpdateProfileDto {
   @IsString()
@@ -36,4 +37,12 @@ export class UpdateProfileDto {
   @IsString()
   @MaxLength(40, { message: 'preferredClassTime must be at most 40 characters.' })
   preferredClassTime?: string | null;
+
+  /**
+   * Billing region (INR vs USD). Used when a member was stamped with the wrong
+   * region at signup (common for international users behind Indian geo defaults).
+   */
+  @IsOptional()
+  @IsEnum(Region, { message: 'region must be india or outside_india.' })
+  region?: Region;
 }

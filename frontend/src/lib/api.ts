@@ -298,6 +298,7 @@ export async function updateProfile(
     gender?: UserGender | null;
     state?: string | null;
     preferredClassTime?: string | null;
+    region?: Region;
   },
 ): Promise<{ success: boolean; message: string; user: PublicUser }> {
   const response = await fetch(`${API_URL}/auth/profile`, {
