@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { AdminExportPasswordDialog } from "@/components/admin-export-password-dialog";
 import { AdminToast } from "@/components/admin-toast";
 import { PanelLoader } from "@/components/panel-loader";
 import { ReloadButton } from "@/components/reload-button";
@@ -74,6 +75,11 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
   const [exportingCoupons, setExportingCoupons] = useState(false);
   const [exportingCouponUsersPlanId, setExportingCouponUsersPlanId] = useState<
     string | null
+  >(null);
+  const [exportGate, setExportGate] = useState<
+    | { kind: "coupons" }
+    | { kind: "couponUsers"; planId: string }
+    | null
   >(null);
 
   const [companyName, setCompanyName] = useState("");
@@ -283,44 +289,64 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
     }
   }
 
-  async function onExportCoupons() {
+  function onExportCoupons() {
     if (!token) {
       setToast({ message: "Please sign in again.", variant: "error" });
       return;
     }
-    setExportingCoupons(true);
-    try {
-      await exportAdminCompanyCoupons(token, companyId);
-      setToast({
-        message: "Corporate coupons export downloaded.",
-        variant: "success",
-      });
-    } catch (err) {
-      setToast({
-        message:
-          err instanceof Error
-            ? err.message
-            : "Failed to export corporate coupons.",
-        variant: "error",
-      });
-    } finally {
-      setExportingCoupons(false);
-    }
+    setExportGate({ kind: "coupons" });
   }
 
-  async function onExportCouponUsers(planId: string) {
+  function onExportCouponUsers(planId: string) {
     if (!token) {
       setToast({ message: "Please sign in again.", variant: "error" });
       return;
     }
+    setExportGate({ kind: "couponUsers", planId });
+  }
+
+  async function runVerifiedExport() {
+    if (!token || !exportGate) {
+      setToast({ message: "Please sign in again.", variant: "error" });
+      setExportGate(null);
+      return;
+    }
+
+    if (exportGate.kind === "coupons") {
+      setExportingCoupons(true);
+      try {
+        await exportAdminCompanyCoupons(token, companyId);
+        setExportGate(null);
+        setToast({
+          message: "Corporate coupons export downloaded.",
+          variant: "success",
+        });
+      } catch (err) {
+        setExportGate(null);
+        setToast({
+          message:
+            err instanceof Error
+              ? err.message
+              : "Failed to export corporate coupons.",
+          variant: "error",
+        });
+      } finally {
+        setExportingCoupons(false);
+      }
+      return;
+    }
+
+    const planId = exportGate.planId;
     setExportingCouponUsersPlanId(planId);
     try {
       await exportAdminPlanCouponUsers(token, companyId, planId);
+      setExportGate(null);
       setToast({
         message: "Coupon users export downloaded.",
         variant: "success",
       });
     } catch (err) {
+      setExportGate(null);
       setToast({
         message:
           err instanceof Error
@@ -513,8 +539,8 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
           {detail.plans.some((plan) => Boolean(plan.coupon)) ? (
             <button
               type="button"
-              onClick={() => void onExportCoupons()}
-              disabled={exportingCoupons}
+              onClick={() => onExportCoupons()}
+              disabled={exportingCoupons || exportGate?.kind === "coupons"}
               className="inline-flex h-9 items-center justify-center rounded-full border border-[#d7e0d6] bg-white px-3 text-xs font-semibold text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {exportingCoupons ? "Exporting…" : "Export coupons"}
@@ -617,8 +643,12 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
                     </div>
                     <button
                       type="button"
-                      onClick={() => void onExportCouponUsers(plan.id)}
-                      disabled={exportingCouponUsersPlanId === plan.id}
+                      onClick={() => onExportCouponUsers(plan.id)}
+                      disabled={
+                        exportingCouponUsersPlanId === plan.id ||
+                        (exportGate?.kind === "couponUsers" &&
+                          exportGate.planId === plan.id)
+                      }
                       className="inline-flex h-8 shrink-0 items-center rounded-full border border-[#d7e0d6] bg-white px-2.5 text-[11px] font-semibold text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] disabled:opacity-50"
                     >
                       {exportingCouponUsersPlanId === plan.id ? "…" : "Export"}
@@ -970,6 +1000,27 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
           </div>
         </div>
       ) : null}
+
+      <AdminExportPasswordDialog
+        open={exportGate != null}
+        token={token}
+        title={
+          exportGate?.kind === "couponUsers"
+            ? "Confirm coupon users export"
+            : "Confirm coupons export"
+        }
+        description="Enter the private space password to download this spreadsheet."
+        confirmLabel="Export"
+        exporting={
+          exportingCoupons || exportingCouponUsersPlanId != null
+        }
+        onCancel={() => {
+          if (!exportingCoupons && exportingCouponUsersPlanId == null) {
+            setExportGate(null);
+          }
+        }}
+        onVerified={() => runVerifiedExport()}
+      />
     </div>
   );
 }

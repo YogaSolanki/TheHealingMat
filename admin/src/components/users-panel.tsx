@@ -12,6 +12,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { AdminConfirmDialog } from "@/components/admin-confirm-dialog";
+import { AdminExportPasswordDialog } from "@/components/admin-export-password-dialog";
 import { PanelLoader } from "@/components/panel-loader";
 import { ReloadButton } from "@/components/reload-button";
 import {
@@ -385,6 +386,7 @@ export function UsersPanel() {
   const [exportForm, setExportForm] = useState<ExportUsersForm>(
     emptyExportUsersForm,
   );
+  const [exportPasswordOpen, setExportPasswordOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [mobileExistsError, setMobileExistsError] = useState<string | null>(
@@ -541,7 +543,7 @@ export function UsersPanel() {
     setExportOpen(true);
   }
 
-  async function onExportUsers(event: FormEvent) {
+  function onExportUsers(event: FormEvent) {
     event.preventDefault();
     const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
     if (!token) {
@@ -557,6 +559,18 @@ export function UsersPanel() {
       return;
     }
 
+    setExportError(null);
+    setExportPasswordOpen(true);
+  }
+
+  async function runExportUsers() {
+    const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
+    if (!token) {
+      setExportError("Please sign in again.");
+      setExportPasswordOpen(false);
+      return;
+    }
+
     setExporting(true);
     setExportError(null);
     try {
@@ -568,9 +582,11 @@ export function UsersPanel() {
         ...(exportForm.dateFrom ? { dateFrom: exportForm.dateFrom } : {}),
         ...(exportForm.dateTo ? { dateTo: exportForm.dateTo } : {}),
       });
+      setExportPasswordOpen(false);
       setExportOpen(false);
       setNotice("Users export downloaded.");
     } catch (err) {
+      setExportPasswordOpen(false);
       setExportError(
         err instanceof Error ? err.message : "Unable to export users.",
       );
@@ -1101,6 +1117,23 @@ export function UsersPanel() {
         </div>
       </section>
 
+      <AdminExportPasswordDialog
+        open={exportPasswordOpen}
+        token={
+          typeof window !== "undefined"
+            ? window.localStorage.getItem(ADMIN_TOKEN_KEY) ?? ""
+            : ""
+        }
+        title="Confirm users export"
+        description="Enter the private space password to download the users spreadsheet."
+        confirmLabel="Export CSV"
+        exporting={exporting}
+        onCancel={() => {
+          if (!exporting) setExportPasswordOpen(false);
+        }}
+        onVerified={() => runExportUsers()}
+      />
+
       {exportOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#152019]/40 px-4 py-6">
           <div
@@ -1124,8 +1157,10 @@ export function UsersPanel() {
               </div>
               <button
                 type="button"
-                onClick={() => !exporting && setExportOpen(false)}
-                disabled={exporting}
+                onClick={() =>
+                  !exporting && !exportPasswordOpen && setExportOpen(false)
+                }
+                disabled={exporting || exportPasswordOpen}
                 aria-label="Close"
                 className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#5f6f64] transition hover:bg-[#f0f4ef] hover:text-[#243028] disabled:opacity-50"
               >
@@ -1134,7 +1169,7 @@ export function UsersPanel() {
             </div>
 
             <form
-              onSubmit={(event) => void onExportUsers(event)}
+              onSubmit={(event) => onExportUsers(event)}
               className="px-5 py-5 sm:px-6"
             >
               {exportError ? (
@@ -1239,14 +1274,14 @@ export function UsersPanel() {
                 <button
                   type="button"
                   onClick={() => setExportOpen(false)}
-                  disabled={exporting}
+                  disabled={exporting || exportPasswordOpen}
                   className="h-11 rounded-xl border border-[#e2e8df] px-4 text-sm font-semibold text-[#3d4a3c] transition hover:bg-[#f6f8f5] disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={exporting}
+                  disabled={exporting || exportPasswordOpen}
                   className="h-11 rounded-xl bg-[#1f6b3a] px-4 text-sm font-semibold text-white transition hover:bg-[#185830] disabled:cursor-wait disabled:opacity-60"
                 >
                   {exporting ? "Exporting…" : "Export CSV"}

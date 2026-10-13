@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
+import { AdminExportPasswordDialog } from "@/components/admin-export-password-dialog";
 import { PanelLoader } from "@/components/panel-loader";
 import { ReloadButton } from "@/components/reload-button";
 import {
@@ -87,13 +88,26 @@ export function CorporatesPanel() {
   const [form, setForm] = useState<AddForm>(emptyForm);
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [exportPasswordOpen, setExportPasswordOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  async function onExportCompanies() {
+  function onExportCompanies() {
     const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
     if (!token) {
       setError("Please sign in again.");
+      return;
+    }
+    setError(null);
+    setNotice(null);
+    setExportPasswordOpen(true);
+  }
+
+  async function runExportCompanies() {
+    const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
+    if (!token) {
+      setError("Please sign in again.");
+      setExportPasswordOpen(false);
       return;
     }
     setExporting(true);
@@ -101,8 +115,10 @@ export function CorporatesPanel() {
     setNotice(null);
     try {
       await exportAdminCompanies(token);
+      setExportPasswordOpen(false);
       setNotice("Corporate export downloaded.");
     } catch (err) {
+      setExportPasswordOpen(false);
       setError(err instanceof Error ? err.message : "Failed to export corporates");
     } finally {
       setExporting(false);
@@ -253,8 +269,10 @@ export function CorporatesPanel() {
               />
               <button
                 type="button"
-                onClick={() => void onExportCompanies()}
-                disabled={exporting || companies.length === 0}
+                onClick={() => onExportCompanies()}
+                disabled={
+                  exporting || exportPasswordOpen || companies.length === 0
+                }
                 className="inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-[#d7e0d6] bg-white px-3.5 text-xs font-semibold text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {exporting ? "Exporting…" : "Export"}
@@ -513,6 +531,23 @@ export function CorporatesPanel() {
           </div>
         </div>
       ) : null}
+
+      <AdminExportPasswordDialog
+        open={exportPasswordOpen}
+        token={
+          typeof window !== "undefined"
+            ? window.localStorage.getItem(ADMIN_TOKEN_KEY) ?? ""
+            : ""
+        }
+        title="Confirm corporate export"
+        description="Enter the private space password to download the corporates spreadsheet."
+        confirmLabel="Export"
+        exporting={exporting}
+        onCancel={() => {
+          if (!exporting) setExportPasswordOpen(false);
+        }}
+        onVerified={() => runExportCompanies()}
+      />
     </>
   );
 }
