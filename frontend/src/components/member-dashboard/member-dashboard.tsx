@@ -16,7 +16,12 @@ import { OrientationVideoModal } from "@/components/member-dashboard/orientation
 import { PersonalSessionLinkPopup } from "@/components/member-dashboard/personal-session-link-popup";
 import { SessionNoticePopup } from "@/components/member-dashboard/session-notice-popup";
 import { TrialWelcomePopup } from "@/components/member-dashboard/trial-welcome-popup";
-import { getLiveSessionUrl, startFreeTrial, type PublicUser } from "@/lib/api";
+import {
+  downloadMembershipEbook,
+  getLiveSessionUrl,
+  startFreeTrial,
+  type PublicUser,
+} from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
 import {
   readCheckoutIntent,
@@ -202,6 +207,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const [activeOrientation, setActiveOrientation] =
     useState<OrientationVideoCard | null>(null);
   const [sessionLinkOpen, setSessionLinkOpen] = useState(false);
+  const [downloadingEbook, setDownloadingEbook] = useState(false);
+  const [ebookError, setEbookError] = useState<string | null>(null);
   const { cards: startHereVideos } = useOrientationVideoCards(isActiveMember);
   const { successfulCount: successfulReferrals } = useMyReferrals();
   const canStartFreeTrial = isUnaffiliated && !user.hasUsedFreeTrial;
@@ -1083,7 +1090,9 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
         <section
           className={`grid gap-3 sm:gap-4 ${
             isActiveMember || isTrial
-              ? "sm:grid-cols-2 xl:grid-cols-4"
+              ? access.ebookDownloadable
+                ? "sm:grid-cols-2 xl:grid-cols-3"
+                : "sm:grid-cols-2 xl:grid-cols-4"
               : "sm:grid-cols-3"
           }`}
         >
@@ -1096,6 +1105,40 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 title="My Membership"
                 subtitle="View plan details, invoices and renew."
               />
+              {access.ebookDownloadable ? (
+                <CompactNavCard
+                  icon={<BookIcon className="h-5 w-5 text-[#1f6b3a]" />}
+                  iconBg="bg-[#eef6f0]"
+                  title="Exclusive E-book"
+                  subtitle={
+                    downloadingEbook
+                      ? "Preparing your download…"
+                      : ebookError
+                        ? ebookError
+                        : "Download your member-only e-book."
+                  }
+                  disabled={downloadingEbook}
+                  onClick={() => {
+                    void (async () => {
+                      const token = getStoredToken();
+                      if (!token || downloadingEbook) return;
+                      setEbookError(null);
+                      setDownloadingEbook(true);
+                      try {
+                        await downloadMembershipEbook(token);
+                      } catch (err) {
+                        setEbookError(
+                          err instanceof Error
+                            ? err.message
+                            : "Unable to download the e-book.",
+                        );
+                      } finally {
+                        setDownloadingEbook(false);
+                      }
+                    })();
+                  }}
+                />
+              ) : null}
               <CompactNavCard
                 href="/dashboard/refer"
                 icon={<GiftIcon className="h-5 w-5 text-[#C58A1A]" />}
@@ -1441,6 +1484,7 @@ function CompactNavCard({
   subtitle,
   href,
   onClick,
+  disabled,
 }: {
   icon: ReactNode;
   iconBg?: string;
@@ -1448,9 +1492,10 @@ function CompactNavCard({
   subtitle: string;
   href?: string;
   onClick?: () => void;
+  disabled?: boolean;
 }) {
   const className =
-    "flex w-full items-center gap-3 rounded-[14px] border border-[#e6ebe3] bg-white px-3.5 py-3.5 text-left shadow-[0_6px_18px_rgba(31,107,58,0.05)] transition hover:border-[#d5e0d6] hover:shadow-[0_8px_22px_rgba(31,107,58,0.08)] sm:gap-3.5 sm:px-4 sm:py-4";
+    "flex w-full items-center gap-3 rounded-[14px] border border-[#e6ebe3] bg-white px-3.5 py-3.5 text-left shadow-[0_6px_18px_rgba(31,107,58,0.05)] transition hover:border-[#d5e0d6] hover:shadow-[0_8px_22px_rgba(31,107,58,0.08)] sm:gap-3.5 sm:px-4 sm:py-4 disabled:cursor-wait disabled:opacity-70";
 
   const content = (
     <>
@@ -1473,7 +1518,12 @@ function CompactNavCard({
 
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} className={`cursor-pointer ${className}`}>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className={`cursor-pointer ${className}`}
+      >
         {content}
       </button>
     );
@@ -1596,6 +1646,31 @@ function LinkIcon({ className }: { className?: string }) {
         strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function BookIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path
+        d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15.5H7.5A2.5 2.5 0 0 0 5 21"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5 5.5V21"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M9 7.5h7M9 11h7"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
       />
     </svg>
   );

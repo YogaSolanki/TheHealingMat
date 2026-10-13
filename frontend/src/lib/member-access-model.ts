@@ -36,6 +36,8 @@ export type MemberAccess = {
   priorInvoiceMembershipId: string | null;
   priorInvoiceDownloadable: boolean;
   priorInvoiceNumber: string | null;
+  /** Active 12-month membership — member e-book download. */
+  ebookDownloadable: boolean;
 };
 
 export function membershipStatusLabel(state: MemberAccessState) {
@@ -166,6 +168,7 @@ export function emptyMemberAccess(
     priorInvoiceMembershipId: null,
     priorInvoiceDownloadable: false,
     priorInvoiceNumber: null,
+    ebookDownloadable: false,
   };
 }
 
@@ -214,6 +217,9 @@ export function mapMembershipAccess(data: MembershipAccessResponse): MemberAcces
   access.membershipId = membership.id;
   access.isUpgrade = membership.isUpgrade === true;
   access.invoiceNumber = membership.invoiceNumber ?? null;
+  access.ebookDownloadable =
+    state === "active" &&
+    (data.ebookDownloadable === true || membership.planMonths === 12);
   // Prefer a clean plan title on My Membership; invoice PDF keeps the upgrade label.
   access.planName = access.isUpgrade
     ? `${membership.planMonths}-Month Membership`

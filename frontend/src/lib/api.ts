@@ -566,6 +566,8 @@ export type PublicMembership = {
 
 export type MembershipAccessResponse = {
   state: "trial" | "active" | "expired" | "scheduled" | "pending";
+  /** True when the member has an active 12-month membership (e-book entitlement). */
+  ebookDownloadable?: boolean;
   current: PublicMembership | null;
   scheduled: PublicMembership | null;
   lastExpired: PublicMembership | null;
@@ -816,24 +818,23 @@ export async function verifyRazorpayPayment(
   return parseJson<VerifyPaymentResponse>(response);
 }
 
-export async function downloadMembershipInvoice(
+async function downloadAuthenticatedPdf(
   accessToken: string,
-  membershipId: string,
+  path: string,
+  fallbackFilename: string,
+  errorFallback: string,
 ) {
-  const response = await fetch(
-    `${API_URL}/memberships/${membershipId}/invoice`,
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      cache: "no-store",
-    },
-  );
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
 
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as {
       message?: string | string[];
     };
     throw new Error(
-      readResponseErrorMessage(body, response.status, "Unable to download invoice."),
+      readResponseErrorMessage(body, response.status, errorFallback),
     );
   }
 
@@ -841,7 +842,7 @@ export async function downloadMembershipInvoice(
   if (contentType.includes("application/json")) {
     const body = (await response.json()) as { url?: string };
     if (!body.url) {
-      throw new Error("Invoice link is unavailable.");
+      throw new Error("Download link is unavailable.");
     }
     window.open(body.url, "_blank", "noopener,noreferrer");
     return;
@@ -850,7 +851,7 @@ export async function downloadMembershipInvoice(
   const blob = await response.blob();
   const disposition = response.headers.get("Content-Disposition") || "";
   const match = disposition.match(/filename="?([^"]+)"?/i);
-  const filename = match?.[1] || `the-healing-mat-invoice.pdf`;
+  const filename = match?.[1] || fallbackFilename;
 
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -860,6 +861,28 @@ export async function downloadMembershipInvoice(
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(url);
+}
+
+export async function downloadMembershipInvoice(
+  accessToken: string,
+  membershipId: string,
+) {
+  return downloadAuthenticatedPdf(
+    accessToken,
+    `/memberships/${membershipId}/invoice`,
+    "the-healing-mat-invoice.pdf",
+    "Unable to download invoice.",
+  );
+}
+
+/** Active 12-month members only. */
+export async function downloadMembershipEbook(accessToken: string) {
+  return downloadAuthenticatedPdf(
+    accessToken,
+    "/memberships/ebook",
+    "The-Healing-Mat-E-Book.pdf",
+    "Unable to download the e-book.",
+  );
 }
 
 export type ReferralStatus =

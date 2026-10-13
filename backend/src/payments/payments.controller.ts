@@ -66,6 +66,17 @@ export class PaymentsController {
     return this.payments.getMyAccess(user);
   }
 
+  /** 12-month active members only — gated e-book PDF download. */
+  @Roles(Role.User)
+  @Get('memberships/ebook')
+  async membershipEbook(@CurrentUser() user: User) {
+    const file = await this.payments.getTwelveMonthEbook(user);
+    return new StreamableFile(file.stream, {
+      type: 'application/pdf',
+      disposition: `attachment; filename="${file.filename}"`,
+    });
+  }
+
   @Roles(Role.User)
   @Get('memberships/:id/invoice')
   async membershipInvoice(
