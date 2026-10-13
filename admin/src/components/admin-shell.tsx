@@ -100,7 +100,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-8">
+        <div className="scrollbar-hide min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-6 sm:px-8">
           <AdminSessionProvider value={{ admin, setAdmin }}>
             <PageTransition>{children}</PageTransition>
           </AdminSessionProvider>

@@ -155,8 +155,17 @@ const MONTHS = [
 ] as const;
 
 function formatDate(date: Date): string {
-  const d = new Date(date);
-  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  // Membership start/end are IST calendar days — never format via UTC date parts.
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).formatToParts(date);
+  const day = parts.find((p) => p.type === 'day')?.value ?? '';
+  const month = parts.find((p) => p.type === 'month')?.value ?? '';
+  const year = parts.find((p) => p.type === 'year')?.value ?? '';
+  return `${day} ${month} ${year}`;
 }
 
 function formatPaymentDate(date: Date, international: boolean): string {

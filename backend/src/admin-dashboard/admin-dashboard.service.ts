@@ -15,6 +15,10 @@ import { isValidPassword, PASSWORD_MESSAGE } from '../auth/dto/password.rules';
 import { Membership } from '../payments/membership.entity';
 import { MembershipPlansService } from '../payments/membership-plans.service';
 import { InvoicesService } from '../payments/invoices.service';
+import {
+  dayAfterMembershipEnd,
+  membershipEndsAt as calcMembershipEndsAt,
+} from '../payments/membership-term';
 import { PaymentOrder } from '../payments/payment-order.entity';
 import { PaymentsService } from '../payments/payments.service';
 import { RewardRedemptionRequest } from '../referrals/reward-redemption-request.entity';
@@ -813,6 +817,11 @@ export class AdminDashboardService {
         membership,
         invoice,
       );
+      void this.payments.notifyMembershipPurchaseEmail(
+        user,
+        membership,
+        invoice,
+      );
     }
 
     return this.getUserDetail(userId);
@@ -1101,6 +1110,11 @@ export class AdminDashboardService {
         upgraded,
         invoice,
       );
+      void this.payments.notifyMembershipPurchaseEmail(
+        user,
+        upgraded,
+        invoice,
+      );
     }
 
     return this.getUserDetail(userId);
@@ -1157,26 +1171,14 @@ export class AdminDashboardService {
     await this.trials.save(trial);
   }
 
-  private addMonths(date: Date, months: number) {
-    const next = new Date(date.getTime());
-    next.setMonth(next.getMonth() + months);
-    return next;
-  }
-
   /** Last inclusive day of a membership term (matches payments service). */
   private membershipEndsAt(startsAt: Date, months: number) {
-    const ends = this.addMonths(startsAt, months);
-    ends.setDate(ends.getDate() - 1);
-    ends.setHours(23, 59, 59, 999);
-    return ends;
+    return calcMembershipEndsAt(startsAt, months);
   }
 
   /** Day after a term ends — used as the next membership start. */
   private dayAfter(date: Date) {
-    const next = new Date(date.getTime());
-    next.setDate(next.getDate() + 1);
-    next.setHours(0, 0, 0, 0);
-    return next;
+    return dayAfterMembershipEnd(date);
   }
 
   private startOfLocalDay(date: Date) {

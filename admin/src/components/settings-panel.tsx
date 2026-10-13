@@ -396,6 +396,7 @@ export function SettingsPanel() {
       setPendingDeleteTiming(null);
       showSuccess(`Deleted session time ${row.label}.`);
     } catch (err: unknown) {
+      setPendingDeleteTiming(null);
       showError(
         err instanceof Error ? err.message : "Unable to delete session time.",
       );

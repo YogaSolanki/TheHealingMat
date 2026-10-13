@@ -62,9 +62,40 @@ export function daypartYogaMessage(now = new Date()) {
   return "Let’s end your day with yoga.";
 }
 
+const TRIAL_TZ = "Asia/Kolkata";
+
 function formatLongDate(iso: string | null | undefined) {
   if (!iso) return null;
   return new Date(iso).toLocaleDateString("en-IN", {
+    timeZone: TRIAL_TZ,
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+/**
+ * Trial end labels: show the last inclusive day (Mon start → Sunday).
+ * Legacy exclusive midnights (start+14 at 00:00 IST) are adjusted back one day.
+ */
+function formatTrialEndDate(iso: string | null | undefined) {
+  if (!iso) return null;
+  const date = new Date(iso);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TRIAL_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const hour = Number(parts.find((p) => p.type === "hour")?.value);
+  const minute = Number(parts.find((p) => p.type === "minute")?.value);
+  const display =
+    hour === 0 && minute === 0 ? new Date(date.getTime() - 1) : date;
+  return display.toLocaleDateString("en-IN", {
+    timeZone: TRIAL_TZ,
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -158,7 +189,7 @@ export function mapMembershipAccess(data: MembershipAccessResponse): MemberAcces
   const membership = data.current ?? data.lastExpired;
   const access = emptyMemberAccess(state);
   access.trialStartsOnLabel = formatLongDate(data.trial?.startsAt);
-  access.trialEndsOnLabel = formatLongDate(data.trial?.endsAt);
+  access.trialEndsOnLabel = formatTrialEndDate(data.trial?.endsAt);
   access.hasScheduledMembership = Boolean(data.scheduled);
   access.scheduledMembershipId = data.scheduled?.id ?? null;
   access.scheduledPlanName = data.scheduled?.planName ?? null;
@@ -173,7 +204,7 @@ export function mapMembershipAccess(data: MembershipAccessResponse): MemberAcces
   if (state === "trial" || state === "scheduled") {
     access.planName = "Your Trial";
     access.startDateLabel = formatLongDate(data.trial?.startsAt);
-    access.validUntilLabel = formatLongDate(data.trial?.endsAt);
+    access.validUntilLabel = formatTrialEndDate(data.trial?.endsAt);
     access.validUntilIso = data.trial?.endsAt ?? null;
     return access;
   }

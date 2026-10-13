@@ -30,8 +30,14 @@ import { DEFAULT_REFERRAL_DISCOUNT_PERCENT } from './membership-plans';
 import { MembershipOffersService } from './membership-offers.service';
 import { MembershipPlansService } from './membership-plans.service';
 import { Invoice } from './invoice.entity';
+import { MembershipEmailService } from './membership-email.service';
+import {
+  dayAfterMembershipEnd,
+  membershipEndsAt as calcMembershipEndsAt,
+} from './membership-term';
 import { MembershipWhatsAppService } from './membership-whatsapp.service';
 import { PaymentOrder } from './payment-order.entity';
+import { getIstYmd, istMidnight } from '../trials/cohort-schedule';
 
 const MIN_ORDER_PAISE = 100;
 /** Minimum payable after coupon/referral: ₹1 / $1 (100 paise or cents). */
@@ -59,6 +65,7 @@ export class PaymentsService {
     private readonly settings: SettingsService,
     private readonly invoices: InvoicesService,
     private readonly membershipWhatsApp: MembershipWhatsAppService,
+    private readonly membershipEmail: MembershipEmailService,
     @InjectRepository(PaymentOrder)
     private readonly orders: Repository<PaymentOrder>,
     @InjectRepository(Membership)
@@ -553,6 +560,37 @@ export class PaymentsService {
     }
   }
 
+  /**
+   * Email invoice PDF + permanent session link after paid membership.
+   * Critical for Outside India (WhatsApp confirm is India-only).
+   */
+  async notifyMembershipPurchaseEmail(
+    user: User,
+    membership: Membership,
+    invoice: Invoice,
+  ) {
+    try {
+      const file = await this.buildMembershipInvoiceFile(
+        user,
+        membership,
+        invoice,
+      );
+      await this.membershipEmail.sendMembershipPurchaseConfirm({
+        user,
+        membership,
+        invoice,
+        pdf: file.pdf,
+        filename: file.filename,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `[membership-email] Failed for membership ${membership.id}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+
   async getPublicInvoicePdf(invoiceId: string, token: string) {
     if (!this.membershipWhatsApp.verifyInvoiceDownloadToken(invoiceId, token)) {
       throw new NotFoundException('Invoice link is invalid or expired.');
@@ -907,6 +945,7 @@ export class PaymentsService {
         membership,
         issuedInvoice,
       );
+      void this.notifyMembershipPurchaseEmail(user, membership, issuedInvoice);
     }
 
     await this.deliverRazorpayInvoice(user, membership).catch((err) => {
@@ -1133,7 +1172,8 @@ export class PaymentsService {
 
   private parseStartsOn(value?: string | null): Date | null {
     if (!value) return null;
-    const date = new Date(`${value}T00:00:00`);
+    // Interpret membership start dates in Asia/Kolkata (not server local/UTC).
+    const date = new Date(`${value.trim()}T00:00:00+05:30`);
     if (Number.isNaN(date.getTime())) {
       throw new BadRequestException('startsOn must be a valid date.');
     }
@@ -1785,39 +1825,22 @@ export class PaymentsService {
     return `thm_${Date.now().toString(36)}`.slice(0, 40);
   }
 
-  private addMonths(date: Date, months: number) {
-    const next = new Date(date.getTime());
-    next.setMonth(next.getMonth() + months);
-    return next;
-  }
-
-  /**
-   * Last inclusive day of a membership term: start + N months − 1 day
-   * (e.g. 27 Sep 2026 for 12 months → valid until 26 Sep 2027).
-   * End-of-day so the full last calendar day remains accessible.
-   */
+  /** Last inclusive day: start + N months − 1 day (IST). */
   private membershipEndsAt(startsAt: Date, months: number) {
-    const ends = this.addMonths(startsAt, months);
-    ends.setDate(ends.getDate() - 1);
-    ends.setHours(23, 59, 59, 999);
-    return ends;
+    return calcMembershipEndsAt(startsAt, months);
   }
 
   /** Day after a term ends — used as the next membership start. */
   private dayAfter(date: Date) {
-    const next = new Date(date.getTime());
-    next.setDate(next.getDate() + 1);
-    next.setHours(0, 0, 0, 0);
-    return next;
+    return dayAfterMembershipEnd(date);
   }
 
   private startOfLocalDay(date: Date) {
-    const next = new Date(date.getTime());
-    next.setHours(0, 0, 0, 0);
-    return next;
+    const { year, month, day } = getIstYmd(date);
+    return istMidnight(year, month, day);
   }
 
-  /** True when `date`'s calendar day is today or earlier. */
+  /** True when `date`'s IST calendar day is today or earlier. */
   private isOnOrBeforeCalendarDay(date: Date, now: Date) {
     return (
       this.startOfLocalDay(date).getTime() <=

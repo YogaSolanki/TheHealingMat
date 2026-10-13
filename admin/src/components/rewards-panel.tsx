@@ -257,7 +257,7 @@ export function RewardsPanel() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <AdminConfirmDialog
         open={Boolean(pendingDeleteMilestone)}
         title="Delete milestone?"
@@ -308,7 +308,7 @@ export function RewardsPanel() {
       {loading ? <PanelLoader label="Loading rewards" /> : null}
 
       {!loading && tab === "milestones" ? (
-        <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
+        <div className="grid min-w-0 gap-6 lg:grid-cols-[340px_1fr]">
           <form
             onSubmit={onSaveMilestone}
             className="h-fit rounded-2xl border border-[#e6ebe3] bg-white p-5"
@@ -451,8 +451,9 @@ export function RewardsPanel() {
             </div>
           </form>
 
-          <div className="overflow-hidden rounded-2xl border border-[#e6ebe3] bg-white">
-            <table className="min-w-full text-left text-sm">
+          <div className="min-w-0 overflow-hidden rounded-2xl border border-[#e6ebe3] bg-white">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-sm">
               <thead className="bg-[#f7faf6] text-[11px] font-bold tracking-wide text-[#6b7c6e] uppercase">
                 <tr>
                   <th className="px-4 py-3">Image</th>
@@ -537,6 +538,7 @@ export function RewardsPanel() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       ) : null}

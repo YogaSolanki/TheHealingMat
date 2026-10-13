@@ -1,6 +1,10 @@
 import {
+  formatTrialEndDateForMessage,
+  getIstYmd,
+  inclusiveTrialEndDay,
   nextFirstOrThirdMonday,
   nthMondayOfMonth,
+  trialEndsAtFromStart,
 } from './cohort-schedule';
 
 describe('cohort-schedule', () => {
@@ -28,5 +32,20 @@ describe('cohort-schedule', () => {
       new Date('2026-09-21T08:00:00+05:30'),
     );
     expect(next.toISOString()).toBe(third.toISOString());
+  });
+
+  it('ends the 14-day trial on the Sunday after a Monday start', () => {
+    // Mon 19 Oct 2026 → Sun 1 Nov 2026
+    const startsAt = new Date('2026-10-19T00:00:00+05:30');
+    const endsAt = trialEndsAtFromStart(startsAt);
+    expect(getIstYmd(endsAt)).toEqual({ year: 2026, month: 11, day: 1 });
+    expect(formatTrialEndDateForMessage(endsAt)).toContain('1');
+    expect(formatTrialEndDateForMessage(endsAt)).toMatch(/November/i);
+  });
+
+  it('maps legacy exclusive midnight ends to the previous IST day', () => {
+    const legacyExclusive = new Date('2026-11-02T00:00:00+05:30');
+    const inclusive = inclusiveTrialEndDay(legacyExclusive);
+    expect(getIstYmd(inclusive)).toEqual({ year: 2026, month: 11, day: 1 });
   });
 });

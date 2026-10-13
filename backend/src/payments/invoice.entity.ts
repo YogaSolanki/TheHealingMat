@@ -80,6 +80,10 @@ export class Invoice {
   @Column({ type: 'timestamptz', nullable: true })
   membershipWhatsAppSentAt: Date | null;
 
+  /** Membership confirmation email (invoice + permanent session link) sent. */
+  @Column({ type: 'timestamptz', nullable: true })
+  membershipEmailSentAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }

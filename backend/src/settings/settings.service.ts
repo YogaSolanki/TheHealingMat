@@ -1,8 +1,16 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
+import {
+  indianFinancialYear,
+  isValidFinancialYearLabel,
+} from '../payments/invoice-category';
 import { DEFAULT_REFERRAL_DISCOUNT_PERCENT } from '../payments/membership-plans';
 import { UpdateSiteSettingsDto } from './dto/update-site-settings.dto';
 import { SiteSettings } from './site-settings.entity';
@@ -18,6 +26,7 @@ export class SettingsService implements OnModuleInit {
   async onModuleInit() {
     await this.ensureReferralDiscountColumn();
     await this.ensurePrivateSpacePasswordColumn();
+    await this.ensureInvoiceFinancialYearOverrideColumn();
     await this.ensureRow();
   }
 
@@ -48,6 +57,42 @@ export class SettingsService implements OnModuleInit {
     const row = await this.ensureRow();
     row.privateSpacePasswordHash = await bcrypt.hash(password, 10);
     await this.settings.save(row);
+  }
+
+  /**
+   * FY label used when issuing invoices. Override wins; otherwise Asia/Kolkata
+   * Indian FY (Apr–Mar), which advances automatically on 1 April.
+   */
+  async getActiveInvoiceFinancialYear(issuedAt: Date = new Date()): Promise<{
+    financialYear: string;
+    computedFinancialYear: string;
+    override: string | null;
+  }> {
+    const row = await this.ensureRow();
+    const computedFinancialYear = indianFinancialYear(issuedAt);
+    const override = row.invoiceFinancialYearOverride?.trim() || null;
+    return {
+      financialYear: override || computedFinancialYear,
+      computedFinancialYear,
+      override,
+    };
+  }
+
+  async setInvoiceFinancialYearOverride(override: string | null) {
+    const row = await this.ensureRow();
+    if (override == null || override.trim() === '') {
+      row.invoiceFinancialYearOverride = null;
+    } else {
+      const next = override.trim();
+      if (!isValidFinancialYearLabel(next)) {
+        throw new BadRequestException(
+          'Financial year must look like 26-27 (two-digit Apr–Mar label).',
+        );
+      }
+      row.invoiceFinancialYearOverride = next;
+    }
+    await this.settings.save(row);
+    return this.getActiveInvoiceFinancialYear();
   }
 
   async updateSettings(dto: UpdateSiteSettingsDto) {
@@ -96,6 +141,13 @@ export class SettingsService implements OnModuleInit {
     `);
   }
 
+  private async ensureInvoiceFinancialYearOverrideColumn() {
+    await this.settings.query(`
+      ALTER TABLE "site_settings"
+      ADD COLUMN IF NOT EXISTS "invoiceFinancialYearOverride" varchar(8) NULL
+    `);
+  }
+
   private async ensureRow(): Promise<SiteSettings> {
     const existing = await this.settings.find({
       order: { createdAt: 'ASC' },
@@ -113,6 +165,7 @@ export class SettingsService implements OnModuleInit {
         liveSessionUrl: fromEnv,
         referralDiscountPercent: DEFAULT_REFERRAL_DISCOUNT_PERCENT,
         privateSpacePasswordHash: null,
+        invoiceFinancialYearOverride: null,
       }),
     );
   }

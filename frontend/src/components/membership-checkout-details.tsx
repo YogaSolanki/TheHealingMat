@@ -11,6 +11,11 @@ import {
 } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
 import { INDIA_STATES } from "@/lib/india-states";
+import {
+  convertIstSlotToLocal,
+  getViewerTimeZone,
+  isIndiaTimeZone,
+} from "@/lib/member-session-schedule";
 import { useSessionTimings } from "@/lib/session-timings-store";
 import { updateMemberAuthCache } from "@/lib/session-store";
 
@@ -69,6 +74,7 @@ export function MembershipCheckoutDetails({
   const [startsOn, setStartsOn] = useState(minStart);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [viewerTimeZone, setViewerTimeZone] = useState("Asia/Kolkata");
   const { preferredOptions, loading: timingsLoading, ensure: ensureSessionTimings } =
     useSessionTimings(false);
 
@@ -76,21 +82,48 @@ export function MembershipCheckoutDetails({
     setStartsOn((prev) => (prev < minStart ? minStart : prev));
   }, [minStart]);
 
+  useEffect(() => {
+    setViewerTimeZone(getViewerTimeZone());
+  }, []);
+
+  /** Outside-India members (or non-IST devices) see local clock + IST note. */
+  const showLocalTimes =
+    user.region === "outside_india" || !isIndiaTimeZone(viewerTimeZone);
+
   const stateOptions = useMemo(
     () => INDIA_STATES.map((name) => ({ value: name, label: name })),
     [],
   );
+
   const timeOptions = useMemo(() => {
+    function preferredTimeLabel(istSlot: string) {
+      if (!showLocalTimes) return `${istSlot} IST`;
+      const mapped = convertIstSlotToLocal(istSlot, {
+        timeZone: viewerTimeZone,
+      });
+      if (!mapped) return `${istSlot} IST`;
+      const dayHint =
+        mapped.dayOffset === 1
+          ? " (+1 day)"
+          : mapped.dayOffset === -1
+            ? " (−1 day)"
+            : "";
+      return `${mapped.localLabel} your time · ${mapped.istLabel} IST${dayHint}`;
+    }
+
     const options = preferredOptions.map((slot) => ({
       value: slot,
-      label: slot,
+      label: preferredTimeLabel(slot),
     }));
     const current = preferredClassTime.trim();
     if (current && !preferredOptions.includes(current)) {
-      options.unshift({ value: current, label: current });
+      options.unshift({
+        value: current,
+        label: preferredTimeLabel(current),
+      });
     }
     return options;
-  }, [preferredOptions, preferredClassTime]);
+  }, [preferredOptions, preferredClassTime, showLocalTimes, viewerTimeZone]);
 
   const maxStart = addMonthsIso(minStart, 6);
   const canContinue =
@@ -209,6 +242,13 @@ export function MembershipCheckoutDetails({
               void ensureSessionTimings();
             }}
           />
+          <p className="mt-1.5 text-[12px] leading-snug text-[#6b7c6e]">
+            Session times are based on{" "}
+            <span className="font-semibold text-[#3d4a3c]">
+              Indian Standard Time (IST)
+            </span>
+            .
+          </p>
         </div>
 
         <div>

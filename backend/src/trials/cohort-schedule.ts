@@ -85,10 +85,31 @@ export function nextFirstOrThirdMonday(from: Date = new Date()): Date {
   return match;
 }
 
+/**
+ * Inclusive end of the 14-day trial (Mon start → Sun end).
+ * Stored as end-of-day IST on day 14 so labels show that Sunday and
+ * access remains valid through the full last day.
+ * Example: start Mon 19 Oct → ends Sun 1 Nov 23:59:59.999 IST.
+ */
 export function trialEndsAtFromStart(startsAt: Date): Date {
-  const ends = new Date(startsAt);
-  ends.setUTCDate(ends.getUTCDate() + FREE_TRIAL_DAYS);
-  return ends;
+  const start = startOfIstDay(startsAt);
+  const exclusiveEnd = new Date(start);
+  exclusiveEnd.setUTCDate(exclusiveEnd.getUTCDate() + FREE_TRIAL_DAYS);
+  return new Date(exclusiveEnd.getTime() - 1);
+}
+
+/**
+ * Calendar day to show as “trial ends on”.
+ * Handles legacy exclusive midnights (start+14 at 00:00 IST) by showing
+ * the previous IST day (the last Sunday of the trial).
+ */
+export function inclusiveTrialEndDay(endsAt: Date): Date {
+  const { year, month, day } = getIstYmd(endsAt);
+  const midnight = istMidnight(year, month, day);
+  if (endsAt.getTime() === midnight.getTime()) {
+    return new Date(midnight.getTime() - 1);
+  }
+  return endsAt;
 }
 
 export function formatTrialDateForMessage(date: Date): string {
@@ -99,6 +120,10 @@ export function formatTrialDateForMessage(date: Date): string {
     month: 'long',
     year: 'numeric',
   }).format(date);
+}
+
+export function formatTrialEndDateForMessage(endsAt: Date): string {
+  return formatTrialDateForMessage(inclusiveTrialEndDay(endsAt));
 }
 
 export function cohortLabelForStart(startsAt: Date): string {

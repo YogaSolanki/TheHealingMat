@@ -24,6 +24,14 @@ import {
   useOtpResendCooldown,
 } from "@/hooks/use-otp-resend-cooldown";
 import { useAuthModal } from "@/components/auth-modal-provider";
+import {
+  PasswordMismatchHint,
+  PasswordRequirementsHint,
+} from "@/components/password-requirements-hint";
+import {
+  formatPasswordValidationError,
+  isValidPassword,
+} from "@/lib/password-rules";
 
 type ChangePasswordModalProps = {
   open: boolean;
@@ -41,16 +49,6 @@ const OTP_LENGTH = 4;
 const fieldClassPlain =
   "w-full rounded-[16px] border border-[#d7e0d6] bg-white px-4 py-3 text-sm text-[#243028] outline-none transition placeholder:text-[#9aa89c] focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
 const labelClass = "mb-1.5 block text-sm font-medium text-[#3d4a3c]";
-
-function isStrongPassword(password: string) {
-  return (
-    password.length >= 8 &&
-    password.length <= 72 &&
-    /[A-Z]/.test(password) &&
-    /[a-z]/.test(password) &&
-    /\d/.test(password)
-  );
-}
 
 function normalizeIndiaMobile(value: string) {
   const digits = value.replace(/\D/g, "");
@@ -292,8 +290,10 @@ export function ChangePasswordModal({
     if (otpSent && !canResend) return;
     setError(null);
 
-    if (!isStrongPassword(newPassword)) {
-      setError("New password must meet all security requirements.");
+    if (!isValidPassword(newPassword)) {
+      setError(
+        formatPasswordValidationError(newPassword, { subject: "New password" }),
+      );
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -308,8 +308,10 @@ export function ChangePasswordModal({
     event.preventDefault();
     setError(null);
 
-    if (!isStrongPassword(newPassword)) {
-      setError("New password must meet all security requirements.");
+    if (!isValidPassword(newPassword)) {
+      setError(
+        formatPasswordValidationError(newPassword, { subject: "New password" }),
+      );
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -380,8 +382,10 @@ export function ChangePasswordModal({
       setError("Please enter the full verification code.");
       return;
     }
-    if (!isStrongPassword(newPassword)) {
-      setError("New password must meet all security requirements.");
+    if (!isValidPassword(newPassword)) {
+      setError(
+        formatPasswordValidationError(newPassword, { subject: "New password" }),
+      );
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -418,11 +422,10 @@ export function ChangePasswordModal({
 
   if (!mounted || !rendered) return null;
 
-  const newPasswordValid = isStrongPassword(newPassword);
-  const confirmValid =
-    confirmPassword.length > 0 &&
-    newPassword === confirmPassword &&
-    isStrongPassword(newPassword);
+  const newPasswordValid = isValidPassword(newPassword);
+  const confirmMatches =
+    confirmPassword.length > 0 && newPassword === confirmPassword;
+  const confirmValid = confirmMatches && isValidPassword(newPassword);
 
   const title =
     step === "forgot_otp"
@@ -551,6 +554,7 @@ export function ChangePasswordModal({
                   onToggleShow={() => setShowNewPassword((v) => !v)}
                   valid={newPasswordValid}
                   placeholder="Enter new password"
+                  showRequirementsHint
                 />
 
                 <PasswordField
@@ -560,8 +564,9 @@ export function ChangePasswordModal({
                   onChange={setConfirmPassword}
                   show={showConfirmPassword}
                   onToggleShow={() => setShowConfirmPassword((v) => !v)}
-                  valid={confirmValid}
+                  valid={confirmMatches}
                   placeholder="Re-enter new password"
+                  matchAgainst={newPassword}
                 />
 
                 <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
@@ -593,6 +598,7 @@ export function ChangePasswordModal({
                   onToggleShow={() => setShowNewPassword((v) => !v)}
                   valid={newPasswordValid}
                   placeholder="Enter new password"
+                  showRequirementsHint
                 />
 
                 <PasswordField
@@ -602,8 +608,9 @@ export function ChangePasswordModal({
                   onChange={setConfirmPassword}
                   show={showConfirmPassword}
                   onToggleShow={() => setShowConfirmPassword((v) => !v)}
-                  valid={confirmValid}
+                  valid={confirmMatches}
                   placeholder="Re-enter new password"
+                  matchAgainst={newPassword}
                 />
 
                 <div className="rounded-[16px] border border-[#e6ebe3] bg-[#fafbf9] px-3.5 py-3.5">
@@ -736,6 +743,7 @@ export function ChangePasswordModal({
                   onToggleShow={() => setShowNewPassword((v) => !v)}
                   valid={newPasswordValid}
                   placeholder="Enter new password"
+                  showRequirementsHint
                 />
 
                 <PasswordField
@@ -745,8 +753,9 @@ export function ChangePasswordModal({
                   onChange={setConfirmPassword}
                   show={showConfirmPassword}
                   onToggleShow={() => setShowConfirmPassword((v) => !v)}
-                  valid={confirmValid}
+                  valid={confirmMatches}
                   placeholder="Re-enter new password"
+                  matchAgainst={newPassword}
                 />
 
                 <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
@@ -785,6 +794,8 @@ function PasswordField({
   onToggleShow,
   valid,
   placeholder,
+  showRequirementsHint = false,
+  matchAgainst,
 }: {
   id: string;
   label: string;
@@ -794,6 +805,8 @@ function PasswordField({
   onToggleShow: () => void;
   valid: boolean;
   placeholder: string;
+  showRequirementsHint?: boolean;
+  matchAgainst?: string;
 }) {
   return (
     <div>
@@ -824,6 +837,12 @@ function PasswordField({
           </button>
         </div>
       </div>
+      {showRequirementsHint && value && !valid ? (
+        <PasswordRequirementsHint password={value} />
+      ) : null}
+      {matchAgainst !== undefined ? (
+        <PasswordMismatchHint value={value} other={matchAgainst} />
+      ) : null}
     </div>
   );
 }

@@ -17,6 +17,7 @@ import { sendResendEmail } from '../mail/resend';
 import { buildMembershipInvoicePdf } from '../payments/invoice-pdf';
 import { InvoicesService } from '../payments/invoices.service';
 import { Membership } from '../payments/membership.entity';
+import { membershipEndsAt } from '../payments/membership-term';
 import { MembershipPlansService } from '../payments/membership-plans.service';
 import { OtpChallenge } from '../users/otp-challenge.entity';
 import { Region } from '../users/enums/region.enum';
@@ -242,8 +243,7 @@ export class CorporateService implements OnModuleInit {
     if (Number.isNaN(startsAt.getTime())) {
       throw new BadRequestException('Invalid start date.');
     }
-    const endsAt = new Date(startsAt.getTime());
-    endsAt.setMonth(endsAt.getMonth() + dto.planMonths);
+    const endsAt = membershipEndsAt(startsAt, dto.planMonths);
 
     const plan = await this.plans.save(
       this.plans.create({

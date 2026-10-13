@@ -232,6 +232,60 @@ export function updateAdminPrivateSpacePassword(
   );
 }
 
+export type InvoiceSeriesCategory = "domestic" | "export" | "corporate";
+
+export type InvoiceSeriesOverview = {
+  computedFinancialYear: string;
+  activeFinancialYear: string;
+  financialYearOverride: string | null;
+  autoReset: string;
+  sequences: Array<{
+    category: InvoiceSeriesCategory;
+    code: "DM" | "EX" | "CO";
+    label: string;
+    financialYear: string;
+    nextSerial: number;
+    nextInvoiceNumber: string;
+    updatedAt: string;
+  }>;
+};
+
+export function getAdminInvoiceSeries(token: string) {
+  return authJson<InvoiceSeriesOverview>(
+    "GET",
+    "/admin/private-space/invoice-series",
+    token,
+  );
+}
+
+export function updateAdminInvoiceFinancialYear(
+  token: string,
+  financialYearOverride: string | null,
+) {
+  return authJson<InvoiceSeriesOverview>(
+    "PATCH",
+    "/admin/private-space/invoice-series/financial-year",
+    token,
+    { financialYearOverride },
+  );
+}
+
+export function updateAdminInvoiceNextSerial(
+  token: string,
+  payload: {
+    category: InvoiceSeriesCategory;
+    nextSerial: number;
+    financialYear?: string;
+  },
+) {
+  return authJson<InvoiceSeriesOverview>(
+    "PATCH",
+    "/admin/private-space/invoice-series/next-serial",
+    token,
+    payload,
+  );
+}
+
 type AdminAccountUpdateResponse = AdminLoginResponse;
 
 export function updateAdminAccount(
