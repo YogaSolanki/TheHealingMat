@@ -553,7 +553,7 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
                       </p>
                     ) : (
                       <div className="mt-2 overflow-x-auto rounded-xl border border-[#e6ebe3]">
-                        <table className="min-w-full text-left text-sm">
+                        <table className="w-full min-w-[640px] text-left text-sm">
                           <thead className="bg-[#f7faf6] text-xs uppercase tracking-wide text-[#8a978c]">
                             <tr>
                               <th className="px-3.5 py-2.5 font-semibold">
