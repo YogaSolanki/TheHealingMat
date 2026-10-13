@@ -47,6 +47,14 @@ import {
   otpSentToastMessage,
   useOtpResendCooldown,
 } from "@/hooks/use-otp-resend-cooldown";
+import {
+  PasswordMismatchHint,
+  PasswordRequirementsHint,
+} from "@/components/password-requirements-hint";
+import {
+  formatPasswordValidationError,
+  isValidPassword,
+} from "@/lib/password-rules";
 
 type Mode = "login" | "signup" | "forgot";
 type Step = "identity" | "otp" | "reset_done";
@@ -174,16 +182,6 @@ function OtpDigitInputs({
   );
 }
 
-function isValidSignupPassword(password: string) {
-  return (
-    password.length >= 8 &&
-    password.length <= 72 &&
-    /[A-Z]/.test(password) &&
-    /[a-z]/.test(password) &&
-    /\d/.test(password)
-  );
-}
-
 function PasswordValidityIcon({
   value,
   valid,
@@ -268,6 +266,8 @@ function PasswordRevealField({
   maxLength,
   required,
   validity,
+  showRequirementsHint = false,
+  matchAgainst,
   "aria-invalid": ariaInvalid,
 }: {
   value: string;
@@ -281,36 +281,46 @@ function PasswordRevealField({
   maxLength?: number;
   required?: boolean;
   validity?: { valid: boolean };
+  showRequirementsHint?: boolean;
+  matchAgainst?: string;
   "aria-invalid"?: boolean;
 }) {
   return (
-    <div className="relative">
-      <input
-        required={required}
-        type={show ? "text" : "password"}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`${className} ${validity ? "pr-[4.5rem]" : "pr-11"}`}
-        placeholder={placeholder}
-        autoComplete={autoComplete}
-        minLength={minLength}
-        maxLength={maxLength}
-        aria-invalid={ariaInvalid}
-      />
-      <div className="absolute inset-y-0 right-1 flex items-center">
-        {validity ? (
-          <PasswordValidityIcon value={value} valid={validity.valid} />
-        ) : null}
-        <button
-          type="button"
-          onClick={onToggleShow}
-          aria-label={show ? "Hide password" : "Show password"}
-          className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-[#8a968c] transition hover:bg-[#f6f8f5] hover:text-[#1f6b3a]"
-        >
-          {show ? <EyeOffIcon /> : <EyeIcon />}
-        </button>
+    <>
+      <div className="relative">
+        <input
+          required={required}
+          type={show ? "text" : "password"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={`${className} ${validity ? "pr-[4.5rem]" : "pr-11"}`}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          minLength={minLength}
+          maxLength={maxLength}
+          aria-invalid={ariaInvalid}
+        />
+        <div className="absolute inset-y-0 right-1 flex items-center">
+          {validity ? (
+            <PasswordValidityIcon value={value} valid={validity.valid} />
+          ) : null}
+          <button
+            type="button"
+            onClick={onToggleShow}
+            aria-label={show ? "Hide password" : "Show password"}
+            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-[#8a968c] transition hover:bg-[#f6f8f5] hover:text-[#1f6b3a]"
+          >
+            {show ? <EyeOffIcon /> : <EyeIcon />}
+          </button>
+        </div>
       </div>
-    </div>
+      {showRequirementsHint && validity && value && !validity.valid ? (
+        <PasswordRequirementsHint password={value} />
+      ) : null}
+      {matchAgainst !== undefined ? (
+        <PasswordMismatchHint value={value} other={matchAgainst} />
+      ) : null}
+    </>
   );
 }
 
@@ -461,6 +471,10 @@ export function AuthTrialCard({
         setError("Please agree to the Terms & Conditions to continue.");
         return;
       }
+      if (!isValidPassword(password)) {
+        setError(formatPasswordValidationError(password));
+        return;
+      }
     }
 
     setLoading(true);
@@ -569,6 +583,9 @@ export function AuthTrialCard({
     setLoading(true);
     try {
       if (mode === "forgot") {
+        if (!isValidPassword(password)) {
+          throw new Error(formatPasswordValidationError(password));
+        }
         if (password !== confirmPassword) {
           throw new Error("Passwords do not match.");
         }
@@ -973,8 +990,9 @@ export function AuthTrialCard({
                 autoComplete="new-password"
                 minLength={8}
                 maxLength={72}
-                aria-invalid={password.length > 0 && !isValidSignupPassword(password)}
-                validity={{ valid: isValidSignupPassword(password) }}
+                aria-invalid={password.length > 0 && !isValidPassword(password)}
+                validity={{ valid: isValidPassword(password) }}
+                showRequirementsHint
               />
             </div>
           ) : null}
@@ -1124,8 +1142,9 @@ export function AuthTrialCard({
                   autoComplete="new-password"
                   minLength={8}
                   maxLength={72}
-                  aria-invalid={password.length > 0 && !isValidSignupPassword(password)}
-                  validity={{ valid: isValidSignupPassword(password) }}
+                  aria-invalid={password.length > 0 && !isValidPassword(password)}
+                  validity={{ valid: isValidPassword(password) }}
+                  showRequirementsHint
                 />
               </div>
               <div>
@@ -1147,9 +1166,10 @@ export function AuthTrialCard({
                   }
                   validity={{
                     valid:
-                      isValidSignupPassword(password) &&
+                      confirmPassword.length > 0 &&
                       confirmPassword === password,
                   }}
+                  matchAgainst={password}
                 />
               </div>
             </>
