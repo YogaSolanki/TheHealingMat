@@ -330,12 +330,37 @@ function applyPlanPrices(
 
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
     day: "numeric",
     month: "short",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+/** Last inclusive trial day (Mon→Sun). Adjusts legacy exclusive IST midnights. */
+function formatTrialEndDate(value: string) {
+  const date = new Date(value);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const hour = Number(parts.find((p) => p.type === "hour")?.value);
+  const minute = Number(parts.find((p) => p.type === "minute")?.value);
+  const display =
+    hour === 0 && minute === 0 ? new Date(date.getTime() - 1) : date;
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(display);
 }
 
 function toDateInput(value: string | null) {
@@ -1877,7 +1902,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             />
             <InfoTile
               label="Ends"
-              value={formatDateTime(detail.trial.trialEndsAt)}
+              value={formatTrialEndDate(detail.trial.trialEndsAt)}
             />
             <InfoTile
               label="Registered"

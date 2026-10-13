@@ -12,6 +12,7 @@ import { User } from '../users/user.entity';
 import { TrialStatus } from '../users/enums/trial-status.enum';
 import {
   formatTrialDateForMessage,
+  formatTrialEndDateForMessage,
 } from './cohort-schedule';
 import { TrialRegistration } from './trial-registration.entity';
 
@@ -107,7 +108,7 @@ export class TrialMessagingService implements OnModuleInit, OnModuleDestroy {
     if (registration.welcomeMessageSentAt) return;
 
     const startLabel = formatTrialDateForMessage(registration.trialStartsAt);
-    const endLabel = formatTrialDateForMessage(registration.trialEndsAt);
+    const endLabel = formatTrialEndDateForMessage(registration.trialEndsAt);
     const name = user.fullName?.trim().split(/\s+/)[0] || 'there';
     const memberArea = this.memberAreaUrl();
     const sessionTimes = await this.formatSessionTimes();
@@ -138,7 +139,7 @@ export class TrialMessagingService implements OnModuleInit, OnModuleDestroy {
     if (registration.reminderSentAt) return;
 
     const startLabel = formatTrialDateForMessage(registration.trialStartsAt);
-    const endLabel = formatTrialDateForMessage(registration.trialEndsAt);
+    const endLabel = formatTrialEndDateForMessage(registration.trialEndsAt);
     const name = user.fullName?.trim().split(/\s+/)[0] || 'there';
     const memberArea = this.memberAreaUrl();
     const sessionTimes = await this.formatSessionTimes();

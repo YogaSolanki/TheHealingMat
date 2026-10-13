@@ -20,7 +20,7 @@ export class TrialCohort {
   @Column({ type: 'timestamptz' })
   startsAt: Date;
 
-  /** Cohort end (14 days after start). */
+  /** Cohort end (inclusive end of day 14 — Mon start → Sun). */
   @Column({ type: 'timestamptz' })
   endsAt: Date;
 

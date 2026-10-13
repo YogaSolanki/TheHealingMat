@@ -36,7 +36,7 @@ export function AdminToast({
 
   return createPortal(
     <div
-      className="pointer-events-none fixed inset-x-0 top-5 z-[220] flex justify-center px-5 sm:top-7 sm:px-6"
+      className="pointer-events-none fixed inset-x-0 top-5 z-[300] flex justify-center px-5 sm:top-7 sm:px-6"
       role="status"
       aria-live="polite"
     >
