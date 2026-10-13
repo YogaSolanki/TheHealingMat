@@ -147,10 +147,6 @@ export function SettingsPanel() {
   const [newTiming, setNewTiming] = useState<TimeParts>(DEFAULT_TIME);
   const [newTimingSundayQa, setNewTimingSundayQa] = useState(false);
   const [newTimingTrial, setNewTimingTrial] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingTime, setEditingTime] = useState<TimeParts>(DEFAULT_TIME);
-  const [editingSundayQa, setEditingSundayQa] = useState(false);
-  const [editingTrial, setEditingTrial] = useState(false);
   const [specialEditing, setSpecialEditing] = useState(false);
   const [specialEditTime, setSpecialEditTime] = useState<TimeParts>(DEFAULT_TIME);
   const [loading, setLoading] = useState(true);
@@ -290,41 +286,6 @@ export function SettingsPanel() {
     }
   }
 
-  async function onSaveTimingEdit(id: string) {
-    if (!token || timingBusy) return;
-    const label = formatTimeLabel(editingTime);
-
-    setTimingBusy(true);
-    setError(null);
-    try {
-      const updated = await updateAdminSessionTiming(token, id, {
-        label,
-        isSundayQa: editingSundayQa,
-        isTrial: editingTrial,
-      });
-      setTimings((current) =>
-        current
-          .map((row) => (row.id === id ? updated : row))
-          .sort(
-            (a, b) =>
-              a.sortOrder - b.sortOrder || a.label.localeCompare(b.label),
-          ),
-      );
-      setEditingId(null);
-      setEditingTime(DEFAULT_TIME);
-      setEditingSundayQa(false);
-      setEditingTrial(false);
-      setTimingSaved(true);
-      showSuccess("Session time updated.");
-    } catch (err: unknown) {
-      showError(
-        err instanceof Error ? err.message : "Unable to update session time.",
-      );
-    } finally {
-      setTimingBusy(false);
-    }
-  }
-
   async function onSaveSpecialTiming() {
     if (!token || timingBusy || !specialTiming) return;
     const label = formatTimeLabel(specialEditTime);
@@ -356,31 +317,6 @@ export function SettingsPanel() {
         err instanceof Error
           ? err.message
           : "Unable to update special session time.",
-      );
-    } finally {
-      setTimingBusy(false);
-    }
-  }
-
-  async function onToggleActive(row: AdminSessionTiming) {
-    if (!token || timingBusy || row.isSpecial) return;
-    setTimingBusy(true);
-    setError(null);
-    try {
-      const updated = await updateAdminSessionTiming(token, row.id, {
-        active: !row.active,
-      });
-      setTimings((current) =>
-        current.map((item) => (item.id === row.id ? updated : item)),
-      );
-      showSuccess(
-        updated.active
-          ? `${updated.label} is now active.`
-          : `${updated.label} is now inactive.`,
-      );
-    } catch (err: unknown) {
-      showError(
-        err instanceof Error ? err.message : "Unable to update session time.",
       );
     } finally {
       setTimingBusy(false);
@@ -650,143 +586,50 @@ export function SettingsPanel() {
           <p className="text-sm text-[#8a978c]">No session times yet.</p>
         ) : (
           <ul className="divide-y divide-[#f4f7f4] overflow-hidden rounded-xl border border-[#e6ebe3]">
-            {regularTimings.map((row) => {
-              const isEditing = editingId === row.id;
-              return (
-                <li
-                  key={row.id}
-                  className="flex flex-wrap items-center gap-2 px-3.5 py-3"
-                >
-                  {isEditing ? (
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <TimeSelects
-                        idPrefix={`edit-${row.id}`}
-                        value={editingTime}
-                        onChange={setEditingTime}
-                        disabled={timingBusy}
-                      />
-                      <label className="inline-flex items-center gap-2 text-sm font-semibold text-[#243028]">
-                        <input
-                          type="checkbox"
-                          checked={editingSundayQa}
-                          onChange={(event) => {
-                            const checked = event.target.checked;
-                            setEditingSundayQa(checked);
-                            if (checked) setEditingTrial(false);
-                          }}
-                          disabled={timingBusy}
-                          className="h-4 w-4 rounded border-[#c5d0c4] text-[#1f6b3a] focus:ring-[#1f6b3a] disabled:opacity-60"
-                        />
+            {regularTimings.map((row) => (
+              <li
+                key={row.id}
+                className="flex flex-wrap items-center gap-2 px-3.5 py-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-[#243028]">
+                      {row.label}
+                    </p>
+                    {row.isSundayQa ? (
+                      <span className="rounded-md bg-[#2f6b8a] px-2 py-0.5 text-[11px] font-semibold text-white">
                         Sunday Q&amp;A
-                      </label>
-                      <label className="inline-flex items-center gap-2 text-sm font-semibold text-[#243028]">
-                        <input
-                          type="checkbox"
-                          checked={editingTrial}
-                          onChange={(event) => {
-                            const checked = event.target.checked;
-                            setEditingTrial(checked);
-                            if (checked) setEditingSundayQa(false);
-                          }}
-                          disabled={timingBusy}
-                          className="h-4 w-4 rounded border-[#c5d0c4] text-[#1f6b3a] focus:ring-[#1f6b3a] disabled:opacity-60"
-                        />
+                      </span>
+                    ) : row.isTrial ? (
+                      <span className="rounded-md bg-[#6b4f9a] px-2 py-0.5 text-[11px] font-semibold text-white">
                         Trial
-                      </label>
-                    </div>
-                  ) : (
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-[#243028]">
-                          {row.label}
-                        </p>
-                        {row.isSundayQa ? (
-                          <span className="rounded-md bg-[#2f6b8a] px-2 py-0.5 text-[11px] font-semibold text-white">
-                            Sunday Q&amp;A
-                          </span>
-                        ) : row.isTrial ? (
-                          <span className="rounded-md bg-[#6b4f9a] px-2 py-0.5 text-[11px] font-semibold text-white">
-                            Trial
-                          </span>
-                        ) : (
-                          <span className="rounded-md bg-[#ecefec] px-2 py-0.5 text-[11px] font-semibold text-[#5f6f64]">
-                            Mon–Sat
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-[#8a978c]">
-                        {row.active ? "Active" : "Inactive"}
-                        {row.isSundayQa
-                          ? " · only on Sunday in Class Management"
-                          : row.isTrial
-                            ? " · trial class time (Mon–Sat)"
-                            : " · membership class time"}
-                      </p>
-                    </div>
-                  )}
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {isEditing ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => void onSaveTimingEdit(row.id)}
-                          disabled={timingBusy}
-                          className="rounded-full bg-[#1f6b3a] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-                        >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingId(null);
-                            setEditingTime(DEFAULT_TIME);
-                            setEditingSundayQa(false);
-                            setEditingTrial(false);
-                          }}
-                          disabled={timingBusy}
-                          className="rounded-full border border-[#d7e0d6] px-3 py-1.5 text-xs font-semibold text-[#3d4a3c]"
-                        >
-                          Cancel
-                        </button>
-                      </>
+                      </span>
                     ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingId(row.id);
-                            setEditingTime(parseTimeLabel(row.label));
-                            setEditingSundayQa(Boolean(row.isSundayQa));
-                            setEditingTrial(Boolean(row.isTrial));
-                            setTimingSaved(false);
-                          }}
-                          disabled={timingBusy}
-                          className="rounded-full border border-[#d7e0d6] px-3 py-1.5 text-xs font-semibold text-[#1f6b3a] hover:bg-[#e8f2ea]"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void onToggleActive(row)}
-                          disabled={timingBusy}
-                          className="rounded-full border border-[#d7e0d6] px-3 py-1.5 text-xs font-semibold text-[#5f6f64] hover:bg-[#f4f7f4]"
-                        >
-                          {row.active ? "Deactivate" : "Activate"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void onDeleteTiming(row)}
-                          disabled={timingBusy}
-                          className="rounded-full border border-[#ead9d9] px-3 py-1.5 text-xs font-semibold text-[#8a2f2f] hover:bg-[#faf4f4]"
-                        >
-                          Delete
-                        </button>
-                      </>
+                      <span className="rounded-md bg-[#ecefec] px-2 py-0.5 text-[11px] font-semibold text-[#5f6f64]">
+                        Mon–Sat
+                      </span>
                     )}
                   </div>
-                </li>
-              );
-            })}
+                  <p className="text-xs text-[#8a978c]">
+                    {row.isSundayQa
+                      ? "Only on Sunday in Class Management"
+                      : row.isTrial
+                        ? "Trial class time (Mon–Sat)"
+                        : "Membership class time"}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => void onDeleteTiming(row)}
+                    disabled={timingBusy}
+                    className="rounded-full border border-[#ead9d9] px-3 py-1.5 text-xs font-semibold text-[#8a2f2f] hover:bg-[#faf4f4]"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </li>
+            ))}
           </ul>
         )}
       </section>
