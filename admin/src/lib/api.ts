@@ -150,6 +150,49 @@ export function getAdminUsers(token: string) {
   return authGet<{ users: AdminUserRow[] }>("/admin/users", token);
 }
 
+export type ExportAdminUsersInput = {
+  region?: "all" | "india" | "outside_india";
+  accessType?: "all" | "trial" | "membership" | "none";
+  accountStatus?: "all" | "active" | "inactive";
+  dateField?: "all" | "createdAt" | "trialStartsAt" | "membershipStartsAt";
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+export async function exportAdminUsers(
+  token: string,
+  body: ExportAdminUsersInput,
+) {
+  const response = await fetch(`${API_URL}/admin/users/export`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as ApiErrorBody;
+    throw new Error(readErrorMessage(payload, "Unable to export users."));
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match = /filename="([^"]+)"/i.exec(disposition);
+  const filename =
+    match?.[1] || `thm-users-export-${new Date().toISOString().slice(0, 10)}.csv`;
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export type CreateAdminUserInput = {
   fullName: string;
   region: "india" | "outside_india";
@@ -388,6 +431,68 @@ export function getAdminCompanies(token: string) {
   return authGet<{ companies: AdminCompanyRow[] }>(
     "/admin/corporate/companies",
     token,
+  );
+}
+
+async function downloadAdminCsv(
+  token: string,
+  path: string,
+  fallbackFilename: string,
+  errorMessage: string,
+) {
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as ApiErrorBody;
+    throw new Error(readErrorMessage(payload, errorMessage));
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match = /filename="([^"]+)"/i.exec(disposition);
+  const filename = match?.[1] || fallbackFilename;
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+export function exportAdminCompanies(token: string) {
+  return downloadAdminCsv(
+    token,
+    "/admin/corporate/companies/export",
+    `thm-corporates-export-${new Date().toISOString().slice(0, 10)}.csv`,
+    "Unable to export corporates.",
+  );
+}
+
+export function exportAdminCompanyCoupons(token: string, companyId: string) {
+  return downloadAdminCsv(
+    token,
+    `/admin/corporate/companies/${companyId}/export/coupons`,
+    `thm-corporate-coupons-${new Date().toISOString().slice(0, 10)}.csv`,
+    "Unable to export corporate coupons.",
+  );
+}
+
+export function exportAdminPlanCouponUsers(
+  token: string,
+  companyId: string,
+  planId: string,
+) {
+  return downloadAdminCsv(
+    token,
+    `/admin/corporate/companies/${companyId}/plans/${planId}/export/users`,
+    `thm-coupon-users-${new Date().toISOString().slice(0, 10)}.csv`,
+    "Unable to export coupon users.",
   );
 }
 
@@ -1086,6 +1191,8 @@ export type AdminRewardRedemption = {
   status: AdminRedemptionStatus;
   referralCount: number;
   adminNote: string | null;
+  deliveryEmail: string | null;
+  deliveryAddress: string | null;
   createdAt: string;
   resolvedAt: string | null;
   user: {

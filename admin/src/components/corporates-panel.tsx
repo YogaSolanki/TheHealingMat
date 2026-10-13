@@ -13,6 +13,7 @@ import { ReloadButton } from "@/components/reload-button";
 import {
   ADMIN_TOKEN_KEY,
   createAdminCompany,
+  exportAdminCompanies,
   getAdminCompanies,
   type AdminCompanyRow,
 } from "@/lib/api";
@@ -86,6 +87,27 @@ export function CorporatesPanel() {
   const [form, setForm] = useState<AddForm>(emptyForm);
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  async function onExportCompanies() {
+    const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
+    if (!token) {
+      setError("Please sign in again.");
+      return;
+    }
+    setExporting(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await exportAdminCompanies(token);
+      setNotice("Corporate export downloaded.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to export corporates");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const load = useCallback(
     async (options?: { force?: boolean }) => {
@@ -231,6 +253,14 @@ export function CorporatesPanel() {
               />
               <button
                 type="button"
+                onClick={() => void onExportCompanies()}
+                disabled={exporting || companies.length === 0}
+                className="inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-[#d7e0d6] bg-white px-3.5 text-xs font-semibold text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {exporting ? "Exporting…" : "Export"}
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   setForm(emptyForm());
                   setAddError(null);
@@ -251,6 +281,11 @@ export function CorporatesPanel() {
           {error ? (
             <p className="shrink-0 border-b border-[#e6ebe3] bg-[#fff8f7] px-5 py-3 text-sm text-[#8a2f2f]">
               {error}
+            </p>
+          ) : null}
+          {notice ? (
+            <p className="shrink-0 border-b border-[#cfe8d6] bg-[#f3faf5] px-5 py-3 text-sm text-[#1f6b3a]">
+              {notice}
             </p>
           ) : null}
 

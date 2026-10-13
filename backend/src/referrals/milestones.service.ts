@@ -4,14 +4,18 @@ import { randomUUID } from 'crypto';
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
+import { sendResendEmail } from '../mail/resend';
 import { User } from '../users/user.entity';
 import {
   CreateMilestoneDto,
+  RedeemMilestoneDto,
   UpdateMilestoneDto,
   UpdateRedemptionDto,
 } from './dto/milestone.dto';
@@ -78,6 +82,8 @@ export type MemberMilestoneStatus =
 
 @Injectable()
 export class MilestonesService implements OnModuleInit {
+  private readonly logger = new Logger(MilestonesService.name);
+
   constructor(
     @InjectRepository(ReferralMilestone)
     private readonly milestones: Repository<ReferralMilestone>,
@@ -86,11 +92,53 @@ export class MilestonesService implements OnModuleInit {
     @InjectRepository(User)
     private readonly users: Repository<User>,
     private readonly referrals: ReferralsService,
+    private readonly dataSource: DataSource,
+    private readonly config: ConfigService,
   ) {}
 
   async onModuleInit() {
     if (!existsSync(MILESTONE_UPLOAD_DIR)) {
       mkdirSync(MILESTONE_UPLOAD_DIR, { recursive: true });
+    }
+
+    try {
+      await this.dataSource.query(`
+        ALTER TABLE "users"
+        ADD COLUMN IF NOT EXISTS "deliveryEmail" varchar NULL
+      `);
+      await this.dataSource.query(`
+        ALTER TABLE "users"
+        ADD COLUMN IF NOT EXISTS "deliveryAddress" text NULL
+      `);
+      // Migrate legacy users.address → deliveryAddress if present.
+      await this.dataSource.query(`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'users' AND column_name = 'address'
+          ) THEN
+            UPDATE "users"
+            SET "deliveryAddress" = COALESCE("deliveryAddress", "address")
+            WHERE "address" IS NOT NULL AND ("deliveryAddress" IS NULL OR "deliveryAddress" = '');
+            ALTER TABLE "users" DROP COLUMN IF EXISTS "address";
+          END IF;
+        END $$;
+      `);
+      await this.dataSource.query(`
+        ALTER TABLE "reward_redemption_requests"
+        ADD COLUMN IF NOT EXISTS "deliveryEmail" varchar NULL
+      `);
+      await this.dataSource.query(`
+        ALTER TABLE "reward_redemption_requests"
+        ADD COLUMN IF NOT EXISTS "deliveryAddress" text NULL
+      `);
+    } catch (err) {
+      this.logger.warn(
+        `Could not ensure delivery address columns: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
     }
 
     const count = await this.milestones.count();
@@ -264,7 +312,11 @@ export class MilestonesService implements OnModuleInit {
     };
   }
 
-  async requestRedeem(user: User, milestoneId: string) {
+  async requestRedeem(
+    user: User,
+    milestoneId: string,
+    dto: RedeemMilestoneDto = {},
+  ) {
     const milestone = await this.milestones.findOne({
       where: { id: milestoneId, active: true },
     });
@@ -293,24 +345,169 @@ export class MilestonesService implements OnModuleInit {
       throw new BadRequestException('This reward has already been fulfilled.');
     }
 
+    const account = await this.users.findOne({ where: { id: user.id } });
+    if (!account) throw new NotFoundException('Account not found.');
+
+    const nextEmail =
+      dto.email?.trim().toLowerCase() ||
+      account.deliveryEmail?.trim().toLowerCase() ||
+      null;
+    const nextAddress =
+      dto.address?.trim() || account.deliveryAddress?.trim() || null;
+
+    if (!nextEmail) {
+      throw new BadRequestException(
+        'Email is required to deliver your reward. Please add your email address.',
+      );
+    }
+    if (!nextAddress || nextAddress.length < 8) {
+      throw new BadRequestException(
+        'Full address is required to deliver your reward. Please add your delivery address.',
+      );
+    }
+
+    // Saved only for redeem autofill — does not change account email / personal info.
+    account.deliveryEmail = nextEmail;
+    account.deliveryAddress = nextAddress;
+    await this.users.save(account);
+
     const request = await this.redemptions.save(
       this.redemptions.create({
-        userId: user.id,
+        userId: account.id,
         milestoneId: milestone.id,
         referralCount: milestone.referralCount,
         status: 'pending',
+        deliveryEmail: nextEmail,
+        deliveryAddress: nextAddress,
         adminNote: null,
         resolvedAt: null,
       }),
     );
+
+    void this.notifyAdminOfRedemption({
+      requestId: request.id,
+      memberName: account.fullName,
+      memberEmail: account.email,
+      memberMobile: account.mobile,
+      referralCode: account.referralCode,
+      rewardTitle: milestone.rewardTitle,
+      rewardDescription: milestone.rewardDescription,
+      referralCount: milestone.referralCount,
+      deliveryEmail: nextEmail,
+      deliveryAddress: nextAddress,
+      requestedAt: request.createdAt,
+    }).catch((err) => {
+      this.logger.warn(
+        `Redeem admin email failed for ${request.id}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    });
 
     return {
       id: request.id,
       milestoneId: request.milestoneId,
       referralCount: request.referralCount,
       status: request.status,
+      deliveryEmail: request.deliveryEmail,
+      deliveryAddress: request.deliveryAddress,
       createdAt: request.createdAt.toISOString(),
     };
+  }
+
+  private async notifyAdminOfRedemption(input: {
+    requestId: string;
+    memberName: string;
+    memberEmail: string | null;
+    memberMobile: string | null;
+    referralCode: string;
+    rewardTitle: string;
+    rewardDescription: string;
+    referralCount: number;
+    deliveryEmail: string;
+    deliveryAddress: string;
+    requestedAt: Date;
+  }) {
+    const apiKey = this.config.get<string>('RESEND_API_KEY')?.trim();
+    if (!apiKey) {
+      this.logger.warn(
+        `[redeem-notify] Skipped for ${input.requestId}: RESEND_API_KEY not set`,
+      );
+      return;
+    }
+
+    const to =
+      this.config.get<string>('REWARD_REDEEM_NOTIFY_EMAIL')?.trim() ||
+      this.config.get<string>('CONTACT_TO_EMAIL')?.trim() ||
+      'solankipr@gmail.com';
+    const from =
+      this.config.get<string>('RESEND_FROM_EMAIL')?.trim() ||
+      'The Healing Mat <onboarding@resend.dev>';
+
+    const when = input.requestedAt.toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const subject = `Reward redeem request: ${input.memberName} — ${input.rewardTitle}`;
+    const text = [
+      'New Milestones & Rewards redemption request',
+      '',
+      `Member: ${input.memberName}`,
+      `Account email: ${input.memberEmail || '(none)'}`,
+      `Mobile: ${input.memberMobile || '(none)'}`,
+      `Referral code: ${input.referralCode}`,
+      '',
+      `Reward: ${input.rewardTitle}`,
+      `Description: ${input.rewardDescription || '(none)'}`,
+      `Milestone: ${input.referralCount} successful referrals`,
+      '',
+      `Delivery email: ${input.deliveryEmail}`,
+      'Delivery address:',
+      input.deliveryAddress,
+      '',
+      `Requested: ${when} IST`,
+      `Request ID: ${input.requestId}`,
+      '',
+      'Open Admin → Rewards → Redemptions to fulfil or reject this request.',
+    ].join('\n');
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #243028;">
+        <h2 style="color: #1f6b3a; margin: 0 0 12px;">New reward redeem request</h2>
+        <p style="margin: 0 0 8px;"><strong>Member:</strong> ${escapeHtml(input.memberName)}</p>
+        <p style="margin: 0 0 8px;"><strong>Account email:</strong> ${escapeHtml(input.memberEmail || '(none)')}</p>
+        <p style="margin: 0 0 8px;"><strong>Mobile:</strong> ${escapeHtml(input.memberMobile || '(none)')}</p>
+        <p style="margin: 0 0 16px;"><strong>Referral code:</strong> ${escapeHtml(input.referralCode)}</p>
+        <p style="margin: 0 0 8px;"><strong>Reward:</strong> ${escapeHtml(input.rewardTitle)}</p>
+        <p style="margin: 0 0 8px;"><strong>Description:</strong> ${escapeHtml(input.rewardDescription || '(none)')}</p>
+        <p style="margin: 0 0 16px;"><strong>Milestone:</strong> ${input.referralCount} successful referrals</p>
+        <p style="margin: 0 0 8px;"><strong>Delivery email:</strong> ${escapeHtml(input.deliveryEmail)}</p>
+        <p style="margin: 0 0 6px;"><strong>Delivery address:</strong></p>
+        <p style="white-space: pre-wrap; margin: 0 0 16px;">${escapeHtml(input.deliveryAddress)}</p>
+        <p style="margin: 0 0 8px;"><strong>Requested:</strong> ${escapeHtml(when)} IST</p>
+        <p style="font-size: 12px; color: #6b7c6e; margin: 0 0 12px;">Request ID: ${escapeHtml(input.requestId)}</p>
+        <p style="margin: 0; font-size: 13px; color: #5f6f64;">Open Admin → Rewards → Redemptions to fulfil or reject this request.</p>
+      </div>
+    `;
+
+    const payload = await sendResendEmail({
+      apiKey,
+      from,
+      to,
+      subject,
+      text,
+      html,
+      replyTo: input.deliveryEmail,
+    });
+
+    this.logger.log(
+      `[redeem-notify] Sent for ${input.requestId} via Resend (${payload.id ?? 'ok'}) to ${to}`,
+    );
   }
 
   async listAdminRedemptions(status?: RedemptionStatus) {
@@ -341,6 +538,8 @@ export class MilestonesService implements OnModuleInit {
         adminNote: row.adminNote,
         createdAt: row.createdAt.toISOString(),
         resolvedAt: row.resolvedAt?.toISOString() ?? null,
+        deliveryEmail: row.deliveryEmail,
+        deliveryAddress: row.deliveryAddress,
         user: user
           ? {
               id: user.id,
@@ -433,4 +632,13 @@ export class MilestonesService implements OnModuleInit {
       // Ignore cleanup failures for missing/locked files.
     }
   }
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }

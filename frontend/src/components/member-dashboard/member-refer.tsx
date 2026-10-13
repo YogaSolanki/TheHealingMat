@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import buddyIcon from "@/assets/buddy.png";
 import referralArt from "@/assets/referal.png";
 import {
@@ -17,6 +18,7 @@ import {
   type ReferralStatus,
 } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
+import { lockBodyScroll } from "@/lib/body-scroll-lock";
 import { useMyMilestones } from "@/lib/milestones-store";
 import { useMyReferrals } from "@/lib/session-store";
 import { FaWhatsapp } from "react-icons/fa";
@@ -48,14 +50,6 @@ const howItWorksSteps = [
       "Your successful referral moves you toward exciting milestone rewards!",
     icon: GiftIcon,
   },
-] as const;
-
-const statusFilterOptions = [
-  { label: "All Status", value: "all" },
-  { label: "Successful", value: "SUCCESSFUL" },
-  { label: "Trial", value: "TRIAL" },
-  { label: "Membership Pending", value: "MEMBERSHIP PENDING" },
-  { label: "Registered", value: "REGISTERED" },
 ] as const;
 
 const statusToneByStatus: Record<
@@ -122,7 +116,7 @@ function rowUiStatus(
 }
 
 export function MemberReferPage() {
-  const { user } = useMemberDashboard();
+  const { user, updateUser } = useMemberDashboard();
   const {
     referrals,
     successfulCount,
@@ -139,12 +133,14 @@ export function MemberReferPage() {
   const {
     milestones,
     loading: loadingMilestones,
+    refreshing: refreshingMilestones,
     refresh: refreshMilestones,
   } = useMyMilestones();
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [redeemError, setRedeemError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] =
-    useState<(typeof statusFilterOptions)[number]["value"]>("all");
+  const [redeemTarget, setRedeemTarget] = useState<MemberMilestone | null>(null);
+  const [redeemEmail, setRedeemEmail] = useState("");
+  const [redeemAddress, setRedeemAddress] = useState("");
   const [visibleCount, setVisibleCount] = useState(REFERRAL_PAGE_SIZE);
   const [loadingMore, setLoadingMore] = useState(false);
   const listScrollRef = useRef<HTMLDivElement>(null);
@@ -152,16 +148,8 @@ export function MemberReferPage() {
   const loadMoreLockRef = useRef(false);
   const lastScrollLoadRef = useRef(0);
 
-  useEffect(() => {
-    setVisibleCount(REFERRAL_PAGE_SIZE);
-    loadMoreLockRef.current = false;
-  }, [statusFilter]);
-
-  const filteredReferrals = referrals.filter(
-    (referral) => statusFilter === "all" || referral.status === statusFilter,
-  );
-  const visibleReferrals = filteredReferrals.slice(0, visibleCount);
-  const hasMoreReferrals = visibleCount < filteredReferrals.length;
+  const visibleReferrals = referrals.slice(0, visibleCount);
+  const hasMoreReferrals = visibleCount < referrals.length;
   const nextMilestone = nextMilestoneFromList(successfulCount, milestones);
   const remainingToMilestone = Math.max(0, nextMilestone - successfulCount);
   const progressPercent =
@@ -177,13 +165,34 @@ export function MemberReferPage() {
     milestones.find((row) => row.referralCount === nextMilestone)?.id ??
     null;
 
-  async function onRedeem(milestone: MemberMilestone) {
+  function openRedeem(milestone: MemberMilestone) {
+    if (!milestone.canRedeem || redeemingId) return;
+    setRedeemError(null);
+    setRedeemEmail(
+      user.deliveryEmail?.trim() || user.email?.trim() || "",
+    );
+    setRedeemAddress(user.deliveryAddress?.trim() || "");
+    setRedeemTarget(milestone);
+  }
+
+  async function submitRedeem(
+    milestone: MemberMilestone,
+    details: { email: string; address: string },
+  ) {
     const token = getStoredToken();
     if (!token || !milestone.canRedeem || redeemingId) return;
     setRedeemError(null);
     setRedeemingId(milestone.id);
     try {
-      await requestMilestoneRedeem(token, milestone.id);
+      const result = await requestMilestoneRedeem(token, milestone.id, details);
+      updateUser({
+        ...user,
+        deliveryEmail:
+          result.deliveryEmail ?? details.email.trim().toLowerCase(),
+        deliveryAddress:
+          result.deliveryAddress ?? details.address.trim(),
+      });
+      setRedeemTarget(null);
       await refreshMilestones();
     } catch (err: unknown) {
       setRedeemError(
@@ -193,6 +202,41 @@ export function MemberReferPage() {
       setRedeemingId(null);
     }
   }
+
+  const redeemEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    redeemEmail.trim(),
+  );
+  const redeemAddressValid = redeemAddress.trim().length >= 8;
+  const redeemDetailsValid = redeemEmailValid && redeemAddressValid;
+
+  function confirmRedeemWithDetails() {
+    if (!redeemTarget || !redeemDetailsValid) return;
+    void submitRedeem(redeemTarget, {
+      email: redeemEmail.trim(),
+      address: redeemAddress.trim(),
+    });
+  }
+
+  function closeRedeemModal() {
+    if (redeemingId) return;
+    setRedeemTarget(null);
+    setRedeemError(null);
+  }
+
+  useEffect(() => {
+    if (!redeemTarget) return;
+    const unlock = lockBodyScroll();
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape" || redeemingId) return;
+      setRedeemTarget(null);
+      setRedeemError(null);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      unlock();
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [redeemTarget, redeemingId]);
 
   useEffect(() => {
     const roots = [listScrollRef.current, desktopScrollRef.current].filter(
@@ -209,7 +253,7 @@ export function MemberReferPage() {
       setLoadingMore(true);
       window.setTimeout(() => {
         setVisibleCount((current) =>
-          Math.min(current + REFERRAL_PAGE_SIZE, filteredReferrals.length),
+          Math.min(current + REFERRAL_PAGE_SIZE, referrals.length),
         );
         setLoadingMore(false);
         loadMoreLockRef.current = false;
@@ -232,10 +276,9 @@ export function MemberReferPage() {
       }
     };
   }, [
-    filteredReferrals.length,
+    referrals.length,
     hasMoreReferrals,
     loadingReferrals,
-    statusFilter,
     visibleCount,
   ]);
 
@@ -525,10 +568,22 @@ export function MemberReferPage() {
 
         {/* Milestones */}
         <section className="mb-5 overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white sm:mb-6">
-          <div className="border-b border-[#eef2ee] px-4 py-4 sm:px-6">
+          <div className="flex items-center justify-between gap-3 border-b border-[#eef2ee] px-4 py-4 sm:px-6">
             <h2 className="text-[16px] font-bold text-[#1f6b3a] sm:text-[17px]">
               Milestones & Rewards
             </h2>
+            <button
+              type="button"
+              onClick={() => void refreshMilestones()}
+              disabled={loadingMilestones || refreshingMilestones}
+              title="Refresh milestones"
+              aria-label="Refresh milestones"
+              className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#1f6b3a] transition hover:bg-[#eef6f0] disabled:cursor-wait disabled:opacity-55"
+            >
+              <RefreshIcon
+                className={`h-4 w-4 ${refreshingMilestones ? "animate-spin" : ""}`}
+              />
+            </button>
           </div>
 
           <div className="divide-y divide-[#eef2ee]">
@@ -556,18 +611,114 @@ export function MemberReferPage() {
                     canRedeem={milestone.canRedeem}
                     status={status}
                     redeeming={redeemingId === milestone.id}
-                    onRedeem={() => void onRedeem(milestone)}
+                    onRedeem={() => openRedeem(milestone)}
                   />
                 );
               })
             )}
           </div>
 
-          {redeemError ? (
+          {redeemError && !redeemTarget ? (
             <div className="border-t border-[#f0d2ce] bg-[#fff5f3] px-4 py-3.5 sm:px-6">
               <p className="text-[13px] font-medium text-[#9b3b32]">{redeemError}</p>
             </div>
           ) : null}
+
+          {redeemTarget && typeof document !== "undefined"
+            ? createPortal(
+                <div
+                  className="fixed inset-0 z-[200] flex items-end justify-center overflow-y-auto px-4 py-6 sm:items-center sm:py-10"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="redeem-delivery-title"
+                >
+                  <button
+                    type="button"
+                    aria-label="Close delivery details"
+                    className="absolute inset-0 bg-black/45 backdrop-blur-[1px]"
+                    disabled={Boolean(redeemingId)}
+                    onClick={closeRedeemModal}
+                  />
+                  <div className="relative z-10 w-full max-w-md rounded-[20px] border border-[#e6ebe3] bg-white p-5 shadow-[0_24px_60px_rgba(31,107,58,0.18)] sm:p-6">
+                    <h3
+                      id="redeem-delivery-title"
+                      className="font-serif text-[1.25rem] font-bold text-[#243028]"
+                    >
+                      Delivery details
+                    </h3>
+                    <p className="mt-1.5 text-[13px] leading-relaxed text-[#5f6f64]">
+                      Confirm the email and full address for delivering{" "}
+                      <span className="font-semibold text-[#243028]">
+                        {redeemTarget.rewardTitle || "this milestone"}
+                      </span>
+                      .
+                    </p>
+
+                    <div className="mt-4 space-y-3">
+                      <label className="block">
+                        <span className="text-[12px] font-semibold text-[#5f6f64]">
+                          Email address
+                        </span>
+                        <input
+                          type="email"
+                          value={redeemEmail}
+                          onChange={(e) => {
+                            setRedeemEmail(e.target.value);
+                            setRedeemError(null);
+                          }}
+                          className="mt-1.5 h-11 w-full rounded-[12px] border border-[#d7e0d6] bg-white px-3.5 text-[14px] text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
+                          placeholder="you@example.com"
+                          autoComplete="email"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-[12px] font-semibold text-[#5f6f64]">
+                          Full address
+                        </span>
+                        <textarea
+                          value={redeemAddress}
+                          onChange={(e) => {
+                            setRedeemAddress(e.target.value);
+                            setRedeemError(null);
+                          }}
+                          className="mt-1.5 min-h-[88px] w-full resize-y rounded-[12px] border border-[#d7e0d6] bg-white px-3.5 py-2.5 text-[14px] text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
+                          placeholder="House/flat, street, area, city, PIN"
+                          autoComplete="street-address"
+                          maxLength={500}
+                          rows={3}
+                        />
+                      </label>
+                    </div>
+
+                    {redeemError ? (
+                      <p className="mt-3 rounded-[12px] bg-[#fdecec] px-3 py-2 text-[13px] text-[#8a2f2f]">
+                        {redeemError}
+                      </p>
+                    ) : null}
+
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={Boolean(redeemingId)}
+                        onClick={closeRedeemModal}
+                        className={`${memberOutlineBtnClass} flex-1 justify-center px-4 py-2.5 text-[13px] sm:flex-none`}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={Boolean(redeemingId) || !redeemDetailsValid}
+                        onClick={confirmRedeemWithDetails}
+                        className={`${memberPrimaryBtnClass} flex-1 justify-center px-4 py-2.5 text-[13px] sm:flex-none disabled:cursor-not-allowed disabled:opacity-50`}
+                      >
+                        {redeemingId ? "Submitting…" : "Confirm & Redeem"}
+                      </button>
+                    </div>
+                  </div>
+                </div>,
+                document.body,
+              )
+            : null}
 
           {hasPendingRedeem ? (
             <div className="border-t border-[#eef2ee] bg-[#F4F8F2] px-4 py-3.5 sm:px-6">
@@ -592,25 +743,22 @@ export function MemberReferPage() {
         {/* My referrals table — only when the member has at least one referral */}
         {loadingReferrals || referrals.length > 0 ? (
         <section id="referrals" className="overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white">
-          <div className="relative z-30 flex flex-col gap-3 rounded-t-[22px] border-b border-[#eef2ee] bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="relative z-30 flex items-center justify-between gap-3 rounded-t-[22px] border-b border-[#eef2ee] bg-white px-4 py-4 sm:px-6">
             <h2 className="text-[16px] font-bold text-[#1f6b3a] sm:text-[17px]">
               My Referrals
             </h2>
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-              <button
-                type="button"
-                onClick={() => void refresh()}
-                disabled={loadingReferrals || refreshing}
-                className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-full border border-[#d7e0d6] bg-white px-3.5 py-2 text-[12px] font-semibold text-[#243028] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:text-[13px]"
-                aria-label="Refresh referrals"
-              >
-                <RefreshIcon
-                  className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`}
-                />
-                {refreshing ? "Refreshing…" : "Refresh"}
-              </button>
-              <ReferralStatusFilter value={statusFilter} onChange={setStatusFilter} />
-            </div>
+            <button
+              type="button"
+              onClick={() => void refresh()}
+              disabled={loadingReferrals || refreshing}
+              title="Refresh referrals"
+              aria-label="Refresh referrals"
+              className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#1f6b3a] transition hover:bg-[#eef6f0] disabled:cursor-wait disabled:opacity-55"
+            >
+              <RefreshIcon
+                className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+              />
+            </button>
           </div>
 
           <div
@@ -622,9 +770,9 @@ export function MemberReferPage() {
                 <SiteLoader size="md" label="Loading your referrals" />
                 <p className="text-[13px] text-[#6b7c6e]">Loading your referrals…</p>
               </div>
-            ) : filteredReferrals.length === 0 ? (
+            ) : referrals.length === 0 ? (
               <p className="px-4 py-8 text-center text-[13px] leading-relaxed text-[#6b7c6e]">
-                No referrals match this status filter.
+                No referrals yet.
               </p>
             ) : (
               <ul className="divide-y divide-[#eef2ee]">
@@ -698,11 +846,11 @@ export function MemberReferPage() {
                       </div>
                     </td>
                   </tr>
-                ) : filteredReferrals.length === 0 ? (
+                ) : referrals.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-4 py-8 text-center sm:px-6">
                       <p className="text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
-                        No referrals match this status filter.
+                        No referrals yet.
                       </p>
                     </td>
                   </tr>
@@ -759,89 +907,6 @@ export function MemberReferPage() {
         </section>
         ) : null}
       </div>
-    </div>
-  );
-}
-
-function ReferralStatusFilter({
-  value,
-  onChange,
-}: {
-  value: (typeof statusFilterOptions)[number]["value"];
-  onChange: (value: (typeof statusFilterOptions)[number]["value"]) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const selected =
-    statusFilterOptions.find((option) => option.value === value) ??
-    statusFilterOptions[0];
-
-  useEffect(() => {
-    function handlePointerDown(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-
-    if (open) {
-      document.addEventListener("mousedown", handlePointerDown);
-    }
-
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [open]);
-
-  return (
-    <div ref={rootRef} className="relative z-40 w-full shrink-0 sm:w-auto">
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-        className="inline-flex w-full min-w-0 cursor-pointer items-center justify-between gap-3 rounded-full border border-[#1f6b3a] bg-white px-4 py-2 text-[13px] font-semibold text-[#243028] transition hover:bg-[#f6f8f5] sm:min-w-[156px] sm:w-auto sm:text-[14px]"
-      >
-        <span>{selected.label}</span>
-        <ChevronDownIcon
-          className={`h-4 w-4 shrink-0 text-[#243028] transition-transform ${
-            open ? "rotate-180" : ""
-          }`}
-        />
-      </button>
-
-      {open ? (
-        <div
-          role="listbox"
-          aria-label="Filter by status"
-          className="absolute top-[calc(100%+8px)] right-0 left-0 z-50 min-w-0 overflow-hidden rounded-[14px] border border-[#e6ebe3] bg-white py-1 shadow-[0_16px_36px_rgba(31,107,58,0.16)] sm:left-auto sm:min-w-[180px]"
-        >
-          {statusFilterOptions.map((option) => {
-            const active = option.value === value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="option"
-                aria-selected={active}
-                onClick={() => {
-                  onChange(option.value);
-                  setOpen(false);
-                }}
-                className={`flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-left text-[13px] font-medium transition sm:text-[14px] ${
-                  active
-                    ? "bg-[#eef6f0] text-[#1f6b3a]"
-                    : "text-[#243028] hover:bg-[#f6f8f5]"
-                }`}
-              >
-                {active ? (
-                  <CheckIcon className="h-3.5 w-3.5 shrink-0" />
-                ) : (
-                  <span className="inline-block h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                )}
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -1077,14 +1142,6 @@ function ChevronRightIcon({ className }: { className?: string }) {
   );
 }
 
-function ChevronDownIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
-      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function CheckIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
@@ -1097,13 +1154,13 @@ function RefreshIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
       <path
-        d="M20 12a8 8 0 1 1-2.2-5.5"
+        d="M19.5 12a7.5 7.5 0 1 1-2.05-5.2"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"
       />
       <path
-        d="M20 4v5h-5"
+        d="M19.5 4.5v4.2h-4.2"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"

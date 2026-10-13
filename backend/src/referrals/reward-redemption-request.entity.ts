@@ -29,6 +29,14 @@ export class RewardRedemptionRequest {
   @Column({ type: 'varchar', default: 'pending' })
   status: RedemptionStatus;
 
+  /** Snapshot of delivery email at redeem time. */
+  @Column({ type: 'varchar', nullable: true })
+  deliveryEmail: string | null;
+
+  /** Snapshot of full delivery address at redeem time. */
+  @Column({ type: 'text', nullable: true })
+  deliveryAddress: string | null;
+
   @Column({ type: 'text', nullable: true })
   adminNote: string | null;
 

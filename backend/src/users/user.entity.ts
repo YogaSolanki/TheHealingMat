@@ -40,6 +40,20 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   state: string | null;
 
+  /**
+   * Reward delivery contact — separate from account email.
+   * Used only to autofill the Milestones & Rewards redeem popup.
+   */
+  @Column({ type: 'varchar', nullable: true })
+  deliveryEmail: string | null;
+
+  /**
+   * Reward delivery address — not shown on My Account personal info.
+   * Used only to autofill the Milestones & Rewards redeem popup.
+   */
+  @Column({ type: 'text', nullable: true })
+  deliveryAddress: string | null;
+
   /** Preferred daily class time slot label (e.g. "6:30 AM"). */
   @Column({ type: 'varchar', nullable: true })
   preferredClassTime: string | null;

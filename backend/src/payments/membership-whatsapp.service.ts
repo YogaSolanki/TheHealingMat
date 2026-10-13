@@ -3,6 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { IsNull, Repository } from 'typeorm';
+import {
+  buildMemberAccessLink,
+  resolveFrontendBaseUrl,
+} from '../common/frontend-url';
 import { sendAiSensyCampaign } from '../sms/aisensy-whatsapp';
 import { Region } from '../users/enums/region.enum';
 import { User } from '../users/user.entity';
@@ -52,7 +56,9 @@ export class MembershipWhatsAppService {
   }
 
   /**
-   * AiSensy app_membership_confirm — paid membership only (not free trial).
+   * AiSensy WelcomeMembership (template welcome_membership) — paid membership only.
+   * Body vars: name, amount, invoice no, membership, validity, permanent session link.
+   * Header: invoice PDF (DOCUMENT).
    */
   async sendMembershipPurchaseConfirm(
     user: User,
@@ -71,7 +77,7 @@ export class MembershipWhatsAppService {
     const campaignName =
       this.config
         .get<string>('AISENSY_MEMBERSHIP_CONFIRM_CAMPAIGN_NAME')
-        ?.trim() || 'app_membership_confirm';
+        ?.trim() || 'WelcomeMembership';
 
     if (!apiKey || !campaignName) {
       this.logger.log(
@@ -95,6 +101,12 @@ export class MembershipWhatsAppService {
       membership.planMonths,
     );
     const validity = formatMembershipValidity(membership.planMonths);
+    const permanentSessionLink = user.accessLinkToken
+      ? buildMemberAccessLink(
+          this.config.get<string>('FRONTEND_URL'),
+          user.accessLinkToken,
+        )
+      : `${resolveFrontendBaseUrl(this.config.get<string>('FRONTEND_URL'))}/dashboard`;
     const publicPdfUrl = this.buildPublicInvoiceUrl(invoice.id);
     const filename = `${invoice.invoiceNumber}.pdf`;
 
@@ -113,6 +125,7 @@ export class MembershipWhatsAppService {
           invoiceNo,
           membershipLabel,
           validity,
+          permanentSessionLink,
         ],
         media: {
           url: publicPdfUrl,
@@ -120,7 +133,7 @@ export class MembershipWhatsAppService {
         },
       });
       this.logger.log(
-        `[membership-confirm] Sent to ${mobile} for membership ${membership.id} (pdf=${publicPdfUrl})`,
+        `[membership-confirm] Sent WelcomeMembership to ${mobile} for membership ${membership.id} (pdf=${publicPdfUrl})`,
       );
     } catch (err) {
       await this.invoices.update(

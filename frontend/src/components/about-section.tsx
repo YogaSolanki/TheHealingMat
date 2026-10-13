@@ -57,7 +57,7 @@ export function AboutSection() {
 function HeroBlock() {
   return (
     <section className="w-full overflow-hidden" style={{ backgroundColor: cream }}>
-      <div className="grid w-full items-stretch lg:grid-cols-2">
+      <div className="grid w-full items-center lg:grid-cols-2">
         <div className="order-2 flex items-center justify-center px-5 py-6 sm:px-8 sm:py-7 lg:order-1 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
           <div className="flex w-full max-w-[560px] flex-col items-center text-center lg:items-start lg:text-left">
             <p className="text-[11px] font-bold tracking-[0.2em] text-black uppercase sm:text-[12px]">
@@ -91,7 +91,7 @@ function HeroBlock() {
         </div>
 
         <div
-          className="hero-media-frame relative order-1 aspect-[16/9] w-full overflow-hidden lg:order-2 lg:aspect-auto lg:h-full lg:min-h-[480px]"
+          className="hero-media-frame relative order-1 aspect-[3972/2160] w-full overflow-hidden lg:order-2"
           style={{ ["--hero-blend" as string]: cream }}
         >
           <Image

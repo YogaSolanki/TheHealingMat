@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsEmail,
   IsIn,
   IsInt,
   IsOptional,
@@ -9,6 +10,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 
 export class CreateMilestoneDto {
@@ -89,4 +91,19 @@ export class UpdateRedemptionDto {
   @IsString()
   @MaxLength(2000)
   adminNote?: string;
+}
+
+/** Optional delivery details when redeeming a milestone reward. */
+export class RedeemMilestoneDto {
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null && value !== '')
+  @IsEmail({}, { message: 'email must be a valid email.' })
+  @MaxLength(160)
+  email?: string | null;
+
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null && value !== '')
+  @IsString()
+  @MaxLength(500, { message: 'address must be at most 500 characters.' })
+  address?: string | null;
 }
