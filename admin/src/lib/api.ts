@@ -548,6 +548,8 @@ export function createAdminCorporatePlan(
     planMonths: number;
     employeeCount: number;
     companyPayPercent: number;
+    /** Optional override of catalog list price per seat (paise). */
+    listPricePerSeatPaise?: number;
     paymentMethod: string;
     paymentRef: string;
     adminNote: string;

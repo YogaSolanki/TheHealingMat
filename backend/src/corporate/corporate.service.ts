@@ -311,7 +311,10 @@ export class CorporateService implements OnModuleInit {
     );
     const employeeCount = dto.employeeCount;
     const companyPayPercent = dto.companyPayPercent;
-    const listPricePerSeatPaise = catalog.listPricePaise;
+    const listPricePerSeatPaise =
+      dto.listPricePerSeatPaise != null && dto.listPricePerSeatPaise > 0
+        ? dto.listPricePerSeatPaise
+        : catalog.listPricePaise;
     const totalListPricePaise = listPricePerSeatPaise * employeeCount;
     /** ₹1 per seat reserved so each employee can get a paid invoice. */
     const seatInvoiceReservePaise =

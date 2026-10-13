@@ -100,6 +100,17 @@ export class CreateCorporatePlanDto {
   @Max(100000)
   employeeCount: number;
 
+  /**
+   * Optional override of catalog list price per seat (paise).
+   * When omitted, the active membership plan catalog price is used.
+   */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100_000_000)
+  listPricePerSeatPaise?: number;
+
   /** 0–100: share of total list price paid by the company. */
   @Type(() => Number)
   @IsInt()

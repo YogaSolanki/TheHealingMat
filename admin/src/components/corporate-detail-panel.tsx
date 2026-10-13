@@ -86,6 +86,7 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
 
   const [planMonths, setPlanMonths] = useState("12");
   const [employeeCount, setEmployeeCount] = useState("20");
+  const [listPricePerSeatMajor, setListPricePerSeatMajor] = useState("");
   const [companyPayPercent, setCompanyPayPercent] = useState("50");
   const [paymentMethod, setPaymentMethod] = useState("UPI");
   const [paymentRef, setPaymentRef] = useState("");
@@ -147,8 +148,26 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
   );
   const seats = Math.max(0, Number(employeeCount) || 0);
   const payPct = Math.min(100, Math.max(0, Number(companyPayPercent) || 0));
-  const listPerSeat = selectedPlan?.listPricePaise ?? 0;
+  const listPerSeatMajorParsed = Number(listPricePerSeatMajor.trim());
+  const listPerSeat =
+    Number.isFinite(listPerSeatMajorParsed) && listPerSeatMajorParsed > 0
+      ? Math.round(listPerSeatMajorParsed * 100)
+      : (selectedPlan?.listPricePaise ?? 0);
   const totalList = listPerSeat * seats;
+
+  function priceMajorFromCatalog(months: string) {
+    const plan = catalogPlans.find((p) => String(p.months) === months);
+    if (!plan?.listPricePaise) return "";
+    return String(Math.round(plan.listPricePaise / 100));
+  }
+
+  function openAddPlan() {
+    const months =
+      catalogPlans.length > 0 ? String(catalogPlans[0].months) : planMonths;
+    setPlanMonths(months);
+    setListPricePerSeatMajor(priceMajorFromCatalog(months));
+    setPlanOpen(true);
+  }
   /** ₹1/seat reserved for member invoices when company pays 100%. */
   const seatInvoiceReserve = payPct >= 100 ? seats * 100 : 0;
   const companyAmount =
@@ -209,11 +228,19 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
   async function onConfirmPlan(event: FormEvent) {
     event.preventDefault();
     if (!token || savingPlan) return;
+    if (!Number.isFinite(listPerSeatMajorParsed) || listPerSeatMajorParsed <= 0) {
+      setToast({
+        message: "Enter a valid list price per seat (₹).",
+        variant: "error",
+      });
+      return;
+    }
     setSavingPlan(true);
     try {
       const next = await createAdminCorporatePlan(token, companyId, {
         planMonths: Number(planMonths),
         employeeCount: seats,
+        listPricePerSeatPaise: listPerSeat,
         companyPayPercent: payPct,
         paymentMethod: paymentMethod.trim(),
         paymentRef: paymentRef.trim(),
@@ -369,7 +396,7 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
           )}
           <button
             type="button"
-            onClick={() => setPlanOpen(true)}
+            onClick={openAddPlan}
             className="inline-flex h-10 items-center justify-center rounded-full bg-[#1f6b3a] px-4 text-sm font-semibold text-white transition hover:bg-[#185830]"
           >
             Add plan
@@ -770,10 +797,14 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
               className="mt-5 grid gap-4 sm:grid-cols-2"
             >
               <label className={labelClass}>
-                Plan
+                Plan duration
                 <select
                   value={planMonths}
-                  onChange={(e) => setPlanMonths(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setPlanMonths(next);
+                    setListPricePerSeatMajor(priceMajorFromCatalog(next));
+                  }}
                   className={inputClass}
                   disabled={savingPlan}
                 >
@@ -788,11 +819,29 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
                     <option key={plan.months} value={plan.months}>
                       {plan.months} months
                       {"listPricePaise" in plan && plan.listPricePaise
-                        ? ` · ${formatMoney(plan.listPricePaise)}/seat`
+                        ? ` · catalog ${formatMoney(plan.listPricePaise)}/seat`
                         : ""}
                     </option>
                   ))}
                 </select>
+              </label>
+              <label className={labelClass}>
+                List price per seat (₹)
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={listPricePerSeatMajor}
+                  onChange={(e) => setListPricePerSeatMajor(e.target.value)}
+                  className={inputClass}
+                  disabled={savingPlan}
+                  required
+                  placeholder="e.g. 3650"
+                />
+                <span className="mt-1 block text-xs font-normal text-[#8a978c]">
+                  Prefills from the catalog; edit for this corporate plan only.
+                  Used for totals and the CO invoice.
+                </span>
               </label>
               <label className={labelClass}>
                 Number of employees
@@ -835,7 +884,11 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
               </label>
               <div className="rounded-xl bg-[#f7faf6] px-3.5 py-3 text-sm sm:col-span-2">
                 <p className="text-[#5f6f64]">
-                  List total:{" "}
+                  Per seat:{" "}
+                  <span className="font-semibold text-[#243028]">
+                    {formatMoney(listPerSeat)}
+                  </span>{" "}
+                  · List total:{" "}
                   <span className="font-semibold text-[#243028]">
                     {formatMoney(totalList)}
                   </span>{" "}
