@@ -10,6 +10,8 @@ import {
   createAdminCorporatePlan,
   downloadAdminCorporatePlanInvoice,
   downloadAdminMembershipInvoice,
+  exportAdminCompanyCoupons,
+  exportAdminPlanCouponUsers,
   getAdminCompany,
   listAdminMembershipPlans,
   updateAdminCompany,
@@ -67,6 +69,10 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
     null,
   );
   const [downloadingSeatInvoiceKey, setDownloadingSeatInvoiceKey] = useState<
+    string | null
+  >(null);
+  const [exportingCoupons, setExportingCoupons] = useState(false);
+  const [exportingCouponUsersPlanId, setExportingCouponUsersPlanId] = useState<
     string | null
   >(null);
 
@@ -250,6 +256,56 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
     }
   }
 
+  async function onExportCoupons() {
+    if (!token) {
+      setToast({ message: "Please sign in again.", variant: "error" });
+      return;
+    }
+    setExportingCoupons(true);
+    try {
+      await exportAdminCompanyCoupons(token, companyId);
+      setToast({
+        message: "Corporate coupons export downloaded.",
+        variant: "success",
+      });
+    } catch (err) {
+      setToast({
+        message:
+          err instanceof Error
+            ? err.message
+            : "Failed to export corporate coupons.",
+        variant: "error",
+      });
+    } finally {
+      setExportingCoupons(false);
+    }
+  }
+
+  async function onExportCouponUsers(planId: string) {
+    if (!token) {
+      setToast({ message: "Please sign in again.", variant: "error" });
+      return;
+    }
+    setExportingCouponUsersPlanId(planId);
+    try {
+      await exportAdminPlanCouponUsers(token, companyId, planId);
+      setToast({
+        message: "Coupon users export downloaded.",
+        variant: "success",
+      });
+    } catch (err) {
+      setToast({
+        message:
+          err instanceof Error
+            ? err.message
+            : "Failed to export coupon users.",
+        variant: "error",
+      });
+    } finally {
+      setExportingCouponUsersPlanId(null);
+    }
+  }
+
   if (loading) return <PanelLoader label="Loading company…" />;
   if (!detail) {
     return (
@@ -418,13 +474,25 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
       </section>
 
       <section className="space-y-4">
-        <div>
-          <h2 className="text-sm font-semibold text-[#243028]">
-            Corporate plans
-          </h2>
-          <p className="mt-0.5 text-xs text-[#8a978c]">
-            Confirmed plans, CO invoices, and seat coupons.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-[#243028]">
+              Corporate plans
+            </h2>
+            <p className="mt-0.5 text-xs text-[#8a978c]">
+              Confirmed plans, CO invoices, and seat coupons.
+            </p>
+          </div>
+          {detail.plans.some((plan) => Boolean(plan.coupon)) ? (
+            <button
+              type="button"
+              onClick={() => void onExportCoupons()}
+              disabled={exportingCoupons}
+              className="inline-flex h-9 items-center justify-center rounded-full border border-[#d7e0d6] bg-white px-3 text-xs font-semibold text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {exportingCoupons ? "Exporting…" : "Export coupons"}
+            </button>
+          ) : null}
         </div>
 
         {detail.plans.length === 0 ? (
@@ -506,18 +574,28 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
                 </div>
 
                 {plan.coupon ? (
-                  <div className="mt-3 rounded-xl bg-[#f7faf6] px-3.5 py-3 text-sm">
-                    <p className="font-semibold text-[#243028]">
-                      Coupon{" "}
-                      <span className="font-mono text-[#1f6b3a]">
-                        {plan.coupon.code}
-                      </span>
-                    </p>
-                    <p className="mt-1 text-xs text-[#5f6f64]">
-                      {plan.coupon.discountLabel} · {plan.coupon.usageCount}/
-                      {plan.coupon.maxUses} used · domains:{" "}
-                      {(plan.coupon.allowedDomains ?? []).join(", ") || "—"}
-                    </p>
+                  <div className="mt-3 flex flex-wrap items-start justify-between gap-2 rounded-xl bg-[#f7faf6] px-3.5 py-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[#243028]">
+                        Coupon{" "}
+                        <span className="font-mono text-[#1f6b3a]">
+                          {plan.coupon.code}
+                        </span>
+                      </p>
+                      <p className="mt-1 text-xs text-[#5f6f64]">
+                        {plan.coupon.discountLabel} · {plan.coupon.usageCount}/
+                        {plan.coupon.maxUses} used · domains:{" "}
+                        {(plan.coupon.allowedDomains ?? []).join(", ") || "—"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void onExportCouponUsers(plan.id)}
+                      disabled={exportingCouponUsersPlanId === plan.id}
+                      className="inline-flex h-8 shrink-0 items-center rounded-full border border-[#d7e0d6] bg-white px-2.5 text-[11px] font-semibold text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] disabled:opacity-50"
+                    >
+                      {exportingCouponUsersPlanId === plan.id ? "…" : "Export"}
+                    </button>
                   </div>
                 ) : null}
 

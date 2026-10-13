@@ -28,6 +28,16 @@ export class CorporateAdminController {
     return this.corporate.listCompanies();
   }
 
+  @Get('companies/export')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  async exportCompanies() {
+    const file = await this.corporate.exportCompaniesCsv();
+    return new StreamableFile(Buffer.from(file.csv, 'utf8'), {
+      type: 'text/csv; charset=utf-8',
+      disposition: `attachment; filename="${file.filename}"`,
+    });
+  }
+
   @Post('companies')
   createCompany(@Body() dto: CreateCompanyDto) {
     return this.corporate.createCompany(dto);
@@ -36,6 +46,29 @@ export class CorporateAdminController {
   @Get('companies/:id')
   getCompany(@Param('id', ParseUUIDPipe) id: string) {
     return this.corporate.getCompany(id);
+  }
+
+  @Get('companies/:id/export/coupons')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  async exportCompanyCoupons(@Param('id', ParseUUIDPipe) id: string) {
+    const file = await this.corporate.exportCompanyCouponsCsv(id);
+    return new StreamableFile(Buffer.from(file.csv, 'utf8'), {
+      type: 'text/csv; charset=utf-8',
+      disposition: `attachment; filename="${file.filename}"`,
+    });
+  }
+
+  @Get('companies/:id/plans/:planId/export/users')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  async exportPlanCouponUsers(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('planId', ParseUUIDPipe) planId: string,
+  ) {
+    const file = await this.corporate.exportPlanCouponUsersCsv(id, planId);
+    return new StreamableFile(Buffer.from(file.csv, 'utf8'), {
+      type: 'text/csv; charset=utf-8',
+      disposition: `attachment; filename="${file.filename}"`,
+    });
   }
 
   @Patch('companies/:id')

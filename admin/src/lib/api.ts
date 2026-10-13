@@ -434,6 +434,68 @@ export function getAdminCompanies(token: string) {
   );
 }
 
+async function downloadAdminCsv(
+  token: string,
+  path: string,
+  fallbackFilename: string,
+  errorMessage: string,
+) {
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as ApiErrorBody;
+    throw new Error(readErrorMessage(payload, errorMessage));
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match = /filename="([^"]+)"/i.exec(disposition);
+  const filename = match?.[1] || fallbackFilename;
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+export function exportAdminCompanies(token: string) {
+  return downloadAdminCsv(
+    token,
+    "/admin/corporate/companies/export",
+    `thm-corporates-export-${new Date().toISOString().slice(0, 10)}.csv`,
+    "Unable to export corporates.",
+  );
+}
+
+export function exportAdminCompanyCoupons(token: string, companyId: string) {
+  return downloadAdminCsv(
+    token,
+    `/admin/corporate/companies/${companyId}/export/coupons`,
+    `thm-corporate-coupons-${new Date().toISOString().slice(0, 10)}.csv`,
+    "Unable to export corporate coupons.",
+  );
+}
+
+export function exportAdminPlanCouponUsers(
+  token: string,
+  companyId: string,
+  planId: string,
+) {
+  return downloadAdminCsv(
+    token,
+    `/admin/corporate/companies/${companyId}/plans/${planId}/export/users`,
+    `thm-coupon-users-${new Date().toISOString().slice(0, 10)}.csv`,
+    "Unable to export coupon users.",
+  );
+}
+
 export function getAdminCompany(token: string, id: string) {
   return authGet<AdminCompanyDetail>(`/admin/corporate/companies/${id}`, token);
 }

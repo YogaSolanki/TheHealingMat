@@ -126,6 +126,116 @@ export class CorporateService implements OnModuleInit {
     };
   }
 
+  async exportCompaniesCsv() {
+    const companies = await this.companies.find({
+      order: { createdAt: 'DESC' },
+    });
+    const planCounts = await this.plans
+      .createQueryBuilder('plan')
+      .select('plan.companyId', 'companyId')
+      .addSelect('COUNT(*)', 'count')
+      .groupBy('plan.companyId')
+      .getRawMany<{ companyId: string; count: string }>();
+    const countByCompany = new Map(
+      planCounts.map((row) => [row.companyId, Number(row.count) || 0]),
+    );
+
+    const rows = companies.map((company) => ({
+      companyName: company.companyName,
+      domains: (company.domains ?? []).join('; '),
+      gstNumber: company.gstNumber,
+      state: company.state,
+      billingEmail: company.billingEmail,
+      billingPhone: company.billingPhone,
+      billingAddress: company.billingAddress,
+      planCount: countByCompany.get(company.id) ?? 0,
+      createdAt: company.createdAt,
+    }));
+
+    return {
+      csv: buildCompaniesCsv(rows),
+      filename: exportFilename('thm-corporates-export'),
+    };
+  }
+
+  async exportCompanyCouponsCsv(companyId: string) {
+    const detail = await this.getCompany(companyId);
+    const rows: CorporateCouponCsvRow[] = detail.plans
+      .filter((plan) => plan.coupon)
+      .map((plan) => {
+        const coupon = plan.coupon!;
+        return {
+          companyName: detail.company.companyName,
+          domains: (detail.company.domains ?? []).join('; '),
+          planName: plan.planName,
+          planMonths: plan.planMonths,
+          seatsTotal: plan.employeeCount,
+          seatsUsed: plan.seatsUsed,
+          couponCode: coupon.code,
+          discountLabel: coupon.discountLabel,
+          discountType: coupon.discountType,
+          discountValue: coupon.discountValue,
+          maxUses: coupon.maxUses,
+          usageCount: coupon.usageCount,
+          remainingUses: coupon.remainingUses,
+          active: coupon.active,
+          allowedDomains: (coupon.allowedDomains ?? []).join('; '),
+          planStartsAt: plan.startsAt ? new Date(plan.startsAt) : null,
+          planEndsAt: plan.endsAt ? new Date(plan.endsAt) : null,
+          couponCreatedAt: new Date(coupon.createdAt),
+        };
+      });
+
+    const slug = slugifyFilename(detail.company.companyName);
+    return {
+      csv: buildCorporateCouponsCsv(rows),
+      filename: exportFilename(`thm-corporate-coupons-${slug}`),
+    };
+  }
+
+  async exportPlanCouponUsersCsv(companyId: string, planId: string) {
+    const company = await this.requireCompany(companyId);
+    const plan = await this.plans.findOne({
+      where: { id: planId, companyId },
+    });
+    if (!plan) {
+      throw new NotFoundException('Corporate plan not found.');
+    }
+
+    const detailed = await this.toPlanDetail(plan, company);
+    if (!detailed.coupon) {
+      throw new BadRequestException('This plan has no seat coupon.');
+    }
+
+    const rows: CouponUserCsvRow[] = [];
+    for (const redemption of detailed.redemptions) {
+      const user = await this.users.findOne({
+        where: { id: redemption.userId },
+      });
+      rows.push({
+        companyName: company.companyName,
+        planName: detailed.planName,
+        couponCode: detailed.coupon.code,
+        memberName: redemption.userName ?? user?.fullName ?? null,
+        userId: redemption.userId,
+        verifiedEmail: redemption.verifiedEmail,
+        accountEmail: user?.email ?? null,
+        mobile: user?.mobile ?? null,
+        redeemedAt: new Date(redemption.createdAt),
+        membershipInvoiceNumber: redemption.invoiceNumber,
+      });
+    }
+
+    const couponSlug = slugifyFilename(detailed.coupon.code);
+    const companySlug = slugifyFilename(company.companyName);
+    return {
+      csv: buildCouponUsersCsv(rows),
+      filename: exportFilename(
+        `thm-coupon-users-${companySlug}-${couponSlug}`,
+      ),
+    };
+  }
+
   async getCompany(id: string) {
     const company = await this.requireCompany(id);
     const plans = await this.plans.find({
@@ -749,4 +859,196 @@ export class CorporateService implements OnModuleInit {
       seatsRemaining: Math.max(0, plan.employeeCount - redemptions.length),
     };
   }
+}
+
+type CompanyCsvRow = {
+  companyName: string;
+  domains: string;
+  gstNumber: string | null;
+  state: string | null;
+  billingEmail: string | null;
+  billingPhone: string | null;
+  billingAddress: string | null;
+  planCount: number;
+  createdAt: Date;
+};
+
+type CorporateCouponCsvRow = {
+  companyName: string;
+  domains: string;
+  planName: string;
+  planMonths: number;
+  seatsTotal: number;
+  seatsUsed: number;
+  couponCode: string;
+  discountLabel: string;
+  discountType: string;
+  discountValue: number;
+  maxUses: number;
+  usageCount: number;
+  remainingUses: number;
+  active: boolean;
+  allowedDomains: string;
+  planStartsAt: Date | null;
+  planEndsAt: Date | null;
+  couponCreatedAt: Date;
+};
+
+type CouponUserCsvRow = {
+  companyName: string;
+  planName: string;
+  couponCode: string;
+  memberName: string | null;
+  userId: string;
+  verifiedEmail: string | null;
+  accountEmail: string | null;
+  mobile: string | null;
+  redeemedAt: Date;
+  membershipInvoiceNumber: string | null;
+};
+
+function csvEscape(value: string | number | boolean | null | undefined) {
+  if (value == null) return '';
+  const text = String(value);
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replaceAll('"', '""')}"`;
+  }
+  return text;
+}
+
+function formatExportDate(value: Date | null | undefined) {
+  if (value == null) return 'N/A';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'N/A';
+  return new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function exportFilename(prefix: string) {
+  return `${prefix}-${new Date().toISOString().slice(0, 10)}.csv`;
+}
+
+function slugifyFilename(value: string) {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+  return slug || 'company';
+}
+
+function buildCsv(headers: string[], lines: (string | number | boolean | null | undefined)[][]) {
+  const out = [headers.map(csvEscape).join(',')];
+  for (const line of lines) {
+    out.push(line.map(csvEscape).join(','));
+  }
+  return `\uFEFF${out.join('\n')}\n`;
+}
+
+function buildCompaniesCsv(rows: CompanyCsvRow[]) {
+  return buildCsv(
+    [
+      'Company Name',
+      'Domains',
+      'GST Number',
+      'State',
+      'Billing Email',
+      'Billing Phone',
+      'Billing Address',
+      'Plans',
+      'Added At (IST)',
+    ],
+    rows.map((row) => [
+      row.companyName,
+      row.domains,
+      row.gstNumber,
+      row.state,
+      row.billingEmail,
+      row.billingPhone,
+      row.billingAddress,
+      row.planCount,
+      formatExportDate(row.createdAt),
+    ]),
+  );
+}
+
+function buildCorporateCouponsCsv(rows: CorporateCouponCsvRow[]) {
+  return buildCsv(
+    [
+      'Company Name',
+      'Domains',
+      'Plan Name',
+      'Plan Months',
+      'Seats Total',
+      'Seats Used',
+      'Coupon Code',
+      'Discount Label',
+      'Discount Type',
+      'Discount Value',
+      'Max Uses',
+      'Usage Count',
+      'Remaining Uses',
+      'Active',
+      'Allowed Domains',
+      'Plan Starts (IST)',
+      'Plan Ends (IST)',
+      'Coupon Created (IST)',
+    ],
+    rows.map((row) => [
+      row.companyName,
+      row.domains,
+      row.planName,
+      row.planMonths,
+      row.seatsTotal,
+      row.seatsUsed,
+      row.couponCode,
+      row.discountLabel,
+      row.discountType,
+      row.discountValue,
+      row.maxUses,
+      row.usageCount,
+      row.remainingUses,
+      row.active ? 'yes' : 'no',
+      row.allowedDomains,
+      formatExportDate(row.planStartsAt),
+      formatExportDate(row.planEndsAt),
+      formatExportDate(row.couponCreatedAt),
+    ]),
+  );
+}
+
+function buildCouponUsersCsv(rows: CouponUserCsvRow[]) {
+  return buildCsv(
+    [
+      'Company Name',
+      'Plan Name',
+      'Coupon Code',
+      'Member Name',
+      'User ID',
+      'Verified Email',
+      'Account Email',
+      'Mobile',
+      'Redeemed At (IST)',
+      'Membership Invoice',
+    ],
+    rows.map((row) => [
+      row.companyName,
+      row.planName,
+      row.couponCode,
+      row.memberName,
+      row.userId,
+      row.verifiedEmail,
+      row.accountEmail,
+      row.mobile,
+      formatExportDate(row.redeemedAt),
+      row.membershipInvoiceNumber,
+    ]),
+  );
 }
