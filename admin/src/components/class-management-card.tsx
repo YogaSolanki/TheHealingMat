@@ -822,7 +822,7 @@ export function ClassManagementCard() {
                 </>
               ) : (
                 <>
-                  No active session times. Add them in{" "}
+                  No active session times. Add membership or Trial times in{" "}
                   <Link
                     href="/dashboard/settings"
                     className="font-semibold underline underline-offset-2"
@@ -842,8 +842,8 @@ export function ClassManagementCard() {
                 </h4>
                 {selectedIsSunday ? (
                   <p className="text-xs text-[#8a978c]">
-                    Sunday only shows Q&amp;A times from Settings. Regular and
-                    Special slots are Mon–Sat.
+                    Sunday only shows Q&amp;A times from Settings. Membership,
+                    Trial, and Special slots are Mon–Sat.
                   </p>
                 ) : specialTiming ? (
                   <p className="text-xs text-[#8a978c]">
@@ -851,7 +851,8 @@ export function ClassManagementCard() {
                     <span className="font-semibold text-[#8a5a2f]">
                       {specialTiming.label}
                     </span>{" "}
-                    — schedule it on this day to show Special Session.
+                    — schedule it on this day to show Special Session. Trial
+                    slots are shown with a Trial badge.
                   </p>
                 ) : (
                   <p className="text-xs text-[#8a5a2f]">
@@ -865,6 +866,8 @@ export function ClassManagementCard() {
                   const isSundayQaSlot =
                     Boolean(timing.isSundayQa) ||
                     Boolean(scheduled?.isSundayQa);
+                  const isTrialSlot =
+                    Boolean(timing.isTrial) || Boolean(scheduled?.isTrial);
                   return scheduled ? (
                     <div
                       key={timing.id}
@@ -884,6 +887,10 @@ export function ClassManagementCard() {
                           {isSundayQaSlot ? (
                             <span className="rounded-md bg-[#2f6b8a] px-2 py-0.5 text-[11px] font-semibold text-white">
                               Q&amp;A
+                            </span>
+                          ) : isTrialSlot ? (
+                            <span className="rounded-md bg-[#6b4f9a] px-2 py-0.5 text-[11px] font-semibold text-white">
+                              Trial
                             </span>
                           ) : isSpecialSlot ? (
                             <span className="rounded-md bg-[#C58A1A] px-2 py-0.5 text-[11px] font-semibold text-white">
@@ -933,6 +940,10 @@ export function ClassManagementCard() {
                           {timing.isSundayQa ? (
                             <span className="rounded-md bg-[#e8f3f8] px-2 py-0.5 text-[11px] font-semibold text-[#2f6b8a]">
                               Q&amp;A slot
+                            </span>
+                          ) : timing.isTrial ? (
+                            <span className="rounded-md bg-[#f3eef8] px-2 py-0.5 text-[11px] font-semibold text-[#6b4f9a]">
+                              Trial slot
                             </span>
                           ) : timing.isSpecial ? (
                             <span className="rounded-md bg-[#fff4e8] px-2 py-0.5 text-[11px] font-semibold text-[#8a5a2f]">
@@ -1001,6 +1012,11 @@ export function ClassManagementCard() {
                       Q&amp;A
                     </span>
                   ) : dayTimings.find((row) => row.id === sessionTimingId)
+                      ?.isTrial ? (
+                    <span className="rounded-md bg-[#6b4f9a] px-2 py-0.5 text-[11px] font-semibold text-white">
+                      Trial
+                    </span>
+                  ) : dayTimings.find((row) => row.id === sessionTimingId)
                       ?.isSpecial ? (
                     <span className="rounded-md bg-[#C58A1A] px-2 py-0.5 text-[11px] font-semibold text-white">
                       Special
@@ -1046,9 +1062,11 @@ export function ClassManagementCard() {
                             {timing.label}
                             {timing.isSundayQa
                               ? " · Q&A"
-                              : timing.isSpecial
-                                ? " · Special"
-                                : ""}
+                              : timing.isTrial
+                                ? " · Trial"
+                                : timing.isSpecial
+                                  ? " · Special"
+                                  : ""}
                             {taken ? " — already scheduled" : ""}
                           </option>
                         );

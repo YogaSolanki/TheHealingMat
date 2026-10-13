@@ -430,6 +430,8 @@ export async function resolveAccessLink(
 export type PersonalLinkJoinResponse = {
   status: "live" | "no_session" | "inactive" | "scheduled";
   accessState: "trial" | "active" | "expired" | "scheduled" | "pending";
+  /** Which schedule was used for this link owner (trial vs membership). */
+  audience?: "trial" | "member" | null;
   trialStartsAt: string | null;
   url: string | null;
   slot: string | null;
@@ -718,6 +720,7 @@ export type PublicSessionTiming = {
   active: boolean;
   isSpecial?: boolean;
   isSundayQa?: boolean;
+  isTrial?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -736,12 +739,17 @@ export type TodaySessionSlot = {
   sessionTimeLabel: string;
   isSpecial?: boolean;
   isSundayQa?: boolean;
+  isTrial?: boolean;
 };
+
+export type TodaySessionsAudience = "trial" | "member";
 
 export type TodaySessionsResponse = {
   date: string;
   dayLabel: string;
   sessions: TodaySessionSlot[];
+  /** Which schedule the server filtered for (trial vs membership). */
+  audience?: TodaySessionsAudience;
   todayTopic?: string;
   tomorrowTopic?: string;
 };

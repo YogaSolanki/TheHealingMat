@@ -1196,7 +1196,8 @@ export class AuthService {
 
   /**
    * Personal session link join (no login required).
-   * Validates the link owner’s membership/trial, then returns the IST live class.
+   * Validates the link owner’s membership/trial, then returns the IST live class
+   * for that plan only (trial slots vs membership slots — never crossed).
    */
   async joinViaAccessLink(slug: string, atIso?: string | null) {
     const accessLinkToken = slug.trim().toLowerCase();
@@ -1210,11 +1211,19 @@ export class AuthService {
     }
 
     const access = await this.payments.getMyAccess(user);
+    // Paid membership wins over a leftover trial record.
+    const audience =
+      access.state === 'trial'
+        ? ('trial' as const)
+        : access.state === 'active'
+          ? ('member' as const)
+          : null;
 
     if (access.state === 'scheduled') {
       return {
         status: 'scheduled' as const,
         accessState: access.state,
+        audience: 'trial' as const,
         trialStartsAt: access.trial?.startsAt ?? null,
         url: null as string | null,
         slot: null as string | null,
@@ -1222,10 +1231,11 @@ export class AuthService {
       };
     }
 
-    if (access.state !== 'active' && access.state !== 'trial') {
+    if (!audience) {
       return {
         status: 'inactive' as const,
         accessState: access.state,
+        audience: null,
         trialStartsAt: null as string | null,
         url: null as string | null,
         slot: null as string | null,
@@ -1233,11 +1243,15 @@ export class AuthService {
       };
     }
 
-    const live = await this.scheduledClasses.findLiveSessionAt(atIso ?? null);
+    const live = await this.scheduledClasses.findLiveSessionAt(
+      atIso ?? null,
+      audience,
+    );
     if (live.url?.trim()) {
       return {
         status: 'live' as const,
         accessState: access.state,
+        audience,
         trialStartsAt: null as string | null,
         url: live.url.trim(),
         slot: live.slot,
@@ -1248,6 +1262,7 @@ export class AuthService {
     return {
       status: 'no_session' as const,
       accessState: access.state,
+      audience,
       trialStartsAt: null as string | null,
       url: null as string | null,
       slot: live.slot,

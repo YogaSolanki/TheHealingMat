@@ -7,7 +7,7 @@ import {
   splitSessionLabels,
 } from "@/lib/member-session-schedule";
 
-const STORAGE_KEY = "thm_session_timings_v4";
+const STORAGE_KEY = "thm_session_timings_v5";
 
 export type SessionTimingsSnapshot = {
   labels: string[];
@@ -16,7 +16,9 @@ export type SessionTimingsSnapshot = {
   evening: string[];
   /** Sunday-only Q&A times from Settings. */
   sundayQa: string[];
-  /** Preferred class time dropdown options (Mon–Sat active timings). */
+  /** Mon–Sat trial-only class times from Settings. */
+  trialLabels: string[];
+  /** Preferred class time dropdown options (Mon–Sat membership timings). */
   preferredOptions: string[];
   ready: boolean;
   /** True only after a successful API response (or hydrated cache). */
@@ -28,12 +30,14 @@ type CachePayload = {
   labels: string[];
   specialLabels: string[];
   sundayQa: string[];
+  trialLabels: string[];
 };
 
 function fromParts(
   labels: string[],
   specialLabels: string[],
   sundayQa: string[],
+  trialLabels: string[],
 ): Omit<SessionTimingsSnapshot, "ready" | "fromApi" | "loading"> {
   const split = splitSessionLabels(labels, { specialLabels });
   return {
@@ -42,11 +46,17 @@ function fromParts(
     special: split.special,
     evening: split.evening,
     sundayQa,
+    trialLabels,
     preferredOptions: labels,
   };
 }
 
-const FALLBACK = fromParts([...FALLBACK_SESSION_LABELS], ["11:30 AM"], []);
+const FALLBACK = fromParts(
+  [...FALLBACK_SESSION_LABELS],
+  ["11:30 AM"],
+  [],
+  [],
+);
 
 const SERVER_SNAPSHOT: SessionTimingsSnapshot = {
   ...FALLBACK,
@@ -78,6 +88,11 @@ function readCache(): CachePayload | null {
             (item) => typeof item === "string" && item.trim(),
           )
         : [],
+      trialLabels: Array.isArray(parsed.trialLabels)
+        ? parsed.trialLabels.filter(
+            (item) => typeof item === "string" && item.trim(),
+          )
+        : [],
     };
   } catch {
     return null;
@@ -93,6 +108,7 @@ class SessionTimingsStore {
   private labels: string[] = [...FALLBACK_SESSION_LABELS];
   private specialLabels: string[] = ["11:30 AM"];
   private sundayQa: string[] = [];
+  private trialLabels: string[] = [];
   private ready = false;
   private fromApi = false;
   private loading = false;
@@ -107,6 +123,7 @@ class SessionTimingsStore {
       this.labels = cached.labels;
       this.specialLabels = cached.specialLabels;
       this.sundayQa = cached.sundayQa;
+      this.trialLabels = cached.trialLabels;
       this.ready = true;
       this.fromApi = true;
       this.rebuildSnapshot();
@@ -126,7 +143,12 @@ class SessionTimingsStore {
 
   private rebuildSnapshot() {
     this.cachedSnapshot = {
-      ...fromParts(this.labels, this.specialLabels, this.sundayQa),
+      ...fromParts(
+        this.labels,
+        this.specialLabels,
+        this.sundayQa,
+        this.trialLabels,
+      ),
       ready: this.ready,
       fromApi: this.fromApi,
       loading: this.loading,
@@ -155,6 +177,7 @@ class SessionTimingsStore {
         this.labels = cached.labels;
         this.specialLabels = cached.specialLabels;
         this.sundayQa = cached.sundayQa;
+        this.trialLabels = cached.trialLabels;
         this.ready = true;
         this.fromApi = true;
         this.emit();
@@ -173,16 +196,22 @@ class SessionTimingsStore {
           throw new Error("Invalid session timings response.");
         }
         const active = rows.filter((row) => row.active !== false);
-        const monSat = active.filter((row) => !row.isSundayQa);
-        const labels = monSat
+        const monSatMembership = active.filter(
+          (row) => !row.isSundayQa && !row.isTrial,
+        );
+        const labels = monSatMembership
           .map((row) => String(row.label ?? "").trim())
           .filter(Boolean);
-        const specialLabels = monSat
+        const specialLabels = monSatMembership
           .filter((row) => Boolean(row.isSpecial))
           .map((row) => String(row.label ?? "").trim())
           .filter(Boolean);
         const sundayQa = active
           .filter((row) => Boolean(row.isSundayQa))
+          .map((row) => String(row.label ?? "").trim())
+          .filter(Boolean);
+        const trialLabels = active
+          .filter((row) => Boolean(row.isTrial))
           .map((row) => String(row.label ?? "").trim())
           .filter(Boolean);
         if (labels.length === 0) {
@@ -191,12 +220,14 @@ class SessionTimingsStore {
         this.labels = labels;
         this.specialLabels = specialLabels;
         this.sundayQa = sundayQa;
+        this.trialLabels = trialLabels;
         this.ready = true;
         this.fromApi = true;
         writeCache({
           labels: this.labels,
           specialLabels: this.specialLabels,
           sundayQa: this.sundayQa,
+          trialLabels: this.trialLabels,
         });
         this.emit();
         return this.labels;
@@ -206,6 +237,7 @@ class SessionTimingsStore {
           this.labels = [...FALLBACK_SESSION_LABELS];
           this.specialLabels = ["11:30 AM"];
           this.sundayQa = [];
+          this.trialLabels = [];
           this.ready = true;
           this.fromApi = false;
           this.emit();
