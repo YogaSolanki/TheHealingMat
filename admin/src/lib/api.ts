@@ -1086,6 +1086,8 @@ export type AdminRewardRedemption = {
   status: AdminRedemptionStatus;
   referralCount: number;
   adminNote: string | null;
+  deliveryEmail: string | null;
+  deliveryAddress: string | null;
   createdAt: string;
   resolvedAt: string | null;
   user: {

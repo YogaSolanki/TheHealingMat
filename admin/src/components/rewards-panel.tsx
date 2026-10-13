@@ -591,10 +591,29 @@ export function RewardsPanel() {
                           referrals
                         </p>
                         <p className="mt-1 text-xs text-[#8a968c]">
-                          {row.user?.email || row.user?.mobile || "—"} · code{" "}
-                          {row.user?.referralCode ?? "—"} · requested{" "}
+                          {row.deliveryEmail ||
+                            row.user?.email ||
+                            row.user?.mobile ||
+                            "—"}{" "}
+                          · code {row.user?.referralCode ?? "—"} · requested{" "}
                           {formatWhen(row.createdAt)}
                         </p>
+                        {row.deliveryEmail ? (
+                          <p className="mt-1 text-xs text-[#5f6f64]">
+                            Delivery email:{" "}
+                            <span className="font-medium text-[#243028]">
+                              {row.deliveryEmail}
+                            </span>
+                          </p>
+                        ) : null}
+                        {row.deliveryAddress ? (
+                          <p className="mt-1 whitespace-pre-wrap text-xs text-[#5f6f64]">
+                            Delivery address:{" "}
+                            <span className="font-medium text-[#243028]">
+                              {row.deliveryAddress}
+                            </span>
+                          </p>
+                        ) : null}
                         {row.adminNote ? (
                           <p className="mt-2 text-xs text-[#5f6f64]">
                             Note: {row.adminNote}

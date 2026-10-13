@@ -71,6 +71,10 @@ export type PublicUser = {
   region: Region;
   mobile: string | null;
   email: string | null;
+  /** Reward delivery autofill only — not shown on My Account personal info. */
+  deliveryEmail: string | null;
+  /** Reward delivery autofill only — not shown on My Account personal info. */
+  deliveryAddress: string | null;
   referralCode: string;
   accessLink: string;
   hasUsedFreeTrial: boolean;
@@ -926,6 +930,7 @@ export async function getMyMilestones(
 export async function requestMilestoneRedeem(
   accessToken: string,
   milestoneId: string,
+  input?: { email?: string; address?: string },
 ) {
   const response = await fetch(
     `${API_URL}/referrals/milestones/${milestoneId}/redeem`,
@@ -935,6 +940,7 @@ export async function requestMilestoneRedeem(
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
+      body: JSON.stringify(input ?? {}),
     },
   );
   return parseJson<{
@@ -942,6 +948,8 @@ export async function requestMilestoneRedeem(
     milestoneId: string;
     referralCount: number;
     status: string;
+    deliveryEmail?: string | null;
+    deliveryAddress?: string | null;
     createdAt: string;
   }>(response);
 }

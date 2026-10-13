@@ -1,8 +1,9 @@
-import { Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
 import { User } from '../users/user.entity';
+import { RedeemMilestoneDto } from './dto/milestone.dto';
 import { MilestonesService } from './milestones.service';
 import { ReferralsService } from './referrals.service';
 
@@ -30,7 +31,8 @@ export class ReferralsController {
   redeem(
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RedeemMilestoneDto,
   ) {
-    return this.milestones.requestRedeem(user, id);
+    return this.milestones.requestRedeem(user, id, dto ?? {});
   }
 }

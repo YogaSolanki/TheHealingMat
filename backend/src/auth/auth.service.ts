@@ -66,6 +66,16 @@ export type PublicUser = {
   region: Region;
   mobile: string | null;
   email: string | null;
+  /**
+   * Reward-delivery contact only (Milestones & Rewards autofill).
+   * Not shown on My Account personal information.
+   */
+  deliveryEmail: string | null;
+  /**
+   * Reward-delivery address only (Milestones & Rewards autofill).
+   * Not shown on My Account personal information.
+   */
+  deliveryAddress: string | null;
   referralCode: string;
   accessLink: string;
   hasUsedFreeTrial: boolean;
@@ -666,6 +676,8 @@ export class AuthService {
       region: user.region,
       mobile: user.mobile,
       email: user.email,
+      deliveryEmail: user.deliveryEmail ?? null,
+      deliveryAddress: user.deliveryAddress ?? null,
       referralCode: user.referralCode,
       accessLink: this.buildAccessLink(user.accessLinkToken),
       hasUsedFreeTrial: user.hasUsedFreeTrial,
