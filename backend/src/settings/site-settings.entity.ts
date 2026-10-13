@@ -30,6 +30,13 @@ export class SiteSettings {
   @Column({ type: 'varchar', nullable: true })
   privateSpacePasswordHash: string | null;
 
+  /**
+   * Optional invoice FY override (e.g. "26-27"). When null, new invoices use
+   * the Asia/Kolkata Indian financial year (resets automatically on 1 April).
+   */
+  @Column({ type: 'varchar', length: 8, nullable: true })
+  invoiceFinancialYearOverride: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

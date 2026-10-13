@@ -1,12 +1,21 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
+import { SettingsService } from '../settings/settings.service';
 import { Region } from '../users/enums/region.enum';
 import { User } from '../users/user.entity';
 import {
+  INVOICE_CATEGORIES,
   InvoiceCategory,
   formatInvoiceNumber,
-  indianFinancialYear,
+  invoiceCategoryCode,
+  invoiceCategoryLabel,
+  isValidFinancialYearLabel,
 } from './invoice-category';
 import { Invoice } from './invoice.entity';
 import { InvoiceSequence } from './invoice-sequence.entity';
@@ -42,8 +51,11 @@ export class InvoicesService implements OnModuleInit {
 
   constructor(
     private readonly dataSource: DataSource,
+    private readonly settings: SettingsService,
     @InjectRepository(Invoice)
     private readonly invoices: Repository<Invoice>,
+    @InjectRepository(InvoiceSequence)
+    private readonly sequences: Repository<InvoiceSequence>,
   ) {}
 
   async onModuleInit() {
@@ -201,9 +213,124 @@ export class InvoicesService implements OnModuleInit {
     return this.invoices.findOne({ where: { corporatePlanId } });
   }
 
+  /** Admin private-space overview of FY + next numbers for DM / EX / CO. */
+  async getInvoiceSeriesOverview() {
+    const fy = await this.settings.getActiveInvoiceFinancialYear();
+    const sequences = [];
+    for (const category of INVOICE_CATEGORIES) {
+      const row = await this.ensureSequenceRow(fy.financialYear, category);
+      sequences.push({
+        category,
+        code: invoiceCategoryCode(category),
+        label: invoiceCategoryLabel(category),
+        financialYear: row.financialYear,
+        nextSerial: row.nextSerial,
+        nextInvoiceNumber: formatInvoiceNumber(
+          row.financialYear,
+          category,
+          row.nextSerial,
+        ),
+        updatedAt: row.updatedAt.toISOString(),
+      });
+    }
+
+    return {
+      computedFinancialYear: fy.computedFinancialYear,
+      activeFinancialYear: fy.financialYear,
+      financialYearOverride: fy.override,
+      autoReset:
+        'When no override is set, the financial year advances automatically on 1 April (Asia/Kolkata). Each category (DM, EX, CO) restarts at 000001 for the new year.',
+      sequences,
+    };
+  }
+
+  async setFinancialYearOverride(override: string | null) {
+    await this.settings.setInvoiceFinancialYearOverride(override);
+    return this.getInvoiceSeriesOverview();
+  }
+
+  /**
+   * Set the next serial that will be issued for a category in a FY.
+   * Does not rewrite already-issued invoice numbers.
+   */
+  async setNextSerial(input: {
+    category: InvoiceCategory;
+    nextSerial: number;
+    financialYear?: string;
+  }) {
+    const nextSerial = Math.floor(Number(input.nextSerial));
+    if (!Number.isFinite(nextSerial) || nextSerial < 1) {
+      throw new BadRequestException('Next serial must be a whole number ≥ 1.');
+    }
+    if (nextSerial > 999999) {
+      throw new BadRequestException('Next serial cannot exceed 999999.');
+    }
+
+    const fy =
+      input.financialYear?.trim() ||
+      (await this.settings.getActiveInvoiceFinancialYear()).financialYear;
+    if (!isValidFinancialYearLabel(fy)) {
+      throw new BadRequestException(
+        'Financial year must look like 26-27 (two-digit Apr–Mar label).',
+      );
+    }
+    if (!INVOICE_CATEGORIES.includes(input.category)) {
+      throw new BadRequestException('Unknown invoice category.');
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      const seqRepo = manager.getRepository(InvoiceSequence);
+      let seq = await seqRepo.findOne({
+        where: { financialYear: fy, category: input.category },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!seq) {
+        seq = seqRepo.create({
+          financialYear: fy,
+          category: input.category,
+          nextSerial,
+        });
+      } else {
+        seq.nextSerial = nextSerial;
+      }
+      await seqRepo.save(seq);
+    });
+
+    return this.getInvoiceSeriesOverview();
+  }
+
+  private async ensureSequenceRow(
+    financialYear: string,
+    category: InvoiceCategory,
+  ): Promise<InvoiceSequence> {
+    let seq = await this.sequences.findOne({
+      where: { financialYear, category },
+    });
+    if (seq) return seq;
+    try {
+      await this.sequences.insert({
+        financialYear,
+        category,
+        nextSerial: 1,
+      });
+    } catch {
+      // Concurrent create — read below.
+    }
+    seq = await this.sequences.findOne({
+      where: { financialYear, category },
+    });
+    if (!seq) {
+      throw new Error(
+        `Unable to create invoice sequence for ${financialYear}/${category}`,
+      );
+    }
+    return seq;
+  }
+
   /**
    * Allocate next running serial for a category within a financial year.
    * Must run inside an active transaction with a locked sequence row.
+   * FY comes from admin override (if set) or Asia/Kolkata Indian FY for issuedAt.
    */
   async allocateNumber(
     category: InvoiceCategory,
@@ -214,7 +341,8 @@ export class InvoicesService implements OnModuleInit {
     financialYear: string;
     serial: number;
   }> {
-    const financialYear = indianFinancialYear(issuedAt);
+    const { financialYear } =
+      await this.settings.getActiveInvoiceFinancialYear(issuedAt);
     const seqRepo = manager.getRepository(InvoiceSequence);
 
     let seq = await seqRepo.findOne({

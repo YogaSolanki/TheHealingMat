@@ -7,8 +7,12 @@ import { useAdmin } from "@/components/admin-session";
 import {
   ADMIN_TOKEN_KEY,
   deleteAllAdminUsers,
+  getAdminInvoiceSeries,
   getAdminUsers,
+  type InvoiceSeriesOverview,
   updateAdminAccount,
+  updateAdminInvoiceFinancialYear,
+  updateAdminInvoiceNextSerial,
   updateAdminPrivateSpacePassword,
 } from "@/lib/api";
 import {
@@ -24,6 +28,7 @@ type PrivateSpaceSection =
   | "email"
   | "admin-password"
   | "gate-password"
+  | "invoice-series"
   | "delete-users";
 
 type MenuItem = {
@@ -48,6 +53,12 @@ const MENU_ITEMS: MenuItem[] = [
     id: "gate-password",
     title: "Update private space password",
     description: "Change the password needed to open this popup.",
+  },
+  {
+    id: "invoice-series",
+    title: "Invoice numbering",
+    description:
+      "Financial year (e.g. 26-27) and next DM / EX / CO serials. Resets on 1 April.",
   },
   {
     id: "delete-users",
@@ -97,6 +108,15 @@ export function AdminPrivateSpaceModal({
   const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const [invoiceSeries, setInvoiceSeries] =
+    useState<InvoiceSeriesOverview | null>(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [invoiceBusy, setInvoiceBusy] = useState(false);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
+  const [invoiceMessage, setInvoiceMessage] = useState<string | null>(null);
+  const [fyOverrideInput, setFyOverrideInput] = useState("");
+  const [serialDrafts, setSerialDrafts] = useState<Record<string, string>>({});
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -120,11 +140,52 @@ export function AdminPrivateSpaceModal({
     setDeleteNotice(null);
     setDeleteError(null);
     setPendingDeleteAll(false);
+    setInvoiceSeries(null);
+    setInvoiceError(null);
+    setInvoiceMessage(null);
+    setFyOverrideInput("");
+    setSerialDrafts({});
 
     void getAdminUsers(token)
       .then((data) => setUserCount(data.users.length))
       .catch(() => setUserCount(null));
   }, [open, token]);
+
+  useEffect(() => {
+    if (!open || section !== "invoice-series") return;
+    let cancelled = false;
+    setInvoiceLoading(true);
+    setInvoiceError(null);
+    void getAdminInvoiceSeries(token)
+      .then((data) => {
+        if (cancelled) return;
+        applyInvoiceSeries(data);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setInvoiceError(
+          err instanceof Error
+            ? err.message
+            : "Could not load invoice series.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setInvoiceLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, section, token]);
+
+  function applyInvoiceSeries(data: InvoiceSeriesOverview) {
+    setInvoiceSeries(data);
+    setFyOverrideInput(data.financialYearOverride ?? "");
+    const drafts: Record<string, string> = {};
+    for (const row of data.sequences) {
+      drafts[row.category] = String(row.nextSerial);
+    }
+    setSerialDrafts(drafts);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -133,7 +194,8 @@ export function AdminPrivateSpaceModal({
     document.body.style.overflow = "hidden";
 
     function onKeyDown(event: KeyboardEvent) {
-      if (emailBusy || passwordBusy || gateBusy || deletingAll) return;
+      if (emailBusy || passwordBusy || gateBusy || invoiceBusy || deletingAll)
+        return;
       if (event.key !== "Escape") return;
       if (section !== "menu") {
         setSection("menu");
@@ -153,6 +215,7 @@ export function AdminPrivateSpaceModal({
     emailBusy,
     passwordBusy,
     gateBusy,
+    invoiceBusy,
     deletingAll,
     onClose,
   ]);
@@ -296,7 +359,69 @@ export function AdminPrivateSpaceModal({
     }
   }
 
-  const busy = emailBusy || passwordBusy || gateBusy || deletingAll;
+  async function onSaveFinancialYear(event: FormEvent) {
+    event.preventDefault();
+    if (invoiceBusy) return;
+    setInvoiceBusy(true);
+    setInvoiceError(null);
+    setInvoiceMessage(null);
+    try {
+      const trimmed = fyOverrideInput.trim();
+      const data = await updateAdminInvoiceFinancialYear(
+        token,
+        trimmed === "" ? null : trimmed,
+      );
+      applyInvoiceSeries(data);
+      setInvoiceMessage(
+        trimmed
+          ? `New invoices will use FY ${data.activeFinancialYear} until you clear the override.`
+          : `Using automatic FY ${data.activeFinancialYear} (resets on 1 April).`,
+      );
+    } catch (err) {
+      setInvoiceError(
+        err instanceof Error
+          ? err.message
+          : "Could not update financial year.",
+      );
+    } finally {
+      setInvoiceBusy(false);
+    }
+  }
+
+  async function onSaveNextSerial(category: string) {
+    if (invoiceBusy) return;
+    const raw = serialDrafts[category]?.trim() ?? "";
+    const nextSerial = Number(raw);
+    if (!Number.isFinite(nextSerial) || nextSerial < 1) {
+      setInvoiceError("Next serial must be a whole number ≥ 1.");
+      return;
+    }
+    setInvoiceBusy(true);
+    setInvoiceError(null);
+    setInvoiceMessage(null);
+    try {
+      const data = await updateAdminInvoiceNextSerial(token, {
+        category: category as "domestic" | "export" | "corporate",
+        nextSerial: Math.floor(nextSerial),
+      });
+      applyInvoiceSeries(data);
+      const row = data.sequences.find((item) => item.category === category);
+      setInvoiceMessage(
+        row
+          ? `Next ${row.code} invoice will be ${row.nextInvoiceNumber}.`
+          : "Next serial updated.",
+      );
+    } catch (err) {
+      setInvoiceError(
+        err instanceof Error ? err.message : "Could not update next serial.",
+      );
+    } finally {
+      setInvoiceBusy(false);
+    }
+  }
+
+  const busy =
+    emailBusy || passwordBusy || gateBusy || invoiceBusy || deletingAll;
 
   function goBackToMenu() {
     if (busy) return;
@@ -405,6 +530,8 @@ export function AdminPrivateSpaceModal({
                         setPasswordMessage(null);
                         setGateError(null);
                         setGateMessage(null);
+                        setInvoiceError(null);
+                        setInvoiceMessage(null);
                         setSection(item.id);
                       }}
                       disabled={busy}
@@ -600,6 +727,176 @@ export function AdminPrivateSpaceModal({
                   {gateBusy ? "Updating…" : "Update private space password"}
                 </button>
               </form>
+            ) : null}
+
+            {section === "invoice-series" ? (
+              <section className="space-y-4">
+                {invoiceLoading && !invoiceSeries ? (
+                  <p className="text-sm text-[#6b7c6e]">Loading invoice series…</p>
+                ) : null}
+
+                {invoiceSeries ? (
+                  <>
+                    <div className="rounded-xl border border-[#e6ebe3] bg-[#f7faf6] px-3.5 py-3 text-[13px] leading-relaxed text-[#3d4a3c]">
+                      <p>
+                        <span className="font-semibold text-[#243028]">
+                          Active FY:
+                        </span>{" "}
+                        {invoiceSeries.activeFinancialYear}
+                        {invoiceSeries.financialYearOverride
+                          ? " (manual override)"
+                          : " (automatic)"}
+                      </p>
+                      <p className="mt-1">
+                        Calendar FY right now:{" "}
+                        <span className="font-semibold text-[#243028]">
+                          {invoiceSeries.computedFinancialYear}
+                        </span>
+                      </p>
+                      <p className="mt-2 text-[12px] text-[#5f6f64]">
+                        {invoiceSeries.autoReset} For example, the first domestic
+                        (retail) invoice in a new year is{" "}
+                        <span className="font-semibold text-[#243028]">
+                          YY-YY-DM-000001
+                        </span>{" "}
+                        (e.g. 27-28-DM-000001).
+                      </p>
+                    </div>
+
+                    <form
+                      onSubmit={(e) => void onSaveFinancialYear(e)}
+                      className="space-y-3 rounded-2xl border border-[#e6ebe3] p-4"
+                    >
+                      <label className="block text-sm font-semibold text-[#243028]">
+                        Financial year override
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder={invoiceSeries.computedFinancialYear}
+                          value={fyOverrideInput}
+                          onChange={(e) => {
+                            setFyOverrideInput(e.target.value);
+                            setInvoiceError(null);
+                            setInvoiceMessage(null);
+                          }}
+                          className={inputClass}
+                          disabled={busy}
+                          maxLength={5}
+                        />
+                      </label>
+                      <p className="text-[12px] leading-relaxed text-[#6b7c6e]">
+                        Leave blank for automatic Apr–Mar FY (recommended). Set
+                        only if you need to force a label like{" "}
+                        {invoiceSeries.computedFinancialYear}.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="submit"
+                          disabled={busy}
+                          className="inline-flex h-10 items-center justify-center rounded-xl bg-[#1f6b3a] px-4 text-sm font-bold text-white disabled:opacity-60"
+                        >
+                          {invoiceBusy ? "Saving…" : "Save financial year"}
+                        </button>
+                        {invoiceSeries.financialYearOverride ? (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => {
+                              setFyOverrideInput("");
+                              void (async () => {
+                                setInvoiceBusy(true);
+                                setInvoiceError(null);
+                                setInvoiceMessage(null);
+                                try {
+                                  const data =
+                                    await updateAdminInvoiceFinancialYear(
+                                      token,
+                                      null,
+                                    );
+                                  applyInvoiceSeries(data);
+                                  setInvoiceMessage(
+                                    `Cleared override. Using automatic FY ${data.activeFinancialYear}.`,
+                                  );
+                                } catch (err) {
+                                  setInvoiceError(
+                                    err instanceof Error
+                                      ? err.message
+                                      : "Could not clear override.",
+                                  );
+                                } finally {
+                                  setInvoiceBusy(false);
+                                }
+                              })();
+                            }}
+                            className="inline-flex h-10 items-center justify-center rounded-xl border border-[#d7e0d6] px-4 text-sm font-semibold text-[#5f6f64] disabled:opacity-60"
+                          >
+                            Use automatic FY
+                          </button>
+                        ) : null}
+                      </div>
+                    </form>
+
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-[#243028]">
+                        Next serial per series
+                      </p>
+                      {invoiceSeries.sequences.map((row) => (
+                        <div
+                          key={row.category}
+                          className="rounded-2xl border border-[#e6ebe3] px-4 py-3"
+                        >
+                          <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <p className="text-sm font-semibold text-[#243028]">
+                              {row.label}
+                            </p>
+                            <p className="font-mono text-[12px] text-[#1f6b3a]">
+                              Next: {row.nextInvoiceNumber}
+                            </p>
+                          </div>
+                          <div className="mt-2.5 flex flex-wrap items-end gap-2">
+                            <label className="min-w-[7rem] flex-1 text-xs font-semibold text-[#5f6f64]">
+                              Next serial
+                              <input
+                                type="number"
+                                min={1}
+                                max={999999}
+                                value={serialDrafts[row.category] ?? ""}
+                                onChange={(e) => {
+                                  setSerialDrafts((current) => ({
+                                    ...current,
+                                    [row.category]: e.target.value,
+                                  }));
+                                  setInvoiceError(null);
+                                  setInvoiceMessage(null);
+                                }}
+                                className={inputClass}
+                                disabled={busy}
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => void onSaveNextSerial(row.category)}
+                              className="inline-flex h-11 items-center justify-center rounded-xl border border-[#1f6b3a] px-3.5 text-sm font-semibold text-[#1f6b3a] disabled:opacity-60"
+                            >
+                              Update
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+
+                {invoiceError ? (
+                  <p className="text-sm text-[#8a2f2f]">{invoiceError}</p>
+                ) : null}
+                {invoiceMessage ? (
+                  <p className="text-sm font-medium text-[#1f6b3a]">
+                    {invoiceMessage}
+                  </p>
+                ) : null}
+              </section>
             ) : null}
 
             {section === "delete-users" ? (
