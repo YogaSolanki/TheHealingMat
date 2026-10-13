@@ -2032,7 +2032,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             </p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className={labelClass}>
-                Plan
+                Plan duration
                 <select
                   value={newMembershipForm.planMonths}
                   onChange={(e) =>
@@ -2048,12 +2048,54 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   className={inputClass}
                   disabled={fieldsLocked}
                 >
-                  {planOptions.map((plan) => (
-                    <option key={plan.id ?? plan.months} value={plan.months}>
-                      {plan.months} months
-                    </option>
-                  ))}
+                  {planOptions.map((plan) => {
+                    const catalog = catalogPlans.find(
+                      (row) => row.months === plan.months,
+                    );
+                    const catalogMinor =
+                      catalog == null
+                        ? null
+                        : membershipCurrency === "USD"
+                          ? catalog.listPriceUsdCents
+                          : catalog.listPricePaise;
+                    return (
+                      <option key={plan.id ?? plan.months} value={plan.months}>
+                        {plan.months} months
+                        {catalogMinor != null && catalogMinor > 0
+                          ? ` · catalog ${formatMoney(catalogMinor, membershipCurrency)}`
+                          : ""}
+                      </option>
+                    );
+                  })}
                 </select>
+              </label>
+              <label className={labelClass}>
+                List price ({moneySuffix})
+                <input
+                  type="number"
+                  min={0}
+                  step={membershipCurrency === "USD" ? "0.01" : "1"}
+                  value={newMembershipForm.listPriceMajor}
+                  onChange={(e) => {
+                    const listPriceMajor = e.target.value;
+                    setNewMembershipForm({
+                      ...newMembershipForm,
+                      listPriceMajor,
+                      amountPaidMajor: payableFromListAndDiscount(
+                        listPriceMajor,
+                        newMembershipForm.discountMajor,
+                        membershipCurrency,
+                      ),
+                    });
+                  }}
+                  className={inputClass}
+                  disabled={fieldsLocked}
+                  required
+                />
+                <span className="mt-1 block text-xs font-normal text-[#8a978c]">
+                  Prefills from the catalog; edit for this membership only.
+                  Used on the invoice.
+                </span>
               </label>
               <div>
                 <p className={labelClass}>Plan name</p>
@@ -2068,7 +2110,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   Now — end date from plan duration
                 </p>
               </div>
-              <label className={labelClass}>
+              <label className={`${labelClass} sm:col-span-2`}>
                 Link payment (optional)
                 <select
                   value={newMembershipForm.paymentOrderId}
@@ -2116,29 +2158,6 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                       </option>
                     ))}
                 </select>
-              </label>
-              <label className={labelClass}>
-                List price ({moneySuffix})
-                <input
-                  type="number"
-                  min={0}
-                  step={membershipCurrency === "USD" ? "0.01" : "1"}
-                  value={newMembershipForm.listPriceMajor}
-                  onChange={(e) => {
-                    const listPriceMajor = e.target.value;
-                    setNewMembershipForm({
-                      ...newMembershipForm,
-                      listPriceMajor,
-                      amountPaidMajor: payableFromListAndDiscount(
-                        listPriceMajor,
-                        newMembershipForm.discountMajor,
-                        membershipCurrency,
-                      ),
-                    });
-                  }}
-                  className={inputClass}
-                  disabled={fieldsLocked}
-                />
               </label>
               <label className={labelClass}>
                 Discount ({moneySuffix})
@@ -2553,7 +2572,12 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                           }}
                           className={inputClass}
                           disabled={fieldsLocked}
+                          required
                         />
+                        <span className="mt-1 block text-xs font-normal text-[#8a978c]">
+                          Prefills from the catalog; edit for this upgrade only.
+                          Used on the invoice.
+                        </span>
                       </label>
                       <label className={labelClass}>
                         Discount ({moneySuffix})
@@ -2794,7 +2818,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                       </p>
                       <div className="mt-4 grid gap-4 sm:grid-cols-2">
                         <label className={labelClass}>
-                          Renew plan
+                          Plan duration
                           <select
                             value={newMembershipForm.planMonths}
                             onChange={(e) =>
@@ -2810,22 +2834,30 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                             className={inputClass}
                             disabled={fieldsLocked}
                           >
-                            {planOptions.map((plan) => (
-                              <option
-                                key={plan.id ?? plan.months}
-                                value={plan.months}
-                              >
-                                {plan.months} months
-                              </option>
-                            ))}
+                            {planOptions.map((plan) => {
+                              const catalog = catalogPlans.find(
+                                (row) => row.months === plan.months,
+                              );
+                              const catalogMinor =
+                                catalog == null
+                                  ? null
+                                  : membershipCurrency === "USD"
+                                    ? catalog.listPriceUsdCents
+                                    : catalog.listPricePaise;
+                              return (
+                                <option
+                                  key={plan.id ?? plan.months}
+                                  value={plan.months}
+                                >
+                                  {plan.months} months
+                                  {catalogMinor != null && catalogMinor > 0
+                                    ? ` · catalog ${formatMoney(catalogMinor, membershipCurrency)}`
+                                    : ""}
+                                </option>
+                              );
+                            })}
                           </select>
                         </label>
-                        <div>
-                          <p className={labelClass}>Renewal starts</p>
-                          <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#5f6f64]">
-                            {renewStartsAt ? formatDateOnly(renewStartsAt) : "—"}
-                          </p>
-                        </div>
                         <label className={labelClass}>
                           List price ({moneySuffix})
                           <input
@@ -2847,8 +2879,19 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                             }}
                             className={inputClass}
                             disabled={fieldsLocked}
+                            required
                           />
+                          <span className="mt-1 block text-xs font-normal text-[#8a978c]">
+                            Prefills from the catalog; edit for this renew only.
+                            Used on the invoice.
+                          </span>
                         </label>
+                        <div>
+                          <p className={labelClass}>Renewal starts</p>
+                          <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#5f6f64]">
+                            {renewStartsAt ? formatDateOnly(renewStartsAt) : "—"}
+                          </p>
+                        </div>
                         <label className={labelClass}>
                           Discount ({moneySuffix})
                           <input
