@@ -1211,6 +1211,7 @@ export class AuthService {
     }
 
     const access = await this.payments.getMyAccess(user);
+    // 1) Paid membership or active trial?
     // Paid membership wins over a leftover trial record.
     const audience =
       access.state === 'trial'
@@ -1243,17 +1244,23 @@ export class AuthService {
       };
     }
 
+    // 2) Load that plan's class timings only (trial → trial slots, paid → membership).
+    // 3) If a timing is live right now (server IST), return that class link.
+    //    Ended sessions never return a URL. Ignore client clock for permanent links.
+    void atIso;
     const live = await this.scheduledClasses.findLiveSessionAt(
-      atIso ?? null,
+      null,
       audience,
+      true,
     );
-    if (live.url?.trim()) {
+    const url = live.url?.trim() || null;
+    if (url) {
       return {
         status: 'live' as const,
         accessState: access.state,
         audience,
         trialStartsAt: null as string | null,
-        url: live.url.trim(),
+        url,
         slot: live.slot,
         next: null as { label: string; when: 'today' | 'tomorrow' } | null,
       };

@@ -70,6 +70,11 @@ function assertTimingMatchesDay(
   }
 }
 
+/** Strict boolean — never use Boolean(string); Boolean('false') === true. */
+function asBool(value: unknown): boolean {
+  return value === true || value === 1 || value === '1' || value === 't';
+}
+
 function timingMatchesAudience(
   timing: { isTrial?: boolean; isSundayQa?: boolean } | null | undefined,
   audience: SessionAudience,
@@ -77,8 +82,8 @@ function timingMatchesAudience(
   if (audience === 'all') return true;
   // Missing timing relation — do not guess; never cross-leak trial/membership.
   if (!timing) return false;
-  const isTrial = Boolean(timing.isTrial);
-  const isSundayQa = Boolean(timing.isSundayQa);
+  const isTrial = asBool(timing.isTrial);
+  const isSundayQa = asBool(timing.isSundayQa);
   if (audience === 'trial') {
     // Trial users: trial-only Mon–Sat slots, or shared Sunday Q&A.
     return isTrial || isSundayQa;
@@ -104,6 +109,16 @@ const SPECIAL_SESSION_DURATION_MINUTES = 30;
 const JOIN_EARLY_MINUTES = 15;
 /** Ignore client clocks that are wildly wrong; fall back to server time. */
 const CLIENT_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
+function isSlotLiveNow(
+  slotMinutes: number,
+  durationMinutes: number,
+  minutesNow: number,
+) {
+  const openAt = slotMinutes - JOIN_EARLY_MINUTES;
+  const closeAt = slotMinutes + durationMinutes;
+  return minutesNow >= openAt && minutesNow < closeAt;
+}
 
 function parseSlotLabelMinutes(label: string): number | null {
   const match = label
@@ -339,13 +354,19 @@ export class ScheduledClassesService implements OnModuleInit {
    * clock instant (ISO); we convert it to IST minutes. Members outside India
    * join the same live slot at the same moment — local timezone is display-only.
    */
+  /**
+   * @param atIso Client clock hint (ignored when useServerTime is true).
+   * @param audience trial → trial class links only; member → membership only.
+   * @param useServerTime When true, ignore client `at` (permanent session links).
+   */
   async findLiveSessionAt(
     atIso?: string | null,
     audience: SessionAudience = 'member',
+    useServerTime = false,
   ) {
     await this.purgeExpiredClasses();
 
-    const at = resolveAt(atIso);
+    const at = useServerTime ? new Date() : resolveAt(atIso);
     const day = todayIsoDate(at);
     const minutesNow = istMinutesSinceMidnight(at);
     // Audience filter is critical when trial + membership share the same clock
@@ -371,12 +392,11 @@ export class ScheduledClassesService implements OnModuleInit {
       .map((row) => {
         const minutes = parseSlotLabelMinutes(row.sessionTimeLabel);
         if (minutes == null) return null;
-        // Regular, Special, Trial (Mon–Sat), and Sunday Q&A are all joinable.
-        const isSpecial = Boolean(
+        const isSpecial = asBool(
           row.sessionTiming?.isSpecial || row.isSpecial,
         );
-        const isSundayQa = Boolean(row.sessionTiming?.isSundayQa);
-        const isTrial = Boolean(row.sessionTiming?.isTrial);
+        const isSundayQa = asBool(row.sessionTiming?.isSundayQa);
+        const isTrial = asBool(row.sessionTiming?.isTrial);
         return {
           label: row.sessionTimeLabel,
           minutes,
@@ -406,13 +426,10 @@ export class ScheduledClassesService implements OnModuleInit {
       )
       .sort((a, b) => a.minutes - b.minutes);
 
-    // Prefer the latest-starting open window so Special / Q&A win when
-    // join windows overlap an earlier regular slot. Prefer a published URL.
-    const openSlots = allSlots.filter((slot) => {
-      const openAt = slot.minutes - JOIN_EARLY_MINUTES;
-      const closeAt = slot.minutes + slot.durationMinutes;
-      return minutesNow >= openAt && minutesNow < closeAt;
-    });
+    // Only slots still inside [start − 15m, start + duration). Ended sessions never join.
+    const openSlots = allSlots.filter((slot) =>
+      isSlotLiveNow(slot.minutes, slot.durationMinutes, minutesNow),
+    );
     const running =
       openSlots.length === 0
         ? null
@@ -420,16 +437,26 @@ export class ScheduledClassesService implements OnModuleInit {
             if (slot.minutes !== best.minutes) {
               return slot.minutes > best.minutes ? slot : best;
             }
-            // Same clock: prefer the slot that has a meeting URL.
             if (Boolean(slot.meetingUrl) !== Boolean(best.meetingUrl)) {
               return slot.meetingUrl ? slot : best;
             }
             return slot;
           });
 
-    if (running) {
+    // Live only when the window is open AND a meeting URL exists.
+    if (running?.meetingUrl) {
       return {
         url: running.meetingUrl,
+        slot: running.label,
+        next: null as { label: string; when: 'today' | 'tomorrow' } | null,
+        audience,
+      };
+    }
+
+    if (running) {
+      // Window open but Class Management link missing — do not invent a URL.
+      return {
+        url: null as string | null,
         slot: running.label,
         next: null as { label: string; when: 'today' | 'tomorrow' } | null,
         audience,
