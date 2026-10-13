@@ -11,7 +11,6 @@ type YoutubeEmbedPlayerProps = {
 /** YouTube.PlayerState */
 const YT_ENDED = 0;
 const YT_PLAYING = 1;
-const YT_PAUSED = 2;
 
 type YtPlayer = {
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
@@ -135,6 +134,8 @@ export function YoutubeEmbedPlayer({ title, src }: YoutubeEmbedPlayerProps) {
           events: {
             onStateChange: (event) => {
               if (cancelled) return;
+              // Only cover YouTube's end-screen "More videos" card — never on
+              // pause, or the black block hides mute / captions / settings.
               if (event.data === YT_ENDED) {
                 try {
                   event.target.pauseVideo();
@@ -142,10 +143,6 @@ export function YoutubeEmbedPlayer({ title, src }: YoutubeEmbedPlayerProps) {
                 } catch {
                   // ignore
                 }
-                setCoverMoreVideos(true);
-                return;
-              }
-              if (event.data === YT_PAUSED) {
                 setCoverMoreVideos(true);
                 return;
               }
@@ -200,20 +197,22 @@ export function YoutubeEmbedPlayer({ title, src }: YoutubeEmbedPlayerProps) {
       {/* Top chrome: title / More videos / share / copy link */}
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 top-0 z-10 h-14 sm:h-16"
+        className="pointer-events-none absolute inset-x-0 top-0 z-10 h-14 sm:h-16"
         onContextMenu={(event) => event.preventDefault()}
       />
       <div
         aria-hidden="true"
-        className="absolute top-0 right-0 z-20 h-16 w-40 sm:h-[4.5rem] sm:w-48"
+        className="pointer-events-none absolute top-0 right-0 z-20 h-16 w-40 sm:h-[4.5rem] sm:w-48"
         onContextMenu={(event) => event.preventDefault()}
       />
 
-      {/* Bottom-right "More videos" card */}
+      {/* Bottom-right "More videos" end card only (not while paused) */}
       <div
         aria-hidden="true"
-        className={`absolute right-0 bottom-10 z-20 h-32 w-80 sm:bottom-12 sm:h-36 sm:w-96 ${
-          coverMoreVideos ? "bg-black" : ""
+        className={`absolute right-0 bottom-14 z-20 h-28 w-72 sm:bottom-16 sm:h-32 sm:w-80 ${
+          coverMoreVideos
+            ? "bg-black"
+            : "pointer-events-none"
         }`}
         onContextMenu={(event) => event.preventDefault()}
       />
