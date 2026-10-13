@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { SundayQaSessionTimes } from "@/components/sunday-qa-session-times";
 
 export type FaqItemData = {
   number: string;
@@ -136,7 +137,7 @@ export const FAQ_ITEMS: FaqItemData[] = [
             Sunday Q&amp;A &amp; Guidance:
           </strong>
           <br />
-          8:00 AM · 7:00 PM
+          <SundayQaSessionTimes />
         </p>
       </>
     ),
@@ -147,6 +148,12 @@ export const FAQ_ITEMS: FaqItemData[] = [
     answer: (
       <>
         <p>Our Sunday Q&amp;A &amp; Guidance sessions are there to help.</p>
+        <p>
+          <strong className="font-semibold text-[#1f6b3a]">
+            Sunday session timings:
+          </strong>{" "}
+          <SundayQaSessionTimes />
+        </p>
         <p>
           You can send your question in advance to{" "}
           <a
