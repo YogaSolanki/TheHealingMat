@@ -76,7 +76,7 @@ export class Invoice {
   @Column({ type: 'timestamptz' })
   issuedAt: Date;
 
-  /** AiSensy app_membership_confirm sent after paid membership purchase. */
+  /** AiSensy WelcomeMembership (welcome_membership) sent after paid purchase. */
   @Column({ type: 'timestamptz', nullable: true })
   membershipWhatsAppSentAt: Date | null;
 
