@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -9,6 +10,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHmac, timingSafeEqual } from 'crypto';
+import { createReadStream, existsSync } from 'fs';
+import { join } from 'path';
 import Razorpay from 'razorpay';
 import { Repository } from 'typeorm';
 import { CouponsService } from '../coupons/coupons.service';
@@ -512,6 +515,8 @@ export class PaymentsService {
 
     return {
       state,
+      ebookDownloadable:
+        state === 'active' && current != null && current.planMonths === 12,
       current: current
         ? this.toPublicMembership(
             current,
@@ -537,6 +542,46 @@ export class PaymentsService {
             endsAt: trial.trialEndsAt.toISOString(),
           }
         : null,
+    };
+  }
+
+  /**
+   * E-book PDF for active 12-month members only.
+   * File lives under uploads/milestones/ebooks (blocked from public static).
+   */
+  async getTwelveMonthEbook(user: User) {
+    await this.expireEnded(user.id);
+    const now = new Date();
+    const current =
+      (
+        await this.memberships.find({
+          where: { userId: user.id, status: 'active' },
+          order: { endsAt: 'DESC' },
+          take: 5,
+        })
+      ).find((row) => row.endsAt >= now) ?? null;
+
+    if (!current || current.planMonths !== 12) {
+      throw new ForbiddenException(
+        'The e-book is available only with an active 12-month membership.',
+      );
+    }
+
+    const filePath = join(
+      process.cwd(),
+      'uploads',
+      'milestones',
+      'ebooks',
+      'E-Book_WLWTD.pdf',
+    );
+    if (!existsSync(filePath)) {
+      this.logger.error(`[ebook] Missing file at ${filePath}`);
+      throw new NotFoundException('E-book file is not available yet.');
+    }
+
+    return {
+      stream: createReadStream(filePath),
+      filename: 'The-Healing-Mat-E-Book.pdf',
     };
   }
 

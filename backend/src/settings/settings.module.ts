@@ -1,5 +1,6 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { PaymentsModule } from '../payments/payments.module';
 import { ClassesAdminController } from './classes-admin.controller';
 import { ScheduledClass } from './scheduled-class.entity';
 import { ScheduledClassesService } from './scheduled-classes.service';
@@ -17,6 +18,7 @@ import { SiteSettings } from './site-settings.entity';
 
 @Module({
   imports: [
+    forwardRef(() => PaymentsModule),
     TypeOrmModule.forFeature([
       SiteSettings,
       SessionTiming,

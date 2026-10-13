@@ -11,6 +11,7 @@ import { useMemberDashboard } from "@/components/member-dashboard/member-dashboa
 import { PersonalSessionLinkPopup } from "@/components/member-dashboard/personal-session-link-popup";
 import { SiteLoader } from "@/components/site-loader";
 import {
+  downloadMembershipEbook,
   getMyCoupons,
   updateProfile,
   type MemberCoupon,
@@ -18,6 +19,7 @@ import {
 } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
 import { INDIA_STATES } from "@/lib/india-states";
+import { useMemberAccess } from "@/lib/member-access";
 
 const genderOptions: { value: UserGender; label: string }[] = [
   { value: "male", label: "Male" },
@@ -68,6 +70,7 @@ function isValidDob(value: string) {
 
 export function MemberAccountPage() {
   const { user, signOut, signingOut, updateUser } = useMemberDashboard();
+  const { access } = useMemberAccess();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [passwordToast, setPasswordToast] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -80,6 +83,8 @@ export function MemberAccountPage() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [couponsOpen, setCouponsOpen] = useState(false);
   const [sessionLinkOpen, setSessionLinkOpen] = useState(false);
+  const [downloadingEbook, setDownloadingEbook] = useState(false);
+  const [ebookError, setEbookError] = useState<string | null>(null);
   const [assignedCoupons, setAssignedCoupons] = useState<MemberCoupon[]>([]);
   const [couponsLoading, setCouponsLoading] = useState(false);
   const [couponsLoaded, setCouponsLoaded] = useState(false);
@@ -454,26 +459,80 @@ export function MemberAccountPage() {
             ) : null}
           </section>
 
-          {user.accessLink?.trim() ? (
+          {user.accessLink?.trim() || access.ebookDownloadable ? (
             <section className="overflow-hidden rounded-[22px] border border-[#e6ebe3] bg-white shadow-[0_10px_32px_rgba(31,107,58,0.05)]">
-              <button
-                type="button"
-                onClick={() => setSessionLinkOpen(true)}
-                className="flex w-full cursor-pointer items-center gap-4 px-4 py-5 text-left transition hover:bg-[#fafbf9] sm:px-6 sm:py-5"
-              >
-                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-12 sm:w-12">
-                  <LinkChainIcon className="h-5 w-5 text-[#1f6b3a]" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] font-bold text-[#243028] sm:text-[16px]">
-                    Your Personal Session Link
+              {user.accessLink?.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => setSessionLinkOpen(true)}
+                  className="flex w-full cursor-pointer items-center gap-4 px-4 py-5 text-left transition hover:bg-[#fafbf9] sm:px-6 sm:py-5"
+                >
+                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-12 sm:w-12">
+                    <LinkChainIcon className="h-5 w-5 text-[#1f6b3a]" />
                   </span>
-                  <span className="mt-1 block text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
-                    Use this link to join your scheduled yoga sessions.
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-bold text-[#243028] sm:text-[16px]">
+                      Your Personal Session Link
+                    </span>
+                    <span className="mt-1 block text-[13px] leading-relaxed text-[#6b7c6e] sm:text-[14px]">
+                      Use this link to join your scheduled yoga sessions.
+                    </span>
                   </span>
-                </span>
-                <ChevronRightIcon className="h-5 w-5 shrink-0 text-[#8a9a8d]" />
-              </button>
+                  <ChevronRightIcon className="h-5 w-5 shrink-0 text-[#8a9a8d]" />
+                </button>
+              ) : null}
+
+              {user.accessLink?.trim() && access.ebookDownloadable ? (
+                <div className="border-t border-[#eef2ee]" />
+              ) : null}
+
+              {access.ebookDownloadable ? (
+                <button
+                  type="button"
+                  disabled={downloadingEbook}
+                  onClick={() => {
+                    void (async () => {
+                      const token = getStoredToken();
+                      if (!token || downloadingEbook) return;
+                      setEbookError(null);
+                      setDownloadingEbook(true);
+                      try {
+                        await downloadMembershipEbook(token);
+                      } catch (err) {
+                        setEbookError(
+                          err instanceof Error
+                            ? err.message
+                            : "Unable to download the e-book.",
+                        );
+                      } finally {
+                        setDownloadingEbook(false);
+                      }
+                    })();
+                  }}
+                  className="flex w-full cursor-pointer items-center gap-4 px-4 py-5 text-left transition hover:bg-[#fafbf9] disabled:cursor-wait disabled:opacity-80 sm:px-6 sm:py-5"
+                >
+                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-12 sm:w-12">
+                    <BookIcon className="h-5 w-5 text-[#1f6b3a]" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-bold text-[#243028] sm:text-[16px]">
+                      Exclusive E-book
+                    </span>
+                    <span
+                      className={`mt-1 block text-[13px] leading-relaxed sm:text-[14px] ${
+                        ebookError ? "text-[#8a2f2f]" : "text-[#6b7c6e]"
+                      }`}
+                    >
+                      {downloadingEbook
+                        ? "Preparing your download…"
+                        : ebookError
+                          ? ebookError
+                          : "Download your member-only e-book."}
+                    </span>
+                  </span>
+                  <ChevronRightIcon className="h-5 w-5 shrink-0 text-[#8a9a8d]" />
+                </button>
+              ) : null}
             </section>
           ) : null}
 
@@ -767,6 +826,31 @@ function TagIcon({ className }: { className?: string }) {
         strokeLinejoin="round"
       />
       <circle cx="16.2" cy="7.8" r="1.2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function BookIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path
+        d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15.5H7.5A2.5 2.5 0 0 0 5 21"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5 5.5V21"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M9 7.5h7M9 11h7"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

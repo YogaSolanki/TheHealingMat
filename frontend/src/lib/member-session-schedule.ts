@@ -11,9 +11,9 @@ export const FALLBACK_SESSION_LABELS = [
 
 export type SessionAccessKind = "trial" | "member";
 
-/** How long a regular class stays joinable after its start time. */
-const SESSION_DURATION_MINUTES = 60;
-/** Mid-morning special block (e.g. 11:30 AM). */
+/** How long a regular / trial class stays joinable after its start time. */
+const SESSION_DURATION_MINUTES = 50;
+/** Mid-morning special block + Sunday Q&A. */
 const SPECIAL_SESSION_DURATION_MINUTES = 30;
 /**
  * Members may enter a few minutes early (waiting room) and stay joinable

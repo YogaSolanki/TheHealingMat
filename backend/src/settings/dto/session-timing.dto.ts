@@ -39,6 +39,12 @@ export class CreateSessionTimingDto {
   @Type(() => Boolean)
   @IsBoolean()
   isSundayQa?: boolean;
+
+  /** Mark as a Mon–Sat trial-only session time (multiple allowed). */
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  isTrial?: boolean;
 }
 
 export class UpdateSessionTimingDto {
@@ -72,4 +78,9 @@ export class UpdateSessionTimingDto {
   @Type(() => Boolean)
   @IsBoolean()
   isSundayQa?: boolean;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  isTrial?: boolean;
 }

@@ -18,7 +18,17 @@ import {
 
 export function MemberJoinPage() {
   const { access, loading: accessLoading } = useMemberAccess();
-  const { labels: sessionLabels, ready: todayReady } = useTodaySessions();
+  const sessionAudience =
+    access.state === "trial" || access.state === "scheduled"
+      ? ("trial" as const)
+      : access.state === "active"
+        ? ("member" as const)
+        : null;
+  const {
+    labels: sessionLabels,
+    audience: loadedAudience,
+    ready: todayReady,
+  } = useTodaySessions(Boolean(sessionAudience), sessionAudience);
   const [liveUrl, setLiveUrl] = useState<string | null>(null);
   const [liveSlot, setLiveSlot] = useState<string | null>(null);
   const [nextCopy, setNextCopy] = useState<string | null>(null);
@@ -31,6 +41,10 @@ export function MemberJoinPage() {
 
   const sessionKind =
     access.state === "trial" || access.state === "scheduled" ? "trial" : "member";
+  const audienceMatchedLabels =
+    sessionAudience != null && loadedAudience === sessionAudience
+      ? sessionLabels
+      : [];
 
   useEffect(() => {
     if (accessLoading) return;
@@ -53,17 +67,25 @@ export function MemberJoinPage() {
     void (async () => {
       try {
         const now = new Date();
-        const labels = await todaySessionsStore.refreshSilent();
+        const labels = sessionAudience
+          ? await todaySessionsStore.refreshSilent(sessionAudience)
+          : [];
         if (cancelled) return;
 
+        const snap = todaySessionsStore.getSnapshot();
+        const matchedLabels =
+          sessionAudience != null && snap.audience === sessionAudience
+            ? labels
+            : [];
         const specialSet = new Set(
-          todaySessionsStore
-            .getSnapshot()
-            .specialLabels.map((label) => label.trim().toLowerCase()),
+          (sessionAudience === "member" ? snap.specialLabels : []).map(
+            (label) => label.trim().toLowerCase(),
+          ),
         );
 
         // Join check is IST-only (same live window worldwide). Labels from
         // cache are Indian session times — never local-converted chip text.
+        // Live URL is already audience-filtered on the server.
         const result = await getLiveSessionUrl(token, {
           at: now.toISOString(),
         });
@@ -71,7 +93,12 @@ export function MemberJoinPage() {
 
         const liveSlot =
           result.slot?.trim() ||
-          findRunningSession(now, sessionKind, labels, specialSet)?.label ||
+          findRunningSession(
+            now,
+            sessionKind,
+            matchedLabels,
+            specialSet,
+          )?.label ||
           null;
 
         if (result.url) {
@@ -91,7 +118,7 @@ export function MemberJoinPage() {
           return;
         }
 
-        if (labels.length === 0) {
+        if (matchedLabels.length === 0) {
           setNextCopy(
             "No sessions scheduled today. Check back when a class is on the schedule.",
           );
@@ -108,7 +135,12 @@ export function MemberJoinPage() {
         }
 
         setNextCopy(
-          sessionUnavailableMessage(now, sessionKind, labels, specialSet),
+          sessionUnavailableMessage(
+            now,
+            sessionKind,
+            matchedLabels,
+            specialSet,
+          ),
         );
       } catch (err: unknown) {
         if (cancelled) return;
@@ -125,7 +157,7 @@ export function MemberJoinPage() {
     return () => {
       cancelled = true;
     };
-  }, [accessOk, accessLoading, sessionKind]);
+  }, [accessOk, accessLoading, sessionKind, sessionAudience]);
 
   const loading = accessLoading || urlLoading || !todayReady;
   const canRedirect = accessOk && Boolean(liveUrl);
@@ -169,7 +201,7 @@ export function MemberJoinPage() {
   }
 
   if (access.state === "scheduled") {
-    const slotCopy = formatSlotList(sessionLabels);
+    const slotCopy = formatSlotList(audienceMatchedLabels);
     return (
       <StateCard
         title={`Your 14-Day Free Trial starts on ${access.trialStartsOnLabel ?? "the upcoming cohort Monday"}`}
@@ -205,7 +237,7 @@ export function MemberJoinPage() {
         }
         body={
           nextCopy ??
-          (sessionLabels.length === 0
+          (audienceMatchedLabels.length === 0
             ? "There are no classes scheduled for today in Class Management. Please check back later."
             : "Please check back at the next scheduled session time.")
         }

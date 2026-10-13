@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import { getTodaySessions } from "@/lib/api";
+import {
+  getTodaySessions,
+  type TodaySessionSlot,
+  type TodaySessionsAudience,
+} from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
 import {
   parseSlotLabel,
   splitSessionLabels,
 } from "@/lib/member-session-schedule";
 
-const STORAGE_KEY = "thm_today_sessions_v6";
+const STORAGE_KEY = "thm_today_sessions_v7";
 const SESSION_TIMEZONE = "Asia/Kolkata";
 
 export type TodaySessionsSnapshot = {
@@ -17,6 +21,7 @@ export type TodaySessionsSnapshot = {
   special: string[];
   evening: string[];
   specialLabels: string[];
+  audience: TodaySessionsAudience | null;
   date: string | null;
   dayLabel: string | null;
   todayTopic: string | null;
@@ -27,6 +32,7 @@ export type TodaySessionsSnapshot = {
 
 type CachePayload = {
   date: string;
+  audience: TodaySessionsAudience;
   dayLabel: string | null;
   labels: string[];
   specialLabels: string[];
@@ -40,6 +46,7 @@ const EMPTY: TodaySessionsSnapshot = {
   special: [],
   evening: [],
   specialLabels: [],
+  audience: null,
   date: null,
   dayLabel: null,
   todayTopic: null,
@@ -65,6 +72,7 @@ function fromLabels(
   todayTopic: string | null,
   tomorrowTopic: string | null,
   specialLabels: string[] = [],
+  audience: TodaySessionsAudience | null = null,
 ): Omit<TodaySessionsSnapshot, "ready" | "refreshing"> {
   const split = splitSessionLabels(labels, { specialLabels });
   return {
@@ -73,6 +81,7 @@ function fromLabels(
     special: split.special,
     evening: split.evening,
     specialLabels,
+    audience,
     date,
     dayLabel,
     todayTopic,
@@ -96,7 +105,20 @@ function uniqueSortedLabels(labels: string[]) {
   );
 }
 
-function readCache(): CachePayload | null {
+/** Defense-in-depth: never mix trial and membership slots on the client. */
+function filterSessionsForAudience(
+  sessions: TodaySessionSlot[],
+  audience: TodaySessionsAudience,
+) {
+  return sessions.filter((row) => {
+    const isTrial = Boolean(row.isTrial);
+    const isSundayQa = Boolean(row.isSundayQa);
+    if (audience === "trial") return isTrial || isSundayQa;
+    return !isTrial;
+  });
+}
+
+function readCache(audience: TodaySessionsAudience): CachePayload | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.sessionStorage.getItem(STORAGE_KEY);
@@ -107,8 +129,13 @@ function readCache(): CachePayload | null {
       window.sessionStorage.removeItem(STORAGE_KEY);
       return null;
     }
+    if (parsed.audience !== audience) {
+      // Wrong audience (trial vs membership) — do not reuse.
+      return null;
+    }
     return {
       date: parsed.date,
+      audience: parsed.audience,
       dayLabel: parsed.dayLabel ?? null,
       labels: parsed.labels.filter(
         (item) => typeof item === "string" && item.trim(),
@@ -144,6 +171,7 @@ function msUntilNextIstMidnight(now = new Date()) {
 class TodaySessionsStore {
   private labels: string[] = [];
   private specialLabels: string[] = [];
+  private audience: TodaySessionsAudience | null = null;
   private date: string | null = null;
   private dayLabel: string | null = null;
   private todayTopic: string | null = null;
@@ -151,22 +179,12 @@ class TodaySessionsStore {
   private ready = false;
   private refreshing = false;
   private inflight: Promise<string[]> | null = null;
+  private inflightAudience: TodaySessionsAudience | null = null;
   private listeners = new Set<() => void>();
   private cachedSnapshot: TodaySessionsSnapshot = EMPTY;
 
   constructor() {
-    if (typeof window === "undefined") return;
-    const cached = readCache();
-    if (cached) {
-      this.labels = uniqueSortedLabels(cached.labels);
-      this.specialLabels = uniqueSortedLabels(cached.specialLabels);
-      this.date = cached.date;
-      this.dayLabel = cached.dayLabel;
-      this.todayTopic = cached.todayTopic;
-      this.tomorrowTopic = cached.tomorrowTopic;
-      this.ready = true;
-      this.rebuildSnapshot();
-    }
+    // Do not hydrate from cache until audience is known (set via ensure).
   }
 
   subscribe = (listener: () => void) => {
@@ -189,6 +207,7 @@ class TodaySessionsStore {
         this.todayTopic,
         this.tomorrowTopic,
         this.specialLabels,
+        this.audience,
       ),
       ready: this.ready,
       refreshing: this.refreshing,
@@ -210,31 +229,41 @@ class TodaySessionsStore {
    * If the calendar day rolled over (or cache is for another day),
    * force-fetch today's Class Management slots.
    */
-  ensureCurrentDay() {
-    if (!this.isStaleForToday() && this.ready) {
+  ensureCurrentDay(audience: TodaySessionsAudience) {
+    if (
+      !this.isStaleForToday() &&
+      this.ready &&
+      this.audience === audience
+    ) {
       return Promise.resolve(this.labels);
     }
-    return this.ensure({ force: true });
+    return this.ensure({ force: true, audience });
   }
 
   /** Load once from cache/memory; network only on miss or force refresh. */
-  async ensure(options?: {
+  async ensure(options: {
+    audience: TodaySessionsAudience;
     force?: boolean;
     /** Fetch without flipping `refreshing` (no skeleton UI). */
     silent?: boolean;
   }): Promise<string[]> {
-    const force = options?.force === true;
-    const silent = options?.silent === true;
+    const audience = options.audience;
+    const force = options.force === true;
+    const silent = options.silent === true;
     const today = todayIsoLocal();
 
     if (!force) {
-      // Topics must be present (even as "") — null means never fetched with topics API.
       const topicsReady =
         this.todayTopic !== null && this.tomorrowTopic !== null;
-      if (this.ready && this.date === today && topicsReady) {
+      if (
+        this.ready &&
+        this.date === today &&
+        this.audience === audience &&
+        topicsReady
+      ) {
         return this.labels;
       }
-      const cached = readCache();
+      const cached = readCache(audience);
       if (
         cached &&
         cached.date === today &&
@@ -243,6 +272,7 @@ class TodaySessionsStore {
       ) {
         this.labels = uniqueSortedLabels(cached.labels);
         this.specialLabels = uniqueSortedLabels(cached.specialLabels);
+        this.audience = cached.audience;
         this.date = cached.date;
         this.dayLabel = cached.dayLabel;
         this.todayTopic = cached.todayTopic;
@@ -253,12 +283,15 @@ class TodaySessionsStore {
       }
     }
 
-    if (this.inflight) return this.inflight;
+    if (this.inflight && this.inflightAudience === audience) {
+      return this.inflight;
+    }
 
     const token = getStoredToken();
     if (!token) {
       this.labels = [];
       this.specialLabels = [];
+      this.audience = audience;
       this.date = today;
       this.dayLabel = null;
       this.todayTopic = null;
@@ -274,9 +307,20 @@ class TodaySessionsStore {
       this.emit();
     }
 
+    this.inflightAudience = audience;
     this.inflight = getTodaySessions(token)
       .then((data) => {
-        const sessions = data.sessions ?? [];
+        const responseAudience =
+          data.audience === "trial" || data.audience === "member"
+            ? data.audience
+            : audience;
+        // If the server audience differs from what this caller asked for,
+        // still honor the server (source of truth) but store under that audience.
+        const effectiveAudience = responseAudience;
+        const sessions = filterSessionsForAudience(
+          data.sessions ?? [],
+          effectiveAudience,
+        );
         const labels = uniqueSortedLabels(
           sessions
             .map((row) => row.sessionTimeLabel?.trim())
@@ -292,6 +336,7 @@ class TodaySessionsStore {
         );
         this.labels = labels;
         this.specialLabels = specialLabels;
+        this.audience = effectiveAudience;
         this.date = data.date ?? today;
         this.dayLabel = data.dayLabel ?? null;
         this.todayTopic =
@@ -303,6 +348,7 @@ class TodaySessionsStore {
         this.ready = true;
         writeCache({
           date: this.date,
+          audience: effectiveAudience,
           dayLabel: this.dayLabel,
           labels: this.labels,
           specialLabels: this.specialLabels,
@@ -313,10 +359,14 @@ class TodaySessionsStore {
         return this.labels;
       })
       .catch(() => {
-        // Keep existing cache/memory on refresh failure — but only if still same day.
-        if (!this.ready || this.isStaleForToday()) {
+        if (
+          !this.ready ||
+          this.isStaleForToday() ||
+          this.audience !== audience
+        ) {
           this.labels = [];
           this.specialLabels = [];
+          this.audience = audience;
           this.date = today;
           this.dayLabel = null;
           this.todayTopic = null;
@@ -329,25 +379,29 @@ class TodaySessionsStore {
       .finally(() => {
         if (!silent) this.refreshing = false;
         this.inflight = null;
+        this.inflightAudience = null;
         this.emit();
       });
 
     return this.inflight;
   }
 
-  refresh() {
-    return this.ensure({ force: true });
+  refresh(audience: TodaySessionsAudience) {
+    return this.ensure({ force: true, audience });
   }
 
   /** Force-fetch today's slots without showing the skeleton loader. */
-  refreshSilent() {
-    return this.ensure({ force: true, silent: true });
+  refreshSilent(audience: TodaySessionsAudience) {
+    return this.ensure({ force: true, silent: true, audience });
   }
 }
 
 export const todaySessionsStore = new TodaySessionsStore();
 
-export function useTodaySessions(enabled = true): TodaySessionsSnapshot & {
+export function useTodaySessions(
+  enabled = true,
+  audience: TodaySessionsAudience | null = null,
+): TodaySessionsSnapshot & {
   refresh: () => Promise<string[]>;
   refreshSilent: () => Promise<string[]>;
 } {
@@ -358,12 +412,13 @@ export function useTodaySessions(enabled = true): TodaySessionsSnapshot & {
   );
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !audience) return;
 
-    void todaySessionsStore.ensure();
+    void todaySessionsStore.ensure({ audience });
 
     function syncDay() {
-      void todaySessionsStore.ensureCurrentDay();
+      if (!audience) return;
+      void todaySessionsStore.ensureCurrentDay(audience);
     }
 
     function onVisibility() {
@@ -386,11 +441,17 @@ export function useTodaySessions(enabled = true): TodaySessionsSnapshot & {
       window.clearTimeout(midnightTimer);
       window.clearInterval(pollTimer);
     };
-  }, [enabled]);
+  }, [enabled, audience]);
 
   return {
     ...snapshot,
-    refresh: () => todaySessionsStore.refresh(),
-    refreshSilent: () => todaySessionsStore.refreshSilent(),
+    refresh: () =>
+      audience
+        ? todaySessionsStore.refresh(audience)
+        : Promise.resolve(snapshot.labels),
+    refreshSilent: () =>
+      audience
+        ? todaySessionsStore.refreshSilent(audience)
+        : Promise.resolve(snapshot.labels),
   };
 }

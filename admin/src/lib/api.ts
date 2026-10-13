@@ -548,6 +548,8 @@ export function createAdminCorporatePlan(
     planMonths: number;
     employeeCount: number;
     companyPayPercent: number;
+    /** Optional override of catalog list price per seat (paise). */
+    listPricePerSeatPaise?: number;
     paymentMethod: string;
     paymentRef: string;
     adminNote: string;
@@ -1343,6 +1345,7 @@ export type AdminSessionTiming = {
   active: boolean;
   isSpecial: boolean;
   isSundayQa: boolean;
+  isTrial: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -1358,6 +1361,8 @@ export type AdminScheduledClass = {
   isSpecial: boolean;
   /** Derived from the session timing’s Sunday Q&A flag. */
   isSundayQa: boolean;
+  /** Derived from the session timing’s trial flag (Mon–Sat). */
+  isTrial: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -1381,6 +1386,7 @@ export function createAdminSessionTiming(
     sortOrder?: number;
     active?: boolean;
     isSundayQa?: boolean;
+    isTrial?: boolean;
   },
 ) {
   return authJson<AdminSessionTiming>(
@@ -1399,6 +1405,7 @@ export function updateAdminSessionTiming(
     sortOrder?: number;
     active?: boolean;
     isSundayQa?: boolean;
+    isTrial?: boolean;
   },
 ) {
   return authJson<AdminSessionTiming>(

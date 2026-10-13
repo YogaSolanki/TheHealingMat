@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CouponsModule } from '../coupons/coupons.module';
 import { SettingsModule } from '../settings/settings.module';
@@ -24,7 +24,7 @@ import { PaymentsService } from './payments.service';
 @Module({
   imports: [
     CouponsModule,
-    SettingsModule,
+    forwardRef(() => SettingsModule),
     TypeOrmModule.forFeature([
       PaymentOrder,
       Membership,

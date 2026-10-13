@@ -146,9 +146,11 @@ export function SettingsPanel() {
   const [referralDiscountPercent, setReferralDiscountPercent] = useState("20");
   const [newTiming, setNewTiming] = useState<TimeParts>(DEFAULT_TIME);
   const [newTimingSundayQa, setNewTimingSundayQa] = useState(false);
+  const [newTimingTrial, setNewTimingTrial] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTime, setEditingTime] = useState<TimeParts>(DEFAULT_TIME);
   const [editingSundayQa, setEditingSundayQa] = useState(false);
+  const [editingTrial, setEditingTrial] = useState(false);
   const [specialEditing, setSpecialEditing] = useState(false);
   const [specialEditTime, setSpecialEditTime] = useState<TimeParts>(DEFAULT_TIME);
   const [loading, setLoading] = useState(true);
@@ -261,6 +263,7 @@ export function SettingsPanel() {
       const created = await createAdminSessionTiming(token, {
         label,
         isSundayQa: newTimingSundayQa,
+        isTrial: newTimingTrial,
       });
       setTimings((current) =>
         [...current, created].sort(
@@ -269,11 +272,14 @@ export function SettingsPanel() {
       );
       setNewTiming(DEFAULT_TIME);
       setNewTimingSundayQa(false);
+      setNewTimingTrial(false);
       setTimingSaved(true);
       showSuccess(
         created.isSundayQa
           ? `Added Sunday Q&A time ${created.label}.`
-          : `Added session time ${created.label}.`,
+          : created.isTrial
+            ? `Added Trial time ${created.label}.`
+            : `Added session time ${created.label}.`,
       );
     } catch (err: unknown) {
       showError(
@@ -294,6 +300,7 @@ export function SettingsPanel() {
       const updated = await updateAdminSessionTiming(token, id, {
         label,
         isSundayQa: editingSundayQa,
+        isTrial: editingTrial,
       });
       setTimings((current) =>
         current
@@ -306,6 +313,7 @@ export function SettingsPanel() {
       setEditingId(null);
       setEditingTime(DEFAULT_TIME);
       setEditingSundayQa(false);
+      setEditingTrial(false);
       setTimingSaved(true);
       showSuccess("Session time updated.");
     } catch (err: unknown) {
@@ -580,9 +588,9 @@ export function SettingsPanel() {
             Session timings
           </h2>
           <p className="mt-1 text-[13px] leading-relaxed text-[#6b7c6e]">
-            Regular times are Mon–Sat. Check Sunday Q&amp;A for slots that only
-            appear on Sunday — they can use the same clock time as a Mon–Sat
-            slot.
+            Regular times are Mon–Sat membership classes. Check Trial for
+            trial-only Mon–Sat slots, or Sunday Q&amp;A for Sunday-only slots —
+            each kind can reuse the same clock time.
           </p>
         </div>
 
@@ -600,11 +608,29 @@ export function SettingsPanel() {
             <input
               type="checkbox"
               checked={newTimingSundayQa}
-              onChange={(event) => setNewTimingSundayQa(event.target.checked)}
+              onChange={(event) => {
+                const checked = event.target.checked;
+                setNewTimingSundayQa(checked);
+                if (checked) setNewTimingTrial(false);
+              }}
               disabled={timingBusy}
               className="h-4 w-4 rounded border-[#c5d0c4] text-[#1f6b3a] focus:ring-[#1f6b3a] disabled:opacity-60"
             />
             Sunday Q&amp;A
+          </label>
+          <label className="inline-flex items-center gap-2 text-sm font-semibold text-[#243028]">
+            <input
+              type="checkbox"
+              checked={newTimingTrial}
+              onChange={(event) => {
+                const checked = event.target.checked;
+                setNewTimingTrial(checked);
+                if (checked) setNewTimingSundayQa(false);
+              }}
+              disabled={timingBusy}
+              className="h-4 w-4 rounded border-[#c5d0c4] text-[#1f6b3a] focus:ring-[#1f6b3a] disabled:opacity-60"
+            />
+            Trial
           </label>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -643,13 +669,29 @@ export function SettingsPanel() {
                         <input
                           type="checkbox"
                           checked={editingSundayQa}
-                          onChange={(event) =>
-                            setEditingSundayQa(event.target.checked)
-                          }
+                          onChange={(event) => {
+                            const checked = event.target.checked;
+                            setEditingSundayQa(checked);
+                            if (checked) setEditingTrial(false);
+                          }}
                           disabled={timingBusy}
                           className="h-4 w-4 rounded border-[#c5d0c4] text-[#1f6b3a] focus:ring-[#1f6b3a] disabled:opacity-60"
                         />
                         Sunday Q&amp;A
+                      </label>
+                      <label className="inline-flex items-center gap-2 text-sm font-semibold text-[#243028]">
+                        <input
+                          type="checkbox"
+                          checked={editingTrial}
+                          onChange={(event) => {
+                            const checked = event.target.checked;
+                            setEditingTrial(checked);
+                            if (checked) setEditingSundayQa(false);
+                          }}
+                          disabled={timingBusy}
+                          className="h-4 w-4 rounded border-[#c5d0c4] text-[#1f6b3a] focus:ring-[#1f6b3a] disabled:opacity-60"
+                        />
+                        Trial
                       </label>
                     </div>
                   ) : (
@@ -662,6 +704,10 @@ export function SettingsPanel() {
                           <span className="rounded-md bg-[#2f6b8a] px-2 py-0.5 text-[11px] font-semibold text-white">
                             Sunday Q&amp;A
                           </span>
+                        ) : row.isTrial ? (
+                          <span className="rounded-md bg-[#6b4f9a] px-2 py-0.5 text-[11px] font-semibold text-white">
+                            Trial
+                          </span>
                         ) : (
                           <span className="rounded-md bg-[#ecefec] px-2 py-0.5 text-[11px] font-semibold text-[#5f6f64]">
                             Mon–Sat
@@ -672,7 +718,9 @@ export function SettingsPanel() {
                         {row.active ? "Active" : "Inactive"}
                         {row.isSundayQa
                           ? " · only on Sunday in Class Management"
-                          : " · regular class time"}
+                          : row.isTrial
+                            ? " · trial class time (Mon–Sat)"
+                            : " · membership class time"}
                       </p>
                     </div>
                   )}
@@ -693,6 +741,7 @@ export function SettingsPanel() {
                             setEditingId(null);
                             setEditingTime(DEFAULT_TIME);
                             setEditingSundayQa(false);
+                            setEditingTrial(false);
                           }}
                           disabled={timingBusy}
                           className="rounded-full border border-[#d7e0d6] px-3 py-1.5 text-xs font-semibold text-[#3d4a3c]"
@@ -708,6 +757,7 @@ export function SettingsPanel() {
                             setEditingId(row.id);
                             setEditingTime(parseTimeLabel(row.label));
                             setEditingSundayQa(Boolean(row.isSundayQa));
+                            setEditingTrial(Boolean(row.isTrial));
                             setTimingSaved(false);
                           }}
                           disabled={timingBusy}

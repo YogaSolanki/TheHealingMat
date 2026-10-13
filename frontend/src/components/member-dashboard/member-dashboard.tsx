@@ -16,7 +16,12 @@ import { OrientationVideoModal } from "@/components/member-dashboard/orientation
 import { PersonalSessionLinkPopup } from "@/components/member-dashboard/personal-session-link-popup";
 import { SessionNoticePopup } from "@/components/member-dashboard/session-notice-popup";
 import { TrialWelcomePopup } from "@/components/member-dashboard/trial-welcome-popup";
-import { getLiveSessionUrl, startFreeTrial, type PublicUser } from "@/lib/api";
+import {
+  downloadMembershipEbook,
+  getLiveSessionUrl,
+  startFreeTrial,
+  type PublicUser,
+} from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
 import {
   readCheckoutIntent,
@@ -42,7 +47,8 @@ import {
   sessionUnavailableMessage,
   splitSessionLabels,
 } from "@/lib/member-session-schedule";
-import { useTodaySessions, todaySessionsStore } from "@/lib/today-sessions-store";
+import { useSessionTimings } from "@/lib/session-timings-store";
+import { todaySessionsStore, useTodaySessions } from "@/lib/today-sessions-store";
 import { SITE_MAPS_URL } from "@/lib/site-contact";
 import { sessionStore, useMyReferrals, updateMemberAuthCache } from "@/lib/session-store";
 
@@ -104,12 +110,25 @@ function formatDashboardDateFromIso(iso: string | null, compact = false) {
 
 export function MemberDashboard({ user }: MemberDashboardProps) {
   const { access, loading } = useMemberAccess();
+  const membershipKnown = !loading;
+  const isUnaffiliated = membershipKnown && access.state === "pending";
+  const isExpired = membershipKnown && access.state === "expired";
+  const isScheduledTrial = membershipKnown && access.state === "scheduled";
+  const isTrial = membershipKnown && access.state === "trial";
+  const isActiveMember = membershipKnown && access.state === "active";
+  const sessionAudience =
+    isTrial || isScheduledTrial
+      ? ("trial" as const)
+      : membershipKnown
+        ? ("member" as const)
+        : null;
   const {
     labels: sessionLabels,
     morning: morningSlots,
     special: specialSlots,
     evening: eveningSlots,
     specialLabels,
+    audience: loadedSessionAudience,
     date: todaySessionsDate,
     ready: todaySessionsReady,
     refreshing: todaySessionsRefreshing,
@@ -117,22 +136,73 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     tomorrowTopic,
     refresh: refreshTodaySessions,
     refreshSilent: refreshTodaySessionsSilent,
-  } = useTodaySessions();
+  } = useTodaySessions(Boolean(sessionAudience), sessionAudience);
+  const { trialLabels: catalogTrialLabels } = useSessionTimings(
+    isTrial || isScheduledTrial,
+  );
   const nameGreeting = greetingForName(user.fullName);
   const now = new Date();
   const todayLabel = formatDashboardDateFromIso(todaySessionsDate);
   const todayLabelCompact = formatDashboardDateFromIso(todaySessionsDate, true);
   const sunday = isSunday(now);
+  // Only use today's slots when they match this user's audience (trial vs membership).
+  const audienceMatchedLabels =
+    sessionAudience != null && loadedSessionAudience === sessionAudience
+      ? sessionLabels
+      : [];
+  const audienceMatchedMorning =
+    sessionAudience != null && loadedSessionAudience === sessionAudience
+      ? morningSlots
+      : [];
+  const audienceMatchedEvening =
+    sessionAudience != null && loadedSessionAudience === sessionAudience
+      ? eveningSlots
+      : [];
+  const audienceMatchedSpecial =
+    sessionAudience != null && loadedSessionAudience === sessionAudience
+      ? specialSlots
+      : [];
   const sundayDisplaySlots =
-    specialSlots.length > 0 ? specialSlots : sessionLabels;
+    audienceMatchedSpecial.length > 0
+      ? audienceMatchedSpecial
+      : audienceMatchedLabels;
   const sundaySplit = splitSessionLabels(sundayDisplaySlots);
   const sundayMorningSlots = sundaySplit.morning;
   const sundayEveningSlots = sundaySplit.evening;
-  // Cached Class Management labels only (IST) — never fetch for timezone mapping.
-  const cachedIstSlotLabels = useMemo(
-    () => (sunday ? sundayDisplaySlots : sessionLabels),
-    [sunday, sundayDisplaySlots, sessionLabels],
+  // Trial users: only trial Class Management slots (or Settings trial catalog).
+  // Membership users: only membership slots — never trial catalog.
+  const trialDisplayLabels = useMemo(() => {
+    if (!(isTrial || isScheduledTrial)) return [];
+    if (audienceMatchedLabels.length > 0) return audienceMatchedLabels;
+    return catalogTrialLabels;
+  }, [
+    isTrial,
+    isScheduledTrial,
+    audienceMatchedLabels,
+    catalogTrialLabels,
+  ]);
+  const trialSplit = useMemo(
+    () => splitSessionLabels(trialDisplayLabels),
+    [trialDisplayLabels],
   );
+  const trialMorningSlots = trialSplit.morning;
+  const trialEveningSlots = trialSplit.evening;
+  const memberDisplayLabels = isActiveMember ? audienceMatchedLabels : [];
+  const memberMorningSlots = isActiveMember ? audienceMatchedMorning : [];
+  const memberEveningSlots = isActiveMember ? audienceMatchedEvening : [];
+  // Cached Class Management labels only (IST) — never fetch for timezone mapping.
+  const cachedIstSlotLabels = useMemo(() => {
+    if (isTrial || isScheduledTrial) return trialDisplayLabels;
+    if (sunday) return sundayDisplaySlots;
+    return memberDisplayLabels;
+  }, [
+    isTrial,
+    isScheduledTrial,
+    trialDisplayLabels,
+    sunday,
+    sundayDisplaySlots,
+    memberDisplayLabels,
+  ]);
   // Start as IST so SSR + first client paint match; sync real TZ after mount.
   const [viewerTimeZone, setViewerTimeZone] = useState("Asia/Kolkata");
   useEffect(() => {
@@ -147,6 +217,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
       document.removeEventListener("visibilitychange", syncTimeZone);
     };
   }, []);
+
   const showLocalTimes = !isIndiaTimeZone(viewerTimeZone);
   const slotDisplayOptions = useMemo(
     () => ({
@@ -170,27 +241,34 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
     [showLocalTimes, slotDisplayOptions],
   );
   const specialLabelSet = useMemo(
-    () => new Set(specialLabels.map((label) => label.trim().toLowerCase())),
-    [specialLabels],
+    () =>
+      new Set(
+        (isActiveMember ? specialLabels : []).map((label) =>
+          label.trim().toLowerCase(),
+        ),
+      ),
+    [isActiveMember, specialLabels],
   );
-  const membershipKnown = !loading;
-  const isUnaffiliated = membershipKnown && access.state === "pending";
-  const isExpired = membershipKnown && access.state === "expired";
-  const isScheduledTrial = membershipKnown && access.state === "scheduled";
-  const isTrial = membershipKnown && access.state === "trial";
-  const isActiveMember = membershipKnown && access.state === "active";
   const sessionKind = isTrial || isScheduledTrial ? "trial" : "member";
   const running =
     isExpired || isScheduledTrial || isUnaffiliated
       ? null
-      : findRunningSession(now, sessionKind, sessionLabels, specialLabelSet);
-  const specialSessionLabel = toLocalSlot(specialSlots[0] ?? null);
+      : findRunningSession(
+          now,
+          sessionKind,
+          isTrial ? trialDisplayLabels : memberDisplayLabels,
+          specialLabelSet,
+        );
+  const specialSessionLabel = toLocalSlot(
+    isActiveMember ? (audienceMatchedSpecial[0] ?? null) : null,
+  );
   const liveSlotDisplay = toLocalSlot(running?.label ?? null);
   const trialSlotSubtitle =
-    formatSlotList(toLocalSlots(sessionLabels)) ||
+    formatSlotList(toLocalSlots(trialDisplayLabels)) ||
     (todaySessionsReady ? "No sessions scheduled today" : "Session times");
   const sundaySlotSubtitle = "Sunday";
-  const hasTodaySessions = sessionLabels.length > 0;
+  const hasTodaySessions = memberDisplayLabels.length > 0;
+  const hasTrialSessions = trialDisplayLabels.length > 0;
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const dismissSessionNotice = useCallback(() => {
     setSessionNotice(null);
@@ -202,6 +280,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const [activeOrientation, setActiveOrientation] =
     useState<OrientationVideoCard | null>(null);
   const [sessionLinkOpen, setSessionLinkOpen] = useState(false);
+  const [downloadingEbook, setDownloadingEbook] = useState(false);
+  const [ebookError, setEbookError] = useState<string | null>(null);
   const { cards: startHereVideos } = useOrientationVideoCards(isActiveMember);
   const { successfulCount: successfulReferrals } = useMyReferrals();
   const canStartFreeTrial = isUnaffiliated && !user.hasUsedFreeTrial;
@@ -261,7 +341,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
         null;
 
       if (url) {
-        window.open(url, "_blank", "noopener,noreferrer");
+        setJoiningSession(false);
+        window.location.assign(url);
         return;
       }
 
@@ -574,22 +655,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 Your session link will become active when your trial starts.
               </p>
               <div className="mt-5">
-                <SectionHeading
-                  icon={
-                    <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-7 sm:w-7">
-                      <CalendarMaskIcon />
-                    </span>
-                  }
-                  title="Trial Sessions"
-                  subtitle="Join opens on your start date"
-                />
-                <SessionTimingBlock
-                  icon={sunIcon}
-                  label="Today's session timings"
-                  slots={toLocalSlots(sessionLabels)}
-                  tint="bg-[#F4F8F2]"
-                  emptyLabel="No sessions scheduled for today"
-                  join={
+                {(() => {
+                  const hasMorning = trialMorningSlots.length > 0;
+                  const hasEvening = trialEveningSlots.length > 0;
+                  const bothPeriods = hasMorning && hasEvening;
+                  const disabledJoin = (
                     <button
                       type="button"
                       disabled
@@ -597,8 +667,74 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                     >
                       Join
                     </button>
-                  }
-                />
+                  );
+
+                  return (
+                    <>
+                      <div
+                        className={`mb-4 flex flex-wrap items-start gap-3 ${
+                          bothPeriods ? "justify-between" : ""
+                        }`}
+                      >
+                        <SectionHeading
+                          className="mb-0 flex min-w-0 flex-1 items-start gap-2.5"
+                          icon={
+                            <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-7 sm:w-7">
+                              <CalendarMaskIcon />
+                            </span>
+                          }
+                          title="Trial Sessions"
+                          subtitle="Join opens on your start date"
+                        />
+                        {bothPeriods ? disabledJoin : null}
+                      </div>
+
+                      {!hasTrialSessions ? (
+                        <SessionTimingBlock
+                          icon={sunIcon}
+                          label="Today's session timings"
+                          slots={[]}
+                          tint="bg-[#F4F8F2]"
+                          emptyLabel="No trial session times configured yet"
+                          join={disabledJoin}
+                        />
+                      ) : !hasMorning && !hasEvening ? (
+                        <SessionTimingBlock
+                          icon={sunIcon}
+                          label="Today's session timings"
+                          slots={toLocalSlots(trialDisplayLabels)}
+                          tint="bg-[#F4F8F2]"
+                          join={disabledJoin}
+                        />
+                      ) : (
+                        <>
+                          {hasMorning ? (
+                            <SessionTimingBlock
+                              icon={sunIcon}
+                              label="Morning Sessions"
+                              slots={toLocalSlots(trialMorningSlots)}
+                              tint="bg-[#F4F8F2]"
+                            />
+                          ) : null}
+                          {hasEvening ? (
+                            <SessionTimingBlock
+                              icon={moonIcon}
+                              label="Evening Sessions"
+                              slots={toLocalSlots(trialEveningSlots)}
+                              tint="bg-[#F7F7F5]"
+                            />
+                          ) : null}
+                        </>
+                      )}
+
+                      {!bothPeriods && hasTrialSessions ? (
+                        <div className="mt-3 flex justify-center sm:mt-4">
+                          {disabledJoin}
+                        </div>
+                      ) : null}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           ) : isTrial ? (
@@ -607,37 +743,100 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 Your trial starts on{" "}
                 {access.trialStartsOnLabel ?? "your cohort start date"}
               </p>
-              <SectionHeading
-                icon={
-                  <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-7 sm:w-7">
-                    <CalendarMaskIcon />
-                  </span>
-                }
-                title="Trial Sessions"
-                subtitle={trialSlotSubtitle}
-              />
-              <SessionTimingBlock
-                icon={sunIcon}
-                label="Today's session timings"
-                slots={toLocalSlots(sessionLabels)}
-                tint="bg-[#F4F8F2]"
-                liveSlot={liveSlotDisplay ?? undefined}
-                emptyLabel="No sessions scheduled for today"
-                join={
+              {(() => {
+                const hasMorning = trialMorningSlots.length > 0;
+                const hasEvening = trialEveningSlots.length > 0;
+                const bothPeriods = hasMorning && hasEvening;
+                const joinSessionButton = (
                   <button
                     type="button"
                     onClick={() => void handleJoin()}
                     disabled={joiningSession}
-                    className={`${memberPrimaryBtnSmClass} w-full justify-center px-5 py-2.5 text-[13px] sm:w-auto sm:min-w-[100px]`}
+                    className={`${memberPrimaryBtnClass} w-full justify-center px-5 py-3 text-[14px] sm:w-auto sm:min-w-[148px] sm:px-6 sm:py-3.5 sm:text-[15px]`}
                   >
-                    {joiningSession ? "Joining…" : "Join"}
+                    {joiningSession ? "Joining…" : "Join Session"}
                   </button>
-                }
-              />
-              <p className="mt-4 text-[13px] leading-relaxed text-[#6b7c6e]">
-                Trial access includes today&apos;s scheduled session times. Regular membership
-                sessions become available when your membership starts.
-              </p>
+                );
+
+                return (
+                  <>
+                    <div
+                      className={`mb-4 flex flex-wrap items-start gap-3 ${
+                        bothPeriods ? "justify-between" : ""
+                      }`}
+                    >
+                      <SectionHeading
+                        className="mb-0 flex min-w-0 flex-1 items-start gap-2.5"
+                        icon={
+                          <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-7 sm:w-7">
+                            <CalendarMaskIcon />
+                          </span>
+                        }
+                        title="Trial Sessions"
+                        subtitle={trialSlotSubtitle}
+                      />
+                      {bothPeriods ? joinSessionButton : null}
+                    </div>
+
+                    {!hasTrialSessions ? (
+                      <SessionTimingBlock
+                        icon={sunIcon}
+                        label="Today's session timings"
+                        slots={[]}
+                        tint="bg-[#F4F8F2]"
+                        emptyLabel="No sessions scheduled for today"
+                      />
+                    ) : !hasMorning && !hasEvening ? (
+                      <SessionTimingBlock
+                        icon={sunIcon}
+                        label="Today's session timings"
+                        slots={toLocalSlots(trialDisplayLabels)}
+                        tint="bg-[#F4F8F2]"
+                        liveSlot={liveSlotDisplay ?? undefined}
+                      />
+                    ) : (
+                      <>
+                        {hasMorning ? (
+                          <SessionTimingBlock
+                            icon={sunIcon}
+                            label="Morning Sessions"
+                            slots={toLocalSlots(trialMorningSlots)}
+                            tint="bg-[#F4F8F2]"
+                            liveSlot={liveSlotDisplay ?? undefined}
+                          />
+                        ) : null}
+                        {hasEvening ? (
+                          <SessionTimingBlock
+                            icon={moonIcon}
+                            label="Evening Sessions"
+                            slots={toLocalSlots(trialEveningSlots)}
+                            tint="bg-[#F7F7F5]"
+                            liveSlot={liveSlotDisplay ?? undefined}
+                          />
+                        ) : null}
+                      </>
+                    )}
+
+                    {!bothPeriods ? (
+                      <div className="mt-3 flex justify-center sm:mt-4">
+                        <button
+                          type="button"
+                          onClick={() => void handleJoin()}
+                          disabled={joiningSession}
+                          className={`${memberPrimaryBtnClass} w-full max-w-[420px] justify-center px-8 py-3.5 text-[15px] sm:px-10 sm:py-4 sm:text-[16px]`}
+                        >
+                          {joiningSession ? "Joining…" : "Join Session"}
+                        </button>
+                      </div>
+                    ) : null}
+
+                    <p className="mt-4 text-[13px] leading-relaxed text-[#6b7c6e]">
+                      Trial access uses trial class times. Regular membership
+                      sessions become available when your membership starts.
+                    </p>
+                  </>
+                );
+              })()}
             </div>
           ) : sunday ? (
             <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
@@ -806,8 +1005,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
             <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
               <div className="border-[#eef2ee] px-4 py-4 sm:px-6 sm:py-5 lg:border-r">
                 {(() => {
-                  const hasMorning = morningSlots.length > 0;
-                  const hasEvening = eveningSlots.length > 0;
+                  const hasMorning = memberMorningSlots.length > 0;
+                  const hasEvening = memberEveningSlots.length > 0;
                   const bothPeriods = hasMorning && hasEvening;
                   const joinSessionButton = (
                     <button
@@ -866,7 +1065,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                         <SessionTimingBlock
                           icon={sunIcon}
                           label="Today's session timings"
-                          slots={toLocalSlots(sessionLabels)}
+                          slots={toLocalSlots(memberDisplayLabels)}
                           tint="bg-[#F4F8F2]"
                           liveSlot={liveSlotDisplay ?? undefined}
                         />
@@ -876,7 +1075,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                             <SessionTimingBlock
                               icon={sunIcon}
                               label="Morning Sessions"
-                              slots={toLocalSlots(morningSlots)}
+                              slots={toLocalSlots(memberMorningSlots)}
                               tint="bg-[#F4F8F2]"
                               liveSlot={liveSlotDisplay ?? undefined}
                             />
@@ -885,7 +1084,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                             <SessionTimingBlock
                               icon={moonIcon}
                               label="Evening Sessions"
-                              slots={toLocalSlots(eveningSlots)}
+                              slots={toLocalSlots(memberEveningSlots)}
                               tint="bg-[#F7F7F5]"
                               liveSlot={liveSlotDisplay ?? undefined}
                             />
@@ -1083,7 +1282,9 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
         <section
           className={`grid gap-3 sm:gap-4 ${
             isActiveMember || isTrial
-              ? "sm:grid-cols-2 xl:grid-cols-4"
+              ? access.ebookDownloadable
+                ? "sm:grid-cols-2 xl:grid-cols-3"
+                : "sm:grid-cols-2 xl:grid-cols-4"
               : "sm:grid-cols-3"
           }`}
         >
@@ -1096,6 +1297,40 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 title="My Membership"
                 subtitle="View plan details, invoices and renew."
               />
+              {access.ebookDownloadable ? (
+                <CompactNavCard
+                  icon={<BookIcon className="h-5 w-5 text-[#1f6b3a]" />}
+                  iconBg="bg-[#eef6f0]"
+                  title="Exclusive E-book"
+                  subtitle={
+                    downloadingEbook
+                      ? "Preparing your download…"
+                      : ebookError
+                        ? ebookError
+                        : "Download your member-only e-book."
+                  }
+                  disabled={downloadingEbook}
+                  onClick={() => {
+                    void (async () => {
+                      const token = getStoredToken();
+                      if (!token || downloadingEbook) return;
+                      setEbookError(null);
+                      setDownloadingEbook(true);
+                      try {
+                        await downloadMembershipEbook(token);
+                      } catch (err) {
+                        setEbookError(
+                          err instanceof Error
+                            ? err.message
+                            : "Unable to download the e-book.",
+                        );
+                      } finally {
+                        setDownloadingEbook(false);
+                      }
+                    })();
+                  }}
+                />
+              ) : null}
               <CompactNavCard
                 href="/dashboard/refer"
                 icon={<GiftIcon className="h-5 w-5 text-[#C58A1A]" />}
@@ -1441,6 +1676,7 @@ function CompactNavCard({
   subtitle,
   href,
   onClick,
+  disabled,
 }: {
   icon: ReactNode;
   iconBg?: string;
@@ -1448,9 +1684,10 @@ function CompactNavCard({
   subtitle: string;
   href?: string;
   onClick?: () => void;
+  disabled?: boolean;
 }) {
   const className =
-    "flex w-full items-center gap-3 rounded-[14px] border border-[#e6ebe3] bg-white px-3.5 py-3.5 text-left shadow-[0_6px_18px_rgba(31,107,58,0.05)] transition hover:border-[#d5e0d6] hover:shadow-[0_8px_22px_rgba(31,107,58,0.08)] sm:gap-3.5 sm:px-4 sm:py-4";
+    "flex w-full items-center gap-3 rounded-[14px] border border-[#e6ebe3] bg-white px-3.5 py-3.5 text-left shadow-[0_6px_18px_rgba(31,107,58,0.05)] transition hover:border-[#d5e0d6] hover:shadow-[0_8px_22px_rgba(31,107,58,0.08)] sm:gap-3.5 sm:px-4 sm:py-4 disabled:cursor-wait disabled:opacity-70";
 
   const content = (
     <>
@@ -1473,7 +1710,12 @@ function CompactNavCard({
 
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} className={`cursor-pointer ${className}`}>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className={`cursor-pointer ${className}`}
+      >
         {content}
       </button>
     );
@@ -1596,6 +1838,31 @@ function LinkIcon({ className }: { className?: string }) {
         strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function BookIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path
+        d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15.5H7.5A2.5 2.5 0 0 0 5 21"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5 5.5V21"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M9 7.5h7M9 11h7"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
       />
     </svg>
   );

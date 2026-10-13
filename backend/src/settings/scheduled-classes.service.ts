@@ -36,11 +36,23 @@ function isSundayDate(isoDate: string) {
   return dayLabelFromDate(isoDate) === 'Sunday';
 }
 
+export type SessionAudience = 'trial' | 'member' | 'all';
+
 function assertTimingMatchesDay(
-  timing: { isSpecial?: boolean; isSundayQa?: boolean; label: string },
+  timing: {
+    isSpecial?: boolean;
+    isSundayQa?: boolean;
+    isTrial?: boolean;
+    label: string;
+  },
   classDate: string,
 ) {
   const sunday = isSundayDate(classDate);
+  if (timing.isTrial && timing.isSundayQa) {
+    throw new BadRequestException(
+      'A session time cannot be both Trial and Sunday Q&A.',
+    );
+  }
   if (sunday && !timing.isSundayQa) {
     throw new BadRequestException(
       'On Sunday only Sunday Q&A session times can be scheduled.',
@@ -51,6 +63,33 @@ function assertTimingMatchesDay(
       'Sunday Q&A session times can only be scheduled on Sunday.',
     );
   }
+  if (sunday && timing.isTrial) {
+    throw new BadRequestException(
+      'Trial session times are Mon–Sat only. Use Sunday Q&A times on Sunday.',
+    );
+  }
+}
+
+/** Strict boolean — never use Boolean(string); Boolean('false') === true. */
+function asBool(value: unknown): boolean {
+  return value === true || value === 1 || value === '1' || value === 't';
+}
+
+function timingMatchesAudience(
+  timing: { isTrial?: boolean; isSundayQa?: boolean } | null | undefined,
+  audience: SessionAudience,
+) {
+  if (audience === 'all') return true;
+  // Missing timing relation — do not guess; never cross-leak trial/membership.
+  if (!timing) return false;
+  const isTrial = asBool(timing.isTrial);
+  const isSundayQa = asBool(timing.isSundayQa);
+  if (audience === 'trial') {
+    // Trial users: trial-only Mon–Sat slots, or shared Sunday Q&A.
+    return isTrial || isSundayQa;
+  }
+  // Membership users: regular + special + Sunday Q&A — never trial-only slots.
+  return !isTrial;
 }
 
 /** Calendar "today" in Asia/Kolkata (class schedule business timezone). */
@@ -63,11 +102,23 @@ function todayIsoDate(now = new Date()) {
   }).format(now);
 }
 
-const SESSION_DURATION_MINUTES = 60;
+/** Regular + trial class length (join stays open this long after start). */
+const SESSION_DURATION_MINUTES = 50;
+/** Special session + Sunday Q&A length. */
 const SPECIAL_SESSION_DURATION_MINUTES = 30;
 const JOIN_EARLY_MINUTES = 15;
 /** Ignore client clocks that are wildly wrong; fall back to server time. */
 const CLIENT_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
+function isSlotLiveNow(
+  slotMinutes: number,
+  durationMinutes: number,
+  minutesNow: number,
+) {
+  const openAt = slotMinutes - JOIN_EARLY_MINUTES;
+  const closeAt = slotMinutes + durationMinutes;
+  return minutesNow >= openAt && minutesNow < closeAt;
+}
 
 function parseSlotLabelMinutes(label: string): number | null {
   const match = label
@@ -81,13 +132,6 @@ function parseSlotLabelMinutes(label: string): number | null {
   if (period === 'PM' && hours !== 12) hours += 12;
   if (period === 'AM' && hours === 12) hours = 0;
   return hours * 60 + minutes;
-}
-
-function durationForMinutes(minutes: number) {
-  const hour = Math.floor(minutes / 60);
-  return hour >= 11 && hour < 12
-    ? SPECIAL_SESSION_DURATION_MINUTES
-    : SESSION_DURATION_MINUTES;
 }
 
 function istMinutesSinceMidnight(now: Date) {
@@ -191,6 +235,7 @@ export class ScheduledClassesService implements OnModuleInit {
             (specialTimingId && row.sessionTimingId === specialTimingId),
         ),
         isSundayQa: Boolean(row.sessionTiming?.isSundayQa),
+        isTrial: Boolean(row.sessionTiming?.isTrial),
       }),
     );
   }
@@ -229,6 +274,7 @@ export class ScheduledClassesService implements OnModuleInit {
     return this.toResponse(saved, {
       isSpecial: Boolean(timing.isSpecial),
       isSundayQa: Boolean(timing.isSundayQa),
+      isTrial: Boolean(timing.isTrial),
     });
   }
 
@@ -248,6 +294,7 @@ export class ScheduledClassesService implements OnModuleInit {
 
     let timingIsSpecial = Boolean(row.sessionTiming?.isSpecial);
     let timingIsSundayQa = Boolean(row.sessionTiming?.isSundayQa);
+    let timingIsTrial = Boolean(row.sessionTiming?.isTrial);
     if (dto.sessionTimingId !== undefined) {
       const timing = await this.timings.requireActive(dto.sessionTimingId);
       row.sessionTimingId = timing.id;
@@ -255,6 +302,7 @@ export class ScheduledClassesService implements OnModuleInit {
       row.isSpecial = Boolean(timing.isSpecial);
       timingIsSpecial = Boolean(timing.isSpecial);
       timingIsSundayQa = Boolean(timing.isSundayQa);
+      timingIsTrial = Boolean(timing.isTrial);
     }
 
     if (dto.meetingUrl !== undefined) {
@@ -267,6 +315,7 @@ export class ScheduledClassesService implements OnModuleInit {
         label: row.sessionTimeLabel,
         isSpecial: timingIsSpecial,
         isSundayQa: timingIsSundayQa,
+        isTrial: timingIsTrial,
       },
       row.classDate,
     );
@@ -287,6 +336,7 @@ export class ScheduledClassesService implements OnModuleInit {
     return this.toResponse(saved, {
       isSpecial: timingIsSpecial,
       isSundayQa: timingIsSundayQa,
+      isTrial: timingIsTrial,
     });
   }
 
@@ -304,23 +354,37 @@ export class ScheduledClassesService implements OnModuleInit {
    * clock instant (ISO); we convert it to IST minutes. Members outside India
    * join the same live slot at the same moment — local timezone is display-only.
    */
-  async findLiveSessionAt(atIso?: string | null) {
+  /**
+   * @param atIso Client clock hint (ignored when useServerTime is true).
+   * @param audience trial → trial class links only; member → membership only.
+   * @param useServerTime When true, ignore client `at` (permanent session links).
+   */
+  async findLiveSessionAt(
+    atIso?: string | null,
+    audience: SessionAudience = 'member',
+    useServerTime = false,
+  ) {
     await this.purgeExpiredClasses();
 
-    const at = resolveAt(atIso);
+    const at = useServerTime ? new Date() : resolveAt(atIso);
     const day = todayIsoDate(at);
     const minutesNow = istMinutesSinceMidnight(at);
-    const todays = await this.classes.find({
-      where: { classDate: day },
-      relations: { sessionTiming: true },
-      order: { sessionTimeLabel: 'ASC' },
-    });
+    // Audience filter is critical when trial + membership share the same clock
+    // (e.g. both 4:00 AM) — each must get their own meeting URL.
+    const todays = (
+      await this.classes.find({
+        where: { classDate: day },
+        relations: { sessionTiming: true },
+        order: { sessionTimeLabel: 'ASC' },
+      })
+    ).filter((row) => timingMatchesAudience(row.sessionTiming, audience));
 
     if (todays.length === 0) {
       return {
         url: null as string | null,
         slot: null as string | null,
         next: null as { label: string; when: 'today' | 'tomorrow' } | null,
+        audience,
       };
     }
 
@@ -328,21 +392,23 @@ export class ScheduledClassesService implements OnModuleInit {
       .map((row) => {
         const minutes = parseSlotLabelMinutes(row.sessionTimeLabel);
         if (minutes == null) return null;
-        // Regular, Special (Mon–Sat), and Sunday Q&A are all joinable.
-        const isSpecial = Boolean(
+        const isSpecial = asBool(
           row.sessionTiming?.isSpecial || row.isSpecial,
         );
-        const isSundayQa = Boolean(row.sessionTiming?.isSundayQa);
+        const isSundayQa = asBool(row.sessionTiming?.isSundayQa);
+        const isTrial = asBool(row.sessionTiming?.isTrial);
         return {
           label: row.sessionTimeLabel,
           minutes,
+          // Trial + regular membership: 50 min. Special + Sunday Q&A: 30 min.
           durationMinutes:
             isSpecial || isSundayQa
               ? SPECIAL_SESSION_DURATION_MINUTES
-              : durationForMinutes(minutes),
+              : SESSION_DURATION_MINUTES,
           meetingUrl: row.meetingUrl?.trim() || null,
           isSpecial,
           isSundayQa,
+          isTrial,
         };
       })
       .filter(
@@ -355,29 +421,45 @@ export class ScheduledClassesService implements OnModuleInit {
           meetingUrl: string | null;
           isSpecial: boolean;
           isSundayQa: boolean;
+          isTrial: boolean;
         } => slot != null,
       )
       .sort((a, b) => a.minutes - b.minutes);
 
-    // Prefer the latest-starting open window so Special / Q&A win when
-    // join windows overlap an earlier regular slot.
-    const openSlots = allSlots.filter((slot) => {
-      const openAt = slot.minutes - JOIN_EARLY_MINUTES;
-      const closeAt = slot.minutes + slot.durationMinutes;
-      return minutesNow >= openAt && minutesNow < closeAt;
-    });
+    // Only slots still inside [start − 15m, start + duration). Ended sessions never join.
+    const openSlots = allSlots.filter((slot) =>
+      isSlotLiveNow(slot.minutes, slot.durationMinutes, minutesNow),
+    );
     const running =
       openSlots.length === 0
         ? null
-        : openSlots.reduce((best, slot) =>
-            slot.minutes >= best.minutes ? slot : best,
-          );
+        : openSlots.reduce((best, slot) => {
+            if (slot.minutes !== best.minutes) {
+              return slot.minutes > best.minutes ? slot : best;
+            }
+            if (Boolean(slot.meetingUrl) !== Boolean(best.meetingUrl)) {
+              return slot.meetingUrl ? slot : best;
+            }
+            return slot;
+          });
 
-    if (running) {
+    // Live only when the window is open AND a meeting URL exists.
+    if (running?.meetingUrl) {
       return {
         url: running.meetingUrl,
         slot: running.label,
         next: null as { label: string; when: 'today' | 'tomorrow' } | null,
+        audience,
+      };
+    }
+
+    if (running) {
+      // Window open but Class Management link missing — do not invent a URL.
+      return {
+        url: null as string | null,
+        slot: running.label,
+        next: null as { label: string; when: 'today' | 'tomorrow' } | null,
+        audience,
       };
     }
 
@@ -389,6 +471,7 @@ export class ScheduledClassesService implements OnModuleInit {
         url: null as string | null,
         slot: null as string | null,
         next: { label: upcomingToday.label, when: 'today' as const },
+        audience,
       };
     }
 
@@ -398,6 +481,7 @@ export class ScheduledClassesService implements OnModuleInit {
       next: allSlots[0]
         ? { label: allSlots[0].label, when: 'tomorrow' as const }
         : null,
+      audience,
     };
   }
 
@@ -415,10 +499,12 @@ export class ScheduledClassesService implements OnModuleInit {
   }
 
   /** Session times actually scheduled for today (Class Management). */
-  async listToday() {
+  async listToday(audience: SessionAudience = 'member') {
     await this.purgeExpiredClasses();
     const today = todayIsoDate();
-    const todays = await this.listTodayRows();
+    const todays = (await this.listTodayRows()).filter((row) =>
+      timingMatchesAudience(row.sessionTiming, audience),
+    );
     const specialTimingId = await this.timings.getSpecialTimingId();
     const seen = new Set<string>();
     const sessions: {
@@ -427,13 +513,15 @@ export class ScheduledClassesService implements OnModuleInit {
       sessionTimeLabel: string;
       isSpecial: boolean;
       isSundayQa: boolean;
+      isTrial: boolean;
     }[] = [];
 
     for (const row of todays) {
-      const key = row.sessionTimeLabel.trim().toLowerCase();
+      const key = `${row.sessionTimingId}:${row.sessionTimeLabel.trim().toLowerCase()}`;
       if (!key || seen.has(key)) continue;
       seen.add(key);
       const isSundayQa = Boolean(row.sessionTiming?.isSundayQa);
+      const isTrial = Boolean(row.sessionTiming?.isTrial);
       sessions.push({
         id: row.id,
         sessionTimingId: row.sessionTimingId,
@@ -444,6 +532,7 @@ export class ScheduledClassesService implements OnModuleInit {
             (specialTimingId && row.sessionTimingId === specialTimingId),
         ),
         isSundayQa,
+        isTrial,
       });
     }
 
@@ -487,7 +576,11 @@ export class ScheduledClassesService implements OnModuleInit {
 
   private toResponse(
     row: ScheduledClass,
-    flags?: { isSpecial?: boolean; isSundayQa?: boolean },
+    flags?: {
+      isSpecial?: boolean;
+      isSundayQa?: boolean;
+      isTrial?: boolean;
+    },
   ) {
     return {
       id: row.id,
@@ -502,6 +595,7 @@ export class ScheduledClassesService implements OnModuleInit {
         Boolean(row.isSpecial),
       isSundayQa:
         flags?.isSundayQa ?? Boolean(row.sessionTiming?.isSundayQa),
+      isTrial: flags?.isTrial ?? Boolean(row.sessionTiming?.isTrial),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
