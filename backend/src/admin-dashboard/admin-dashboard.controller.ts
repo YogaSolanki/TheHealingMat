@@ -16,6 +16,7 @@ import { Role } from '../auth/enums/role.enum';
 import { AdminDashboardService } from './admin-dashboard.service';
 import { CreateAdminMembershipDto } from './dto/create-admin-membership.dto';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
+import { ExportUsersDto } from './dto/export-users.dto';
 import { UpdateAdminMembershipDto } from './dto/update-admin-membership.dto';
 import { UpdateAdminUserDto } from './dto/update-admin-user.dto';
 import { UpgradeAdminMembershipDto } from './dto/upgrade-admin-membership.dto';
@@ -41,6 +42,16 @@ export class AdminDashboardController {
     @Query('email') email?: string,
   ) {
     return this.dashboard.checkUserExists({ mobile, email });
+  }
+
+  @Post('users/export')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  async exportUsers(@Body() dto: ExportUsersDto) {
+    const file = await this.dashboard.exportUsersCsv(dto);
+    return new StreamableFile(Buffer.from(file.csv, 'utf8'), {
+      type: 'text/csv; charset=utf-8',
+      disposition: `attachment; filename="${file.filename}"`,
+    });
   }
 
   @Post('users')

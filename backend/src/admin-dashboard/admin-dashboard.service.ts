@@ -39,6 +39,7 @@ import { OtpChallenge } from '../users/otp-challenge.entity';
 import { User } from '../users/user.entity';
 import { CreateAdminMembershipDto } from './dto/create-admin-membership.dto';
 import { CreateAdminUserDto } from './dto/create-admin-user.dto';
+import { ExportUsersDto } from './dto/export-users.dto';
 import { UpdateAdminMembershipDto } from './dto/update-admin-membership.dto';
 import { UpdateAdminUserDto } from './dto/update-admin-user.dto';
 import { UpgradeAdminMembershipDto } from './dto/upgrade-admin-membership.dto';
@@ -206,6 +207,146 @@ export class AdminDashboardService {
             : null,
         };
       }),
+    };
+  }
+
+  /**
+   * Filtered CSV export for Admin → Users.
+   * Returns every matching account (not capped like the list view).
+   */
+  async exportUsersCsv(dto: ExportUsersDto) {
+    const region = dto.region ?? 'all';
+    const accessType = dto.accessType ?? 'all';
+    const accountStatus = dto.accountStatus ?? 'all';
+    const dateField = dto.dateField ?? 'all';
+    const dateFrom = parseExportDayStart(dto.dateFrom);
+    const dateTo = parseExportDayEnd(dto.dateTo);
+    const hasDateRange = Boolean(dateFrom || dateTo);
+
+    if (dateFrom && dateTo && dateFrom.getTime() > dateTo.getTime()) {
+      throw new BadRequestException('dateFrom must be on or before dateTo.');
+    }
+
+    const where: {
+      region?: Region;
+      accountStatus?: AccountStatus;
+    } = {};
+    if (region === 'india') where.region = Region.India;
+    if (region === 'outside_india') where.region = Region.OutsideIndia;
+    if (accountStatus === 'active') where.accountStatus = AccountStatus.Active;
+    if (accountStatus === 'inactive') {
+      where.accountStatus = AccountStatus.Inactive;
+    }
+
+    let users = await this.users.find({
+      where,
+      order: { createdAt: 'DESC' },
+    });
+
+    // Joined-date only filter can run before loading trial/membership rows.
+    if (dateField === 'createdAt' && hasDateRange) {
+      users = users.filter((user) =>
+        isDateInRange(user.createdAt, dateFrom, dateTo),
+      );
+    }
+
+    if (users.length === 0) {
+      return {
+        filename: exportUsersFilename(),
+        csv: buildUsersCsv([]),
+        count: 0,
+      };
+    }
+
+    const userIds = users.map((user) => user.id);
+    const [trials, memberships] = await Promise.all([
+      this.trials.find({
+        where: { userId: In(userIds) },
+        relations: { cohort: true, orientationSlot: true },
+      }),
+      this.memberships.find({
+        where: { userId: In(userIds) },
+        order: { createdAt: 'DESC' },
+      }),
+    ]);
+
+    const trialByUser = new Map(trials.map((trial) => [trial.userId, trial]));
+    const membershipsByUser = new Map<string, Membership[]>();
+    for (const membership of memberships) {
+      const list = membershipsByUser.get(membership.userId) ?? [];
+      list.push(membership);
+      membershipsByUser.set(membership.userId, list);
+    }
+
+    const rows: ExportUserCsvRow[] = [];
+    for (const user of users) {
+      const trial = trialByUser.get(user.id) ?? null;
+      const userMemberships = membershipsByUser.get(user.id) ?? [];
+      const latestMembership = userMemberships[0] ?? null;
+      const activeMembership =
+        userMemberships.find((row) => row.status === 'active') ?? null;
+      const membershipForExport = activeMembership ?? latestMembership;
+
+      if (accessType === 'trial' && !trial) continue;
+      if (accessType === 'membership' && userMemberships.length === 0) continue;
+      if (accessType === 'none' && (trial || userMemberships.length > 0)) {
+        continue;
+      }
+
+      if (hasDateRange) {
+        if (dateField === 'createdAt') {
+          if (!isDateInRange(user.createdAt, dateFrom, dateTo)) continue;
+        } else if (dateField === 'trialStartsAt') {
+          if (!trial) continue;
+          if (!isDateInRange(trial.trialStartsAt, dateFrom, dateTo)) continue;
+        } else if (dateField === 'membershipStartsAt') {
+          if (!membershipForExport) continue;
+          if (!isDateInRange(membershipForExport.startsAt, dateFrom, dateTo)) {
+            continue;
+          }
+        } else {
+          // All: match if joined, trial start, or membership start is in range.
+          const inJoined = isDateInRange(user.createdAt, dateFrom, dateTo);
+          const inTrial = trial
+            ? isDateInRange(trial.trialStartsAt, dateFrom, dateTo)
+            : false;
+          const inMembership = membershipForExport
+            ? isDateInRange(membershipForExport.startsAt, dateFrom, dateTo)
+            : false;
+          if (!inJoined && !inTrial && !inMembership) continue;
+        }
+      }
+
+      rows.push({
+        fullName: user.fullName,
+        region: user.region,
+        mobile: user.mobile,
+        email: user.email,
+        state: user.state,
+        preferredClassTime: user.preferredClassTime,
+        referralCode: user.referralCode,
+        accountStatus: user.accountStatus ?? AccountStatus.Active,
+        joinedAt: user.createdAt,
+        hasUsedFreeTrial: user.hasUsedFreeTrial,
+        trialStatus: trial?.status ?? null,
+        trialStartsAt: trial?.trialStartsAt ?? null,
+        trialEndsAt: trial?.trialEndsAt ?? null,
+        cohortLabel: trial?.cohort?.label ?? null,
+        orientationLabel: trial?.orientationSlot?.label ?? null,
+        membershipPlan: membershipForExport?.planName ?? null,
+        membershipMonths: membershipForExport?.planMonths ?? null,
+        membershipStatus: membershipForExport?.status ?? null,
+        membershipStartsAt: membershipForExport?.startsAt ?? null,
+        membershipEndsAt: membershipForExport?.endsAt ?? null,
+        membershipAmountPaidPaise: membershipForExport?.amountPaidPaise ?? null,
+        membershipCurrency: membershipForExport?.currency ?? null,
+      });
+    }
+
+    return {
+      filename: exportUsersFilename(),
+      csv: buildUsersCsv(rows),
+      count: rows.length,
     };
   }
 
@@ -1408,4 +1549,149 @@ export class AdminDashboardService {
 
     return days;
   }
+}
+
+type ExportUserCsvRow = {
+  fullName: string;
+  region: string;
+  mobile: string | null;
+  email: string | null;
+  state: string | null;
+  preferredClassTime: string | null;
+  referralCode: string;
+  accountStatus: string;
+  joinedAt: Date;
+  hasUsedFreeTrial: boolean;
+  trialStatus: string | null;
+  trialStartsAt: Date | null;
+  trialEndsAt: Date | null;
+  cohortLabel: string | null;
+  orientationLabel: string | null;
+  membershipPlan: string | null;
+  membershipMonths: number | null;
+  membershipStatus: string | null;
+  membershipStartsAt: Date | null;
+  membershipEndsAt: Date | null;
+  membershipAmountPaidPaise: number | null;
+  membershipCurrency: string | null;
+};
+
+function parseExportDayStart(value?: string): Date | null {
+  if (!value?.trim()) return null;
+  const date = new Date(`${value.trim()}T00:00:00.000+05:30`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function parseExportDayEnd(value?: string): Date | null {
+  if (!value?.trim()) return null;
+  const date = new Date(`${value.trim()}T23:59:59.999+05:30`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isDateInRange(
+  value: Date | string | null | undefined,
+  from: Date | null,
+  to: Date | null,
+) {
+  if (!from && !to) return true;
+  if (!value) return false;
+  const time = new Date(value).getTime();
+  if (Number.isNaN(time)) return false;
+  if (from && time < from.getTime()) return false;
+  if (to && time > to.getTime()) return false;
+  return true;
+}
+
+function exportUsersFilename() {
+  const stamp = new Date().toISOString().slice(0, 10);
+  return `thm-users-export-${stamp}.csv`;
+}
+
+function csvEscape(value: string | number | boolean | null | undefined) {
+  if (value == null) return '';
+  const text = String(value);
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replaceAll('"', '""')}"`;
+  }
+  return text;
+}
+
+function formatExportDate(value: Date | null | undefined) {
+  if (value == null) return 'N/A';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'N/A';
+  return new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function buildUsersCsv(rows: ExportUserCsvRow[]) {
+  const headers = [
+    'Full Name',
+    'Region',
+    'Mobile',
+    'Email',
+    'State / Country',
+    'Preferred Class Time',
+    'Referral Code',
+    'Account Status',
+    'Joined At (IST)',
+    'Has Used Free Trial',
+    'Trial Status',
+    'Trial Starts (IST)',
+    'Trial Ends (IST)',
+    'Cohort',
+    'Orientation',
+    'Membership Plan',
+    'Membership Months',
+    'Membership Status',
+    'Membership Starts (IST)',
+    'Membership Ends (IST)',
+    'Amount Paid',
+    'Currency',
+  ];
+
+  const lines = [headers.map(csvEscape).join(',')];
+  for (const row of rows) {
+    const amountPaid =
+      row.membershipAmountPaidPaise == null
+        ? ''
+        : (row.membershipAmountPaidPaise / 100).toFixed(2);
+    lines.push(
+      [
+        row.fullName,
+        row.region,
+        row.mobile,
+        row.email,
+        row.state,
+        row.preferredClassTime,
+        row.referralCode,
+        row.accountStatus,
+        formatExportDate(row.joinedAt),
+        row.hasUsedFreeTrial ? 'yes' : 'no',
+        row.trialStatus,
+        formatExportDate(row.trialStartsAt),
+        formatExportDate(row.trialEndsAt),
+        row.cohortLabel,
+        row.orientationLabel,
+        row.membershipPlan,
+        row.membershipMonths,
+        row.membershipStatus,
+        formatExportDate(row.membershipStartsAt),
+        formatExportDate(row.membershipEndsAt),
+        amountPaid,
+        row.membershipCurrency,
+      ]
+        .map(csvEscape)
+        .join(','),
+    );
+  }
+
+  // BOM helps Excel open UTF-8 correctly.
+  return `\uFEFF${lines.join('\n')}\n`;
 }

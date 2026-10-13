@@ -150,6 +150,49 @@ export function getAdminUsers(token: string) {
   return authGet<{ users: AdminUserRow[] }>("/admin/users", token);
 }
 
+export type ExportAdminUsersInput = {
+  region?: "all" | "india" | "outside_india";
+  accessType?: "all" | "trial" | "membership" | "none";
+  accountStatus?: "all" | "active" | "inactive";
+  dateField?: "all" | "createdAt" | "trialStartsAt" | "membershipStartsAt";
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+export async function exportAdminUsers(
+  token: string,
+  body: ExportAdminUsersInput,
+) {
+  const response = await fetch(`${API_URL}/admin/users/export`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as ApiErrorBody;
+    throw new Error(readErrorMessage(payload, "Unable to export users."));
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match = /filename="([^"]+)"/i.exec(disposition);
+  const filename =
+    match?.[1] || `thm-users-export-${new Date().toISOString().slice(0, 10)}.csv`;
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export type CreateAdminUserInput = {
   fullName: string;
   region: "india" | "outside_india";
