@@ -292,9 +292,16 @@ export const FAQ_ITEMS: FaqItemData[] = [
         <p>It&apos;s simple.</p>
         <p>
           Click Start Your 14-Day Free Trial, enter your basic details and
-          follow the instructions to get started.
+          follow the instructions to register.
         </p>
-        <p>No payment details are required to start your free trial.</p>
+        <p>
+          Our 14-Day Free Trial runs in fixed cohorts starting on the 1st and
+          3rd Monday of every month. After you register, we&apos;ll confirm
+          your trial start and end dates.
+        </p>
+        <p>
+          No payment details are required to register for your free trial.
+        </p>
       </>
     ),
   },
