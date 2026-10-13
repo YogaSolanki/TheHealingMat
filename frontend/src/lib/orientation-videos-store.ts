@@ -162,7 +162,9 @@ export function useOrientationVideoCards(enabled = true) {
 
   useEffect(() => {
     if (!enabled) return;
-    void orientationVideosStore.ensure();
+    // Always refetch on dashboard mount/refresh so admin orientation
+    // video updates show up (titles, covers, order, etc.).
+    void orientationVideosStore.ensure({ force: true });
   }, [enabled]);
 
   return snapshot;
