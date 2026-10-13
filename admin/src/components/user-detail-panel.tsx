@@ -203,25 +203,55 @@ function upgradePlanOptions(
     .sort((a, b) => a.months - b.months);
 }
 
-/** Match payments/admin membershipEndsAt: start + N months − 1 day, end of day. */
+const MEMBERSHIP_TZ = "Asia/Kolkata";
+
+function istYmd(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: MEMBERSHIP_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  return {
+    year: Number(parts.find((p) => p.type === "year")?.value),
+    month: Number(parts.find((p) => p.type === "month")?.value),
+    day: Number(parts.find((p) => p.type === "day")?.value),
+  };
+}
+
+function istMidnight(year: number, month: number, day: number) {
+  const mm = String(month).padStart(2, "0");
+  const dd = String(day).padStart(2, "0");
+  return new Date(`${year}-${mm}-${dd}T00:00:00+05:30`);
+}
+
+function daysInMonth(year: number, month: number) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/** Match backend: start + N months − 1 day (IST end-of-day). */
 function calcMembershipEndsAt(startsAt: Date, months: number) {
-  const ends = new Date(startsAt.getTime());
-  ends.setMonth(ends.getMonth() + months);
-  ends.setDate(ends.getDate() - 1);
-  ends.setHours(23, 59, 59, 999);
-  return ends;
+  const { year, month, day } = istYmd(startsAt);
+  const added = month - 1 + Math.max(0, Math.floor(months));
+  const endYear = year + Math.floor(added / 12);
+  const endMonth = (added % 12) + 1;
+  const anniversaryDay = Math.min(day, daysInMonth(endYear, endMonth));
+  const anniversaryMidnight = istMidnight(endYear, endMonth, anniversaryDay);
+  return new Date(anniversaryMidnight.getTime() - 1);
 }
 
 function dayAfterDate(date: Date) {
-  const next = new Date(date.getTime());
-  next.setDate(next.getDate() + 1);
-  next.setHours(0, 0, 0, 0);
-  return next;
+  const { year, month, day } = istYmd(date);
+  const dim = daysInMonth(year, month);
+  if (day < dim) return istMidnight(year, month, day + 1);
+  if (month < 12) return istMidnight(year, month + 1, 1);
+  return istMidnight(year + 1, 1, 1);
 }
 
 function formatDateOnly(value: Date | string) {
   const date = typeof value === "string" ? new Date(value) : value;
   return new Intl.DateTimeFormat("en-IN", {
+    timeZone: MEMBERSHIP_TZ,
     day: "numeric",
     month: "short",
     year: "numeric",

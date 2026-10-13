@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { FormEvent, type ReactNode, useState } from "react";
+import { isValidPhoneNumber } from "libphonenumber-js";
+import { PhoneInput } from "react-international-phone";
+import "react-international-phone/style.css";
 import { FaWhatsapp } from "react-icons/fa";
 import {
   HiOutlineLockClosed,
@@ -20,6 +23,15 @@ import {
   SITE_PHONE_TEL,
   SITE_WHATSAPP_URL,
 } from "@/lib/site-contact";
+
+function isPhoneValid(phone: string): boolean {
+  if (!phone || phone.replace(/\D/g, "").length < 8) return false;
+  try {
+    return isValidPhoneNumber(phone);
+  } catch {
+    return false;
+  }
+}
 
 const cream = "#FBF9F5";
 
@@ -229,14 +241,23 @@ function ContactFormCard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const phoneDigits = phone.replace(/\D/g, "");
+  const phoneInvalid = phoneDigits.length > 3 && !isPhoneValid(phone);
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    setLoading(true);
     setError(null);
+
+    if (!isPhoneValid(phone)) {
+      setError("Please enter a valid phone number.");
+      return;
+    }
+
+    setLoading(true);
     try {
       await submitContact({
         name: name.trim(),
-        phone: phone.trim(),
+        phone: phone.replace(/[^\d+]/g, ""),
         email: email.trim() || undefined,
         message: message.trim(),
       });
@@ -308,17 +329,33 @@ function ContactFormCard() {
                 />
               </div>
               <div>
-                <label className={labelClass}>
+                <label htmlFor="contact-phone" className={labelClass}>
                   Phone Number <span className="text-[#c45c3a]">*</span>
                 </label>
-                <input
-                  required
+                <PhoneInput
+                  defaultCountry="in"
+                  preferredCountries={["in", "us", "gb", "ae", "au", "sg"]}
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className={fieldClass}
+                  onChange={(next) => {
+                    setPhone(next);
+                    if (error) setError(null);
+                  }}
+                  disabled={loading}
                   placeholder="Enter your phone number"
-                  autoComplete="tel"
+                  className={`corporate-phone-input ${phoneInvalid ? "corporate-phone-input--invalid" : ""}`}
+                  inputProps={{
+                    id: "contact-phone",
+                    required: true,
+                    name: "phone",
+                    autoComplete: "tel",
+                    "aria-invalid": phoneInvalid,
+                  }}
                 />
+                {phoneInvalid ? (
+                  <p className="mt-1.5 text-[12px] leading-snug text-[#a14a32]">
+                    Please enter a valid phone number.
+                  </p>
+                ) : null}
               </div>
             </div>
             <div>
