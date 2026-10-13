@@ -225,8 +225,9 @@ class SessionTimingsStore {
 export const sessionTimingsStore = new SessionTimingsStore();
 
 /**
- * @param load When true, fetch once if cache is empty. Prefer leaving this
- * false and calling `ensure()` only when Preferred class time opens.
+ * @param load When true, always refetch from the API on mount/refresh so
+ * admin timing changes appear. Prefer leaving this false and calling
+ * `ensure()` only when Preferred class time opens.
  */
 export function useSessionTimings(load = false): SessionTimingsSnapshot & {
   ensure: (options?: { force?: boolean }) => Promise<string[]>;
@@ -239,7 +240,7 @@ export function useSessionTimings(load = false): SessionTimingsSnapshot & {
 
   useEffect(() => {
     if (!load) return;
-    void sessionTimingsStore.ensure();
+    void sessionTimingsStore.ensure({ force: true });
   }, [load]);
 
   return {

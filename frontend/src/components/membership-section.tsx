@@ -466,7 +466,7 @@ function WeekBlock() {
     evening: eveningSlots,
     special: specialSlots,
     sundayQa,
-  } = useSessionTimings(false);
+  } = useSessionTimings(true);
   const specialSlot = specialSlots[0] ?? null;
   const sundaySlots = sundayQa.length > 0 ? sundayQa : sessionLabels;
 
@@ -678,7 +678,7 @@ function BenefitsBlock() {
 }
 
 function DailySessionsBlock() {
-  const { special } = useSessionTimings(false);
+  const { special } = useSessionTimings(true);
   const specialSlot = special[0] ?? null;
 
   return (
