@@ -813,6 +813,11 @@ export class AdminDashboardService {
         membership,
         invoice,
       );
+      void this.payments.notifyMembershipPurchaseEmail(
+        user,
+        membership,
+        invoice,
+      );
     }
 
     return this.getUserDetail(userId);
@@ -1097,6 +1102,11 @@ export class AdminDashboardService {
       }
 
       void this.payments.notifyMembershipPurchaseWhatsApp(
+        user,
+        upgraded,
+        invoice,
+      );
+      void this.payments.notifyMembershipPurchaseEmail(
         user,
         upgraded,
         invoice,

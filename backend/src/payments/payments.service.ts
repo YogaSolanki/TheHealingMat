@@ -30,6 +30,7 @@ import { DEFAULT_REFERRAL_DISCOUNT_PERCENT } from './membership-plans';
 import { MembershipOffersService } from './membership-offers.service';
 import { MembershipPlansService } from './membership-plans.service';
 import { Invoice } from './invoice.entity';
+import { MembershipEmailService } from './membership-email.service';
 import { MembershipWhatsAppService } from './membership-whatsapp.service';
 import { PaymentOrder } from './payment-order.entity';
 
@@ -59,6 +60,7 @@ export class PaymentsService {
     private readonly settings: SettingsService,
     private readonly invoices: InvoicesService,
     private readonly membershipWhatsApp: MembershipWhatsAppService,
+    private readonly membershipEmail: MembershipEmailService,
     @InjectRepository(PaymentOrder)
     private readonly orders: Repository<PaymentOrder>,
     @InjectRepository(Membership)
@@ -553,6 +555,37 @@ export class PaymentsService {
     }
   }
 
+  /**
+   * Email invoice PDF + permanent session link after paid membership.
+   * Critical for Outside India (WhatsApp confirm is India-only).
+   */
+  async notifyMembershipPurchaseEmail(
+    user: User,
+    membership: Membership,
+    invoice: Invoice,
+  ) {
+    try {
+      const file = await this.buildMembershipInvoiceFile(
+        user,
+        membership,
+        invoice,
+      );
+      await this.membershipEmail.sendMembershipPurchaseConfirm({
+        user,
+        membership,
+        invoice,
+        pdf: file.pdf,
+        filename: file.filename,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `[membership-email] Failed for membership ${membership.id}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+
   async getPublicInvoicePdf(invoiceId: string, token: string) {
     if (!this.membershipWhatsApp.verifyInvoiceDownloadToken(invoiceId, token)) {
       throw new NotFoundException('Invoice link is invalid or expired.');
@@ -907,6 +940,7 @@ export class PaymentsService {
         membership,
         issuedInvoice,
       );
+      void this.notifyMembershipPurchaseEmail(user, membership, issuedInvoice);
     }
 
     await this.deliverRazorpayInvoice(user, membership).catch((err) => {

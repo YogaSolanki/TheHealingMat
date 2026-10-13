@@ -1,3 +1,9 @@
+export type ResendAttachment = {
+  filename: string;
+  /** Base64-encoded file contents. */
+  content: string;
+};
+
 export async function sendResendEmail(input: {
   apiKey: string;
   from: string;
@@ -6,6 +12,7 @@ export async function sendResendEmail(input: {
   text: string;
   html?: string;
   replyTo?: string;
+  attachments?: ResendAttachment[];
 }) {
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -20,6 +27,9 @@ export async function sendResendEmail(input: {
       text: input.text,
       ...(input.html ? { html: input.html } : {}),
       ...(input.replyTo ? { reply_to: input.replyTo } : {}),
+      ...(input.attachments?.length
+        ? { attachments: input.attachments }
+        : {}),
     }),
   });
 

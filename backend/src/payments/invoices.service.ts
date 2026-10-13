@@ -73,6 +73,10 @@ export class InvoicesService implements OnModuleInit {
         ALTER TABLE "invoices"
         ADD COLUMN IF NOT EXISTS "membershipWhatsAppSentAt" timestamptz NULL
       `);
+      await this.dataSource.query(`
+        ALTER TABLE "invoices"
+        ADD COLUMN IF NOT EXISTS "membershipEmailSentAt" timestamptz NULL
+      `);
     } catch (err) {
       this.logger.warn(
         `Could not ensure membership invoice columns: ${
