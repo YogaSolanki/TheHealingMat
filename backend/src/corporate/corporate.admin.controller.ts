@@ -15,6 +15,7 @@ import { CorporateService } from './corporate.service';
 import {
   CreateCompanyDto,
   CreateCorporatePlanDto,
+  MarkCorporatePlanPaidDto,
   UpdateCompanyDto,
 } from './dto/corporate.dto';
 
@@ -85,6 +86,15 @@ export class CorporateAdminController {
     @Body() dto: CreateCorporatePlanDto,
   ) {
     return this.corporate.createPlan(id, dto);
+  }
+
+  @Post('companies/:id/plans/:planId/mark-paid')
+  markPlanPaid(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('planId', ParseUUIDPipe) planId: string,
+    @Body() dto: MarkCorporatePlanPaidDto,
+  ) {
+    return this.corporate.markPlanPaid(id, planId, dto);
   }
 
   @Get('companies/:id/plans/:planId/invoice')

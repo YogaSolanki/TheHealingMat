@@ -1,7 +1,4 @@
-import type { Metadata } from "next";
-import { ContentEmptyState } from "@/components/content-empty-state";
-import { VideoDetailSection } from "@/components/video-detail-section";
-import { fetchVideo, fetchVideos } from "@/lib/content-api";
+import { redirect } from "next/navigation";
 
 type VideoPageProps = {
   params: Promise<{ slug: string }>;
@@ -9,56 +6,8 @@ type VideoPageProps = {
 
 export const dynamic = "force-dynamic";
 
-export async function generateStaticParams() {
-  try {
-    const rows = await fetchVideos();
-    return rows.map((video) => ({ slug: video.slug }));
-  } catch {
-    return [];
-  }
-}
-
-export async function generateMetadata({
-  params,
-}: VideoPageProps): Promise<Metadata> {
-  const { slug } = await params;
-  try {
-    const video = await fetchVideo(slug);
-    return {
-      title: `${video.title} | The Healing Mat`,
-      description: video.description,
-    };
-  } catch {
-    return { title: "Video | The Healing Mat" };
-  }
-}
-
+/** Health videos play in a popup on /videos — keep slug URLs as shareable entry points. */
 export default async function VideoDetailPage({ params }: VideoPageProps) {
   const { slug } = await params;
-
-  try {
-    const video = await fetchVideo(slug);
-    return (
-      <main>
-        <VideoDetailSection
-          video={{
-            slug: video.slug,
-            title: video.title,
-            subtitle: video.subtitle,
-            description: video.description,
-            category: video.category,
-            duration: video.duration,
-            coverUrl: video.coverUrl,
-            videoUrl: video.videoUrl,
-          }}
-        />
-      </main>
-    );
-  } catch {
-    return (
-      <main>
-        <ContentEmptyState kind="videos" failed variant="detail" />
-      </main>
-    );
-  }
+  redirect(`/videos?watch=${encodeURIComponent(slug)}`);
 }

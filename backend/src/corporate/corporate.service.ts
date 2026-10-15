@@ -28,6 +28,7 @@ import { CorporatePlan } from './corporate-plan.entity';
 import {
   CreateCompanyDto,
   CreateCorporatePlanDto,
+  MarkCorporatePlanPaidDto,
   RequestCorporateCouponOtpDto,
   UpdateCompanyDto,
   VerifyCorporateCouponOtpDto,
@@ -97,6 +98,14 @@ export class CorporateService implements OnModuleInit {
       await this.dataSource.query(`
         ALTER TABLE "payment_orders"
         ADD COLUMN IF NOT EXISTS "domainVerificationId" uuid NULL
+      `);
+      await this.dataSource.query(`
+        ALTER TABLE "corporate_plans"
+        ADD COLUMN IF NOT EXISTS "poNumber" varchar(120) NULL
+      `);
+      await this.dataSource.query(`
+        ALTER TABLE "corporate_plans"
+        ADD COLUMN IF NOT EXISTS "poDate" date NULL
       `);
     } catch (err) {
       this.logger.warn(
@@ -329,10 +338,25 @@ export class CorporateService implements OnModuleInit {
       );
     }
 
+    const alreadyPaid = dto.alreadyPaid === true;
+    const poNumber = alreadyPaid
+      ? ''
+      : dto.poNumber?.trim().toUpperCase() || '';
+    const paymentMethod = alreadyPaid
+      ? dto.paymentMethod?.trim() || ''
+      : '';
+    const paymentRef = alreadyPaid ? dto.paymentRef?.trim() || '' : '';
+
     if (companyAmountPaise > 0) {
-      if (!dto.paymentMethod?.trim() || !dto.paymentRef?.trim()) {
+      if (alreadyPaid) {
+        if (paymentMethod.length < 2 || paymentRef.length < 2) {
+          throw new BadRequestException(
+            'Payment method and reference are required for a paid invoice.',
+          );
+        }
+      } else if (poNumber.length < 1) {
         throw new BadRequestException(
-          'Payment method and reference are required when the company pays an amount.',
+          'PO number is required to issue the unpaid company invoice.',
         );
       }
     }
@@ -340,16 +364,10 @@ export class CorporateService implements OnModuleInit {
       throw new BadRequestException('Admin note is required.');
     }
 
-    const billingLocation =
-      dto.billingLocation?.trim() || company.state?.trim() || '';
-    if (billingLocation.length < 2) {
+    if (!company.state?.trim() && !company.billingAddress?.trim()) {
       throw new BadRequestException(
-        'Enter the company state / billing location for the invoice.',
+        'Add the company state or billing address on the company profile before issuing an invoice.',
       );
-    }
-    if (!company.state?.trim()) {
-      company.state = billingLocation;
-      await this.companies.save(company);
     }
 
     const startsAt = dto.startsAt ? new Date(dto.startsAt) : new Date();
@@ -357,6 +375,9 @@ export class CorporateService implements OnModuleInit {
       throw new BadRequestException('Invalid start date.');
     }
     const endsAt = membershipEndsAt(startsAt, dto.planMonths);
+    const invoiceStatus: 'unpaid' | 'paid' =
+      companyAmountPaise > 0 && !alreadyPaid ? 'unpaid' : 'paid';
+    const issuedAt = new Date();
 
     const plan = await this.plans.save(
       this.plans.create({
@@ -369,15 +390,17 @@ export class CorporateService implements OnModuleInit {
         listPricePerSeatPaise,
         totalListPricePaise,
         companyAmountPaise,
-        paymentMethod: dto.paymentMethod.trim(),
-        paymentRef: dto.paymentRef.trim(),
+        paymentMethod: alreadyPaid ? paymentMethod : null,
+        paymentRef: alreadyPaid ? paymentRef : null,
+        poNumber: poNumber || null,
+        poDate: null,
         adminNote: dto.adminNote.trim(),
         couponId: null,
         invoiceId: null,
         invoiceNumber: null,
         startsAt,
         endsAt,
-        status: 'confirmed',
+        status: invoiceStatus,
       }),
     );
 
@@ -404,13 +427,16 @@ export class CorporateService implements OnModuleInit {
       listPricePaise: totalListPricePaise,
       discountPaise: companyDiscountPaise,
       amountPaidPaise: companyAmountPaise,
-      paymentMethod: plan.paymentMethod || 'Other',
-      paymentReference: plan.paymentRef,
+      paymentMethod: alreadyPaid ? paymentMethod : null,
+      paymentReference: alreadyPaid ? paymentRef : null,
+      paymentStatus: invoiceStatus,
+      poNumber: poNumber || null,
+      poDate: null,
       discountLabel:
         companyPayPercent >= 100
           ? `₹1 × ${employeeCount} employee seat${employeeCount === 1 ? '' : 's'} (member invoices)`
           : `Employee share ${100 - companyPayPercent}%`,
-      issuedAt: new Date(),
+      issuedAt,
     });
     if (invoice) {
       plan.invoiceId = invoice.id;
@@ -418,6 +444,46 @@ export class CorporateService implements OnModuleInit {
     }
 
     await this.plans.save(plan);
+    return this.getCompany(companyId);
+  }
+
+  /**
+   * Record company payment on the existing CO invoice.
+   * Invoice number / serial stay the same — only payment fields + status change.
+   */
+  async markPlanPaid(
+    companyId: string,
+    planId: string,
+    dto: MarkCorporatePlanPaidDto,
+  ) {
+    await this.requireCompany(companyId);
+    const plan = await this.plans.findOne({
+      where: { id: planId, companyId },
+    });
+    if (!plan) throw new NotFoundException('Corporate plan not found.');
+    if (plan.companyAmountPaise <= 0 || !plan.invoiceNumber) {
+      throw new BadRequestException('This plan has no payable company invoice.');
+    }
+
+    const paidAt = dto.paidAt
+      ? new Date(`${dto.paidAt.trim().slice(0, 10)}T12:00:00`)
+      : new Date();
+    if (Number.isNaN(paidAt.getTime())) {
+      throw new BadRequestException('Invalid payment date.');
+    }
+
+    const invoice = await this.invoices.markCorporateInvoicePaid({
+      corporatePlanId: plan.id,
+      paymentMethod: dto.paymentMethod,
+      paymentReference: dto.paymentRef,
+      paidAt,
+    });
+
+    plan.paymentMethod = invoice.paymentMethod;
+    plan.paymentRef = invoice.paymentReference;
+    plan.status = 'paid';
+    await this.plans.save(plan);
+
     return this.getCompany(companyId);
   }
 
@@ -436,10 +502,16 @@ export class CorporateService implements OnModuleInit {
       (await this.invoices.findByInvoiceNumber(plan.invoiceNumber));
     if (!invoice) throw new NotFoundException('Invoice not found.');
 
+    const paymentStatus =
+      invoice.paymentStatus === 'unpaid' ? 'unpaid' : 'paid';
+    const paidAt =
+      invoice.paidAt ??
+      (paymentStatus === 'paid' ? invoice.issuedAt : null);
+
     const pdf = await buildMembershipInvoicePdf({
       invoiceNo: invoice.invoiceNumber,
       issuedAt: invoice.issuedAt,
-      paidAt: invoice.issuedAt,
+      paidAt,
       memberName: company.companyName,
       memberEmail: company.billingEmail,
       memberMobile: company.billingPhone,
@@ -455,11 +527,16 @@ export class CorporateService implements OnModuleInit {
       amountPaidPaise: invoice.amountPaidPaise,
       currency: 'INR',
       paymentRef: invoice.paymentReference,
-      paymentMethod: invoice.paymentMethod || 'Other',
+      paymentMethod: invoice.paymentMethod,
       startsAt: plan.startsAt ?? invoice.issuedAt,
       endsAt: plan.endsAt ?? invoice.issuedAt,
       quantity: plan.employeeCount,
       unitPricePaise: plan.listPricePerSeatPaise,
+      // Unpaid: show PO No. Paid: show Payment Status (do not pass poNumber).
+      ...(paymentStatus === 'unpaid' && (invoice.poNumber || plan.poNumber)
+        ? { poNumber: invoice.poNumber ?? plan.poNumber }
+        : {}),
+      paymentStatus,
     });
 
     return {
@@ -849,12 +926,20 @@ export class CorporateService implements OnModuleInit {
       companyAmountPaise: plan.companyAmountPaise,
       paymentMethod: plan.paymentMethod,
       paymentRef: plan.paymentRef,
+      poNumber: plan.poNumber,
+      poDate: plan.poDate,
       adminNote: plan.adminNote,
       invoiceId: plan.invoiceId,
       invoiceNumber: plan.invoiceNumber,
+      invoicePaymentStatus:
+        plan.status === 'unpaid'
+          ? 'unpaid'
+          : plan.invoiceNumber
+            ? 'paid'
+            : null,
       startsAt: plan.startsAt?.toISOString() ?? null,
       endsAt: plan.endsAt?.toISOString() ?? null,
-      status: plan.status,
+      status: plan.status === 'confirmed' ? 'paid' : plan.status,
       createdAt: plan.createdAt.toISOString(),
       coupon,
       redemptions,

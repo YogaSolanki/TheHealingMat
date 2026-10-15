@@ -11,7 +11,7 @@ import PDFDocument from 'pdfkit';
 export type InvoicePdfInput = {
   invoiceNo: string;
   issuedAt: Date;
-  paidAt: Date;
+  paidAt: Date | null;
   memberName: string;
   memberEmail: string | null;
   memberMobile: string | null;
@@ -26,7 +26,7 @@ export type InvoicePdfInput = {
   amountPaidPaise: number;
   currency: 'INR' | 'USD';
   paymentRef: string | null;
-  paymentMethod: string;
+  paymentMethod: string | null;
   startsAt: Date;
   endsAt: Date;
   /** Line-item quantity (corporate seat count). Defaults to 1. */
@@ -40,6 +40,13 @@ export type InvoicePdfInput = {
   billingAddress?: string | null;
   /** Corporate invoices only — shown under company name. */
   gstNumber?: string | null;
+  /**
+   * Corporate unpaid invoices only: show PO No. instead of Payment Status.
+   * Omit when paid so the banner shows Payment Status: Paid.
+   */
+  poNumber?: string | null;
+  /** Corporate unpaid invoices show Amount Due; paid shows Amount Paid. */
+  paymentStatus?: 'unpaid' | 'paid';
 };
 
 const PAGE_W = 595;
@@ -394,9 +401,17 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
       .fillColor(NAVY)
       .text(value, metaValueX, rowY, { lineBreak: false });
   };
+  const isCorporatePo = input.poNumber !== undefined;
+  const unpaid = input.paymentStatus === 'unpaid';
+  const poDisplay = input.poNumber?.trim() || '—';
+
   metaRow('Invoice No.', input.invoiceNo, bannerY + 12, true);
   metaRow(`Invoice Date`, formatDate(input.issuedAt), bannerY + 32);
-  metaRow('Payment Status', 'Paid', bannerY + 52, true);
+  if (isCorporatePo) {
+    metaRow('PO No.', poDisplay, bannerY + 52, true);
+  } else {
+    metaRow('Payment Status', unpaid ? 'Unpaid' : 'Paid', bannerY + 52, true);
+  }
 
   // ========== BILL TO ==========
   let y = bannerY + bannerH + 28;
@@ -622,11 +637,14 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
 
   // Total row
   sumY += sumH;
+  const totalLabel = unpaid
+    ? `Total Amount Due (${mark})`
+    : `Total Amount Paid (${mark})`;
   doc
     .font('Invoice-Bold')
     .fontSize(13)
     .fillColor(NAVY)
-    .text(`Total Amount Paid (${mark})`, tableX + 12, sumY + 14, {
+    .text(totalLabel, tableX + 12, sumY + 14, {
       lineBreak: false,
     });
   doc
@@ -668,12 +686,20 @@ function drawInvoice(doc: PDFKit.PDFDocument, input: InvoicePdfInput) {
     y += 20;
   };
 
-  payRow('Payment Method', input.paymentMethod);
-  payRow('Payment Transaction ID', input.paymentRef?.trim() || 'N/A');
-  payRow(
-    'Payment Date',
-    formatPaymentDate(input.paidAt, input.isInternational),
-  );
+  if (unpaid) {
+    payRow('Payment Method', 'Pending');
+    payRow('Payment Transaction ID', 'N/A');
+    payRow('Payment Date', '—');
+  } else {
+    payRow('Payment Method', input.paymentMethod?.trim() || 'Other');
+    payRow('Payment Transaction ID', input.paymentRef?.trim() || 'N/A');
+    payRow(
+      'Payment Date',
+      input.paidAt
+        ? formatPaymentDate(input.paidAt, input.isInternational)
+        : '—',
+    );
+  }
 
   // ========== GST + thank-you pinned to bottom of page 1 ==========
   const gstH = 28;

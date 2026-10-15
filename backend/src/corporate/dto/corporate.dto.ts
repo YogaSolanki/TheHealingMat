@@ -1,7 +1,8 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsEmail,
   IsInt,
   IsOptional,
@@ -118,15 +119,35 @@ export class CreateCorporatePlanDto {
   @Max(100)
   companyPayPercent: number;
 
+  /**
+   * When true, issue a paid invoice immediately (no PO).
+   * When false/omitted, issue unpaid invoice and require PO number.
+   */
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  alreadyPaid?: boolean;
+
+  /** Required for unpaid invoices when company amount > 0. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(120)
+  poNumber?: string;
+
+  /** Required when alreadyPaid and company amount > 0. */
+  @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(80)
-  paymentMethod: string;
+  paymentMethod?: string;
 
+  /** Required when alreadyPaid and company amount > 0. */
+  @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(120)
-  paymentRef: string;
+  paymentRef?: string;
 
   @IsString()
   @MinLength(3)
@@ -142,6 +163,24 @@ export class CreateCorporatePlanDto {
   @IsString()
   @Matches(/^\d{4}-\d{2}-\d{2}/)
   startsAt?: string;
+}
+
+/** Record payment on an existing unpaid corporate invoice (same invoice number). */
+export class MarkCorporatePlanPaidDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(80)
+  paymentMethod: string;
+
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  paymentRef: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}/)
+  paidAt?: string;
 }
 
 export class RequestCorporateCouponOtpDto {

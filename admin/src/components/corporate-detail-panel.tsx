@@ -15,15 +15,23 @@ import {
   exportAdminPlanCouponUsers,
   getAdminCompany,
   listAdminMembershipPlans,
+  markAdminCorporatePlanPaid,
   updateAdminCompany,
   type AdminCompanyDetail,
+  type AdminCorporatePlan,
   type AdminMembershipPlan,
 } from "@/lib/api";
 import { invalidateCached, DASHBOARD_CACHE_KEYS } from "@/lib/dashboard-cache";
 
 const inputClass =
-  "mt-1.5 h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15";
+  "h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm leading-none text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 disabled:opacity-60";
+/** For labels that wrap the control (adds top spacing under the label text). */
+const nestedInputClass = `${inputClass} mt-1.5`;
+const selectClass =
+  "h-11 w-full appearance-none rounded-xl border border-[#e2e8df] bg-white bg-[length:12px_12px] bg-[position:right_0.85rem_center] bg-no-repeat py-0 pl-3.5 pr-9 text-sm font-medium leading-none text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 disabled:opacity-60 [background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 4.5L6 8l3.5-3.5' stroke='%238a978c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")]";
+const nestedSelectClass = `${selectClass} mt-1.5`;
 const labelClass = "block text-sm font-semibold text-[#243028]";
+const fieldClass = "flex flex-col gap-1.5";
 const cardClass =
   "rounded-2xl border border-[#e6ebe3] bg-white p-5 shadow-[0_4px_16px_rgba(21,32,25,0.03)] sm:p-6";
 
@@ -94,10 +102,18 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
   const [employeeCount, setEmployeeCount] = useState("20");
   const [listPricePerSeatMajor, setListPricePerSeatMajor] = useState("");
   const [companyPayPercent, setCompanyPayPercent] = useState("50");
-  const [paymentMethod, setPaymentMethod] = useState("UPI");
+  const [alreadyPaid, setAlreadyPaid] = useState(false);
+  const [poNumber, setPoNumber] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("Bank transfer");
   const [paymentRef, setPaymentRef] = useState("");
   const [adminNote, setAdminNote] = useState("");
-  const [billingLocation, setBillingLocation] = useState("");
+  const [markPaidPlan, setMarkPaidPlan] = useState<AdminCorporatePlan | null>(
+    null,
+  );
+  const [markPaidMethod, setMarkPaidMethod] = useState("Bank transfer");
+  const [markPaidRef, setMarkPaidRef] = useState("");
+  const [markPaidDate, setMarkPaidDate] = useState("");
+  const [markingPaid, setMarkingPaid] = useState(false);
 
   const token = useMemo(
     () =>
@@ -116,7 +132,6 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
     setBillingEmail(next.company.billingEmail ?? "");
     setBillingPhone(next.company.billingPhone ?? "");
     setBillingAddress(next.company.billingAddress ?? "");
-    setBillingLocation(next.company.state ?? "");
   }
 
   const load = useCallback(async () => {
@@ -172,6 +187,11 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
       catalogPlans.length > 0 ? String(catalogPlans[0].months) : planMonths;
     setPlanMonths(months);
     setListPricePerSeatMajor(priceMajorFromCatalog(months));
+    setAlreadyPaid(false);
+    setPoNumber("");
+    setPaymentMethod("Bank transfer");
+    setPaymentRef("");
+    setAdminNote("");
     setPlanOpen(true);
   }
   /** ₹1/seat reserved for member invoices when company pays 100%. */
@@ -243,23 +263,52 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
     }
     setSavingPlan(true);
     try {
+      if (companyAmount > 0) {
+        if (alreadyPaid) {
+          if (!paymentMethod.trim() || !paymentRef.trim()) {
+            setToast({
+              message: "Enter payment method and reference.",
+              variant: "error",
+            });
+            setSavingPlan(false);
+            return;
+          }
+        } else if (!poNumber.trim()) {
+          setToast({
+            message: "Enter the company PO number.",
+            variant: "error",
+          });
+          setSavingPlan(false);
+          return;
+        }
+      }
       const next = await createAdminCorporatePlan(token, companyId, {
         planMonths: Number(planMonths),
         employeeCount: seats,
         listPricePerSeatPaise: listPerSeat,
         companyPayPercent: payPct,
-        paymentMethod: paymentMethod.trim(),
-        paymentRef: paymentRef.trim(),
+        alreadyPaid,
+        poNumber: alreadyPaid
+          ? undefined
+          : poNumber.trim().toUpperCase() || undefined,
+        paymentMethod: alreadyPaid ? paymentMethod.trim() : undefined,
+        paymentRef: alreadyPaid ? paymentRef.trim() : undefined,
         adminNote: adminNote.trim(),
-        billingLocation: billingLocation.trim() || undefined,
       });
       applyDetail(next);
       invalidateCached(DASHBOARD_CACHE_KEYS.corporate);
       setPlanOpen(false);
+      setAlreadyPaid(false);
+      setPoNumber("");
       setPaymentRef("");
       setAdminNote("");
       setToast({
-        message: "Corporate plan confirmed — invoice and coupon created.",
+        message:
+          companyAmount <= 0
+            ? "Corporate plan created."
+            : alreadyPaid
+              ? "Paid invoice created."
+              : "Unpaid invoice created.",
         variant: "success",
       });
     } catch (err) {
@@ -269,6 +318,48 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
       });
     } finally {
       setSavingPlan(false);
+    }
+  }
+
+  async function onMarkPaid(event: FormEvent) {
+    event.preventDefault();
+    if (!token || !markPaidPlan || markingPaid) return;
+    if (!markPaidRef.trim()) {
+      setToast({
+        message: "Payment reference is required.",
+        variant: "error",
+      });
+      return;
+    }
+    setMarkingPaid(true);
+    try {
+      const next = await markAdminCorporatePlanPaid(
+        token,
+        companyId,
+        markPaidPlan.id,
+        {
+          paymentMethod: markPaidMethod.trim(),
+          paymentRef: markPaidRef.trim(),
+          paidAt: markPaidDate.trim() || undefined,
+        },
+      );
+      applyDetail(next);
+      invalidateCached(DASHBOARD_CACHE_KEYS.corporate);
+      setMarkPaidPlan(null);
+      setMarkPaidRef("");
+      setMarkPaidDate("");
+      setToast({
+        message: `Invoice ${markPaidPlan.invoiceNumber} marked paid (number unchanged).`,
+        variant: "success",
+      });
+    } catch (err) {
+      setToast({
+        message:
+          err instanceof Error ? err.message : "Unable to mark invoice paid.",
+        variant: "error",
+      });
+    } finally {
+      setMarkingPaid(false);
     }
   }
 
@@ -448,7 +539,7 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
             <input
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
-              className={inputClass}
+              className={nestedInputClass}
               disabled={!editing || saving}
               required
             />
@@ -458,7 +549,7 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
             <input
               value={domain}
               onChange={(e) => setDomain(e.target.value)}
-              className={inputClass}
+              className={nestedInputClass}
               disabled={!editing || saving}
               required
               placeholder="xyz.org"
@@ -471,7 +562,7 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
             <input
               value={gstNumber}
               onChange={(e) => setGstNumber(e.target.value)}
-              className={inputClass}
+              className={nestedInputClass}
               disabled={!editing || saving}
             />
           </label>
@@ -480,7 +571,7 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
             <input
               value={state}
               onChange={(e) => setState(e.target.value)}
-              className={inputClass}
+              className={nestedInputClass}
               disabled={!editing || saving}
             />
           </label>
@@ -490,7 +581,7 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
               type="email"
               value={billingEmail}
               onChange={(e) => setBillingEmail(e.target.value)}
-              className={inputClass}
+              className={nestedInputClass}
               disabled={!editing || saving}
             />
           </label>
@@ -499,7 +590,7 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
             <input
               value={billingPhone}
               onChange={(e) => setBillingPhone(e.target.value)}
-              className={inputClass}
+              className={nestedInputClass}
               disabled={!editing || saving}
             />
           </label>
@@ -533,7 +624,8 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
               Corporate plans
             </h2>
             <p className="mt-0.5 text-xs text-[#8a978c]">
-              Confirmed plans, CO invoices, and seat coupons.
+              Issue unpaid CO invoice (with PO No.) first, mark paid after
+              payment — same invoice number.
             </p>
           </div>
           {detail.plans.some((plan) => Boolean(plan.coupon)) ? (
@@ -569,7 +661,23 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
                     </p>
                     <p className="mt-1 text-xs text-[#8a978c]">
                       {formatDate(plan.startsAt)} → {formatDate(plan.endsAt)}
+                      {plan.poNumber ? ` · PO ${plan.poNumber}` : ""}
                     </p>
+                    {plan.invoiceNumber ? (
+                      <p className="mt-1.5">
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                            plan.status === "unpaid"
+                              ? "bg-[#fff4e5] text-[#9a6700]"
+                              : "bg-[#e8f2ea] text-[#1f6b3a]"
+                          }`}
+                        >
+                          {plan.status === "unpaid"
+                            ? "Invoice unpaid"
+                            : "Invoice paid"}
+                        </span>
+                      </p>
+                    ) : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {plan.invoiceNumber ? (
@@ -603,6 +711,22 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
                         {downloadingPlanId === plan.id
                           ? "Downloading…"
                           : `Invoice ${plan.invoiceNumber}`}
+                      </button>
+                    ) : null}
+                    {plan.invoiceNumber && plan.status === "unpaid" ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMarkPaidPlan(plan);
+                          setMarkPaidMethod("Bank transfer");
+                          setMarkPaidRef("");
+                          setMarkPaidDate(
+                            new Date().toISOString().slice(0, 10),
+                          );
+                        }}
+                        className="inline-flex h-9 items-center rounded-full border border-[#9a6700]/35 bg-[#fff8eb] px-3 text-xs font-semibold text-[#9a6700]"
+                      >
+                        Mark paid
                       </button>
                     ) : null}
                     <button
@@ -661,8 +785,19 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
                     <p className="text-xs font-semibold uppercase tracking-wide text-[#8a978c]">
                       Seat usage ({plan.seatsUsed}/{plan.employeeCount})
                     </p>
-                    {plan.paymentMethod || plan.paymentRef || plan.adminNote ? (
+                    {plan.poNumber ||
+                    plan.paymentMethod ||
+                    plan.paymentRef ||
+                    plan.adminNote ? (
                       <div className="mt-3 grid gap-2 rounded-xl bg-[#f7faf6] px-3.5 py-3 text-xs text-[#5f6f64] sm:grid-cols-2">
+                        {plan.poNumber ? (
+                          <p>
+                            PO:{" "}
+                            <span className="font-semibold text-[#243028]">
+                              {plan.poNumber}
+                            </span>
+                          </p>
+                        ) : null}
                         {plan.paymentMethod ? (
                           <p>
                             Payment:{" "}
@@ -797,20 +932,21 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
       </section>
 
       {planOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 sm:py-8">
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-3xl rounded-2xl border border-[#e6ebe3] bg-white p-5 shadow-[0_20px_48px_rgba(21,32,25,0.18)] sm:p-6"
+            className="flex max-h-[calc(100vh-3rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[#e6ebe3] bg-white shadow-[0_20px_48px_rgba(21,32,25,0.18)] sm:max-h-[calc(100vh-4rem)]"
           >
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[#eef2ee] px-5 py-4 sm:px-6 sm:py-5">
               <div>
                 <h2 className="text-lg font-semibold text-[#243028]">
-                  Confirm corporate plan
+                  Create corporate plan
                 </h2>
                 <p className="mt-1 text-sm text-[#5f6f64]">
-                  Creates a CO invoice for the company share and a seat coupon
-                  for employees.
+                  {alreadyPaid
+                    ? "Creates a paid CO invoice and seat coupon."
+                    : "Creates an unpaid CO invoice (PO No.) and seat coupon."}
                 </p>
               </div>
               <button
@@ -824,162 +960,235 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
 
             <form
               onSubmit={(e) => void onConfirmPlan(e)}
-              className="mt-5 grid gap-4 sm:grid-cols-2"
+              className="flex min-h-0 flex-1 flex-col"
             >
-              <label className={labelClass}>
-                Plan duration
-                <select
-                  value={planMonths}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    setPlanMonths(next);
-                    setListPricePerSeatMajor(priceMajorFromCatalog(next));
-                  }}
-                  className={inputClass}
-                  disabled={savingPlan}
-                >
-                  {(catalogPlans.length
-                    ? catalogPlans
-                    : [
-                        { months: 3, name: "3-Month" },
-                        { months: 6, name: "6-Month" },
-                        { months: 12, name: "12-Month" },
-                      ]
-                  ).map((plan) => (
-                    <option key={plan.months} value={plan.months}>
-                      {plan.months} months
-                      {"listPricePaise" in plan && plan.listPricePaise
-                        ? ` · catalog ${formatMoney(plan.listPricePaise)}/seat`
-                        : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className={labelClass}>
-                List price per seat (₹)
-                <input
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={listPricePerSeatMajor}
-                  onChange={(e) => setListPricePerSeatMajor(e.target.value)}
-                  className={inputClass}
-                  disabled={savingPlan}
-                  required
-                  placeholder="e.g. 3650"
-                />
-                <span className="mt-1 block text-xs font-normal text-[#8a978c]">
-                  Prefills from the catalog; edit for this corporate plan only.
-                  Used for totals and the CO invoice.
-                </span>
-              </label>
-              <label className={labelClass}>
-                Number of employees
-                <input
-                  type="number"
-                  min={1}
-                  value={employeeCount}
-                  onChange={(e) => setEmployeeCount(e.target.value)}
-                  className={inputClass}
-                  disabled={savingPlan}
-                  required
-                />
-              </label>
-              <label className={labelClass}>
-                Company pay %
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={companyPayPercent}
-                  onChange={(e) => setCompanyPayPercent(e.target.value)}
-                  className={inputClass}
-                  disabled={savingPlan}
-                  required
-                />
-                <span className="mt-1 block text-xs font-normal text-[#8a978c]">
-                  100 = company pays almost all (₹1/seat reserved for each
-                  employee invoice). 50 = company 50% / employee 50% via coupon.
-                </span>
-              </label>
-              <label className={labelClass}>
-                Billing location (state)
-                <input
-                  value={billingLocation}
-                  onChange={(e) => setBillingLocation(e.target.value)}
-                  className={inputClass}
-                  disabled={savingPlan}
-                  required
-                />
-              </label>
-              <div className="rounded-xl bg-[#f7faf6] px-3.5 py-3 text-sm sm:col-span-2">
-                <p className="text-[#5f6f64]">
-                  Per seat:{" "}
-                  <span className="font-semibold text-[#243028]">
-                    {formatMoney(listPerSeat)}
-                  </span>{" "}
-                  · List total:{" "}
-                  <span className="font-semibold text-[#243028]">
-                    {formatMoney(totalList)}
-                  </span>{" "}
-                  · Company invoice:{" "}
-                  <span className="font-semibold text-[#243028]">
-                    {formatMoney(companyAmount)}
-                  </span>
-                  {payPct >= 100 && seats > 0 ? (
-                    <>
-                      {" "}
-                      · Discount: −{formatMoney(seatInvoiceReserve)} (
-                      {seats} user{seats === 1 ? "" : "s"} × ₹1)
-                    </>
-                  ) : null}
-                </p>
-                <p className="mt-1 text-xs text-[#8a978c]">
-                  Employee coupon: {payPct}% OFF × {seats} use
-                  {seats === 1 ? "" : "s"}
-                  {payPct >= 100
-                    ? " — members still pay ₹1 each for their invoice"
-                    : ""}
-                </p>
+              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
+                <div className="grid items-start gap-4 sm:grid-cols-2">
+                  <div className={fieldClass}>
+                    <label htmlFor="corp-plan-months" className={labelClass}>
+                      Plan duration
+                    </label>
+                    <select
+                      id="corp-plan-months"
+                      value={planMonths}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setPlanMonths(next);
+                        setListPricePerSeatMajor(priceMajorFromCatalog(next));
+                      }}
+                      className={selectClass}
+                      disabled={savingPlan}
+                    >
+                      {(catalogPlans.length
+                        ? catalogPlans
+                        : [
+                            { months: 3, name: "3-Month" },
+                            { months: 6, name: "6-Month" },
+                            { months: 12, name: "12-Month" },
+                          ]
+                      ).map((plan) => (
+                        <option key={plan.months} value={plan.months}>
+                          {plan.months} months
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className={fieldClass}>
+                    <label htmlFor="corp-list-price" className={labelClass}>
+                      List price per seat (₹)
+                    </label>
+                    <input
+                      id="corp-list-price"
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={listPricePerSeatMajor}
+                      onChange={(e) => setListPricePerSeatMajor(e.target.value)}
+                      className={inputClass}
+                      disabled={savingPlan}
+                      required
+                      placeholder="e.g. 3650"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid items-start gap-4 sm:grid-cols-2">
+                  <div className={fieldClass}>
+                    <label htmlFor="corp-employees" className={labelClass}>
+                      Number of employees
+                    </label>
+                    <input
+                      id="corp-employees"
+                      type="number"
+                      min={1}
+                      value={employeeCount}
+                      onChange={(e) => setEmployeeCount(e.target.value)}
+                      className={inputClass}
+                      disabled={savingPlan}
+                      required
+                    />
+                  </div>
+                  <div className={fieldClass}>
+                    <label htmlFor="corp-pay-pct" className={labelClass}>
+                      Company pay %
+                    </label>
+                    <input
+                      id="corp-pay-pct"
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={companyPayPercent}
+                      onChange={(e) => setCompanyPayPercent(e.target.value)}
+                      className={inputClass}
+                      disabled={savingPlan}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-xl bg-[#f7faf6] px-3.5 py-3 text-sm">
+                  <p className="text-[#5f6f64]">
+                    Per seat:{" "}
+                    <span className="font-semibold text-[#243028]">
+                      {formatMoney(listPerSeat)}
+                    </span>{" "}
+                    · List total:{" "}
+                    <span className="font-semibold text-[#243028]">
+                      {formatMoney(totalList)}
+                    </span>{" "}
+                    · Company invoice:{" "}
+                    <span className="font-semibold text-[#243028]">
+                      {formatMoney(companyAmount)}
+                    </span>
+                    {payPct >= 100 && seats > 0 ? (
+                      <>
+                        {" "}
+                        · Discount: −{formatMoney(seatInvoiceReserve)} (
+                        {seats} user{seats === 1 ? "" : "s"} × ₹1)
+                      </>
+                    ) : null}
+                  </p>
+                  <p className="mt-1 text-xs text-[#8a978c]">
+                    Employee coupon: {payPct}% OFF × {seats} use
+                    {seats === 1 ? "" : "s"}
+                    {payPct >= 100
+                      ? " — members still pay ₹1 each for their invoice"
+                      : ""}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-[#e6ebe3] px-3.5 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[#243028]">
+                        Already paid
+                      </p>
+                      <p className="mt-0.5 text-xs text-[#8a978c]">
+                        {alreadyPaid
+                          ? "Issue a paid invoice now (no PO number)."
+                          : "Issue unpaid invoice with PO; mark paid later."}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={alreadyPaid}
+                      disabled={savingPlan}
+                      onClick={() => setAlreadyPaid((v) => !v)}
+                      className={`relative h-7 w-12 shrink-0 rounded-full transition ${
+                        alreadyPaid ? "bg-[#1f6b3a]" : "bg-[#d7e0d6]"
+                      } disabled:opacity-60`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition ${
+                          alreadyPaid ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="mt-3 grid items-start gap-4 sm:grid-cols-2">
+                    {alreadyPaid ? (
+                      <>
+                        <div className={fieldClass}>
+                          <label
+                            htmlFor="corp-payment-method"
+                            className={labelClass}
+                          >
+                            Payment method
+                          </label>
+                          <select
+                            id="corp-payment-method"
+                            value={paymentMethod}
+                            onChange={(e) => setPaymentMethod(e.target.value)}
+                            className={selectClass}
+                            disabled={savingPlan}
+                          >
+                            {PAYMENT_METHOD_OPTIONS.map((method) => (
+                              <option key={method} value={method}>
+                                {method}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className={fieldClass}>
+                          <label
+                            htmlFor="corp-payment-ref"
+                            className={labelClass}
+                          >
+                            Payment reference
+                          </label>
+                          <input
+                            id="corp-payment-ref"
+                            value={paymentRef}
+                            onChange={(e) => setPaymentRef(e.target.value)}
+                            className={inputClass}
+                            disabled={savingPlan}
+                            required={companyAmount > 0}
+                            placeholder="UTR / transaction ID"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <div className={`${fieldClass} sm:col-span-2`}>
+                        <label htmlFor="corp-po-number" className={labelClass}>
+                          PO number
+                        </label>
+                        <input
+                          id="corp-po-number"
+                          value={poNumber}
+                          onChange={(e) =>
+                            setPoNumber(e.target.value.toUpperCase())
+                          }
+                          className={`${inputClass} uppercase`}
+                          disabled={savingPlan}
+                          required={companyAmount > 0}
+                          placeholder="e.g. PO/2026/0142"
+                          autoCapitalize="characters"
+                          spellCheck={false}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className={fieldClass}>
+                  <label htmlFor="corp-admin-note" className={labelClass}>
+                    Admin note
+                  </label>
+                  <textarea
+                    id="corp-admin-note"
+                    value={adminNote}
+                    onChange={(e) => setAdminNote(e.target.value)}
+                    rows={2}
+                    className="w-full resize-none rounded-xl border border-[#e2e8df] bg-white px-3.5 py-2.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 disabled:opacity-60"
+                    disabled={savingPlan}
+                    required
+                    placeholder="Why this corporate plan was created"
+                  />
+                </div>
               </div>
-              <label className={labelClass}>
-                Payment method
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className={inputClass}
-                  disabled={savingPlan}
-                >
-                  {PAYMENT_METHOD_OPTIONS.map((method) => (
-                    <option key={method} value={method}>
-                      {method}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className={labelClass}>
-                Payment reference
-                <input
-                  value={paymentRef}
-                  onChange={(e) => setPaymentRef(e.target.value)}
-                  className={inputClass}
-                  disabled={savingPlan}
-                  required={companyAmount > 0}
-                />
-              </label>
-              <label className={`${labelClass} sm:col-span-2`}>
-                Admin note
-                <textarea
-                  value={adminNote}
-                  onChange={(e) => setAdminNote(e.target.value)}
-                  rows={2}
-                  className="mt-1.5 w-full resize-none rounded-xl border border-[#e2e8df] bg-white px-3.5 py-2.5 text-sm"
-                  disabled={savingPlan}
-                  required
-                  placeholder="Why this corporate plan was created"
-                />
-              </label>
-              <div className="flex flex-col-reverse gap-2 sm:col-span-2 sm:flex-row sm:justify-end">
+              <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-[#eef2ee] px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
                 <button
                   type="button"
                   onClick={() => !savingPlan && setPlanOpen(false)}
@@ -993,7 +1202,103 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
                   disabled={savingPlan}
                   className="h-11 rounded-xl bg-[#1f6b3a] px-4 text-sm font-semibold text-white disabled:opacity-60"
                 >
-                  {savingPlan ? "Confirming…" : "Confirm plan"}
+                  {savingPlan
+                    ? "Creating…"
+                    : alreadyPaid
+                      ? "Issue paid invoice"
+                      : "Issue unpaid invoice"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {markPaidPlan ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-lg rounded-2xl border border-[#e6ebe3] bg-white p-5 shadow-[0_20px_48px_rgba(21,32,25,0.18)] sm:p-6"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-[#243028]">
+                  Mark invoice paid
+                </h2>
+                <p className="mt-1 text-sm text-[#5f6f64]">
+                  Invoice{" "}
+                  <span className="font-semibold text-[#243028]">
+                    {markPaidPlan.invoiceNumber}
+                  </span>{" "}
+                  keeps the same number. Only payment status and payment details
+                  update.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !markingPaid && setMarkPaidPlan(null)}
+                className="rounded-full px-2 text-xl leading-none text-[#8a978c] hover:bg-[#f4f7f4]"
+              >
+                ×
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => void onMarkPaid(e)}
+              className="mt-5 grid gap-4"
+            >
+              <label className={labelClass}>
+                Payment method
+                <select
+                  value={markPaidMethod}
+                  onChange={(e) => setMarkPaidMethod(e.target.value)}
+                  className={nestedSelectClass}
+                  disabled={markingPaid}
+                >
+                  {PAYMENT_METHOD_OPTIONS.map((method) => (
+                    <option key={method} value={method}>
+                      {method}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={labelClass}>
+                Payment reference
+                <input
+                  value={markPaidRef}
+                  onChange={(e) => setMarkPaidRef(e.target.value)}
+                  className={nestedInputClass}
+                  disabled={markingPaid}
+                  required
+                  placeholder="UTR / transaction ID"
+                />
+              </label>
+              <label className={labelClass}>
+                Payment date (optional)
+                <input
+                  type="date"
+                  value={markPaidDate}
+                  onChange={(e) => setMarkPaidDate(e.target.value)}
+                  className={nestedInputClass}
+                  disabled={markingPaid}
+                />
+              </label>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => !markingPaid && setMarkPaidPlan(null)}
+                  disabled={markingPaid}
+                  className="h-11 rounded-xl border border-[#e2e8df] px-4 text-sm font-semibold text-[#3d4a3c]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={markingPaid}
+                  className="h-11 rounded-xl bg-[#1f6b3a] px-4 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {markingPaid ? "Saving…" : "Confirm paid"}
                 </button>
               </div>
             </form>

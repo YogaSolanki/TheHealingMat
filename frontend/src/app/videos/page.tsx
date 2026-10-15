@@ -11,7 +11,12 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function VideosPage() {
+type VideosPageProps = {
+  searchParams: Promise<{ watch?: string }>;
+};
+
+export default async function VideosPage({ searchParams }: VideosPageProps) {
+  const { watch } = await searchParams;
   let failed = false;
   let rows: Awaited<ReturnType<typeof fetchVideos>> = [];
 
@@ -42,7 +47,7 @@ export default async function VideosPage() {
 
   return (
     <main>
-      <VideosSection items={items} />
+      <VideosSection items={items} initialWatchSlug={watch?.trim() || null} />
     </main>
   );
 }
