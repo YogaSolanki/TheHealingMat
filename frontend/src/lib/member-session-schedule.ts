@@ -16,10 +16,10 @@ const SESSION_DURATION_MINUTES = 50;
 /** Mid-morning special block + Sunday Q&A. */
 const SPECIAL_SESSION_DURATION_MINUTES = 30;
 /**
- * Members may enter a few minutes early (waiting room) and stay joinable
+ * Members may enter 5 minutes early (waiting room) and stay joinable
  * for the full class window — including mid-session.
  */
-const JOIN_EARLY_MINUTES = 15;
+const JOIN_EARLY_MINUTES = 5;
 
 /** All live session windows are evaluated in India business time. */
 const SESSION_TIMEZONE = "Asia/Kolkata";
