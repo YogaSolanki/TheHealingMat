@@ -55,6 +55,14 @@ export class CorporatePlan {
   @Column({ type: 'varchar', nullable: true })
   paymentRef: string | null;
 
+  /** Company PO number (copied onto the CO invoice). */
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  poNumber: string | null;
+
+  /** Optional PO date as YYYY-MM-DD. */
+  @Column({ type: 'date', nullable: true })
+  poDate: string | null;
+
   @Column({ type: 'text', nullable: true })
   adminNote: string | null;
 
@@ -73,8 +81,13 @@ export class CorporatePlan {
   @Column({ type: 'timestamptz', nullable: true })
   endsAt: Date | null;
 
-  @Column({ type: 'varchar', length: 20, default: 'confirmed' })
-  status: 'confirmed';
+  /**
+   * unpaid = invoice issued, awaiting company payment
+   * paid = payment recorded on the same invoice number
+   * confirmed = legacy (treat as paid)
+   */
+  @Column({ type: 'varchar', length: 20, default: 'unpaid' })
+  status: 'unpaid' | 'paid' | 'confirmed';
 
   @CreateDateColumn()
   createdAt: Date;

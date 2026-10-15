@@ -73,6 +73,26 @@ export class Invoice {
   @Column({ type: 'varchar', nullable: true })
   discountLabel: string | null;
 
+  /**
+   * Corporate proforma / tax invoice payment state.
+   * Membership invoices are always issued as paid.
+   * Status may change unpaid → paid; invoiceNumber never changes.
+   */
+  @Column({ type: 'varchar', length: 16, default: 'paid' })
+  paymentStatus: 'unpaid' | 'paid';
+
+  /** Set when paymentStatus becomes paid (corporate mark-paid or membership issue). */
+  @Column({ type: 'timestamptz', nullable: true })
+  paidAt: Date | null;
+
+  /** Corporate purchase-order number shown on the PDF as PO No. */
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  poNumber: string | null;
+
+  /** Legacy optional PO date — no longer collected or shown. */
+  @Column({ type: 'date', nullable: true })
+  poDate: string | null;
+
   @Column({ type: 'timestamptz' })
   issuedAt: Date;
 

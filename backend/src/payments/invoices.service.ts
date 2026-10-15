@@ -38,11 +38,23 @@ export type IssueCorporatePlanInvoiceInput = {
   currency: string;
   listPricePaise: number;
   discountPaise: number;
+  /** Invoice total (company share). Not re-allocated when status flips to paid. */
   amountPaidPaise: number;
-  paymentMethod: string;
+  paymentMethod: string | null;
   paymentReference: string | null;
   discountLabel?: string | null;
   issuedAt?: Date;
+  /** Default unpaid — corporate invoices first, payment later. */
+  paymentStatus?: 'unpaid' | 'paid';
+  poNumber?: string | null;
+  poDate?: string | null;
+};
+
+export type MarkCorporateInvoicePaidInput = {
+  corporatePlanId: string;
+  paymentMethod: string;
+  paymentReference: string;
+  paidAt?: Date;
 };
 
 @Injectable()
@@ -76,6 +88,22 @@ export class InvoicesService implements OnModuleInit {
       await this.dataSource.query(`
         ALTER TABLE "invoices"
         ADD COLUMN IF NOT EXISTS "membershipEmailSentAt" timestamptz NULL
+      `);
+      await this.dataSource.query(`
+        ALTER TABLE "invoices"
+        ADD COLUMN IF NOT EXISTS "paymentStatus" varchar(16) DEFAULT 'paid'
+      `);
+      await this.dataSource.query(`
+        ALTER TABLE "invoices"
+        ADD COLUMN IF NOT EXISTS "paidAt" timestamptz NULL
+      `);
+      await this.dataSource.query(`
+        ALTER TABLE "invoices"
+        ADD COLUMN IF NOT EXISTS "poNumber" varchar(120) NULL
+      `);
+      await this.dataSource.query(`
+        ALTER TABLE "invoices"
+        ADD COLUMN IF NOT EXISTS "poDate" date NULL
       `);
     } catch (err) {
       this.logger.warn(
@@ -155,6 +183,10 @@ export class InvoicesService implements OnModuleInit {
         paymentReference: input.paymentReference,
         paymentMethod: input.paymentMethod,
         discountLabel: input.discountLabel?.trim() || null,
+        paymentStatus: 'paid',
+        paidAt: issuedAt,
+        poNumber: null,
+        poDate: null,
         issuedAt,
       });
 
@@ -163,8 +195,9 @@ export class InvoicesService implements OnModuleInit {
   }
 
   /**
-   * Issue (or return existing) CO-sequence invoice for a confirmed corporate plan.
-   * Returns null when company amount paid is zero.
+   * Issue (or return existing) CO-sequence invoice for a corporate plan.
+   * Allocates a number once. Later mark-paid updates the same row — never a new serial.
+   * Returns null when company amount is zero.
    */
   async ensureCorporatePlanInvoice(
     input: IssueCorporatePlanInvoiceInput,
@@ -180,6 +213,9 @@ export class InvoicesService implements OnModuleInit {
 
     const issuedAt = input.issuedAt ?? new Date();
     const category = InvoiceCategory.Corporate;
+    const paymentStatus = input.paymentStatus ?? 'unpaid';
+    const poNumber = input.poNumber?.trim() || null;
+    const poDate = input.poDate?.trim() || null;
 
     return this.dataSource.transaction(async (manager) => {
       const again = await manager.findOne(Invoice, {
@@ -206,11 +242,54 @@ export class InvoicesService implements OnModuleInit {
         paymentReference: input.paymentReference,
         paymentMethod: input.paymentMethod,
         discountLabel: input.discountLabel?.trim() || null,
+        paymentStatus,
+        paidAt: paymentStatus === 'paid' ? issuedAt : null,
+        poNumber,
+        poDate,
         issuedAt,
       });
 
       return manager.save(invoice);
     });
+  }
+
+  /**
+   * Flip an existing corporate invoice unpaid → paid on the same invoice number.
+   * Does not allocate a new serial.
+   */
+  async markCorporateInvoicePaid(
+    input: MarkCorporateInvoicePaidInput,
+  ): Promise<Invoice> {
+    const method = input.paymentMethod.trim();
+    const reference = input.paymentReference.trim();
+    if (method.length < 2) {
+      throw new BadRequestException('Payment method is required.');
+    }
+    if (reference.length < 2) {
+      throw new BadRequestException('Payment reference is required.');
+    }
+
+    const invoice = await this.invoices.findOne({
+      where: { corporatePlanId: input.corporatePlanId },
+    });
+    if (!invoice) {
+      throw new BadRequestException('No invoice found for this corporate plan.');
+    }
+
+    if (invoice.paymentStatus === 'paid') {
+      invoice.paymentMethod = method;
+      invoice.paymentReference = reference;
+      if (!invoice.paidAt) {
+        invoice.paidAt = input.paidAt ?? new Date();
+      }
+      return this.invoices.save(invoice);
+    }
+
+    invoice.paymentStatus = 'paid';
+    invoice.paymentMethod = method;
+    invoice.paymentReference = reference;
+    invoice.paidAt = input.paidAt ?? new Date();
+    return this.invoices.save(invoice);
   }
 
   async findByCorporatePlanId(corporatePlanId: string) {

@@ -398,9 +398,12 @@ export type AdminCorporatePlan = {
   companyAmountPaise: number;
   paymentMethod: string | null;
   paymentRef: string | null;
+  poNumber: string | null;
+  poDate: string | null;
   adminNote: string | null;
   invoiceId: string | null;
   invoiceNumber: string | null;
+  invoicePaymentStatus: "unpaid" | "paid" | null;
   startsAt: string | null;
   endsAt: string | null;
   status: string;
@@ -550,8 +553,10 @@ export function createAdminCorporatePlan(
     companyPayPercent: number;
     /** Optional override of catalog list price per seat (paise). */
     listPricePerSeatPaise?: number;
-    paymentMethod: string;
-    paymentRef: string;
+    alreadyPaid?: boolean;
+    poNumber?: string;
+    paymentMethod?: string;
+    paymentRef?: string;
     adminNote: string;
     billingLocation?: string;
     startsAt?: string;
@@ -560,6 +565,24 @@ export function createAdminCorporatePlan(
   return authJson<AdminCompanyDetail>(
     "POST",
     `/admin/corporate/companies/${companyId}/plans`,
+    token,
+    body,
+  );
+}
+
+export function markAdminCorporatePlanPaid(
+  token: string,
+  companyId: string,
+  planId: string,
+  body: {
+    paymentMethod: string;
+    paymentRef: string;
+    paidAt?: string;
+  },
+) {
+  return authJson<AdminCompanyDetail>(
+    "POST",
+    `/admin/corporate/companies/${companyId}/plans/${planId}/mark-paid`,
     token,
     body,
   );
