@@ -106,7 +106,8 @@ function todayIsoDate(now = new Date()) {
 const SESSION_DURATION_MINUTES = 50;
 /** Special session + Sunday Q&A length. */
 const SPECIAL_SESSION_DURATION_MINUTES = 30;
-const JOIN_EARLY_MINUTES = 15;
+/** Waiting-room window: Join Session + permanent session link open this early. */
+const JOIN_EARLY_MINUTES = 5;
 /** Ignore client clocks that are wildly wrong; fall back to server time. */
 const CLIENT_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
