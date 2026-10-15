@@ -5,7 +5,10 @@ import { LessThanOrEqual, IsNull, Repository } from 'typeorm';
 import { sendResendEmail } from '../mail/resend';
 import { sendAiSensyCampaign } from '../sms/aisensy-whatsapp';
 import { sendMsg91WhatsAppTemplate } from '../sms/msg91-whatsapp';
-import { resolveFrontendBaseUrl } from '../common/frontend-url';
+import {
+  buildMemberAccessLink,
+  resolveFrontendBaseUrl,
+} from '../common/frontend-url';
 import { Region } from '../users/enums/region.enum';
 import { SessionTimingsService } from '../settings/session-timings.service';
 import { User } from '../users/user.entity';
@@ -104,32 +107,111 @@ export class TrialMessagingService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * Sent once when the member starts / registers for the free trial.
+   * India WhatsApp: AiSensy campaign Trial_Start ({{1}} name, {{2}} begin date,
+   * {{3}}–{{4}} trial period, {{5}} permanent session link).
+   * Falls back to MSG91 / email when AiSensy is unavailable.
+   */
   async sendWelcome(user: User, registration: TrialRegistration): Promise<void> {
     if (registration.welcomeMessageSentAt) return;
 
     const startLabel = formatTrialDateForMessage(registration.trialStartsAt);
     const endLabel = formatTrialEndDateForMessage(registration.trialEndsAt);
     const name = user.fullName?.trim().split(/\s+/)[0] || 'there';
-    const memberArea = this.memberAreaUrl();
+    const permanentLink = this.permanentSessionLink(user);
     const sessionTimes = await this.formatSessionTimes();
 
+    if (user.region === Region.India && user.mobile?.trim()) {
+      const sent = await this.tryAiSensyTrialStart({
+        mobile: user.mobile.trim(),
+        name,
+        startLabel,
+        endLabel,
+        permanentLink,
+      });
+      if (sent) {
+        registration.welcomeMessageSentAt = new Date();
+        await this.registrations.save(registration);
+        return;
+      }
+    }
+
     const text =
-      `Welcome to The Healing Mat, ${name}!\n\n` +
-      `Your 14-Day Free Trial starts on ${startLabel}.\n` +
-      `Your trial runs until ${endLabel}.\n\n` +
-      `You can join your sessions from the Member Area:\n${memberArea}\n\n` +
-      `Session times once your trial starts: ${sessionTimes.labelList}.`;
+      `Hi ${name},\n\n` +
+      `Your 14-day free yoga trial is scheduled to begin on ${startLabel}.\n\n` +
+      `Your Trial Details\n\n` +
+      `- Trial Period: ${startLabel} – ${endLabel}\n` +
+      `- Available Session Timings: ${sessionTimes.labelList}\n` +
+      `- Permanent Session Access Link: ${permanentLink}\n\n` +
+      `Please bookmark your permanent session access link for easy access to your classes throughout the trial period.\n` +
+      `—Team The Healing Mat`;
 
     await this.deliver(user, {
       kind: 'welcome',
       text,
-      bodyValues: [name, startLabel, endLabel, memberArea],
+      bodyValues: [name, startLabel, endLabel, permanentLink],
       templateEnv: 'MSG91_WHATSAPP_TEMPLATE_WELCOME',
-      emailSubject: 'Welcome to The Healing Mat — your free trial dates',
+      emailSubject: 'Your free trial is scheduled — The Healing Mat',
     });
 
     registration.welcomeMessageSentAt = new Date();
     await this.registrations.save(registration);
+  }
+
+  /**
+   * AiSensy Trial_Start — after free trial registration (India mobile).
+   * Template vars: {{1}} name, {{2}} begin date, {{3}} period start,
+   * {{4}} period end, {{5}} permanent session link.
+   */
+  private async tryAiSensyTrialStart(input: {
+    mobile: string;
+    name: string;
+    startLabel: string;
+    endLabel: string;
+    permanentLink: string;
+  }): Promise<boolean> {
+    const apiKey = this.config.get<string>('AISENSY_API_KEY')?.trim();
+    const campaignName =
+      this.config.get<string>('AISENSY_TRIAL_START_CAMPAIGN_NAME')?.trim() ||
+      'Trial_Start';
+
+    if (!apiKey || !campaignName) {
+      this.logger.log(
+        `[trial-start] Skipped for ${input.mobile}: missing AISENSY_API_KEY or AISENSY_TRIAL_START_CAMPAIGN_NAME`,
+      );
+      return false;
+    }
+
+    try {
+      await sendAiSensyCampaign({
+        apiKey,
+        campaignName,
+        mobile: input.mobile,
+        userName: input.name,
+        source:
+          this.config.get<string>('AISENSY_SOURCE')?.trim() ||
+          'The Healing Mat',
+        templateParams: [
+          input.name,
+          input.startLabel,
+          input.startLabel,
+          input.endLabel,
+          input.permanentLink,
+        ],
+      });
+      this.logger.log(
+        `[trial-start] Sent AiSensy ${campaignName} to ${input.mobile}`,
+      );
+      return true;
+    } catch (err) {
+      this.logger.warn(
+        `[trial-start] AiSensy failed for ${input.mobile}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return false;
+    }
   }
 
   async sendTrialStartingReminder(
@@ -215,6 +297,16 @@ export class TrialMessagingService implements OnModuleInit, OnModuleDestroy {
       this.config.get<string>('FRONTEND_URL'),
     );
     return `${base}/dashboard`;
+  }
+
+  private permanentSessionLink(user: User): string {
+    if (user.accessLinkToken?.trim()) {
+      return buildMemberAccessLink(
+        this.config.get<string>('FRONTEND_URL'),
+        user.accessLinkToken.trim(),
+      );
+    }
+    return this.memberAreaUrl();
   }
 
   private async deliver(
