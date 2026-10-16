@@ -720,6 +720,8 @@ export type UpdateAdminUserInput = {
   state?: string | null;
   preferredClassTime?: string | null;
   hasUsedFreeTrial?: boolean;
+  /** Referrer’s referral code; null/empty clears Referred by. */
+  referralCode?: string | null;
   password?: string;
 };
 

@@ -45,6 +45,8 @@ type ProfileForm = {
   state: string;
   preferredClassTime: string;
   hasUsedFreeTrial: boolean;
+  /** Referrer’s referral code (empty = none). */
+  referredByCode: string;
   password: string;
   confirmPassword: string;
 };
@@ -415,6 +417,7 @@ function profileFromDetail(detail: AdminUserDetail): ProfileForm {
     state: p.state ?? "",
     preferredClassTime: p.preferredClassTime ?? "",
     hasUsedFreeTrial: p.hasUsedFreeTrial,
+    referredByCode: detail.referredBy?.referralCode ?? "",
     password: "",
     confirmPassword: "",
   };
@@ -439,6 +442,8 @@ function isProfileDirty(form: ProfileForm, baseline: ProfileForm) {
     form.state !== baseline.state ||
     form.preferredClassTime !== baseline.preferredClassTime ||
     form.hasUsedFreeTrial !== baseline.hasUsedFreeTrial ||
+    form.referredByCode.trim().toLowerCase() !==
+      baseline.referredByCode.trim().toLowerCase() ||
     form.password.trim() !== "" ||
     form.confirmPassword.trim() !== ""
   );
@@ -1301,6 +1306,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           state: profileForm.state || null,
           preferredClassTime: profileForm.preferredClassTime || null,
           hasUsedFreeTrial: profileForm.hasUsedFreeTrial,
+          referralCode: profileForm.referredByCode.trim() || null,
           ...(profileForm.password.trim()
             ? { password: profileForm.password.trim() }
             : {}),
@@ -2187,14 +2193,40 @@ export function UserDetailPanel({ userId }: { userId: string }) {
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-3 border-t border-[#e6ebe3] pt-3">
-              <span className="shrink-0 text-[#8a978c]">Referred by</span>
-              <span className="text-right font-semibold text-[#243028]">
-                {detail.referredBy
-                  ? `${detail.referredBy.fullName} (${detail.referredBy.referralCode})`
-                  : "—"}
-              </span>
-            </div>
+            {canEditProfile ? (
+              <label className={`${labelClass} border-t border-[#e6ebe3] pt-3`}>
+                Referred by (referral code)
+                <input
+                  value={profileForm.referredByCode}
+                  onChange={(e) => {
+                    setProfileForm({
+                      ...profileForm,
+                      referredByCode: e.target.value,
+                    });
+                    setProfileSaved(false);
+                  }}
+                  className={inputClass}
+                  disabled={profileFieldsLocked}
+                  placeholder="Referrer’s code, or leave blank"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <span className="mt-1.5 block text-xs font-normal text-[#8a978c]">
+                  {detail.referredBy
+                    ? `Currently ${detail.referredBy.fullName} (${detail.referredBy.referralCode}). Clear the field to remove.`
+                    : "Enter another member’s referral code, or leave blank for none."}
+                </span>
+              </label>
+            ) : (
+              <div className="flex items-center justify-between gap-3 border-t border-[#e6ebe3] pt-3">
+                <span className="shrink-0 text-[#8a978c]">Referred by</span>
+                <span className="text-right font-semibold text-[#243028]">
+                  {detail.referredBy
+                    ? `${detail.referredBy.fullName} (${detail.referredBy.referralCode})`
+                    : "—"}
+                </span>
+              </div>
+            )}
 
             <div className="flex items-center justify-between gap-3 border-t border-[#e6ebe3] pt-3">
               <span className="shrink-0 text-[#8a978c]">Password</span>

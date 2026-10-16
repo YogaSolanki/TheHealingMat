@@ -708,6 +708,21 @@ export class AdminDashboardService {
       user.hasUsedFreeTrial = dto.hasUsedFreeTrial;
     }
 
+    if (dto.referralCode !== undefined) {
+      const code = dto.referralCode?.trim() || '';
+      if (!code) {
+        user.referredByUserId = null;
+      } else {
+        const referrerId = await this.findReferrerId(code);
+        if (referrerId === id) {
+          throw new BadRequestException(
+            'A member cannot be referred by themselves.',
+          );
+        }
+        user.referredByUserId = referrerId;
+      }
+    }
+
     if (dto.email !== undefined) {
       const nextEmail = dto.email?.trim().toLowerCase() || null;
       if (nextEmail) {

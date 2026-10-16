@@ -58,6 +58,16 @@ export class UpdateAdminUserDto {
   @IsBoolean()
   hasUsedFreeTrial?: boolean;
 
+  /**
+   * Referrer’s referral code. Empty string or null clears Referred by.
+   * Must match an existing member’s code (not this user).
+   */
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null && value !== undefined && value !== '')
+  @IsString()
+  @MaxLength(40)
+  referralCode?: string | null;
+
   /** When provided, replaces the member’s login password. */
   @IsOptional()
   @ValidateIf((_, value) => value !== null && value !== undefined && value !== '')
