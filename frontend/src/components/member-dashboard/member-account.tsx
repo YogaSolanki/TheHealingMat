@@ -6,7 +6,6 @@ import { CountrySelect } from "@/components/country-select";
 import { ChangePasswordModal } from "@/components/member-dashboard/change-password-modal";
 import { memberPrimaryBtnClass } from "@/components/member-dashboard/member-button-styles";
 import { MemberSelect } from "@/components/member-dashboard/member-select";
-import { InlineDobEditor } from "@/components/member-dashboard/inline-dob-editor";
 import { useMemberDashboard } from "@/components/member-dashboard/member-dashboard-provider";
 import { PersonalSessionLinkPopup } from "@/components/member-dashboard/personal-session-link-popup";
 import { SiteLoader } from "@/components/site-loader";
@@ -15,18 +14,10 @@ import {
   getMyCoupons,
   updateProfile,
   type MemberCoupon,
-  type UserGender,
 } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
 import { INDIA_STATES } from "@/lib/india-states";
 import { useMemberAccess } from "@/lib/member-access";
-
-const genderOptions: { value: UserGender; label: string }[] = [
-  { value: "male", label: "Male" },
-  { value: "female", label: "Female" },
-  { value: "other", label: "Other" },
-  { value: "prefer_not_to_say", label: "Prefer not to say" },
-];
 
 const inlineFieldClass =
   "w-full max-w-full rounded-[12px] border border-[#d7e0d6] bg-white px-3 py-2 text-[14px] font-semibold text-[#243028] outline-none transition focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 sm:max-w-[300px]";
@@ -43,31 +34,6 @@ function formatMobile(mobile: string | null) {
   return mobile;
 }
 
-function formatGender(gender: UserGender | null) {
-  if (!gender) return "";
-  return genderOptions.find((option) => option.value === gender)?.label ?? "";
-}
-
-function formatDob(dateOfBirth: string | null) {
-  if (!dateOfBirth) return "";
-  const date = new Date(`${dateOfBirth}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function isValidDob(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return date <= today;
-}
-
 export function MemberAccountPage() {
   const { user, signOut, signingOut, updateUser } = useMemberDashboard();
   const { access } = useMemberAccess();
@@ -75,10 +41,7 @@ export function MemberAccountPage() {
   const [passwordToast, setPasswordToast] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState(user.fullName);
-  const [dateOfBirth, setDateOfBirth] = useState(user.dateOfBirth ?? "");
-  const [gender, setGender] = useState<UserGender | "">(user.gender ?? "");
   const [state, setState] = useState(user.state ?? "");
-  const [dobValid, setDobValid] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
   const [couponsOpen, setCouponsOpen] = useState(false);
@@ -145,20 +108,14 @@ export function MemberAccountPage() {
 
   function startEditing() {
     setFullName(user.fullName);
-    setDateOfBirth(user.dateOfBirth ?? "");
-    setGender(user.gender ?? "");
     setState(user.state ?? "");
-    setDobValid(true);
     setProfileError(null);
     setIsEditing(true);
   }
 
   function cancelEditing() {
     setFullName(user.fullName);
-    setDateOfBirth(user.dateOfBirth ?? "");
-    setGender(user.gender ?? "");
     setState(user.state ?? "");
-    setDobValid(true);
     setProfileError(null);
     setIsEditing(false);
   }
@@ -169,18 +126,6 @@ export function MemberAccountPage() {
     const trimmedName = fullName.trim();
     if (trimmedName.length < 2) {
       setProfileError("Please enter your full name.");
-      return;
-    }
-
-    if (!dobValid) {
-      setProfileError("Please enter a valid date of birth (DD/MM/YYYY).");
-      return;
-    }
-
-    const trimmedDob = dateOfBirth.trim();
-    const parsedDob = trimmedDob === "" ? null : trimmedDob;
-    if (parsedDob !== null && !isValidDob(parsedDob)) {
-      setProfileError("Please enter a valid date of birth.");
       return;
     }
 
@@ -196,8 +141,6 @@ export function MemberAccountPage() {
     try {
       const result = await updateProfile(token, {
         fullName: trimmedName,
-        dateOfBirth: parsedDob,
-        gender: gender || null,
         state: trimmedState || null,
       });
       updateUser(result.user);
@@ -284,37 +227,6 @@ export function MemberAccountPage() {
                     placeholder="Enter your full name"
                     autoComplete="name"
                     maxLength={120}
-                  />
-                }
-              />
-              <EditableInfoRow
-                icon={<DobIcon className="h-5 w-5 text-[#1f6b3a]" />}
-                label="DOB"
-                isEditing={isEditing}
-                value={formatDob(user.dateOfBirth)}
-                editContent={
-                  <InlineDobEditor
-                    key={`dob-${user.dateOfBirth ?? "none"}`}
-                    value={dateOfBirth}
-                    onChange={setDateOfBirth}
-                    onValidityChange={setDobValid}
-                  />
-                }
-              />
-              <EditableInfoRow
-                icon={<GenderIcon className="h-5 w-5 text-[#1f6b3a]" />}
-                label="Gender"
-                isEditing={isEditing}
-                value={formatGender(user.gender)}
-                editContent={
-                  <MemberSelect
-                    value={gender}
-                    onChange={(next) => setGender(next as UserGender | "")}
-                    placeholder="Select gender"
-                    options={[
-                      { value: "", label: "Select gender" },
-                      ...genderOptions,
-                    ]}
                   />
                 }
               />
@@ -747,25 +659,6 @@ function PersonIcon({ className }: { className?: string }) {
     <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
       <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.6" />
       <path d="M5.5 19c1.4-3.2 3.8-4.8 6.5-4.8s5.1 1.6 6.5 4.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function DobIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
-      <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M8 3.5v3M16 3.5v3M4 10h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function GenderIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
-      <circle cx="10" cy="10" r="4" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M13.5 6.5 18 2M18 2v4.5M18 2h-4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M7 18c1.5-2.5 3.8-4 5-4s3.5 1.5 5 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }

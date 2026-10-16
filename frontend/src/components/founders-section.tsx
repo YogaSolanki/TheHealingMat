@@ -211,9 +211,17 @@ export function FoundersSection() {
               </p>
 
               <p className="mt-4 text-[13px] leading-[1.6] text-[#5f6f64] sm:mt-4 sm:text-[14px] lg:mt-5 lg:text-[15px]">
-                With 16+ years of experience in yoga and wellness, Pradeep has
-                helped individuals and organisations make wellness a practical
-                part of everyday life.
+                With 16+ years in yoga and wellness, Pradeep is the founder of{" "}
+                <a
+                  href="https://www.yogaoncall.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a]/35 underline-offset-2 transition hover:text-[#185530]"
+                >
+                  Yoga On Call
+                </a>
+                , bringing practical yoga and wellness programmes to workplaces
+                across India.
               </p>
             </div>
 

@@ -7,7 +7,6 @@ import {
 } from 'typeorm';
 import { AccountStatus } from './enums/account-status.enum';
 import { Region } from './enums/region.enum';
-import { Gender } from './enums/gender.enum';
 
 @Entity({ name: 'users' })
 export class User {
@@ -29,12 +28,6 @@ export class User {
 
   @Column()
   fullName: string;
-
-  @Column({ type: 'date', nullable: true })
-  dateOfBirth: string | null;
-
-  @Column({ type: 'varchar', nullable: true })
-  gender: Gender | null;
 
   /** Residence: Indian state, or country when region is outside India. */
   @Column({ type: 'varchar', nullable: true })

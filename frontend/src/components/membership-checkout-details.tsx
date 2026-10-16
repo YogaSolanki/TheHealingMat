@@ -170,8 +170,6 @@ export function MembershipCheckoutDetails({
     try {
       const result = await updateProfile(token, {
         fullName: user.fullName,
-        dateOfBirth: user.dateOfBirth,
-        gender: user.gender,
         ...(needsLocation ? { state: location.trim() } : {}),
         preferredClassTime: preferredClassTime.trim(),
       });

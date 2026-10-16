@@ -22,10 +22,7 @@ import {
   type AdminUserDetail,
   type AdminUserMembership,
 } from "@/lib/api";
-import {
-  GENDER_OPTIONS,
-  INDIA_STATES,
-} from "@/lib/india-profile";
+import { INDIA_STATES } from "@/lib/india-profile";
 import { invalidateCached, DASHBOARD_CACHE_KEYS } from "@/lib/dashboard-cache";
 
 const inputClass =
@@ -39,8 +36,6 @@ type ProfileForm = {
   region: string;
   email: string;
   mobile: string;
-  dateOfBirth: string;
-  gender: string;
   state: string;
   preferredClassTime: string;
   hasUsedFreeTrial: boolean;
@@ -393,11 +388,6 @@ function formatTrialEndDate(value: string) {
   }).format(display);
 }
 
-function toDateInput(value: string | null) {
-  if (!value) return "";
-  return value.slice(0, 10);
-}
-
 function toDateTimeLocal(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -416,8 +406,6 @@ function profileFromDetail(detail: AdminUserDetail): ProfileForm {
     region: p.region,
     email: p.email ?? "",
     mobile: p.mobile ?? "",
-    dateOfBirth: toDateInput(p.dateOfBirth),
-    gender: p.gender ?? "",
     state: p.state ?? "",
     preferredClassTime: p.preferredClassTime ?? "",
     hasUsedFreeTrial: p.hasUsedFreeTrial,
@@ -442,8 +430,6 @@ function isProfileDirty(form: ProfileForm, baseline: ProfileForm) {
     form.region !== baseline.region ||
     form.email !== baseline.email ||
     form.mobile !== baseline.mobile ||
-    form.dateOfBirth !== baseline.dateOfBirth ||
-    form.gender !== baseline.gender ||
     form.state !== baseline.state ||
     form.preferredClassTime !== baseline.preferredClassTime ||
     form.hasUsedFreeTrial !== baseline.hasUsedFreeTrial ||
@@ -1031,8 +1017,6 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           region: profileForm.region,
           email: profileForm.email.trim() || null,
           mobile: profileForm.mobile.trim() || null,
-          dateOfBirth: profileForm.dateOfBirth || null,
-          gender: profileForm.gender || null,
           state: profileForm.state || null,
           preferredClassTime: profileForm.preferredClassTime || null,
           hasUsedFreeTrial: profileForm.hasUsedFreeTrial,
@@ -1688,40 +1672,6 @@ export function UserDetailPanel({ userId }: { userId: string }) {
               disabled={fieldsLocked}
               placeholder="+91…"
             />
-          </label>
-
-          <label className={labelClass}>
-            Date of birth
-            <input
-              type="date"
-              value={profileForm.dateOfBirth}
-              onChange={(e) => {
-                setProfileForm({ ...profileForm, dateOfBirth: e.target.value });
-                setProfileSaved(false);
-              }}
-              className={inputClass}
-              disabled={fieldsLocked}
-            />
-          </label>
-
-          <label className={labelClass}>
-            Gender
-            <select
-              value={profileForm.gender}
-              onChange={(e) => {
-                setProfileForm({ ...profileForm, gender: e.target.value });
-                setProfileSaved(false);
-              }}
-              className={inputClass}
-              disabled={fieldsLocked}
-            >
-              <option value="">Not set</option>
-              {GENDER_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
           </label>
 
           <label className={labelClass}>

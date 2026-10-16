@@ -1,6 +1,5 @@
 import {
   IsBoolean,
-  IsDateString,
   IsEmail,
   IsEnum,
   IsOptional,
@@ -16,7 +15,6 @@ import {
   PASSWORD_MIN_LENGTH,
   PASSWORD_PATTERN,
 } from '../../auth/dto/password.rules';
-import { Gender } from '../../users/enums/gender.enum';
 import { Region } from '../../users/enums/region.enum';
 
 export class UpdateAdminUserDto {
@@ -43,16 +41,6 @@ export class UpdateAdminUserDto {
     message: 'mobile must be a valid phone number.',
   })
   mobile?: string | null;
-
-  @IsOptional()
-  @ValidateIf((_, value) => value !== null && value !== '')
-  @IsDateString({}, { message: 'dateOfBirth must be YYYY-MM-DD.' })
-  dateOfBirth?: string | null;
-
-  @IsOptional()
-  @ValidateIf((_, value) => value !== null)
-  @IsEnum(Gender, { message: 'gender must be a valid option.' })
-  gender?: Gender | null;
 
   @IsOptional()
   @ValidateIf((_, value) => value !== null && value !== '')

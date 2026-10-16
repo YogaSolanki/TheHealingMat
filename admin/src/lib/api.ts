@@ -199,8 +199,6 @@ export type CreateAdminUserInput = {
   mobile?: string;
   email?: string;
   password?: string;
-  dateOfBirth?: string;
-  gender?: string;
   state?: string;
   preferredClassTime?: string;
   referralCode?: string;
@@ -624,8 +622,6 @@ export type AdminUserDetail = {
     region: string;
     mobile: string | null;
     email: string | null;
-    dateOfBirth: string | null;
-    gender: string | null;
     state: string | null;
     preferredClassTime: string | null;
     referralCode: string;
@@ -708,8 +704,6 @@ export type UpdateAdminUserInput = {
   region?: string;
   email?: string | null;
   mobile?: string | null;
-  dateOfBirth?: string | null;
-  gender?: string | null;
   state?: string | null;
   preferredClassTime?: string | null;
   hasUsedFreeTrial?: boolean;
@@ -961,7 +955,6 @@ export type AdminCoupon = {
   usageCount: number;
   remainingUses: number;
   active: boolean;
-  isPromotional: boolean;
   expiresAt: string | null;
   status: CouponLifecycleStatus;
   createdAt: string;
@@ -991,7 +984,6 @@ export type GeneratedCoupon = {
   discountLabel: string;
   maxUses: number;
   expiresAt: string | null;
-  isPromotional: boolean;
 };
 
 export function listAdminCoupons(token: string) {
@@ -1010,7 +1002,6 @@ export function generateAdminCoupon(
     discountValue: number;
     maxUses?: number;
     expiresAt?: string | null;
-    isPromotional?: boolean;
   },
 ) {
   return authJson<GeneratedCoupon>("POST", "/admin/coupons/generate", token, body);
@@ -1026,7 +1017,6 @@ export function createAdminCoupon(
     discountLabel: string;
     maxUses?: number;
     expiresAt?: string | null;
-    isPromotional?: boolean;
   },
 ) {
   return authJson<AdminCoupon>("POST", "/admin/coupons", token, body);

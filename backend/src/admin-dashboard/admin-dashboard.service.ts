@@ -404,8 +404,6 @@ export class AdminDashboardService {
         region: user.region,
         mobile: user.mobile,
         email: user.email,
-        dateOfBirth: user.dateOfBirth,
-        gender: user.gender,
         state: user.state,
         preferredClassTime: user.preferredClassTime,
         referralCode: user.referralCode,
@@ -635,8 +633,6 @@ export class AdminDashboardService {
             referredByUserId,
             hasUsedFreeTrial: false,
             role: 'user',
-            dateOfBirth: dto.dateOfBirth?.trim() || null,
-            gender: dto.gender ?? null,
             state: dto.state?.trim() || null,
             preferredClassTime: dto.preferredClassTime?.trim() || null,
           }),
@@ -677,12 +673,6 @@ export class AdminDashboardService {
     }
     if (dto.region !== undefined) {
       user.region = dto.region;
-    }
-    if (dto.dateOfBirth !== undefined) {
-      user.dateOfBirth = dto.dateOfBirth?.trim() || null;
-    }
-    if (dto.gender !== undefined) {
-      user.gender = dto.gender ?? null;
     }
     if (dto.state !== undefined) {
       user.state = dto.state?.trim() || null;

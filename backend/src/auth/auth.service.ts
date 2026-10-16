@@ -14,7 +14,6 @@ import { randomBytes, randomInt, timingSafeEqual } from 'crypto';
 import { MoreThanOrEqual, Repository } from 'typeorm';
 import { Admin } from '../admins/admin.entity';
 import { Region } from '../users/enums/region.enum';
-import { Gender } from '../users/enums/gender.enum';
 import { OtpChallenge } from '../users/otp-challenge.entity';
 import { assertUserAccountActive } from '../users/account-access';
 import { User } from '../users/user.entity';
@@ -59,8 +58,6 @@ export type PublicAdmin = {
 export type PublicUser = {
   id: string;
   fullName: string;
-  dateOfBirth: string | null;
-  gender: Gender | null;
   state: string | null;
   preferredClassTime: string | null;
   region: Region;
@@ -579,12 +576,6 @@ export class AuthService {
     }
 
     user.fullName = dto.fullName.trim();
-    if (dto.dateOfBirth !== undefined) {
-      user.dateOfBirth = dto.dateOfBirth ?? null;
-    }
-    if (dto.gender !== undefined) {
-      user.gender = dto.gender ?? null;
-    }
     if (dto.state !== undefined) {
       const nextState = dto.state?.trim() || null;
       user.state = nextState;
@@ -669,8 +660,6 @@ export class AuthService {
     return {
       id: user.id,
       fullName: user.fullName,
-      dateOfBirth: user.dateOfBirth ?? null,
-      gender: user.gender ?? null,
       state: user.state ?? null,
       preferredClassTime: user.preferredClassTime ?? null,
       region: user.region,

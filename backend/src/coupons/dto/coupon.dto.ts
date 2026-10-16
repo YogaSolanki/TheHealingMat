@@ -39,10 +39,6 @@ export class GenerateCouponDto {
   @IsOptional()
   @IsDateString()
   expiresAt?: string | null;
-
-  @IsOptional()
-  @IsBoolean()
-  isPromotional?: boolean;
 }
 
 export class CreateCouponDto {
@@ -83,10 +79,6 @@ export class CreateCouponDto {
   @IsOptional()
   @IsDateString()
   expiresAt?: string | null;
-
-  @IsOptional()
-  @IsBoolean()
-  isPromotional?: boolean;
 }
 
 export class AssignCouponDto {
