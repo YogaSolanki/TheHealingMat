@@ -535,6 +535,8 @@ export type MembershipQuote = {
   referralDiscountAvailable?: boolean;
   referralDiscountApplied?: boolean;
   referralDiscountPercent?: number;
+  /** List price is the corporate plan per-seat price (not catalog/offer). */
+  corporatePricing?: boolean;
 };
 
 export type PublicMembership = {
@@ -671,7 +673,7 @@ export async function requestCorporateCouponOtp(
     expiresInSeconds: number;
     email: string;
     allowedDomains: string[];
-    /** Present while real email delivery is off. */
+    /** Non-production only when email delivery is not configured. */
     devOtp?: string;
   }>(response);
 }

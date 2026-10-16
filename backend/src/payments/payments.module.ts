@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CouponsModule } from '../coupons/coupons.module';
+import { CorporatePlan } from '../corporate/corporate-plan.entity';
 import { SettingsModule } from '../settings/settings.module';
 import { TrialRegistration } from '../trials/trial-registration.entity';
 import { User } from '../users/user.entity';
@@ -35,6 +36,7 @@ import { PaymentsService } from './payments.service';
       User,
       Invoice,
       InvoiceSequence,
+      CorporatePlan,
     ]),
   ],
   controllers: [

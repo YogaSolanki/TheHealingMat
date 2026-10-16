@@ -39,6 +39,10 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+function isCorporateSeatCoupon(coupon: AdminCoupon) {
+  return Boolean(coupon.corporatePlanId);
+}
+
 export function CouponsPanel() {
   const cacheKey = DASHBOARD_CACHE_KEYS.coupons;
   const [coupons, setCoupons] = useState<AdminCoupon[]>(
@@ -144,6 +148,8 @@ export function CouponsPanel() {
         coupon.userName,
         coupon.discountLabel,
         coupon.assignedReferralCode ?? "",
+        ...(coupon.allowedDomains ?? []),
+        coupon.corporatePlanId ? "corporate seats" : "",
       ]
         .join(" ")
         .toLowerCase()
@@ -549,7 +555,22 @@ export function CouponsPanel() {
                       </p>
                     </td>
                     <td className="px-5 py-3 text-[#243028]">
-                      {coupon.assignedReferralCode ? (
+                      {isCorporateSeatCoupon(coupon) ? (
+                        <>
+                          <p className="text-sm font-medium text-[#243028]">
+                            Corporate seats
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-[#8a978c]">
+                            {(coupon.allowedDomains ?? []).length > 0
+                              ? (coupon.allowedDomains ?? []).join(", ")
+                              : "Domain-restricted"}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-[#5f6f64]">
+                            {coupon.remainingUses ?? 0} seat
+                            {(coupon.remainingUses ?? 0) === 1 ? "" : "s"} left
+                          </p>
+                        </>
+                      ) : coupon.assignedReferralCode ? (
                         <>
                           <p className="text-sm">Assigned member</p>
                           <p className="mt-0.5 font-mono text-[11px] text-[#8a978c]">
@@ -574,6 +595,7 @@ export function CouponsPanel() {
                       <span className="text-[#8a978c]">
                         {" "}
                         / {coupon.maxUses ?? 1}
+                        {isCorporateSeatCoupon(coupon) ? " seats" : ""}
                       </span>
                     </td>
                     <td className="px-5 py-3">
@@ -624,7 +646,10 @@ export function CouponsPanel() {
                             <button
                               type="button"
                               onClick={() => openAssign(coupon)}
-                              disabled={(coupon.usageCount ?? 0) > 0}
+                              disabled={
+                                (coupon.usageCount ?? 0) > 0 ||
+                                isCorporateSeatCoupon(coupon)
+                              }
                               className="block w-full px-3.5 py-2 text-left text-sm font-medium text-[#243028] hover:bg-[#f4f7f4] disabled:cursor-not-allowed disabled:opacity-40"
                             >
                               Assign
@@ -692,15 +717,23 @@ export function CouponsPanel() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-xl bg-[#f4f8f2] px-3.5 py-3">
                       <p className="text-[11px] font-medium uppercase tracking-wide text-[#5f6f64]">
-                        Redemptions
+                        {isCorporateSeatCoupon(details)
+                          ? "Seats used"
+                          : "Redemptions"}
                       </p>
                       <p className="mt-1 text-xl font-semibold text-[#243028]">
                         {details.usageCount}
                         <span className="text-sm font-medium text-[#8a978c]">
                           {" "}
                           / {details.maxUses}
+                          {isCorporateSeatCoupon(details) ? " seats" : ""}
                         </span>
                       </p>
+                      {isCorporateSeatCoupon(details) ? (
+                        <p className="mt-1 text-[11px] text-[#8a978c]">
+                          {details.remainingUses} remaining
+                        </p>
+                      ) : null}
                     </div>
                     <div className="rounded-xl bg-[#f4f8f2] px-3.5 py-3">
                       <p className="text-[11px] font-medium uppercase tracking-wide text-[#5f6f64]">
@@ -712,9 +745,26 @@ export function CouponsPanel() {
                     </div>
                   </div>
 
+                  {isCorporateSeatCoupon(details) ? (
+                    <div className="rounded-xl border border-[#e6ebe3] px-3.5 py-3 text-sm">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-[#5f6f64]">
+                        Corporate seat coupon
+                      </p>
+                      <p className="mt-1 font-medium text-[#243028]">
+                        {details.discountLabel}
+                      </p>
+                      <p className="mt-1 text-xs text-[#8a978c]">
+                        Domains:{" "}
+                        {(details.allowedDomains ?? []).join(", ") || "—"}
+                      </p>
+                    </div>
+                  ) : null}
+
                   <div>
                     <h4 className="text-sm font-semibold text-[#243028]">
-                      Members who used this coupon
+                      {isCorporateSeatCoupon(details)
+                        ? "Employees who used a seat"
+                        : "Members who used this coupon"}
                     </h4>
                     {details.redemptions.length === 0 ? (
                       <p className="mt-2 text-sm text-[#8a978c]">

@@ -18,6 +18,10 @@ export const metadata: Metadata = {
     template: "%s · The Healing Mat Admin",
   },
   description: "Admin dashboard for The Healing Mat.",
+  icons: {
+    icon: [{ url: "/icon.png", type: "image/png" }],
+    apple: [{ url: "/apple-icon.png", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

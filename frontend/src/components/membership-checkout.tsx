@@ -420,7 +420,12 @@ export function MembershipCheckoutPanel({
         couponCode: code,
         email: workEmail.trim(),
       });
-      setOtpHint(sent.devOtp ? `Use OTP ${sent.devOtp}` : sent.message);
+      setOtpHint(
+        sent.devOtp
+          ? `${sent.message} Dev OTP: ${sent.devOtp}`
+          : sent.message ||
+              "We sent a verification code to your work email. Check your inbox.",
+      );
       setCorporateModal((prev) =>
         prev ? { ...prev, phase: "otp" } : prev,
       );
@@ -459,7 +464,7 @@ export function MembershipCheckoutPanel({
         applyReferralDiscount: false,
         domainVerificationId: verified.domainVerificationId,
       });
-      setActivePlanMonths(seatMonths);
+      setActivePlanMonths(next.planMonths || seatMonths);
       setQuote(next);
       setAppliedCoupon(next.couponCode ?? code);
       setCouponInput(next.couponCode ?? code);
@@ -468,8 +473,10 @@ export function MembershipCheckoutPanel({
       setWorkEmail("");
       setWorkOtp("");
       setOtpHint(null);
-    } catch {
-      setError("Invalid coupon");
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Invalid or expired OTP.",
+      );
       setWorkOtp("");
     } finally {
       setPromoBusy(false);
@@ -1051,16 +1058,21 @@ export function MembershipCheckoutPanel({
                                 </span>
                                 <input
                                   value={workOtp}
-                                  onChange={(e) => setWorkOtp(e.target.value)}
+                                  onChange={(e) =>
+                                    setWorkOtp(
+                                      e.target.value.replace(/\D/g, "").slice(0, 4),
+                                    )
+                                  }
                                   disabled={promoBusy}
-                                  placeholder="Enter OTP"
+                                  placeholder="4-digit code from email"
                                   inputMode="numeric"
-                                  className="w-full rounded-[12px] border border-[#d7e5d9] bg-white px-3 py-2.5 text-[14px] outline-none focus:border-[#1f6b3a] disabled:opacity-60"
+                                  maxLength={4}
+                                  className="w-full rounded-[12px] border border-[#d7e5d9] bg-white px-3 py-2.5 text-[14px] tracking-[0.2em] outline-none focus:border-[#1f6b3a] disabled:opacity-60"
                                   autoComplete="one-time-code"
                                   autoFocus
                                 />
                                 {otpHint ? (
-                                  <p className="mt-2 text-[12px] font-medium text-[#1f6b3a]">
+                                  <p className="mt-2 text-[12px] leading-relaxed text-[#5f6f64]">
                                     {otpHint}
                                   </p>
                                 ) : null}
@@ -1187,7 +1199,11 @@ export function MembershipCheckoutPanel({
               ) : null}
               <div className="flex justify-between gap-4">
                 <dt className="text-[#5f6f64]">
-                  {quote.offer ? "Offer price" : "Plan price"}
+                  {quote.corporatePricing
+                    ? "Corporate plan price"
+                    : quote.offer
+                      ? "Offer price"
+                      : "Plan price"}
                 </dt>
                 <dd className="font-semibold text-[#243028]">
                   {formatMoney(quote.listPricePaise, quote.currency)}

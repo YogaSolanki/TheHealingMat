@@ -972,6 +972,9 @@ export type AdminCoupon = {
   active: boolean;
   expiresAt: string | null;
   status: CouponLifecycleStatus;
+  /** Set for corporate seat coupons. */
+  allowedDomains?: string[];
+  corporatePlanId?: string | null;
   createdAt: string;
   updatedAt: string;
 };
