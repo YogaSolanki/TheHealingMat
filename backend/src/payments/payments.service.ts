@@ -550,7 +550,8 @@ export class PaymentsService {
 
   /**
    * E-book PDF for active 12-month members only.
-   * File lives under uploads/milestones/ebooks (blocked from public static).
+   * Shipped with the backend at assets/ebooks/E-Book_WLWTD.pdf (commit + deploy).
+   * Also accepts the older uploads/… path as a fallback.
    */
   async getTwelveMonthEbook(user: User) {
     await this.expireEnded(user.id);
@@ -570,15 +571,21 @@ export class PaymentsService {
       );
     }
 
-    const filePath = join(
-      process.cwd(),
-      'uploads',
-      'milestones',
-      'ebooks',
-      'E-Book_WLWTD.pdf',
-    );
-    if (!existsSync(filePath)) {
-      this.logger.error(`[ebook] Missing file at ${filePath}`);
+    const candidates = [
+      join(process.cwd(), 'assets', 'ebooks', 'E-Book_WLWTD.pdf'),
+      join(
+        process.cwd(),
+        'uploads',
+        'milestones',
+        'ebooks',
+        'E-Book_WLWTD.pdf',
+      ),
+    ];
+    const filePath = candidates.find((path) => existsSync(path));
+    if (!filePath) {
+      this.logger.error(
+        `[ebook] Missing file. Tried: ${candidates.join(' | ')}`,
+      );
       throw new NotFoundException('E-book file is not available yet.');
     }
 
