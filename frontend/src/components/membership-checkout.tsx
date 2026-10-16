@@ -29,6 +29,10 @@ import {
   closeCheckoutModal,
   openPaymentRetryModal,
 } from "@/components/checkout-modal-provider";
+import {
+  OTP_LENGTH,
+  OtpDigitInputs,
+} from "@/components/otp-digit-inputs";
 import { ButtonLoader } from "@/components/site-loader";
 import { getStoredToken } from "@/lib/auth-storage";
 import {
@@ -1052,31 +1056,21 @@ export function MembershipCheckoutPanel({
                               ) : null}
                             </label>
                             {corporateModal.phase === "otp" ? (
-                              <label className="mt-3 block">
-                                <span className="mb-1.5 block text-[12px] font-semibold text-[#5f6f64]">
+                              <div className="mt-3">
+                                <span className="mb-2 block text-[12px] font-semibold text-[#5f6f64]">
                                   OTP
                                 </span>
-                                <input
+                                <OtpDigitInputs
                                   value={workOtp}
-                                  onChange={(e) =>
-                                    setWorkOtp(
-                                      e.target.value.replace(/\D/g, "").slice(0, 4),
-                                    )
-                                  }
+                                  onChange={setWorkOtp}
                                   disabled={promoBusy}
-                                  placeholder="4-digit code from email"
-                                  inputMode="numeric"
-                                  maxLength={4}
-                                  className="w-full rounded-[12px] border border-[#d7e5d9] bg-white px-3 py-2.5 text-[14px] tracking-[0.2em] outline-none focus:border-[#1f6b3a] disabled:opacity-60"
-                                  autoComplete="one-time-code"
-                                  autoFocus
                                 />
                                 {otpHint ? (
-                                  <p className="mt-2 text-[12px] leading-relaxed text-[#5f6f64]">
+                                  <p className="mt-2 text-center text-[12px] leading-relaxed text-[#5f6f64]">
                                     {otpHint}
                                   </p>
                                 ) : null}
-                              </label>
+                              </div>
                             ) : null}
                             {error ? (
                               <p className="mt-3 text-[13px] font-medium text-[#b42318]">
@@ -1113,7 +1107,9 @@ export function MembershipCheckoutPanel({
                               ) : (
                                 <button
                                   type="submit"
-                                  disabled={promoBusy || !workOtp.trim()}
+                                  disabled={
+                                    promoBusy || workOtp.length < OTP_LENGTH
+                                  }
                                   className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-[12px] bg-[#1f6b3a] px-3 py-2.5 text-[13px] font-bold text-white disabled:opacity-60"
                                 >
                                   {promoBusy ? (
