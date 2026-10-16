@@ -535,6 +535,8 @@ export type MembershipQuote = {
   referralDiscountAvailable?: boolean;
   referralDiscountApplied?: boolean;
   referralDiscountPercent?: number;
+  /** List price is the corporate plan per-seat price (not catalog/offer). */
+  corporatePricing?: boolean;
 };
 
 export type PublicMembership = {

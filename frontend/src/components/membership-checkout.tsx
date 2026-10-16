@@ -464,7 +464,7 @@ export function MembershipCheckoutPanel({
         applyReferralDiscount: false,
         domainVerificationId: verified.domainVerificationId,
       });
-      setActivePlanMonths(seatMonths);
+      setActivePlanMonths(next.planMonths || seatMonths);
       setQuote(next);
       setAppliedCoupon(next.couponCode ?? code);
       setCouponInput(next.couponCode ?? code);
@@ -1199,7 +1199,11 @@ export function MembershipCheckoutPanel({
               ) : null}
               <div className="flex justify-between gap-4">
                 <dt className="text-[#5f6f64]">
-                  {quote.offer ? "Offer price" : "Plan price"}
+                  {quote.corporatePricing
+                    ? "Corporate plan price"
+                    : quote.offer
+                      ? "Offer price"
+                      : "Plan price"}
                 </dt>
                 <dd className="font-semibold text-[#243028]">
                   {formatMoney(quote.listPricePaise, quote.currency)}

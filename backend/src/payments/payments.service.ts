@@ -16,6 +16,7 @@ import Razorpay from 'razorpay';
 import { Repository } from 'typeorm';
 import { CouponsService } from '../coupons/coupons.service';
 import { detectVisitorRegion } from '../common/visitor-region';
+import { CorporatePlan } from '../corporate/corporate-plan.entity';
 import { sendResendEmail } from '../mail/resend';
 import { SettingsService } from '../settings/settings.service';
 import { TrialRegistration } from '../trials/trial-registration.entity';
@@ -77,6 +78,8 @@ export class PaymentsService {
     private readonly trials: Repository<TrialRegistration>,
     @InjectRepository(User)
     private readonly users: Repository<User>,
+    @InjectRepository(CorporatePlan)
+    private readonly corporatePlans: Repository<CorporatePlan>,
   ) {
     const keyId = this.keyId();
     const keySecret = this.keySecret();
@@ -1355,17 +1358,17 @@ export class PaymentsService {
     applyReferralDiscount = false,
     domainVerificationId?: string,
   ) {
-    const plan = await this.membershipPlans.requireActiveByMonths(planMonths);
+    let plan = await this.membershipPlans.requireActiveByMonths(planMonths);
     const currency = user.region === Region.OutsideIndia ? ('USD' as const) : ('INR' as const);
     const offer =
       currency === 'INR' ? await this.membershipOffers.findCurrentOffer() : null;
-    const offerPrice = offer
+    let offerPrice = offer
       ? this.membershipOffers.priceForMonths(offer, planMonths)
       : null;
 
-    const originalPricePaise =
+    let originalPricePaise =
       currency === 'USD' ? plan.listPriceUsdCents : plan.listPricePaise;
-    const listPricePaise =
+    let listPricePaise =
       currency === 'USD'
         ? plan.listPriceUsdCents
         : (offerPrice?.offerPricePaise ?? plan.listPricePaise);
@@ -1374,6 +1377,7 @@ export class PaymentsService {
     let discountLabel = '—';
     let verifiedEmail: string | null = null;
     let resolvedDomainVerificationId: string | null = null;
+    let corporatePricing = false;
     const referralDiscountPercent =
       await this.settings.getReferralDiscountPercent();
     const referralDiscountAvailable = Boolean(user.referredByUserId);
@@ -1409,6 +1413,41 @@ export class PaymentsService {
         });
         verifiedEmail = verification.email;
         resolvedDomainVerificationId = verification.id;
+
+        // After domain OTP, price from the corporate plan (admin-set per-seat
+        // list), then apply the seat coupon % on that amount — not catalog/offer.
+        if (coupon.corporatePlanId) {
+          const corpPlan = await this.corporatePlans.findOne({
+            where: { id: coupon.corporatePlanId },
+          });
+          if (!corpPlan) {
+            throw new BadRequestException(
+              'This corporate coupon is no longer linked to a plan.',
+            );
+          }
+          if (corpPlan.listPricePerSeatPaise <= 0) {
+            throw new BadRequestException(
+              'Corporate plan price is not configured.',
+            );
+          }
+          const corpCurrency = (corpPlan.currency || 'INR').toUpperCase();
+          if (currency !== corpCurrency) {
+            throw new BadRequestException(
+              corpCurrency === 'INR'
+                ? 'This corporate coupon is for India (INR) memberships.'
+                : `This corporate coupon is for ${corpCurrency} memberships.`,
+            );
+          }
+          if (corpPlan.planMonths !== plan.months) {
+            plan = await this.membershipPlans.requireActiveByMonths(
+              corpPlan.planMonths,
+            );
+          }
+          listPricePaise = corpPlan.listPricePerSeatPaise;
+          originalPricePaise = corpPlan.listPricePerSeatPaise;
+          offerPrice = null;
+          corporatePricing = true;
+        }
       }
 
       await this.coupons.assertRedeemable(coupon, user.id, {
@@ -1465,6 +1504,7 @@ export class PaymentsService {
       discountLabel,
       verifiedEmail,
       domainVerificationId: resolvedDomainVerificationId,
+      corporatePricing,
       referralDiscountAvailable,
       referralDiscountApplied,
       referralDiscountPercent:
@@ -1491,6 +1531,8 @@ export class PaymentsService {
       referralDiscountAvailable: quote.referralDiscountAvailable,
       referralDiscountApplied: quote.referralDiscountApplied,
       referralDiscountPercent: quote.referralDiscountPercent,
+      /** True when list price came from the corporate plan seat price. */
+      corporatePricing: quote.corporatePricing,
       offer: quote.offer,
       currency: quote.currency,
     };
