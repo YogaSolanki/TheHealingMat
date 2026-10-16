@@ -60,6 +60,37 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
+/** What each employee pays at checkout (₹1 when company covers 100%). */
+function employeePayPerSeatPaise(plan: AdminCorporatePlan) {
+  if (plan.employeeCount <= 0) return 0;
+  if (plan.companyPayPercent >= 100) return 100;
+  return Math.round(
+    (plan.listPricePerSeatPaise * (100 - plan.companyPayPercent)) / 100,
+  );
+}
+
+function PlanStat({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div className="rounded-xl bg-[#f7faf6] px-3 py-2.5">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#8a978c]">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-semibold text-[#243028]">{value}</p>
+      {hint ? (
+        <p className="mt-0.5 text-[11px] leading-snug text-[#8a978c]">{hint}</p>
+      ) : null}
+    </div>
+  );
+}
+
 export function CorporateDetailPanel({ companyId }: { companyId: string }) {
   const [detail, setDetail] = useState<AdminCompanyDetail | null>(null);
   const [catalogPlans, setCatalogPlans] = useState<AdminMembershipPlan[]>([]);
@@ -655,9 +686,8 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
                       {plan.planName}
                     </p>
                     <p className="mt-1 text-xs text-[#5f6f64]">
-                      {plan.employeeCount} seats · Company pays{" "}
-                      {plan.companyPayPercent}% ·{" "}
-                      {formatMoney(plan.companyAmountPaise)}
+                      {plan.planMonths} months · Company pays{" "}
+                      {plan.companyPayPercent}%
                     </p>
                     <p className="mt-1 text-xs text-[#8a978c]">
                       {formatDate(plan.startsAt)} → {formatDate(plan.endsAt)}
@@ -750,19 +780,71 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
                   </div>
                 </div>
 
+                <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  <PlanStat
+                    label="Per seat (list)"
+                    value={formatMoney(plan.listPricePerSeatPaise)}
+                  />
+                  <PlanStat
+                    label="List total"
+                    value={formatMoney(plan.totalListPricePaise)}
+                    hint={`${plan.employeeCount} seats × ${formatMoney(plan.listPricePerSeatPaise)}`}
+                  />
+                  <PlanStat
+                    label="Company invoice"
+                    value={formatMoney(plan.companyAmountPaise)}
+                    hint={`Company pays ${plan.companyPayPercent}%`}
+                  />
+                  <PlanStat
+                    label="Employee pays / seat"
+                    value={formatMoney(employeePayPerSeatPaise(plan))}
+                    hint={
+                      plan.companyPayPercent >= 100
+                        ? "₹1 reserved for each member invoice"
+                        : `${100 - plan.companyPayPercent}% of list price`
+                    }
+                  />
+                  <PlanStat
+                    label="Seats used"
+                    value={`${plan.seatsUsed} / ${plan.employeeCount}`}
+                    hint={`${plan.seatsRemaining} remaining`}
+                  />
+                  <PlanStat
+                    label="Coupon seats"
+                    value={
+                      plan.coupon
+                        ? `${plan.coupon.usageCount} / ${plan.coupon.maxUses}`
+                        : "—"
+                    }
+                    hint={
+                      plan.coupon
+                        ? `${plan.coupon.remainingUses} uses left`
+                        : "No coupon linked"
+                    }
+                  />
+                </div>
+
                 {plan.coupon ? (
-                  <div className="mt-3 flex flex-wrap items-start justify-between gap-2 rounded-xl bg-[#f7faf6] px-3.5 py-3 text-sm">
+                  <div className="mt-3 flex flex-wrap items-start justify-between gap-2 rounded-xl border border-[#e6ebe3] bg-[#fbfcfa] px-3.5 py-3 text-sm">
                     <div className="min-w-0">
                       <p className="font-semibold text-[#243028]">
-                        Coupon{" "}
+                        Seat coupon{" "}
                         <span className="font-mono text-[#1f6b3a]">
                           {plan.coupon.code}
                         </span>
                       </p>
                       <p className="mt-1 text-xs text-[#5f6f64]">
-                        {plan.coupon.discountLabel} · {plan.coupon.usageCount}/
-                        {plan.coupon.maxUses} used · domains:{" "}
+                        {plan.coupon.discountLabel} ·{" "}
+                        {plan.coupon.usageCount}/{plan.coupon.maxUses} seats
+                        used · {plan.coupon.remainingUses} left
+                      </p>
+                      <p className="mt-1 text-xs text-[#8a978c]">
+                        Domains:{" "}
                         {(plan.coupon.allowedDomains ?? []).join(", ") || "—"}
+                        {" · "}
+                        Employee pays{" "}
+                        {formatMoney(employeePayPerSeatPaise(plan))} / seat at
+                        checkout
                       </p>
                     </div>
                     <button
@@ -783,7 +865,8 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
                 {expanded ? (
                   <div className="mt-4 border-t border-[#eef2ee] pt-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-[#8a978c]">
-                      Seat usage ({plan.seatsUsed}/{plan.employeeCount})
+                      Seat redemptions ({plan.seatsUsed}/{plan.employeeCount} ·{" "}
+                      {plan.seatsRemaining} left)
                     </p>
                     {plan.poNumber ||
                     plan.paymentMethod ||
