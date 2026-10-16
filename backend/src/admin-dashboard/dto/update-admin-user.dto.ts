@@ -1,6 +1,5 @@
 import {
   IsBoolean,
-  IsDateString,
   IsEmail,
   IsEnum,
   IsOptional,
@@ -16,7 +15,6 @@ import {
   PASSWORD_MIN_LENGTH,
   PASSWORD_PATTERN,
 } from '../../auth/dto/password.rules';
-import { Gender } from '../../users/enums/gender.enum';
 import { Region } from '../../users/enums/region.enum';
 
 export class UpdateAdminUserDto {
@@ -46,16 +44,6 @@ export class UpdateAdminUserDto {
 
   @IsOptional()
   @ValidateIf((_, value) => value !== null && value !== '')
-  @IsDateString({}, { message: 'dateOfBirth must be YYYY-MM-DD.' })
-  dateOfBirth?: string | null;
-
-  @IsOptional()
-  @ValidateIf((_, value) => value !== null)
-  @IsEnum(Gender, { message: 'gender must be a valid option.' })
-  gender?: Gender | null;
-
-  @IsOptional()
-  @ValidateIf((_, value) => value !== null && value !== '')
   @IsString()
   @MaxLength(80)
   state?: string | null;
@@ -69,6 +57,16 @@ export class UpdateAdminUserDto {
   @IsOptional()
   @IsBoolean()
   hasUsedFreeTrial?: boolean;
+
+  /**
+   * Referrer’s referral code. Empty string or null clears Referred by.
+   * Must match an existing member’s code (not this user).
+   */
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null && value !== undefined && value !== '')
+  @IsString()
+  @MaxLength(40)
+  referralCode?: string | null;
 
   /** When provided, replaces the member’s login password. */
   @IsOptional()

@@ -45,10 +45,10 @@ export class CouponsService implements OnModuleInit {
     try {
       await this.dataSource.query(`
         ALTER TABLE "coupons"
-        ADD COLUMN IF NOT EXISTS "isPromotional" boolean NOT NULL DEFAULT false
+        DROP COLUMN IF EXISTS "isPromotional"
       `);
     } catch {
-      // Column may already exist via synchronize.
+      // Best-effort cleanup when synchronize is off.
     }
   }
 
@@ -89,7 +89,6 @@ export class CouponsService implements OnModuleInit {
       discountLabel,
       maxUses,
       expiresAt: dto.expiresAt ?? null,
-      isPromotional: Boolean(dto.isPromotional),
     };
   }
 
@@ -120,7 +119,6 @@ export class CouponsService implements OnModuleInit {
       maxUses,
       usageCount: 0,
       active: true,
-      isPromotional: Boolean(dto.isPromotional),
       expiresAt: this.parseExpiresAt(dto.expiresAt),
       assignedUserId: null,
       assignedReferralCode: null,
@@ -212,9 +210,8 @@ export class CouponsService implements OnModuleInit {
       throw new NotFoundException('No member found with that referral code.');
     }
 
-    // Personal assign defaults to single-use; promotional keeps its campaign limit.
-    const maxUses =
-      dto.maxUses ?? (coupon.isPromotional ? coupon.maxUses : 1);
+    // Personal assign defaults to single-use unless a higher limit is passed.
+    const maxUses = dto.maxUses ?? 1;
     this.assertMaxUses(maxUses);
 
     coupon.assignedUserId = user.id;
@@ -325,7 +322,6 @@ export class CouponsService implements OnModuleInit {
       maxUses: input.maxUses,
       usageCount: 0,
       active: true,
-      isPromotional: false,
       expiresAt: null,
       assignedUserId: null,
       assignedReferralCode: null,
@@ -452,7 +448,6 @@ export class CouponsService implements OnModuleInit {
       usageCount: coupon.usageCount,
       remainingUses: Math.max(0, coupon.maxUses - coupon.usageCount),
       active: coupon.active,
-      isPromotional: Boolean(coupon.isPromotional),
       expiresAt: coupon.expiresAt?.toISOString() ?? null,
       status: this.lifecycleStatus(coupon),
       allowedDomains: coupon.allowedDomains ?? [],

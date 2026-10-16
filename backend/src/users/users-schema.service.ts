@@ -20,5 +20,19 @@ export class UsersSchemaService implements OnModuleInit {
         }`,
       );
     }
+
+    try {
+      await this.dataSource.query(`
+        ALTER TABLE "users"
+        DROP COLUMN IF EXISTS "dateOfBirth",
+        DROP COLUMN IF EXISTS "gender"
+      `);
+    } catch (err) {
+      this.logger.warn(
+        `Could not drop users.dateOfBirth/gender: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
   }
 }

@@ -356,7 +356,7 @@ export class AdminDashboardService {
       throw new NotFoundException('User not found.');
     }
 
-    const [trial, memberships, payments, referralCount] = await Promise.all([
+    const [trial, memberships, payments, referredUsers] = await Promise.all([
       this.trials.findOne({
         where: { userId: id },
         relations: { cohort: true, orientationSlot: true },
@@ -369,8 +369,22 @@ export class AdminDashboardService {
         where: { userId: id },
         order: { createdAt: 'DESC' },
       }),
-      this.users.count({ where: { referredByUserId: id } }),
+      this.users.find({
+        where: { referredByUserId: id },
+        select: {
+          id: true,
+          fullName: true,
+          referralCode: true,
+          email: true,
+          mobile: true,
+          region: true,
+          accountStatus: true,
+          createdAt: true,
+        },
+        order: { createdAt: 'DESC' },
+      }),
     ]);
+    const referralCount = referredUsers.length;
 
     const invoiceRows = await this.invoices.findByMembershipIds(
       memberships.map((m) => m.id),
@@ -404,8 +418,6 @@ export class AdminDashboardService {
         region: user.region,
         mobile: user.mobile,
         email: user.email,
-        dateOfBirth: user.dateOfBirth,
-        gender: user.gender,
         state: user.state,
         preferredClassTime: user.preferredClassTime,
         referralCode: user.referralCode,
@@ -420,6 +432,16 @@ export class AdminDashboardService {
       },
       referredBy,
       referralCount,
+      referrals: referredUsers.map((row) => ({
+        id: row.id,
+        fullName: row.fullName,
+        referralCode: row.referralCode,
+        email: row.email,
+        mobile: row.mobile,
+        region: row.region,
+        accountStatus: row.accountStatus ?? AccountStatus.Active,
+        createdAt: row.createdAt,
+      })),
       trial: trial
         ? {
             id: trial.id,
@@ -635,8 +657,6 @@ export class AdminDashboardService {
             referredByUserId,
             hasUsedFreeTrial: false,
             role: 'user',
-            dateOfBirth: dto.dateOfBirth?.trim() || null,
-            gender: dto.gender ?? null,
             state: dto.state?.trim() || null,
             preferredClassTime: dto.preferredClassTime?.trim() || null,
           }),
@@ -678,12 +698,6 @@ export class AdminDashboardService {
     if (dto.region !== undefined) {
       user.region = dto.region;
     }
-    if (dto.dateOfBirth !== undefined) {
-      user.dateOfBirth = dto.dateOfBirth?.trim() || null;
-    }
-    if (dto.gender !== undefined) {
-      user.gender = dto.gender ?? null;
-    }
     if (dto.state !== undefined) {
       user.state = dto.state?.trim() || null;
     }
@@ -692,6 +706,21 @@ export class AdminDashboardService {
     }
     if (dto.hasUsedFreeTrial !== undefined) {
       user.hasUsedFreeTrial = dto.hasUsedFreeTrial;
+    }
+
+    if (dto.referralCode !== undefined) {
+      const code = dto.referralCode?.trim() || '';
+      if (!code) {
+        user.referredByUserId = null;
+      } else {
+        const referrerId = await this.findReferrerId(code);
+        if (referrerId === id) {
+          throw new BadRequestException(
+            'A member cannot be referred by themselves.',
+          );
+        }
+        user.referredByUserId = referrerId;
+      }
     }
 
     if (dto.email !== undefined) {

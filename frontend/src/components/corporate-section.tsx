@@ -385,8 +385,16 @@ function ExperienceBlock() {
 
             <div className="mt-4 space-y-3 text-[13px] leading-relaxed text-[#5f6f64] sm:mt-5 sm:text-[14px]">
               <p>
-                The Healing Mat is founded by the team behind Yoga On Call, a
-                corporate wellness company that has spent over sixteen years
+                The Healing Mat is founded by the team behind{" "}
+                <a
+                  href="https://www.yogaoncall.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a]/35 underline-offset-2 transition hover:text-[#185530]"
+                >
+                  Yoga On Call
+                </a>
+                , a corporate wellness company that has spent over sixteen years
                 helping organizations across India build healthier workplaces.
               </p>
               <p>

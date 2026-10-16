@@ -73,6 +73,36 @@ body {
   display: none;
 }
 
+/* Thin muted scrollbars to match the admin UI */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #c5d0c3 transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #c5d0c3;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #9aab96;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* Touch-friendly horizontal scroll for admin tables on mobile */
 .overflow-x-auto {
   -webkit-overflow-scrolling: touch;

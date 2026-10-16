@@ -1,6 +1,5 @@
 import {
   IsBoolean,
-  IsDateString,
   IsEmail,
   IsEnum,
   IsOptional,
@@ -16,7 +15,6 @@ import {
   PASSWORD_MIN_LENGTH,
   PASSWORD_PATTERN,
 } from '../../auth/dto/password.rules';
-import { Gender } from '../../users/enums/gender.enum';
 import { Region } from '../../users/enums/region.enum';
 
 export class CreateAdminUserDto {
@@ -49,15 +47,6 @@ export class CreateAdminUserDto {
   @MaxLength(PASSWORD_MAX_LENGTH, { message: PASSWORD_MESSAGE })
   @Matches(PASSWORD_PATTERN, { message: PASSWORD_MESSAGE })
   password?: string;
-
-  @IsOptional()
-  @ValidateIf((_, value) => value !== null && value !== undefined && value !== '')
-  @IsDateString({}, { message: 'dateOfBirth must be YYYY-MM-DD.' })
-  dateOfBirth?: string;
-
-  @IsOptional()
-  @IsEnum(Gender, { message: 'gender must be a valid option.' })
-  gender?: Gender;
 
   @IsOptional()
   @IsString()

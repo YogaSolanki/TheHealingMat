@@ -64,8 +64,6 @@ export type Region = "india" | "outside_india";
 export type PublicUser = {
   id: string;
   fullName: string;
-  dateOfBirth: string | null;
-  gender: UserGender | null;
   state: string | null;
   preferredClassTime: string | null;
   region: Region;
@@ -86,8 +84,6 @@ export type PublicUser = {
   referredByName?: string | null;
   role: string;
 };
-
-export type UserGender = "male" | "female" | "other" | "prefer_not_to_say";
 
 export type OtpRequestResponse = {
   challengeId: string;
@@ -298,8 +294,6 @@ export async function updateProfile(
   accessToken: string,
   input: {
     fullName: string;
-    dateOfBirth?: string | null;
-    gender?: UserGender | null;
     state?: string | null;
     preferredClassTime?: string | null;
     region?: Region;
