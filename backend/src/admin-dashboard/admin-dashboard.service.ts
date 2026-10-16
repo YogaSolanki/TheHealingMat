@@ -356,7 +356,7 @@ export class AdminDashboardService {
       throw new NotFoundException('User not found.');
     }
 
-    const [trial, memberships, payments, referralCount] = await Promise.all([
+    const [trial, memberships, payments, referredUsers] = await Promise.all([
       this.trials.findOne({
         where: { userId: id },
         relations: { cohort: true, orientationSlot: true },
@@ -369,8 +369,22 @@ export class AdminDashboardService {
         where: { userId: id },
         order: { createdAt: 'DESC' },
       }),
-      this.users.count({ where: { referredByUserId: id } }),
+      this.users.find({
+        where: { referredByUserId: id },
+        select: {
+          id: true,
+          fullName: true,
+          referralCode: true,
+          email: true,
+          mobile: true,
+          region: true,
+          accountStatus: true,
+          createdAt: true,
+        },
+        order: { createdAt: 'DESC' },
+      }),
     ]);
+    const referralCount = referredUsers.length;
 
     const invoiceRows = await this.invoices.findByMembershipIds(
       memberships.map((m) => m.id),
@@ -418,6 +432,16 @@ export class AdminDashboardService {
       },
       referredBy,
       referralCount,
+      referrals: referredUsers.map((row) => ({
+        id: row.id,
+        fullName: row.fullName,
+        referralCode: row.referralCode,
+        email: row.email,
+        mobile: row.mobile,
+        region: row.region,
+        accountStatus: row.accountStatus ?? AccountStatus.Active,
+        createdAt: row.createdAt,
+      })),
       trial: trial
         ? {
             id: trial.id,

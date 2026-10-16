@@ -1902,6 +1902,88 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         )}
       </section>
 
+      <section className={cardClass}>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-[#243028]">Referrals</h2>
+            <p className="mt-0.5 text-xs text-[#8a978c]">
+              Members who joined using this user&apos;s referral code
+            </p>
+          </div>
+          <span className="rounded-md bg-[#f4f7f4] px-2 py-0.5 text-[11px] font-medium text-[#5f6f64]">
+            {(detail.referrals ?? []).length} member
+            {(detail.referrals ?? []).length === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        {(detail.referrals ?? []).length === 0 ? (
+          <p className="mt-3 text-sm text-[#8a978c]">
+            No referred members yet.
+          </p>
+        ) : (
+          <div className="mt-4 overflow-x-auto rounded-xl border border-[#e6ebe3]">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead className="bg-[#f7faf6] text-[#5f6f64]">
+                <tr>
+                  <th className="px-4 py-2.5 font-medium">Name</th>
+                  <th className="px-4 py-2.5 font-medium">Contact</th>
+                  <th className="px-4 py-2.5 font-medium">Referral code</th>
+                  <th className="px-4 py-2.5 font-medium">Region</th>
+                  <th className="px-4 py-2.5 font-medium">Joined</th>
+                  <th className="px-4 py-2.5 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(detail.referrals ?? []).map((row) => (
+                  <tr key={row.id} className="border-t border-[#eef2ee]">
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/dashboard/users/${row.id}`}
+                        className="font-semibold text-[#1f6b3a] hover:underline"
+                      >
+                        {row.fullName}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-[#243028]">
+                      <p className="truncate">
+                        {row.email?.trim() || row.mobile?.trim() || "—"}
+                      </p>
+                      {row.email?.trim() && row.mobile?.trim() ? (
+                        <p className="mt-0.5 truncate text-[11px] text-[#8a978c]">
+                          {row.mobile}
+                        </p>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-[12px] text-[#5f6f64]">
+                      {row.referralCode}
+                    </td>
+                    <td className="px-4 py-3 capitalize text-[#5f6f64]">
+                      {row.region.replaceAll("_", " ")}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-[#5f6f64]">
+                      {formatDateTime(row.createdAt)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded-md px-2 py-0.5 text-[11px] font-medium capitalize ${
+                          row.accountStatus === "inactive"
+                            ? "bg-[#f1ece6] text-[#6b5b4a]"
+                            : "bg-[#e8f2ea] text-[#1f6b3a]"
+                        }`}
+                      >
+                        {row.accountStatus === "inactive"
+                          ? "Inactive"
+                          : "Active"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
       <section className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

@@ -640,6 +640,8 @@ export type AdminUserDetail = {
     referralCode: string;
   } | null;
   referralCount: number;
+  /** Members who signed up with this user's referral code. */
+  referrals: AdminUserReferral[];
   trial: {
     id: string;
     status: string;
@@ -651,6 +653,17 @@ export type AdminUserDetail = {
   } | null;
   memberships: AdminUserMembership[];
   payments: AdminUserPayment[];
+};
+
+export type AdminUserReferral = {
+  id: string;
+  fullName: string;
+  referralCode: string;
+  email: string | null;
+  mobile: string | null;
+  region: string;
+  accountStatus: "active" | "inactive";
+  createdAt: string;
 };
 
 export type AdminUserMembership = {
