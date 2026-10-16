@@ -31,6 +31,12 @@ const labelClass = "block text-sm font-semibold text-[#243028]";
 const cardClass =
   "rounded-2xl border border-[#e6ebe3] bg-white p-5 shadow-[0_4px_16px_rgba(21,32,25,0.03)] sm:p-6";
 
+type UserDetailTab =
+  | "account"
+  | "referrals"
+  | "memberships"
+  | "payments";
+
 type ProfileForm = {
   fullName: string;
   region: string;
@@ -467,6 +473,179 @@ function EditIcon({ className = "h-[18px] w-[18px]" }: { className?: string }) {
   );
 }
 
+function DownloadIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      aria-hidden="true"
+    >
+      <path d="M12 4v11" strokeLinecap="round" />
+      <path d="m8 11 4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 19h14" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function InvoiceDownloadButton({
+  busy,
+  disabled,
+  onClick,
+  label = "Download invoice",
+  busyLabel = "Downloading…",
+}: {
+  busy: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  label?: string;
+  busyLabel?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || busy}
+      className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full border border-[#1f6b3a]/35 bg-white px-3.5 text-sm font-semibold text-[#1f6b3a] transition hover:bg-[#e8f2ea] disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      <DownloadIcon className="h-4 w-4" />
+      {busy ? busyLabel : label}
+    </button>
+  );
+}
+
+function EmptyState({
+  kind,
+  title,
+  description,
+  className = "",
+}: {
+  kind: "referrals" | "memberships" | "payments" | "trial";
+  title: string;
+  description?: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`flex min-h-[220px] flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-[#d7e0d6] bg-[#fbfcfa] px-6 py-10 text-center ${className}`}
+    >
+      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#e8f2ea] text-[#1f6b3a]">
+        {kind === "referrals" ? <EmptyReferralsIcon /> : null}
+        {kind === "memberships" ? <EmptyMembershipsIcon /> : null}
+        {kind === "payments" ? <EmptyPaymentsIcon /> : null}
+        {kind === "trial" ? <EmptyTrialIcon /> : null}
+      </div>
+      <p className="mt-4 text-sm font-semibold text-[#243028]">{title}</p>
+      {description ? (
+        <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-[#8a978c]">
+          {description}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function EmptyReferralsIcon() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-10 w-10" fill="none" aria-hidden="true">
+      <circle cx="16" cy="16" r="5" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M8 30c1.8-4 4.8-6 8-6s6.2 2 8 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <circle cx="33" cy="18" r="4" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M27 31c1.4-3 3.7-4.5 6-4.5s4.6 1.5 6 4.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M22 14h6M25 11v6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function EmptyMembershipsIcon() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-10 w-10" fill="none" aria-hidden="true">
+      <rect
+        x="8"
+        y="12"
+        width="32"
+        height="24"
+        rx="4"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M8 20h32"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <circle cx="16" cy="28" r="2" fill="currentColor" />
+      <path
+        d="M22 27h10M22 31h7"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function EmptyPaymentsIcon() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-10 w-10" fill="none" aria-hidden="true">
+      <rect
+        x="7"
+        y="14"
+        width="34"
+        height="22"
+        rx="4"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M7 22h34"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M13 29h8M28 29h7"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function EmptyTrialIcon() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-10 w-10" fill="none" aria-hidden="true">
+      <circle cx="24" cy="24" r="14" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M24 14v11l7 4"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function UserDetailPanel({ userId }: { userId: string }) {
   const [detail, setDetail] = useState<AdminUserDetail | null>(null);
   const [profileForm, setProfileForm] = useState<ProfileForm | null>(null);
@@ -490,8 +669,10 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   const [membershipComposer, setMembershipComposer] =
     useState<MembershipComposer>(null);
   const [upgradeTargetId, setUpgradeTargetId] = useState<string | null>(null);
+  const [editMembershipId, setEditMembershipId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [editingMemberships, setEditingMemberships] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingMembershipId, setSavingMembershipId] = useState<string | null>(
     null,
@@ -521,6 +702,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   const [preferredClassTimes, setPreferredClassTimes] = useState<string[]>([]);
   const [pendingDeactivate, setPendingDeactivate] = useState(false);
   const [accountActionBusy, setAccountActionBusy] = useState(false);
+  const [activeTab, setActiveTab] = useState<UserDetailTab>("account");
 
   const token = useMemo(
     () =>
@@ -585,7 +767,8 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     }
     setLoading(true);
     setError(null);
-    setEditing(false);
+    setEditingProfile(false);
+    setEditingMemberships(false);
     setMembershipComposer(null);
     setUpgradeTargetId(null);
     setPendingSave(null);
@@ -614,7 +797,9 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   useEffect(() => {
     setDetail(null);
     setProfileForm(null);
-    setEditing(false);
+    setEditingProfile(false);
+    setEditingMemberships(false);
+    setActiveTab("account");
     setMembershipComposer(null);
     setUpgradeTargetId(null);
     setPendingSave(null);
@@ -631,7 +816,8 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       invalidateCached(DASHBOARD_CACHE_KEYS.users);
       invalidateCached(DASHBOARD_CACHE_KEYS.overview);
       setPendingDeactivate(false);
-      setEditing(false);
+      setEditingProfile(false);
+      setEditingMemberships(false);
       setMembershipComposer(null);
       setUpgradeTargetId(null);
       setPendingSave(null);
@@ -664,23 +850,47 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     }
   }
 
-  function enterEditMode() {
+  function enterProfileEdit() {
     if (!detail) return;
     if (detail.profile.accountStatus === "inactive") return;
     applyDetail(detail);
-    setEditing(true);
+    setEditingProfile(true);
+    setEditingMemberships(false);
     setMembershipComposer(null);
     setUpgradeTargetId(null);
+    setPendingSave(null);
+    setProfileSaved(false);
+    setError(null);
+  }
+
+  function cancelProfileEdit() {
+    if (!detail) return;
+    setProfileForm(profileFromDetail(detail));
+    setEditingProfile(false);
+    setPendingSave(null);
+    setProfileSaved(false);
+    setError(null);
+  }
+
+  function enterMembershipsEdit() {
+    if (!detail) return;
+    if (detail.profile.accountStatus === "inactive") return;
+    applyDetail(detail);
+    setEditingMemberships(true);
+    setEditingProfile(false);
+    setMembershipComposer(null);
+    setUpgradeTargetId(null);
+    setEditMembershipId(null);
     const currency =
       detail.profile.region === "outside_india" ? "USD" : "INR";
     setNewMembershipForm(emptyNewMembershipForm(catalogPlans, currency));
     const active =
       detail.memberships.find((m) => m.status === "active") ?? null;
     setUpgradeForm(emptyUpgradeForm(active, catalogPlans, currency));
-    setProfileSaved(false);
     setMembershipSavedId(null);
     setMembershipCreated(false);
     setMembershipActionMessage(null);
+    setPendingSave(null);
     setError(null);
     if (catalogPlans.length === 0) {
       void loadCatalogPlans().then((plans) => {
@@ -690,12 +900,13 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     }
   }
 
-  function cancelEditMode() {
+  function cancelMembershipsEdit() {
     if (!detail) return;
     applyDetail(detail);
-    setEditing(false);
+    setEditingMemberships(false);
     setMembershipComposer(null);
     setUpgradeTargetId(null);
+    setEditMembershipId(null);
     const currency =
       detail.profile.region === "outside_india" ? "USD" : "INR";
     setNewMembershipForm(emptyNewMembershipForm(catalogPlans, currency));
@@ -703,7 +914,6 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       detail.memberships.find((m) => m.status === "active") ?? null;
     setUpgradeForm(emptyUpgradeForm(active, catalogPlans, currency));
     setPendingSave(null);
-    setProfileSaved(false);
     setMembershipSavedId(null);
     setMembershipCreated(false);
     setMembershipActionMessage(null);
@@ -712,6 +922,8 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
   function openMembershipComposer(mode: Exclude<MembershipComposer, null>) {
     if (detail?.profile.accountStatus === "inactive") return;
+    setActiveTab("memberships");
+    setEditMembershipId(null);
     const currency =
       detail?.profile.region === "outside_india" ? "USD" : "INR";
     setMembershipComposer((current) => {
@@ -745,6 +957,37 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     setError(null);
   }
 
+  function openEditMembership(membershipId: string) {
+    if (!detail) return;
+    if (detail.profile.accountStatus === "inactive") return;
+    if (!editingMemberships) return;
+    const row = detail.memberships.find((m) => m.id === membershipId);
+    if (!row) return;
+    setMembershipComposer(null);
+    setUpgradeTargetId(null);
+    setMembershipForms((forms) => ({
+      ...forms,
+      [membershipId]: membershipFormFromRow(row),
+    }));
+    setEditMembershipId(membershipId);
+    setMembershipSavedId(null);
+    setError(null);
+  }
+
+  function closeEditMembership() {
+    if (detail && editMembershipId) {
+      const row = detail.memberships.find((m) => m.id === editMembershipId);
+      if (row) {
+        setMembershipForms((forms) => ({
+          ...forms,
+          [editMembershipId]: membershipFormFromRow(row),
+        }));
+      }
+    }
+    setEditMembershipId(null);
+    setMembershipSavedId(null);
+  }
+
   function startUpgrade(membershipId: string) {
     if (!detail) return;
     if (detail.profile.accountStatus === "inactive") return;
@@ -766,13 +1009,13 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       return;
     }
 
-    if (!editing) {
+    if (!editingMemberships) {
       applyDetail(detail);
-      setEditing(true);
+      setEditingMemberships(true);
+      setEditingProfile(false);
       const currency =
         detail.profile.region === "outside_india" ? "USD" : "INR";
       setNewMembershipForm(emptyNewMembershipForm(catalogPlans, currency));
-      setProfileSaved(false);
       setMembershipSavedId(null);
     }
 
@@ -799,6 +1042,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       nextPlan.months,
     );
 
+    setEditMembershipId(null);
     setMembershipComposer("upgrade");
     setUpgradeTargetId(membershipId);
     setUpgradeForm(nextUpgrade);
@@ -823,7 +1067,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
 
   function requestSaveProfile(event: FormEvent) {
     event.preventDefault();
-    if (!editing || !profileForm || savingProfile) return;
+    if (!editingProfile || !profileForm || savingProfile) return;
     if (detail?.profile.accountStatus === "inactive") return;
     if (!detail || !isProfileDirty(profileForm, profileFromDetail(detail))) {
       return;
@@ -856,7 +1100,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   }
 
   function requestSaveMembership(membershipId: string) {
-    if (!editing || savingMembershipId) return;
+    if (!editingMemberships || savingMembershipId) return;
     if (detail?.profile.accountStatus === "inactive") return;
     const form = membershipForms[membershipId];
     if (!form) return;
@@ -874,49 +1118,85 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     setPendingSave({ type: "membership", membershipId });
   }
 
-  function requestCreateMembership(mode: "add" | "renew") {
-    if (!editing || savingNewMembership || !detail) return;
-    if (detail.profile.accountStatus === "inactive") return;
+  function getUpgradeValidationError(): string | null {
+    if (!detail || !upgradeTargetId) return "Select a membership to upgrade.";
+    const row = detail.memberships.find((m) => m.id === upgradeTargetId);
+    if (!row) return "Membership not found.";
+    const planMonths = Number(upgradeForm.planMonths);
+    if (!Number.isInteger(planMonths) || planMonths <= row.planMonths) {
+      return "Select a longer plan to upgrade.";
+    }
+    const listPricePaise = majorToMinorUnits(upgradeForm.listPriceMajor);
+    const discountPaise = majorToMinorUnits(upgradeForm.discountMajor);
+    const amountPaidPaise = majorToMinorUnits(upgradeForm.amountPaidMajor);
+    if (
+      listPricePaise == null ||
+      discountPaise == null ||
+      amountPaidPaise == null
+    ) {
+      return "Enter a valid new plan price, discount, and additional amount.";
+    }
+    if (discountPaise > listPricePaise) {
+      return "Discount cannot exceed the new plan price.";
+    }
+    if (listPricePaise - discountPaise !== amountPaidPaise) {
+      return "Additional amount must equal new plan price minus discount.";
+    }
+    if (amountPaidPaise > 0) {
+      if (!upgradeForm.paymentMethod.trim()) {
+        return "Payment method is required for the additional amount.";
+      }
+      if (upgradeForm.paymentRef.trim().length < 2) {
+        return "Payment reference is required for the additional amount.";
+      }
+    }
+    return null;
+  }
+
+  function getNewMembershipValidationError(): string | null {
+    if (!detail) return "Account not loaded.";
     const planMonths = Number(newMembershipForm.planMonths);
     if (!Number.isInteger(planMonths) || planMonths < 1) {
-      showError("Select a valid plan.");
-      return;
+      return "Select a valid plan.";
     }
     if (newMembershipForm.adminNote.trim().length < 3) {
-      showError("Admin note is required (why this membership was created).");
-      return;
+      return "Admin note is required (why this membership was created).";
     }
 
     const listPricePaise = majorToMinorUnits(newMembershipForm.listPriceMajor);
     const discountPaise = majorToMinorUnits(newMembershipForm.discountMajor);
     if (listPricePaise == null || discountPaise == null) {
-      showError("Enter valid list price and discount.");
-      return;
+      return "Enter valid list price and discount.";
     }
     if (discountPaise > listPricePaise) {
-      showError("Discount cannot exceed list price.");
-      return;
+      return "Discount cannot exceed list price.";
     }
     const amountPaidPaise = Math.max(0, listPricePaise - discountPaise);
     if (amountPaidPaise > 0) {
       if (!newMembershipForm.paymentMethod.trim()) {
-        showError("Payment method is required for paid memberships.");
-        return;
+        return "Payment method is required for paid memberships.";
       }
       if (!newMembershipForm.paymentRef.trim()) {
-        showError("Payment reference is required for paid memberships.");
-        return;
+        return "Payment reference is required for paid memberships.";
       }
     }
     if (
       !detail.profile.state?.trim() &&
       newMembershipForm.billingLocation.trim().length < 2
     ) {
-      showError(
-        detail.profile.region === "outside_india"
-          ? "Enter the member’s country for the invoice."
-          : "Enter the member’s state for the invoice.",
-      );
+      return detail.profile.region === "outside_india"
+        ? "Enter the member’s country for the invoice."
+        : "Enter the member’s state for the invoice.";
+    }
+    return null;
+  }
+
+  function requestCreateMembership(mode: "add" | "renew") {
+    if (!editingMemberships || savingNewMembership || !detail) return;
+    if (detail.profile.accountStatus === "inactive") return;
+    const validationError = getNewMembershipValidationError();
+    if (validationError) {
+      showError(validationError);
       return;
     }
 
@@ -924,7 +1204,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   }
 
   function requestUpgradeMembership(membershipId: string) {
-    if (!editing || savingMembershipId) return;
+    if (!editingMemberships || savingMembershipId) return;
     if (detail?.profile.accountStatus === "inactive") return;
     const planMonths = Number(upgradeForm.planMonths);
     if (!Number.isInteger(planMonths) || planMonths < 1) {
@@ -981,8 +1261,9 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   }
 
   function requestActivatePayment(paymentOrderId: string) {
-    if (!editing || activatingPaymentId) return;
+    if (activatingPaymentId) return;
     if (detail?.profile.accountStatus === "inactive") return;
+    setActiveTab("payments");
     setPendingSave({ type: "activate-payment", paymentOrderId });
   }
 
@@ -1286,6 +1567,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       setMembershipSavedId(membershipId);
       showSuccess("Membership saved successfully.");
       setMembershipComposer(null);
+      setEditMembershipId(null);
     } catch (err) {
       showError(
         err instanceof Error ? err.message : "Unable to save membership.",
@@ -1324,13 +1606,17 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   }
 
   const accountInactive = detail.profile.accountStatus === "inactive";
-  const adminCanModify = !accountInactive && editing;
-  const fieldsLocked =
-    !adminCanModify ||
-    savingProfile ||
+  const canEditProfile = !accountInactive && editingProfile;
+  const canEditMemberships = !accountInactive && editingMemberships;
+  /** Profile tab only — memberships stay locked while editing profile. */
+  const profileFieldsLocked = !canEditProfile || savingProfile;
+  /** Memberships tab only — profile stays locked while editing memberships. */
+  const membershipFieldsLocked =
+    !canEditMemberships ||
     Boolean(savingMembershipId) ||
-    savingNewMembership ||
-    Boolean(activatingPaymentId);
+    savingNewMembership;
+  const paymentActionLocked =
+    accountInactive || Boolean(activatingPaymentId);
   const confirmBusy =
     savingProfile ||
     Boolean(savingMembershipId) ||
@@ -1435,6 +1721,16 @@ export function UserDetailPanel({ userId }: { userId: string }) {
   const canAdd = !activeMembership;
   const upgradeTarget =
     detail.memberships.find((m) => m.id === upgradeTargetId) ?? null;
+  const editMembershipTarget =
+    detail.memberships.find((m) => m.id === editMembershipId) ?? null;
+  const editMembershipForm = editMembershipId
+    ? (membershipForms[editMembershipId] ?? null)
+    : null;
+  const editMembershipDirty = Boolean(
+    editMembershipTarget &&
+      editMembershipForm &&
+      membershipDirtyById[editMembershipTarget.id],
+  );
   const upgradeDirty = Boolean(
     upgradeTarget &&
       Number(upgradeForm.planMonths) > upgradeTarget.planMonths,
@@ -1479,7 +1775,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       : null;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5">
+    <div className="mx-auto flex h-[calc(100dvh-7.5rem)] max-w-5xl flex-col gap-4 overflow-hidden">
       <AdminConfirmDialog
         open={pendingDeactivate}
         title="Deactivate user?"
@@ -1498,13 +1794,13 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         onDismiss={() => setToast(null)}
       />
       {accountInactive ? (
-        <p className="rounded-xl border border-[#e8dfd0] bg-[#faf6f0] px-4 py-3 text-sm text-[#6b5b4a]">
+        <p className="shrink-0 rounded-xl border border-[#e8dfd0] bg-[#faf6f0] px-4 py-3 text-sm text-[#6b5b4a]">
           This account is <strong className="font-semibold">inactive</strong>.
           The member cannot sign in. Records are retained; use Reactivate to
           restore access.
         </p>
       ) : null}
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
         <div>
           <Link
             href="/dashboard/users"
@@ -1518,9 +1814,11 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           <p className="mt-1 text-sm text-[#5f6f64]">
             {accountInactive
               ? "Inactive account — view only"
-              : editing
-                ? "Editing enabled — save changes to apply"
-                : "Viewing member details"}
+              : editingProfile
+                ? "Editing profile — save changes to apply"
+                : editingMemberships
+                  ? "Editing memberships — save changes to apply"
+                  : "Viewing member details"}
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -1543,28 +1841,6 @@ export function UserDetailPanel({ userId }: { userId: string }) {
               Deactivate account
             </button>
           )}
-          {!accountInactive ? (
-            editing ? (
-              <button
-                type="button"
-                onClick={cancelEditMode}
-                disabled={confirmBusy}
-                className="inline-flex h-10 items-center justify-center rounded-full border border-[#d7e0d6] bg-white px-4 text-sm font-semibold text-[#3d4a3c] transition hover:bg-[#f6f8f5] disabled:opacity-60"
-              >
-                Cancel
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={enterEditMode}
-                aria-label="Edit member"
-                title="Edit member"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#e8f2ea] text-[#1f6b3a] transition hover:bg-[#dceadf]"
-              >
-                <EditIcon />
-              </button>
-            )
-          ) : null}
           <ReloadButton
             onClick={() => void load()}
             disabled={loading || confirmBusy}
@@ -1574,12 +1850,120 @@ export function UserDetailPanel({ userId }: { userId: string }) {
       </div>
 
       {error ? (
-        <p className="rounded-xl bg-[#fdecec] px-3.5 py-2.5 text-sm text-[#8a2f2f]">
+        <p className="shrink-0 rounded-xl bg-[#fdecec] px-3.5 py-2.5 text-sm text-[#8a2f2f]">
           {error}
         </p>
       ) : null}
 
-      <section className={cardClass}>
+      <div className="flex shrink-0 flex-wrap gap-1.5">
+        <span className="rounded-md bg-[#e8f2ea] px-2 py-0.5 text-[11px] font-medium capitalize text-[#1f6b3a]">
+          {detail.profile.region.replaceAll("_", " ")}
+        </span>
+        <span
+          className={`rounded-md px-2 py-0.5 text-[11px] font-medium capitalize ${
+            accountInactive
+              ? "bg-[#f1ece6] text-[#6b5b4a]"
+              : "bg-[#e8f2ea] text-[#1f6b3a]"
+          }`}
+        >
+          {accountInactive ? "Inactive" : "Active"}
+        </span>
+        {detail.trial ? (
+          <span className="rounded-md bg-[#f4f7f4] px-2 py-0.5 text-[11px] font-medium capitalize text-[#5f6f64]">
+            Trial: {detail.trial.status}
+          </span>
+        ) : null}
+        <span className="rounded-md bg-[#f4f7f4] px-2 py-0.5 text-[11px] font-medium text-[#5f6f64]">
+          {detail.memberships.length} membership
+          {detail.memberships.length === 1 ? "" : "s"}
+        </span>
+        <span className="rounded-md bg-[#f4f7f4] px-2 py-0.5 text-[11px] font-medium text-[#5f6f64]">
+          {(detail.referrals ?? []).length} referral
+          {(detail.referrals ?? []).length === 1 ? "" : "s"}
+        </span>
+        {editingProfile ? (
+          <span className="rounded-md bg-[#fff4e8] px-2 py-0.5 text-[11px] font-medium text-[#8a5a2f]">
+            Editing profile
+          </span>
+        ) : null}
+        {editingMemberships ? (
+          <span className="rounded-md bg-[#fff4e8] px-2 py-0.5 text-[11px] font-medium text-[#8a5a2f]">
+            Editing memberships
+          </span>
+        ) : null}
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#e6ebe3] bg-white shadow-[0_4px_16px_rgba(21,32,25,0.03)]">
+        <nav
+          className="flex shrink-0 gap-1 overflow-x-auto border-b border-[#e6ebe3] bg-white px-3 py-3 sm:px-4"
+          aria-label="Member detail sections"
+        >
+          {(
+            [
+              {
+                id: "account" as const,
+                label: "Account",
+              },
+              {
+                id: "referrals" as const,
+                label: "Referrals",
+                count: (detail.referrals ?? []).length,
+              },
+              {
+                id: "memberships" as const,
+                label: "Memberships",
+                count: detail.memberships.length,
+              },
+              {
+                id: "payments" as const,
+                label: "Payments",
+                count: paymentRows.length,
+                alert: recoverablePayments.length > 0,
+              },
+            ] as const
+          ).map((tab) => {
+            const selected = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                aria-current={selected ? "page" : undefined}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-semibold transition ${
+                  selected
+                    ? "bg-[#1f6b3a] text-white shadow-sm"
+                    : "bg-[#f4f7f4] text-[#5f6f64] hover:bg-[#e8f2ea] hover:text-[#243028]"
+                }`}
+              >
+                {tab.label}
+                {"count" in tab ? (
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
+                      selected
+                        ? "bg-white/20 text-white"
+                        : "bg-white text-[#5f6f64]"
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                ) : null}
+                {"alert" in tab && tab.alert ? (
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      selected ? "bg-[#ffe8b5]" : "bg-[#c47a2c]"
+                    }`}
+                    title="Needs attention"
+                  />
+                ) : null}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-5 sm:p-6">
+      {activeTab === "account" ? (
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto">
+      <section>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold text-[#243028]">Profile</h2>
@@ -1587,32 +1971,45 @@ export function UserDetailPanel({ userId }: { userId: string }) {
               Joined {formatDateTime(detail.profile.createdAt)}
             </p>
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            <span className="rounded-md bg-[#e8f2ea] px-2 py-0.5 text-[11px] font-medium capitalize text-[#1f6b3a]">
-              {detail.profile.region.replaceAll("_", " ")}
-            </span>
-            <span
-              className={`rounded-md px-2 py-0.5 text-[11px] font-medium capitalize ${
-                accountInactive
-                  ? "bg-[#f1ece6] text-[#6b5b4a]"
-                  : "bg-[#e8f2ea] text-[#1f6b3a]"
-              }`}
-            >
-              {accountInactive ? "Inactive account" : "Active account"}
-            </span>
-            <span className="rounded-md bg-[#f4f7f4] px-2 py-0.5 text-[11px] font-medium text-[#5f6f64]">
-              {detail.referralCount} referral
-              {detail.referralCount === 1 ? "" : "s"}
-            </span>
-            {adminCanModify ? (
-              <span className="rounded-md bg-[#fff4e8] px-2 py-0.5 text-[11px] font-medium text-[#8a5a2f]">
-                Editing
-              </span>
-            ) : null}
-          </div>
+          {!accountInactive ? (
+            editingProfile ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={cancelProfileEdit}
+                  disabled={confirmBusy}
+                  className="inline-flex h-9 items-center justify-center rounded-full border border-[#d7e0d6] bg-white px-3.5 text-sm font-semibold text-[#3d4a3c] transition hover:bg-[#f6f8f5] disabled:opacity-60"
+                >
+                  Cancel edit
+                </button>
+                <button
+                  type="submit"
+                  form="profile-edit-form"
+                  disabled={profileFieldsLocked || !profileDirty}
+                  className="inline-flex h-9 items-center justify-center rounded-full bg-[#1f6b3a] px-3.5 text-sm font-semibold text-white transition hover:bg-[#185830] disabled:opacity-60"
+                >
+                  {savingProfile
+                    ? "Saving…"
+                    : profileSaved && !profileDirty
+                      ? "Saved"
+                      : "Save changes"}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={enterProfileEdit}
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-[#e8f2ea] px-3.5 text-sm font-semibold text-[#1f6b3a] transition hover:bg-[#dceadf]"
+              >
+                <EditIcon className="h-4 w-4" />
+                Edit profile
+              </button>
+            )
+          ) : null}
         </div>
 
         <form
+          id="profile-edit-form"
           onSubmit={requestSaveProfile}
           className="mt-5 grid gap-4 sm:grid-cols-2"
         >
@@ -1626,7 +2023,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                 setProfileSaved(false);
               }}
               className={inputClass}
-              disabled={fieldsLocked}
+              disabled={profileFieldsLocked}
             />
           </label>
 
@@ -1639,7 +2036,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                 setProfileSaved(false);
               }}
               className={inputClass}
-              disabled={fieldsLocked}
+              disabled={profileFieldsLocked}
             >
               <option value="india">India</option>
               <option value="outside_india">Outside India</option>
@@ -1656,7 +2053,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                 setProfileSaved(false);
               }}
               className={inputClass}
-              disabled={fieldsLocked}
+              disabled={profileFieldsLocked}
             />
           </label>
 
@@ -1669,7 +2066,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                 setProfileSaved(false);
               }}
               className={inputClass}
-              disabled={fieldsLocked}
+              disabled={profileFieldsLocked}
               placeholder="+91…"
             />
           </label>
@@ -1684,7 +2081,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   setProfileSaved(false);
                 }}
                 className={inputClass}
-                disabled={fieldsLocked}
+                disabled={profileFieldsLocked}
                 placeholder="Enter country"
                 maxLength={120}
               />
@@ -1696,7 +2093,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                   setProfileSaved(false);
                 }}
                 className={inputClass}
-                disabled={fieldsLocked}
+                disabled={profileFieldsLocked}
               >
                 <option value="">Not set</option>
                 {INDIA_STATES.map((state) => (
@@ -1720,7 +2117,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                 setProfileSaved(false);
               }}
               className={inputClass}
-              disabled={fieldsLocked}
+              disabled={profileFieldsLocked}
             >
               <option value="">Not set</option>
               {preferredClassTimes.map((slot) => (
@@ -1748,7 +2145,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                 });
                 setProfileSaved(false);
               }}
-              disabled={fieldsLocked}
+              disabled={profileFieldsLocked}
               className="h-4 w-4 rounded border-[#d7e0d6] text-[#1f6b3a] focus:ring-[#1f6b3a] disabled:cursor-default"
             />
             Has used free trial
@@ -1807,7 +2204,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             </div>
           </div>
 
-          {adminCanModify ? (
+          {canEditProfile ? (
             <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2">
               <label className={labelClass}>
                 New password
@@ -1822,7 +2219,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                     setProfileSaved(false);
                   }}
                   className={inputClass}
-                  disabled={fieldsLocked}
+                  disabled={profileFieldsLocked}
                   autoComplete="new-password"
                   placeholder="Optional"
                 />
@@ -1840,7 +2237,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                     setProfileSaved(false);
                   }}
                   className={inputClass}
-                  disabled={fieldsLocked}
+                  disabled={profileFieldsLocked}
                   autoComplete="new-password"
                   placeholder="Optional"
                 />
@@ -1848,30 +2245,15 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             </div>
           ) : null}
 
-          {adminCanModify ? (
-            <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-              <button
-                type="submit"
-                disabled={fieldsLocked || !profileDirty}
-                className="inline-flex h-11 items-center justify-center rounded-xl bg-[#1f6b3a] px-5 text-sm font-bold text-white disabled:opacity-60"
-              >
-                {savingProfile
-                  ? "Saving…"
-                  : profileSaved && !profileDirty
-                    ? "Saved"
-                    : "Save changes"}
-              </button>
-              {profileSaved && !profileDirty ? (
-                <span className="text-sm font-medium text-[#1f6b3a]">
-                  Changes saved
-                </span>
-              ) : null}
-            </div>
+          {canEditProfile && profileSaved && !profileDirty ? (
+            <p className="sm:col-span-2 text-sm font-medium text-[#1f6b3a]">
+              Changes saved
+            </p>
           ) : null}
         </form>
       </section>
 
-      <section className={cardClass}>
+      <section className="rounded-xl border border-[#e6ebe3] bg-[#f7faf6] p-4 sm:p-5">
         <h2 className="text-sm font-semibold text-[#243028]">Trial</h2>
         {detail.trial ? (
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1898,12 +2280,20 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             />
           </div>
         ) : (
-          <p className="mt-3 text-sm text-[#8a978c]">No trial registration.</p>
+          <EmptyState
+            kind="trial"
+            className="mt-3 min-h-[160px]"
+            title="No trial registration"
+            description="This member has not registered for a free trial yet."
+          />
         )}
       </section>
+        </div>
+      ) : null}
 
-      <section className={cardClass}>
-        <div className="flex flex-wrap items-start justify-between gap-2">
+      {activeTab === "referrals" ? (
+      <section className="flex min-h-0 flex-1 flex-col">
+        <div className="flex shrink-0 flex-wrap items-start justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold text-[#243028]">Referrals</h2>
             <p className="mt-0.5 text-xs text-[#8a978c]">
@@ -1917,13 +2307,16 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         </div>
 
         {(detail.referrals ?? []).length === 0 ? (
-          <p className="mt-3 text-sm text-[#8a978c]">
-            No referred members yet.
-          </p>
+          <EmptyState
+            kind="referrals"
+            className="mt-4"
+            title="No referred members yet"
+            description="When someone joins with this member’s referral code, they will show up here."
+          />
         ) : (
-          <div className="mt-4 overflow-x-auto rounded-xl border border-[#e6ebe3]">
+          <div className="mt-4 min-h-0 flex-1 overflow-auto rounded-xl border border-[#e6ebe3]">
             <table className="w-full min-w-[640px] text-left text-sm">
-              <thead className="bg-[#f7faf6] text-[#5f6f64]">
+              <thead className="sticky top-0 z-10 bg-[#f7faf6] text-[#5f6f64]">
                 <tr>
                   <th className="px-4 py-2.5 font-medium">Name</th>
                   <th className="px-4 py-2.5 font-medium">Contact</th>
@@ -1983,57 +2376,83 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           </div>
         )}
       </section>
+      ) : null}
 
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+      {activeTab === "memberships" ? (
+      <section className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+        <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold text-[#243028]">Memberships</h2>
             <p className="mt-0.5 text-xs text-[#8a978c]">
               {accountInactive
                 ? "View only while the account is inactive"
-                : adminCanModify
+                : canEditMemberships
                   ? canAdd
                     ? "Add a membership to grant access"
-                    : "Upgrade current or renew from the cards above, or schedule one renew"
+                    : "Use Add / Renew / Upgrade, or the edit icon on a card"
                   : "Current plan, scheduled renew, and past memberships"}
             </p>
           </div>
-          {adminCanModify ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {canAdd ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {!accountInactive ? (
+              editingMemberships ? (
                 <button
                   type="button"
-                  onClick={() => openMembershipComposer("add")}
+                  onClick={cancelMembershipsEdit}
                   disabled={confirmBusy}
-                  className={`inline-flex h-10 items-center justify-center rounded-full border px-4 text-sm font-semibold transition disabled:opacity-60 ${
-                    membershipComposer === "add"
-                      ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
-                      : "border-[#1f6b3a]/30 bg-[#e8f2ea] text-[#1f6b3a] hover:bg-[#dceadf]"
-                  }`}
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-[#d7e0d6] bg-white px-4 text-sm font-semibold text-[#3d4a3c] transition hover:bg-[#f6f8f5] disabled:opacity-60"
                 >
-                  Add membership
+                  Cancel edit
                 </button>
-              ) : null}
-              {canRenew ? (
+              ) : (
                 <button
                   type="button"
-                  onClick={() => openMembershipComposer("renew")}
-                  disabled={confirmBusy}
-                  className={`inline-flex h-10 items-center justify-center rounded-full border px-4 text-sm font-semibold transition disabled:opacity-60 ${
-                    membershipComposer === "renew"
-                      ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
-                      : "border-[#1f6b3a]/30 bg-[#e8f2ea] text-[#1f6b3a] hover:bg-[#dceadf]"
-                  }`}
+                  onClick={enterMembershipsEdit}
+                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-[#e8f2ea] px-4 text-sm font-semibold text-[#1f6b3a] transition hover:bg-[#dceadf]"
                 >
-                  Renew
+                  <EditIcon className="h-4 w-4" />
+                  Edit memberships
                 </button>
-              ) : null}
-            </div>
-          ) : null}
+              )
+            ) : null}
+            {canEditMemberships ? (
+              <>
+                {canAdd ? (
+                  <button
+                    type="button"
+                    onClick={() => openMembershipComposer("add")}
+                    disabled={confirmBusy || membershipComposer === "add"}
+                    className={`inline-flex h-10 items-center justify-center rounded-full border px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-45 ${
+                      membershipComposer === "add"
+                        ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
+                        : "border-[#1f6b3a]/30 bg-[#e8f2ea] text-[#1f6b3a] hover:bg-[#dceadf]"
+                    }`}
+                  >
+                    Add membership
+                  </button>
+                ) : null}
+                {canRenew ? (
+                  <button
+                    type="button"
+                    onClick={() => openMembershipComposer("renew")}
+                    disabled={confirmBusy}
+                    className={`inline-flex h-10 items-center justify-center rounded-full border px-4 text-sm font-semibold transition disabled:opacity-60 ${
+                      membershipComposer === "renew"
+                        ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
+                        : "border-[#1f6b3a]/30 bg-[#e8f2ea] text-[#1f6b3a] hover:bg-[#dceadf]"
+                    }`}
+                  >
+                    Renew
+                  </button>
+                ) : null}
+              </>
+            ) : null}
+          </div>
         </div>
 
-        {adminCanModify && activeMembership && scheduledMembership ? (
-          <p className="rounded-xl bg-[#fff8ef] px-3.5 py-2.5 text-sm text-[#8a5a2f]">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+        {canEditMemberships && activeMembership && scheduledMembership ? (
+          <p className="shrink-0 rounded-xl bg-[#fff8ef] px-3.5 py-2.5 text-sm text-[#8a5a2f]">
             A renew is already scheduled
             {scheduledMembership.startsAt
               ? ` for ${formatDateOnly(scheduledMembership.startsAt)}`
@@ -2043,298 +2462,18 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         ) : null}
 
         {membershipActionMessage ? (
-          <p className="rounded-xl bg-[#e8f2ea] px-3.5 py-2.5 text-sm font-medium text-[#1f6b3a]">
+          <p className="shrink-0 rounded-xl bg-[#e8f2ea] px-3.5 py-2.5 text-sm font-medium text-[#1f6b3a]">
             {membershipActionMessage}
           </p>
         ) : membershipCreated ? (
-          <p className="rounded-xl bg-[#e8f2ea] px-3.5 py-2.5 text-sm font-medium text-[#1f6b3a]">
+          <p className="shrink-0 rounded-xl bg-[#e8f2ea] px-3.5 py-2.5 text-sm font-medium text-[#1f6b3a]">
             Membership updated successfully.
           </p>
         ) : null}
 
-        {adminCanModify && membershipComposer === "add" ? (
-          <div className={cardClass}>
-            <h3 className="text-sm font-semibold text-[#243028]">
-              Add membership
-            </h3>
-            <p className="mt-1 text-xs text-[#8a978c]">
-              Starts now as active. End date is calculated from the plan
-              duration. Paid memberships issue a sequential invoice the member
-              can download.
-            </p>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <label className={labelClass}>
-                Plan duration
-                <select
-                  value={newMembershipForm.planMonths}
-                  onChange={(e) =>
-                    setNewMembershipForm(
-                      applyPlanPrices(
-                        newMembershipForm,
-                        catalogPlans,
-                        e.target.value,
-                        membershipCurrency,
-                      ),
-                    )
-                  }
-                  className={inputClass}
-                  disabled={fieldsLocked}
-                >
-                  {planOptions.map((plan) => {
-                    const catalog = catalogPlans.find(
-                      (row) => row.months === plan.months,
-                    );
-                    const catalogMinor =
-                      catalog == null
-                        ? null
-                        : membershipCurrency === "USD"
-                          ? catalog.listPriceUsdCents
-                          : catalog.listPricePaise;
-                    return (
-                      <option key={plan.id ?? plan.months} value={plan.months}>
-                        {plan.months} months
-                        {catalogMinor != null && catalogMinor > 0
-                          ? ` · catalog ${formatMoney(catalogMinor, membershipCurrency)}`
-                          : ""}
-                      </option>
-                    );
-                  })}
-                </select>
-              </label>
-              <label className={labelClass}>
-                List price ({moneySuffix})
-                <input
-                  type="number"
-                  min={0}
-                  step={membershipCurrency === "USD" ? "0.01" : "1"}
-                  value={newMembershipForm.listPriceMajor}
-                  onChange={(e) => {
-                    const listPriceMajor = e.target.value;
-                    setNewMembershipForm({
-                      ...newMembershipForm,
-                      listPriceMajor,
-                      amountPaidMajor: payableFromListAndDiscount(
-                        listPriceMajor,
-                        newMembershipForm.discountMajor,
-                        membershipCurrency,
-                      ),
-                    });
-                  }}
-                  className={inputClass}
-                  disabled={fieldsLocked}
-                  required
-                />
-                <span className="mt-1 block text-xs font-normal text-[#8a978c]">
-                  Prefills from the catalog; edit for this membership only.
-                  Used on the invoice.
-                </span>
-              </label>
-              <div>
-                <p className={labelClass}>Plan name</p>
-                <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
-                  {selectedCatalogPlan?.name ??
-                    `${newMembershipForm.planMonths}-Month Membership`}
-                </p>
-              </div>
-              <div>
-                <p className={labelClass}>Starts</p>
-                <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
-                  Now — end date from plan duration
-                </p>
-              </div>
-              <label className={`${labelClass} sm:col-span-2`}>
-                Link payment (optional)
-                <select
-                  value={newMembershipForm.paymentOrderId}
-                  onChange={(e) => {
-                    const paymentOrderId = e.target.value;
-                    const payment =
-                      detail.payments.find((p) => p.id === paymentOrderId) ??
-                      null;
-                    if (!payment) {
-                      setNewMembershipForm({
-                        ...newMembershipForm,
-                        paymentOrderId: "",
-                      });
-                      return;
-                    }
-                    const major = (n: number) =>
-                      (n / 100).toFixed(
-                        membershipCurrency === "USD" ? 2 : 0,
-                      );
-                    setNewMembershipForm({
-                      ...newMembershipForm,
-                      paymentOrderId,
-                      listPriceMajor: major(payment.listPricePaise),
-                      discountMajor: major(payment.discountPaise),
-                      amountPaidMajor: major(payment.amountPaise),
-                      paymentMethod: "Online (Razorpay)",
-                      paymentRef: payment.razorpayPaymentId ?? "",
-                      planMonths: payment.planMonths
-                        ? String(payment.planMonths)
-                        : newMembershipForm.planMonths,
-                    });
-                  }}
-                  className={inputClass}
-                  disabled={fieldsLocked}
-                >
-                  <option value="">None — manual grant</option>
-                  {detail.payments
-                    .filter((p) => !membershipPaymentIds.has(p.id))
-                    .map((payment) => (
-                      <option key={payment.id} value={payment.id}>
-                        {formatDateTime(payment.createdAt)} ·{" "}
-                        {formatMoney(payment.amountPaise, payment.currency)} ·{" "}
-                        {payment.status}
-                        {payment.planMonths ? ` · ${payment.planMonths} mo` : ""}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <label className={labelClass}>
-                Discount ({moneySuffix})
-                <input
-                  type="number"
-                  min={0}
-                  step={membershipCurrency === "USD" ? "0.01" : "1"}
-                  value={newMembershipForm.discountMajor}
-                  onChange={(e) => {
-                    const discountMajor = e.target.value;
-                    setNewMembershipForm({
-                      ...newMembershipForm,
-                      discountMajor,
-                      amountPaidMajor: payableFromListAndDiscount(
-                        newMembershipForm.listPriceMajor,
-                        discountMajor,
-                        membershipCurrency,
-                      ),
-                    });
-                  }}
-                  className={inputClass}
-                  disabled={fieldsLocked}
-                />
-              </label>
-              <label className={labelClass}>
-                Amount payable ({moneySuffix})
-                <input
-                  type="number"
-                  min={0}
-                  step={membershipCurrency === "USD" ? "0.01" : "1"}
-                  value={newMembershipForm.amountPaidMajor}
-                  readOnly
-                  className={inputClass}
-                  disabled={fieldsLocked}
-                  title="List price − discount"
-                />
-              </label>
-              <label className={labelClass}>
-                Payment method
-                <select
-                  value={newMembershipForm.paymentMethod}
-                  onChange={(e) =>
-                    setNewMembershipForm({
-                      ...newMembershipForm,
-                      paymentMethod: e.target.value,
-                    })
-                  }
-                  className={inputClass}
-                  disabled={fieldsLocked}
-                >
-                  <option value="">Select method</option>
-                  {PAYMENT_METHOD_OPTIONS.map((method) => (
-                    <option key={method} value={method}>
-                      {method}
-                    </option>
-                  ))}
-                  <option value="Online (Razorpay)">Online (Razorpay)</option>
-                </select>
-              </label>
-              <label className={labelClass}>
-                Payment reference
-                <input
-                  value={newMembershipForm.paymentRef}
-                  onChange={(e) =>
-                    setNewMembershipForm({
-                      ...newMembershipForm,
-                      paymentRef: e.target.value,
-                    })
-                  }
-                  className={inputClass}
-                  disabled={fieldsLocked}
-                  placeholder="pay_… / UTR / bank transfer note"
-                />
-              </label>
-              {needsBillingLocation ? (
-                <label className={labelClass}>
-                  {billingLocationLabel} (for invoice)
-                  <input
-                    value={newMembershipForm.billingLocation}
-                    onChange={(e) =>
-                      setNewMembershipForm({
-                        ...newMembershipForm,
-                        billingLocation: e.target.value,
-                      })
-                    }
-                    className={inputClass}
-                    disabled={fieldsLocked}
-                    placeholder={
-                      detail.profile.region === "outside_india"
-                        ? "Country shown on invoice"
-                        : "State shown on invoice"
-                    }
-                  />
-                </label>
-              ) : (
-                <div>
-                  <p className={labelClass}>
-                    {billingLocationLabel} (invoice)
-                  </p>
-                  <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
-                    {detail.profile.state}
-                  </p>
-                </div>
-              )}
-              <label className={`${labelClass} sm:col-span-2`}>
-                Admin note (required)
-                <textarea
-                  value={newMembershipForm.adminNote}
-                  onChange={(e) =>
-                    setNewMembershipForm({
-                      ...newMembershipForm,
-                      adminNote: e.target.value,
-                    })
-                  }
-                  className="mt-1.5 min-h-24 w-full resize-y rounded-xl border border-[#e2e8df] bg-white px-3.5 py-2.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 disabled:cursor-default disabled:bg-[#f7faf6] disabled:text-[#5f6f64]"
-                  disabled={fieldsLocked}
-                  placeholder="Why this membership was created manually (admin only)"
-                  required
-                />
-              </label>
-            </div>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => requestCreateMembership("add")}
-                disabled={fieldsLocked}
-                className="inline-flex h-11 items-center justify-center rounded-xl bg-[#1f6b3a] px-5 text-sm font-bold text-white disabled:opacity-60"
-              >
-                {savingNewMembership ? "Adding…" : "Add membership"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setMembershipComposer(null)}
-                disabled={fieldsLocked}
-                className="inline-flex h-11 items-center justify-center rounded-xl border border-[#e2e8df] px-4 text-sm font-semibold text-[#3d4a3c] disabled:opacity-60"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : null}
-
         {(activeMembership || scheduledMembership) ? (
           <div
-            className={`grid gap-3 ${
+            className={`shrink-0 grid gap-3 ${
               activeMembership && scheduledMembership ? "sm:grid-cols-2" : ""
             }`}
           >
@@ -2417,16 +2556,21 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         ) : null}
 
         {detail.memberships.length === 0 ? (
-          <p className={`${cardClass} text-sm text-[#8a978c]`}>
-            No memberships yet.
-            {accountInactive
-              ? " Reactivate the account to add or change memberships."
-              : adminCanModify
-                ? " Use Add membership above to grant access."
-                : " Click the edit icon to add a membership."}
-          </p>
+          <EmptyState
+            kind="memberships"
+            className="min-h-0 flex-1"
+            title="No memberships yet"
+            description={
+              accountInactive
+                ? "Reactivate the account to add or change memberships."
+                : canEditMemberships
+                  ? "Use Add membership above to grant access."
+                  : "Click Edit memberships to add a membership."
+            }
+          />
         ) : (
-          [...detail.memberships]
+          <div className="space-y-4">
+          {[...detail.memberships]
             .sort(
               (a, b) =>
                 membershipStatusOrder(a.status) -
@@ -2434,21 +2578,16 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                 new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime(),
             )
             .map((membership) => {
-            const form = membershipForms[membership.id];
-            if (!form) return null;
-            const savingThis = savingMembershipId === membership.id;
             const isRenewTarget =
               membershipComposer === "renew" &&
               activeMembership?.id === membership.id;
             const isUpgradeTarget =
               membershipComposer === "upgrade" &&
               upgradeTargetId === membership.id;
-            const isActionTarget = isRenewTarget || isUpgradeTarget;
-            // Current plan stays locked while renewing; only upgrade unlocks fields.
-            const fieldsDisabled =
-              fieldsLocked ||
-              membershipComposer === "renew" ||
-              (membershipComposer === "upgrade" && !isUpgradeTarget);
+            const isActionTarget =
+              isRenewTarget ||
+              isUpgradeTarget ||
+              editMembershipId === membership.id;
             const roleLabel = membershipRoleLabel(
               membership,
               activeMembership?.id ?? null,
@@ -2478,34 +2617,865 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                     <p className="mt-1 text-sm font-semibold text-[#243028]">
                       {membership.planName}
                     </p>
-                    {isUpgradeTarget ? (
-                      <p className="mt-0.5 text-xs font-medium text-[#1f6b3a]">
-                        {membership.status === "scheduled"
-                          ? "Upgrade creates a longer renew on top — previous renew stays in history"
-                          : "Upgrade creates a longer plan on top — previous membership stays in history"}
-                      </p>
-                    ) : null}
-                    {isRenewTarget ? (
-                      <p className="mt-0.5 text-xs font-medium text-[#1f6b3a]">
-                        Current plan stays as-is — schedule renew after it ends
-                      </p>
-                    ) : null}
-                    {!adminCanModify && isRenewCard ? (
+                    {isRenewCard ? (
                       <p className="mt-0.5 text-xs text-[#8a5a2f]">
                         Begins automatically when the current plan ends
                       </p>
                     ) : null}
                   </div>
-                  <span
-                    className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${statusBadge.className}`}
-                  >
-                    {statusBadge.label}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {canEditMemberships ? (
+                      <button
+                        type="button"
+                        onClick={() => openEditMembership(membership.id)}
+                        disabled={confirmBusy}
+                        title="Edit membership"
+                        aria-label="Edit membership"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#1f6b3a]/30 bg-[#e8f2ea] text-[#1f6b3a] transition hover:bg-[#dceadf] disabled:opacity-60"
+                      >
+                        <EditIcon className="h-4 w-4" />
+                      </button>
+                    ) : null}
+                    <span
+                      className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${statusBadge.className}`}
+                    >
+                      {statusBadge.label}
+                    </span>
+                  </div>
                 </div>
 
-                {isUpgradeTarget && adminCanModify ? (
-                  <>
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <InfoTile
+                    label="Duration"
+                    value={`${membership.planMonths} months`}
+                  />
+                  <InfoTile
+                    label={isRenewCard ? "Starts" : "Started"}
+                    value={formatDateOnly(membership.startsAt)}
+                  />
+                  <InfoTile
+                    label="Ends"
+                    value={formatDateOnly(membership.endsAt)}
+                  />
+                </div>
+                <div className="mt-3 grid gap-2 rounded-xl bg-[#f7faf6] px-3.5 py-3 text-xs text-[#5f6f64] sm:grid-cols-2">
+                  <p>
+                    Paid{" "}
+                    <span className="font-semibold text-[#243028]">
+                      {formatMoney(
+                        membership.amountPaidPaise,
+                        membership.currency,
+                      )}
+                    </span>
+                    {membership.discountPaise > 0
+                      ? ` (discount ${formatMoney(membership.discountPaise, membership.currency)})`
+                      : ""}
+                  </p>
+                  <p>
+                    Payment:{" "}
+                    {membership.paymentMethod
+                      ? `${membership.paymentMethod}`
+                      : "—"}
+                    {membership.razorpayPaymentId
+                      ? ` · ${membership.razorpayPaymentId}`
+                      : ""}
+                  </p>
+                  {membership.invoiceNumber ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-2">
+                      <p>
+                        Invoice:{" "}
+                        <span className="font-semibold text-[#243028]">
+                          {membership.invoiceNumber}
+                        </span>
+                        {membership.invoiceCategory
+                          ? ` (${membership.invoiceCategory})`
+                          : ""}
+                      </p>
+                      {membership.amountPaidPaise > 0 ? (
+                        <InvoiceDownloadButton
+                          busy={downloadingInvoiceId === membership.id}
+                          disabled={Boolean(downloadingInvoiceId)}
+                          onClick={() =>
+                            void downloadInvoice(membership.id)
+                          }
+                        />
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {membership.adminNote ? (
+                    <p className="sm:col-span-2 rounded-lg bg-[#fff8ef] px-2.5 py-2 text-[#8a5a2f]">
+                      <span className="font-semibold">Admin note: </span>
+                      {membership.adminNote}
+                    </p>
+                  ) : null}
+                  {membership.razorpayInvoiceUrl ? (
+                    <a
+                      href={membership.razorpayInvoiceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-semibold text-[#1f6b3a] hover:underline sm:col-span-2"
+                    >
+                      View Razorpay invoice
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })
+          }
+          </div>
+        )}
+        </div>
+      </section>
+      ) : null}
+
+      {activeTab === "payments" ? (
+      <section className="flex min-h-0 flex-1 flex-col">
+        <div className="shrink-0">
+          <div>
+            <h2 className="text-sm font-semibold text-[#243028]">Payments</h2>
+            <p className="mt-1 text-xs text-[#8a978c]">
+              Razorpay checkouts and admin-assigned memberships with invoices.
+            </p>
+          </div>
+          {recoverablePayments.length > 0 && !accountInactive ? (
+            <div className="mt-3 rounded-xl border border-[#f0d9b5] bg-[#fff8ef] px-3.5 py-3">
+              <p className="text-sm font-semibold text-[#8a5a2f]">
+                Payments without membership
+              </p>
+              <p className="mt-1 text-xs text-[#8a5a2f]/90">
+                These look paid (or captured) but never created a membership.
+                Activate to fix.
+              </p>
+              <ul className="mt-3 space-y-2">
+                {recoverablePayments.map((payment) => {
+                  const activating = activatingPaymentId === payment.id;
+                  return (
+                    <li
+                      key={payment.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/80 px-3 py-2"
+                    >
+                      <div className="text-sm text-[#5f6f64]">
+                        <span className="font-semibold text-[#243028]">
+                          {formatMoney(payment.amountPaise, payment.currency)}
+                        </span>
+                        {" · "}
+                        {payment.planMonths ? `${payment.planMonths} mo` : "—"}
+                        {" · "}
+                        {formatDateTime(payment.createdAt)}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => requestActivatePayment(payment.id)}
+                        disabled={paymentActionLocked}
+                        className="inline-flex h-9 items-center justify-center rounded-lg bg-[#1f6b3a] px-3 text-xs font-bold text-white disabled:opacity-60"
+                      >
+                        {activating ? "Activating…" : "Activate membership"}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+        {paymentRows.length === 0 ? (
+          <EmptyState
+            kind="payments"
+            className="mt-4"
+            title="No payments yet"
+            description="Razorpay checkouts and admin-assigned membership invoices will appear here."
+          />
+        ) : (
+          <div className="mt-4 min-h-0 flex-1 overflow-auto rounded-xl border border-[#e6ebe3]">
+            <table className="w-full min-w-[820px] text-left text-sm">
+              <thead className="sticky top-0 z-10 bg-[#f7faf6] text-[#5f6f64]">
+                <tr>
+                  <th className="px-3 py-2.5 font-medium">When</th>
+                  <th className="px-3 py-2.5 font-medium">Amount</th>
+                  <th className="px-3 py-2.5 font-medium">Status</th>
+                  <th className="px-3 py-2.5 font-medium">Plan</th>
+                  <th className="px-3 py-2.5 font-medium">Source</th>
+                  <th className="px-3 py-2.5 font-medium">Reference</th>
+                  <th className="px-3 py-2.5 font-medium">Invoice</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paymentRows.map((row) => {
+                  const downloading =
+                    row.membershipId != null &&
+                    downloadingInvoiceId === row.membershipId;
+                  const canDownloadThm =
+                    Boolean(row.membershipId) &&
+                    Boolean(row.invoiceNumber) &&
+                    row.amountPaise > 0;
+                  return (
+                    <tr key={row.key} className="border-t border-[#f4f7f4]">
+                      <td className="px-3 py-3 whitespace-nowrap text-[#5f6f64]">
+                        {formatDateTime(row.when)}
+                      </td>
+                      <td className="px-3 py-3 font-medium text-[#243028]">
+                        {formatMoney(row.amountPaise, row.currency)}
+                      </td>
+                      <td className="px-3 py-3 capitalize text-[#5f6f64]">
+                        {row.statusLabel}
+                        {row.needsActivation ? (
+                          <span className="ml-1 text-[11px] font-medium text-[#8a5a2f]">
+                            (no membership)
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-3 text-[#5f6f64]">
+                        {row.planMonths ? `${row.planMonths} mo` : "—"}
+                        {row.couponCode ? (
+                          <span className="block text-[11px] text-[#8a978c]">
+                            {row.couponCode}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-3 text-[#5f6f64]">
+                        {row.sourceLabel}
+                      </td>
+                      <td className="px-3 py-3">
+                        <p
+                          className="max-w-[180px] truncate text-xs text-[#8a978c]"
+                          title={row.reference}
+                        >
+                          {row.reference}
+                        </p>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-col gap-1">
+                          {row.invoiceNumber ? (
+                            <span className="text-[11px] font-medium text-[#243028]">
+                              {row.invoiceNumber}
+                            </span>
+                          ) : null}
+                          {canDownloadThm && row.membershipId ? (
+                            <InvoiceDownloadButton
+                              busy={downloading}
+                              disabled={Boolean(downloadingInvoiceId)}
+                              onClick={() =>
+                                void downloadInvoice(row.membershipId!)
+                              }
+                            />
+                          ) : null}
+                          {row.razorpayInvoiceUrl ? (
+                            <a
+                              href={row.razorpayInvoiceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="w-fit text-xs font-semibold text-[#1f6b3a] hover:underline"
+                            >
+                              Razorpay invoice
+                            </a>
+                          ) : null}
+                          {!canDownloadThm && !row.razorpayInvoiceUrl ? (
+                            <span className="text-xs text-[#8a978c]">—</span>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+      ) : null}
+        </div>
+      </div>
+
+        {canEditMemberships && membershipComposer === "add" ? (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6"
+            onClick={() => {
+              if (!confirmBusy) setMembershipComposer(null);
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="add-membership-title"
+              className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#e6ebe3] bg-white shadow-[0_20px_48px_rgba(21,32,25,0.18)]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="shrink-0 border-b border-[#e6ebe3] px-5 py-4 sm:px-6">
+                <h2
+                  id="add-membership-title"
+                  className="text-lg font-semibold text-[#243028]"
+                >
+                  Add membership
+                </h2>
+                <p className="mt-1 text-xs text-[#8a978c]">
+                  Starts now as active. End date is calculated from the plan
+                  duration. Paid memberships issue a sequential invoice the
+                  member can download.
+                </p>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6">
+                <div className="space-y-5">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#8a978c]">
+                      Plan & pricing
+                    </p>
+                    <div className="mt-3 grid items-start gap-4 sm:grid-cols-2">
+                      <label className={labelClass}>
+                        Plan duration
+                        <select
+                          value={newMembershipForm.planMonths}
+                          onChange={(e) =>
+                            setNewMembershipForm(
+                              applyPlanPrices(
+                                newMembershipForm,
+                                catalogPlans,
+                                e.target.value,
+                                membershipCurrency,
+                              ),
+                            )
+                          }
+                          className={inputClass}
+                          disabled={membershipFieldsLocked}
+                        >
+                          {planOptions.map((plan) => {
+                            const catalog = catalogPlans.find(
+                              (row) => row.months === plan.months,
+                            );
+                            const catalogMinor =
+                              catalog == null
+                                ? null
+                                : membershipCurrency === "USD"
+                                  ? catalog.listPriceUsdCents
+                                  : catalog.listPricePaise;
+                            return (
+                              <option
+                                key={plan.id ?? plan.months}
+                                value={plan.months}
+                              >
+                                {plan.months} months
+                                {catalogMinor != null && catalogMinor > 0
+                                  ? ` · catalog ${formatMoney(catalogMinor, membershipCurrency)}`
+                                  : ""}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <span className="mt-1.5 block text-xs font-normal text-[#8a978c]">
+                          {selectedCatalogPlan?.name ??
+                            `${newMembershipForm.planMonths}-Month Membership`}
+                          {" · "}
+                          Starts now · end from duration
+                        </span>
+                      </label>
+                      <label className={labelClass}>
+                        List price ({moneySuffix})
+                        <input
+                          type="number"
+                          min={0}
+                          step={membershipCurrency === "USD" ? "0.01" : "1"}
+                          value={newMembershipForm.listPriceMajor}
+                          onChange={(e) => {
+                            const listPriceMajor = e.target.value;
+                            setNewMembershipForm({
+                              ...newMembershipForm,
+                              listPriceMajor,
+                              amountPaidMajor: payableFromListAndDiscount(
+                                listPriceMajor,
+                                newMembershipForm.discountMajor,
+                                membershipCurrency,
+                              ),
+                            });
+                          }}
+                          className={inputClass}
+                          disabled={membershipFieldsLocked}
+                          required
+                        />
+                        <span className="mt-1.5 block text-xs font-normal text-[#8a978c]">
+                          Prefills from catalog; editable for this membership
+                          only. Used on the invoice.
+                        </span>
+                      </label>
+                      <label className={labelClass}>
+                        Discount ({moneySuffix})
+                        <input
+                          type="number"
+                          min={0}
+                          step={membershipCurrency === "USD" ? "0.01" : "1"}
+                          value={newMembershipForm.discountMajor}
+                          onChange={(e) => {
+                            const discountMajor = e.target.value;
+                            setNewMembershipForm({
+                              ...newMembershipForm,
+                              discountMajor,
+                              amountPaidMajor: payableFromListAndDiscount(
+                                newMembershipForm.listPriceMajor,
+                                discountMajor,
+                                membershipCurrency,
+                              ),
+                            });
+                          }}
+                          className={inputClass}
+                          disabled={membershipFieldsLocked}
+                        />
+                      </label>
+                      <div>
+                        <p className={labelClass}>
+                          Amount payable ({moneySuffix})
+                        </p>
+                        <p
+                          className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]"
+                          title="List price − discount"
+                        >
+                          {newMembershipForm.amountPaidMajor || "0"}
+                        </p>
+                        <span className="mt-1.5 block text-xs text-[#8a978c]">
+                          List price − discount
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-[#e6ebe3] pt-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#8a978c]">
+                      Payment & invoice
+                    </p>
+                    <div className="mt-3 grid items-start gap-4 sm:grid-cols-2">
+                      <label className={labelClass}>
+                        Payment method
+                        <select
+                          value={newMembershipForm.paymentMethod}
+                          onChange={(e) =>
+                            setNewMembershipForm({
+                              ...newMembershipForm,
+                              paymentMethod: e.target.value,
+                            })
+                          }
+                          className={inputClass}
+                          disabled={membershipFieldsLocked}
+                        >
+                          <option value="">Select method</option>
+                          {PAYMENT_METHOD_OPTIONS.map((method) => (
+                            <option key={method} value={method}>
+                              {method}
+                            </option>
+                          ))}
+                          <option value="Online (Razorpay)">
+                            Online (Razorpay)
+                          </option>
+                        </select>
+                      </label>
+                      <label className={labelClass}>
+                        Payment reference
+                        <input
+                          value={newMembershipForm.paymentRef}
+                          onChange={(e) =>
+                            setNewMembershipForm({
+                              ...newMembershipForm,
+                              paymentRef: e.target.value,
+                            })
+                          }
+                          className={inputClass}
+                          disabled={membershipFieldsLocked}
+                          placeholder="pay_… / UTR / bank transfer note"
+                        />
+                      </label>
+                      {needsBillingLocation ? (
+                        <label className={`${labelClass} sm:col-span-2`}>
+                          {billingLocationLabel} (for invoice)
+                          <input
+                            value={newMembershipForm.billingLocation}
+                            onChange={(e) =>
+                              setNewMembershipForm({
+                                ...newMembershipForm,
+                                billingLocation: e.target.value,
+                              })
+                            }
+                            className={inputClass}
+                            disabled={membershipFieldsLocked}
+                            placeholder={
+                              detail.profile.region === "outside_india"
+                                ? "Country shown on invoice"
+                                : "State shown on invoice"
+                            }
+                          />
+                        </label>
+                      ) : (
+                        <div className="sm:col-span-2">
+                          <p className={labelClass}>
+                            {billingLocationLabel} (invoice)
+                          </p>
+                          <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
+                            {detail.profile.state}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-[#e6ebe3] pt-5">
+                    <label className={labelClass}>
+                      Admin note (required)
+                      <textarea
+                        value={newMembershipForm.adminNote}
+                        onChange={(e) =>
+                          setNewMembershipForm({
+                            ...newMembershipForm,
+                            adminNote: e.target.value,
+                          })
+                        }
+                        className="mt-1.5 min-h-24 w-full resize-y rounded-xl border border-[#e2e8df] bg-white px-3.5 py-2.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 disabled:cursor-default disabled:bg-[#f7faf6] disabled:text-[#5f6f64]"
+                        disabled={membershipFieldsLocked}
+                        placeholder="Why this membership was created manually (admin only)"
+                        required
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[#e6ebe3] px-5 py-4 sm:px-6">
+                <button
+                  type="button"
+                  onClick={() => setMembershipComposer(null)}
+                  disabled={confirmBusy}
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-[#d7e0d6] bg-white px-4 text-sm font-semibold text-[#3d4a3c] transition hover:bg-[#f6f8f5] disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => requestCreateMembership("add")}
+                  disabled={
+                    confirmBusy ||
+                    membershipFieldsLocked ||
+                    Boolean(getNewMembershipValidationError())
+                  }
+                  className="inline-flex h-10 items-center justify-center rounded-full bg-[#1f6b3a] px-4 text-sm font-semibold text-white transition hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {savingNewMembership ? "Adding…" : "Add membership"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {canEditMemberships &&
+        membershipComposer === "renew" &&
+        activeMembership ? (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6"
+            onClick={() => {
+              if (!confirmBusy) setMembershipComposer(null);
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="renew-membership-title"
+              className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#e6ebe3] bg-white shadow-[0_20px_48px_rgba(21,32,25,0.18)]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="shrink-0 border-b border-[#e6ebe3] px-5 py-4 sm:px-6">
+                <h2
+                  id="renew-membership-title"
+                  className="text-lg font-semibold text-[#243028]"
+                >
+                  Schedule renew
+                </h2>
+                <p className="mt-1 text-xs text-[#8a978c]">
+                  Current membership is not changed. The renew starts the day
+                  after it ends. Paid renewals issue a sequential invoice the
+                  member can download.
+                </p>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6">
+                <div className="space-y-5">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#8a978c]">
+                      Plan & pricing
+                    </p>
+                    <div className="mt-3 grid items-start gap-4 sm:grid-cols-2">
+                      <label className={labelClass}>
+                        Plan duration
+                        <select
+                          value={newMembershipForm.planMonths}
+                          onChange={(e) =>
+                            setNewMembershipForm(
+                              applyPlanPrices(
+                                newMembershipForm,
+                                catalogPlans,
+                                e.target.value,
+                                membershipCurrency,
+                              ),
+                            )
+                          }
+                          className={inputClass}
+                          disabled={membershipFieldsLocked}
+                        >
+                          {planOptions.map((plan) => {
+                            const catalog = catalogPlans.find(
+                              (row) => row.months === plan.months,
+                            );
+                            const catalogMinor =
+                              catalog == null
+                                ? null
+                                : membershipCurrency === "USD"
+                                  ? catalog.listPriceUsdCents
+                                  : catalog.listPricePaise;
+                            return (
+                              <option
+                                key={plan.id ?? plan.months}
+                                value={plan.months}
+                              >
+                                {plan.months} months
+                                {catalogMinor != null && catalogMinor > 0
+                                  ? ` · catalog ${formatMoney(catalogMinor, membershipCurrency)}`
+                                  : ""}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <span className="mt-1.5 block text-xs font-normal text-[#8a978c]">
+                          {selectedCatalogPlan?.name ??
+                            `${newMembershipForm.planMonths}-Month Membership`}
+                          {" · "}
+                          Starts{" "}
+                          {renewStartsAt ? formatDateOnly(renewStartsAt) : "—"}
+                        </span>
+                      </label>
+                      <label className={labelClass}>
+                        List price ({moneySuffix})
+                        <input
+                          type="number"
+                          min={0}
+                          step={membershipCurrency === "USD" ? "0.01" : "1"}
+                          value={newMembershipForm.listPriceMajor}
+                          onChange={(e) => {
+                            const listPriceMajor = e.target.value;
+                            setNewMembershipForm({
+                              ...newMembershipForm,
+                              listPriceMajor,
+                              amountPaidMajor: payableFromListAndDiscount(
+                                listPriceMajor,
+                                newMembershipForm.discountMajor,
+                                membershipCurrency,
+                              ),
+                            });
+                          }}
+                          className={inputClass}
+                          disabled={membershipFieldsLocked}
+                          required
+                        />
+                        <span className="mt-1.5 block text-xs font-normal text-[#8a978c]">
+                          Prefills from catalog; editable for this renew only.
+                          Used on the invoice.
+                        </span>
+                      </label>
+                      <label className={labelClass}>
+                        Discount ({moneySuffix})
+                        <input
+                          type="number"
+                          min={0}
+                          step={membershipCurrency === "USD" ? "0.01" : "1"}
+                          value={newMembershipForm.discountMajor}
+                          onChange={(e) => {
+                            const discountMajor = e.target.value;
+                            setNewMembershipForm({
+                              ...newMembershipForm,
+                              discountMajor,
+                              amountPaidMajor: payableFromListAndDiscount(
+                                newMembershipForm.listPriceMajor,
+                                discountMajor,
+                                membershipCurrency,
+                              ),
+                            });
+                          }}
+                          className={inputClass}
+                          disabled={membershipFieldsLocked}
+                        />
+                      </label>
+                      <div>
+                        <p className={labelClass}>
+                          Amount payable ({moneySuffix})
+                        </p>
+                        <p
+                          className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]"
+                          title="List price − discount"
+                        >
+                          {newMembershipForm.amountPaidMajor || "0"}
+                        </p>
+                        <span className="mt-1.5 block text-xs text-[#8a978c]">
+                          List price − discount
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-[#e6ebe3] pt-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#8a978c]">
+                      Payment & invoice
+                    </p>
+                    <div className="mt-3 grid items-start gap-4 sm:grid-cols-2">
+                      <label className={labelClass}>
+                        Payment method
+                        <select
+                          value={newMembershipForm.paymentMethod}
+                          onChange={(e) =>
+                            setNewMembershipForm({
+                              ...newMembershipForm,
+                              paymentMethod: e.target.value,
+                            })
+                          }
+                          className={inputClass}
+                          disabled={membershipFieldsLocked}
+                        >
+                          <option value="">Select method</option>
+                          {PAYMENT_METHOD_OPTIONS.map((method) => (
+                            <option key={method} value={method}>
+                              {method}
+                            </option>
+                          ))}
+                          <option value="Online (Razorpay)">
+                            Online (Razorpay)
+                          </option>
+                        </select>
+                      </label>
+                      <label className={labelClass}>
+                        Payment reference
+                        <input
+                          value={newMembershipForm.paymentRef}
+                          onChange={(e) =>
+                            setNewMembershipForm({
+                              ...newMembershipForm,
+                              paymentRef: e.target.value,
+                            })
+                          }
+                          className={inputClass}
+                          disabled={membershipFieldsLocked}
+                          placeholder="pay_… / UTR / bank transfer note"
+                        />
+                      </label>
+                      {needsBillingLocation ? (
+                        <label className={`${labelClass} sm:col-span-2`}>
+                          {billingLocationLabel} (for invoice)
+                          <input
+                            value={newMembershipForm.billingLocation}
+                            onChange={(e) =>
+                              setNewMembershipForm({
+                                ...newMembershipForm,
+                                billingLocation: e.target.value,
+                              })
+                            }
+                            className={inputClass}
+                            disabled={membershipFieldsLocked}
+                            placeholder={
+                              detail.profile.region === "outside_india"
+                                ? "Country shown on invoice"
+                                : "State shown on invoice"
+                            }
+                          />
+                        </label>
+                      ) : (
+                        <div className="sm:col-span-2">
+                          <p className={labelClass}>
+                            {billingLocationLabel} (invoice)
+                          </p>
+                          <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
+                            {detail.profile.state}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-[#e6ebe3] pt-5">
+                    <label className={labelClass}>
+                      Admin note (required)
+                      <textarea
+                        value={newMembershipForm.adminNote}
+                        onChange={(e) =>
+                          setNewMembershipForm({
+                            ...newMembershipForm,
+                            adminNote: e.target.value,
+                          })
+                        }
+                        className="mt-1.5 min-h-24 w-full resize-y rounded-xl border border-[#e2e8df] bg-white px-3.5 py-2.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 disabled:cursor-default disabled:bg-[#f7faf6] disabled:text-[#5f6f64]"
+                        disabled={membershipFieldsLocked}
+                        placeholder="Why this renew was created manually (admin only)"
+                        required
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[#e6ebe3] px-5 py-4 sm:px-6">
+                <button
+                  type="button"
+                  onClick={() => setMembershipComposer(null)}
+                  disabled={confirmBusy}
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-[#d7e0d6] bg-white px-4 text-sm font-semibold text-[#3d4a3c] transition hover:bg-[#f6f8f5] disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => requestCreateMembership("renew")}
+                  disabled={
+                    confirmBusy ||
+                    membershipFieldsLocked ||
+                    Boolean(getNewMembershipValidationError())
+                  }
+                  className="inline-flex h-10 items-center justify-center rounded-full bg-[#1f6b3a] px-4 text-sm font-semibold text-white transition hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {savingNewMembership ? "Scheduling…" : "Schedule renew"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {canEditMemberships &&
+        membershipComposer === "upgrade" &&
+        upgradeTarget ? (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6"
+            onClick={() => {
+              if (!confirmBusy) {
+                setMembershipComposer(null);
+                setUpgradeTargetId(null);
+              }
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="upgrade-membership-title"
+              className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#e6ebe3] bg-white shadow-[0_20px_48px_rgba(21,32,25,0.18)]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="shrink-0 border-b border-[#e6ebe3] px-5 py-4 sm:px-6">
+                <h2
+                  id="upgrade-membership-title"
+                  className="text-lg font-semibold text-[#243028]"
+                >
+                  {upgradeTarget.status === "scheduled"
+                    ? "Upgrade renew"
+                    : "Upgrade membership"}
+                </h2>
+                <p className="mt-1 text-xs text-[#8a978c]">
+                  {upgradeTarget.status === "scheduled"
+                    ? "Creates a longer renew on top — the previous renew stays in history."
+                    : "Creates a longer plan on top — the previous membership stays in history."}{" "}
+                  Paid upgrades issue a Membership Upgrade invoice.
+                </p>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6">
+                <div className="space-y-5">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#8a978c]">
+                      Plan & pricing
+                    </p>
+                    <div className="mt-3 grid items-start gap-4 sm:grid-cols-2">
                       <label className={labelClass}>
                         Upgrade to
                         <select
@@ -2514,75 +3484,64 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                             const monthsNum = Number(e.target.value);
                             if (
                               !Number.isInteger(monthsNum) ||
-                              monthsNum <= membership.planMonths
+                              monthsNum <= upgradeTarget.planMonths
                             ) {
                               return;
                             }
                             const next = buildUpgradeForm(
-                              membership,
+                              upgradeTarget,
                               monthsNum,
                               catalogPlans,
                               membershipCurrency,
                             );
                             setUpgradeForm(next);
                             const ends = calcMembershipEndsAt(
-                              new Date(membership.startsAt),
+                              new Date(upgradeTarget.startsAt),
                               monthsNum,
                             );
-                            setMembershipForms({
-                              ...membershipForms,
-                              [membership.id]: {
-                                ...form,
-                                planMonths: next.planMonths,
-                                planName: `Membership Upgrade (${membership.planMonths} → ${monthsNum} months)`,
-                                status: membership.status,
-                                startsAt: toDateTimeLocal(membership.startsAt),
-                                endsAt: toDateTimeLocal(ends.toISOString()),
-                              },
+                            setMembershipForms((forms) => {
+                              const existing =
+                                forms[upgradeTarget.id] ??
+                                membershipFormFromRow(upgradeTarget);
+                              return {
+                                ...forms,
+                                [upgradeTarget.id]: {
+                                  ...existing,
+                                  planMonths: next.planMonths,
+                                  planName: `Membership Upgrade (${upgradeTarget.planMonths} → ${monthsNum} months)`,
+                                  status: upgradeTarget.status,
+                                  startsAt: toDateTimeLocal(
+                                    upgradeTarget.startsAt,
+                                  ),
+                                  endsAt: toDateTimeLocal(ends.toISOString()),
+                                },
+                              };
                             });
                           }}
                           className={inputClass}
-                          disabled={fieldsLocked}
+                          disabled={membershipFieldsLocked}
                         >
                           {upgradeOptions.map((plan) => (
-                            <option key={plan.id ?? plan.months} value={plan.months}>
+                            <option
+                              key={plan.id ?? plan.months}
+                              value={plan.months}
+                            >
                               {plan.months} months
                             </option>
                           ))}
                         </select>
-                      </label>
-                      <div>
-                        <p className={labelClass}>Upgrade label</p>
-                        <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
-                          Membership Upgrade (
-                          {membership.planMonths} → {upgradeForm.planMonths}{" "}
-                          months)
-                        </p>
-                      </div>
-                      <div>
-                        <p className={labelClass}>Starts</p>
-                        <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
-                          {formatDateOnly(membership.startsAt)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className={labelClass}>New end date</p>
-                        <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
+                        <span className="mt-1.5 block text-xs font-normal text-[#8a978c]">
+                          Membership Upgrade ({upgradeTarget.planMonths} →{" "}
+                          {upgradeForm.planMonths} months)
+                          {" · "}
+                          Starts {formatDateOnly(upgradeTarget.startsAt)}
+                          {" · "}
+                          Ends{" "}
                           {upgradePreviewEndsAt
                             ? formatDateOnly(upgradePreviewEndsAt)
-                            : form.endsAt
-                              ? formatDateOnly(fromDateTimeLocal(form.endsAt))
-                              : "—"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className={labelClass}>
-                          Already paid ({moneySuffix})
-                        </p>
-                        <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
-                          {upgradeForm.alreadyPaidMajor} (credited)
-                        </p>
-                      </div>
+                            : "—"}
+                        </span>
+                      </label>
                       <label className={labelClass}>
                         New plan price ({moneySuffix})
                         <input
@@ -2603,14 +3562,22 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                             });
                           }}
                           className={inputClass}
-                          disabled={fieldsLocked}
+                          disabled={membershipFieldsLocked}
                           required
                         />
-                        <span className="mt-1 block text-xs font-normal text-[#8a978c]">
-                          Prefills from the catalog; edit for this upgrade only.
-                          Used on the invoice.
+                        <span className="mt-1.5 block text-xs font-normal text-[#8a978c]">
+                          Prefills from catalog; editable for this upgrade
+                          only. Used on the invoice.
                         </span>
                       </label>
+                      <div>
+                        <p className={labelClass}>
+                          Already paid ({moneySuffix})
+                        </p>
+                        <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
+                          {upgradeForm.alreadyPaidMajor} (credited)
+                        </p>
+                      </div>
                       <label className={labelClass}>
                         Discount ({moneySuffix})
                         <input
@@ -2631,23 +3598,37 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                             });
                           }}
                           className={inputClass}
-                          disabled={fieldsLocked}
+                          disabled={membershipFieldsLocked}
                           title="Includes prior payment credit; increase for extra discount"
                         />
+                        <span className="mt-1.5 block text-xs font-normal text-[#8a978c]">
+                          Starts at prior payment credit; increase for extra
+                          discount.
+                        </span>
                       </label>
-                      <label className={labelClass}>
-                        Additional amount ({moneySuffix})
-                        <input
-                          type="number"
-                          min={0}
-                          step={membershipCurrency === "USD" ? "0.01" : "1"}
-                          value={upgradeForm.amountPaidMajor}
-                          readOnly
-                          className={inputClass}
-                          disabled={fieldsLocked}
+                      <div className="sm:col-span-2">
+                        <p className={labelClass}>
+                          Additional amount ({moneySuffix})
+                        </p>
+                        <p
+                          className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]"
                           title="New plan price − discount"
-                        />
-                      </label>
+                        >
+                          {upgradeForm.amountPaidMajor || "0"}
+                        </p>
+                        <span className="mt-1.5 block text-xs text-[#8a978c]">
+                          New plan price − discount. Original membership,
+                          payment, and invoice stay intact.
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-[#e6ebe3] pt-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#8a978c]">
+                      Payment
+                    </p>
+                    <div className="mt-3 grid items-start gap-4 sm:grid-cols-2">
                       <label className={labelClass}>
                         Payment method
                         <select
@@ -2659,7 +3640,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                             })
                           }
                           className={inputClass}
-                          disabled={fieldsLocked}
+                          disabled={membershipFieldsLocked}
                         >
                           <option value="">
                             {Number(upgradeForm.amountPaidMajor) > 0
@@ -2687,394 +3668,114 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                             })
                           }
                           className={inputClass}
-                          disabled={fieldsLocked}
+                          disabled={membershipFieldsLocked}
                           placeholder="pay_… / UTR / bank transfer note"
                         />
                       </label>
-                      <label className={`${labelClass} sm:col-span-2`}>
-                        Admin note
-                        <textarea
-                          value={upgradeForm.adminNote}
-                          onChange={(e) =>
-                            setUpgradeForm({
-                              ...upgradeForm,
-                              adminNote: e.target.value,
-                            })
-                          }
-                          className="mt-1.5 min-h-[4.5rem] w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 py-2.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 disabled:cursor-default disabled:bg-[#f7faf6] disabled:text-[#5f6f64]"
-                          disabled={fieldsLocked}
-                          placeholder="Membership Upgrade note"
-                        />
-                      </label>
                     </div>
-                    <p className="mt-3 rounded-xl bg-[#f3faf5] px-3.5 py-2.5 text-xs leading-relaxed text-[#5f6f64]">
-                      Discount starts at the member&apos;s prior payment credit;
-                      increase it for an extra admin discount. Additional amount
-                      is new plan price minus discount. Original membership,
-                      payment, and invoice stay intact.
-                    </p>
-                    <div className="mt-4 flex flex-wrap items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => requestUpgradeMembership(membership.id)}
-                        disabled={fieldsLocked || !upgradeDirty}
-                        className="inline-flex h-11 items-center justify-center rounded-xl bg-[#1f6b3a] px-5 text-sm font-bold text-white disabled:opacity-60"
-                      >
-                        {savingThis
-                          ? "Upgrading…"
-                          : membership.status === "scheduled"
-                            ? "Upgrade renew"
-                            : "Upgrade membership"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setMembershipComposer(null);
-                          setUpgradeTargetId(null);
-                        }}
-                        disabled={fieldsLocked}
-                        className="inline-flex h-11 items-center justify-center rounded-xl border border-[#e2e8df] px-4 text-sm font-semibold text-[#3d4a3c] disabled:opacity-60"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </>
-                ) : !adminCanModify ? (
-                  <>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                      <InfoTile
-                        label="Duration"
-                        value={`${membership.planMonths} months`}
+                  </div>
+
+                  <div className="border-t border-[#e6ebe3] pt-5">
+                    <label className={labelClass}>
+                      Admin note
+                      <textarea
+                        value={upgradeForm.adminNote}
+                        onChange={(e) =>
+                          setUpgradeForm({
+                            ...upgradeForm,
+                            adminNote: e.target.value,
+                          })
+                        }
+                        className="mt-1.5 min-h-24 w-full resize-y rounded-xl border border-[#e2e8df] bg-white px-3.5 py-2.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 disabled:cursor-default disabled:bg-[#f7faf6] disabled:text-[#5f6f64]"
+                        disabled={membershipFieldsLocked}
+                        placeholder="Membership Upgrade note"
                       />
-                      <InfoTile
-                        label={isRenewCard ? "Starts" : "Started"}
-                        value={formatDateOnly(membership.startsAt)}
-                      />
-                      <InfoTile
-                        label="Ends"
-                        value={formatDateOnly(membership.endsAt)}
-                      />
-                    </div>
-                    <div className="mt-3 grid gap-2 rounded-xl bg-[#f7faf6] px-3.5 py-3 text-xs text-[#5f6f64] sm:grid-cols-2">
-                      <p>
-                        Paid{" "}
-                        <span className="font-semibold text-[#243028]">
-                          {formatMoney(
-                            membership.amountPaidPaise,
-                            membership.currency,
-                          )}
-                        </span>
-                        {membership.discountPaise > 0
-                          ? ` (discount ${formatMoney(membership.discountPaise, membership.currency)})`
-                          : ""}
-                      </p>
-                      <p>
-                        Payment:{" "}
-                        {membership.paymentMethod
-                          ? `${membership.paymentMethod}`
-                          : "—"}
-                        {membership.razorpayPaymentId
-                          ? ` · ${membership.razorpayPaymentId}`
-                          : ""}
-                      </p>
-                      {membership.invoiceNumber ? (
-                        <p className="sm:col-span-2">
-                          Invoice:{" "}
-                          <span className="font-semibold text-[#243028]">
-                            {membership.invoiceNumber}
-                          </span>
-                          {membership.invoiceCategory
-                            ? ` (${membership.invoiceCategory})`
-                            : ""}
-                          {membership.amountPaidPaise > 0 ? (
-                            <>
-                              {" · "}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  void downloadInvoice(membership.id)
-                                }
-                                disabled={Boolean(downloadingInvoiceId)}
-                                className="font-semibold text-[#1f6b3a] hover:underline disabled:opacity-60"
-                              >
-                                {downloadingInvoiceId === membership.id
-                                  ? "Downloading…"
-                                  : "Download invoice"}
-                              </button>
-                            </>
-                          ) : null}
-                        </p>
-                      ) : null}
-                      {membership.adminNote ? (
-                        <p className="sm:col-span-2 rounded-lg bg-[#fff8ef] px-2.5 py-2 text-[#8a5a2f]">
-                          <span className="font-semibold">Admin note: </span>
-                          {membership.adminNote}
-                        </p>
-                      ) : null}
-                      {membership.razorpayInvoiceUrl ? (
-                        <a
-                          href={membership.razorpayInvoiceUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-semibold text-[#1f6b3a] hover:underline sm:col-span-2"
-                        >
-                          View Razorpay invoice
-                        </a>
-                      ) : null}
-                    </div>
-                  </>
-                ) : isRenewTarget ? (
-                  <>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                      <InfoTile
-                        label="Duration"
-                        value={`${membership.planMonths} months`}
-                      />
-                      <InfoTile
-                        label="Started"
-                        value={formatDateOnly(membership.startsAt)}
-                      />
-                      <InfoTile
-                        label="Ends"
-                        value={formatDateOnly(membership.endsAt)}
-                      />
-                    </div>
-                    <div className="mt-5 rounded-xl border border-[#1f6b3a]/20 bg-[#f3faf5] p-4">
-                      <h3 className="text-sm font-semibold text-[#243028]">
-                        Renew after this plan
-                      </h3>
-                      <p className="mt-1 text-xs text-[#8a978c]">
-                        Current membership is not changed. The renew starts the
-                        day after it ends. Paid renewals issue a sequential
-                        invoice.
-                      </p>
-                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                        <label className={labelClass}>
-                          Plan duration
-                          <select
-                            value={newMembershipForm.planMonths}
-                            onChange={(e) =>
-                              setNewMembershipForm(
-                                applyPlanPrices(
-                                  newMembershipForm,
-                                  catalogPlans,
-                                  e.target.value,
-                                  membershipCurrency,
-                                ),
-                              )
-                            }
-                            className={inputClass}
-                            disabled={fieldsLocked}
-                          >
-                            {planOptions.map((plan) => {
-                              const catalog = catalogPlans.find(
-                                (row) => row.months === plan.months,
-                              );
-                              const catalogMinor =
-                                catalog == null
-                                  ? null
-                                  : membershipCurrency === "USD"
-                                    ? catalog.listPriceUsdCents
-                                    : catalog.listPricePaise;
-                              return (
-                                <option
-                                  key={plan.id ?? plan.months}
-                                  value={plan.months}
-                                >
-                                  {plan.months} months
-                                  {catalogMinor != null && catalogMinor > 0
-                                    ? ` · catalog ${formatMoney(catalogMinor, membershipCurrency)}`
-                                    : ""}
-                                </option>
-                              );
-                            })}
-                          </select>
-                        </label>
-                        <label className={labelClass}>
-                          List price ({moneySuffix})
-                          <input
-                            type="number"
-                            min={0}
-                            step={membershipCurrency === "USD" ? "0.01" : "1"}
-                            value={newMembershipForm.listPriceMajor}
-                            onChange={(e) => {
-                              const listPriceMajor = e.target.value;
-                              setNewMembershipForm({
-                                ...newMembershipForm,
-                                listPriceMajor,
-                                amountPaidMajor: payableFromListAndDiscount(
-                                  listPriceMajor,
-                                  newMembershipForm.discountMajor,
-                                  membershipCurrency,
-                                ),
-                              });
-                            }}
-                            className={inputClass}
-                            disabled={fieldsLocked}
-                            required
-                          />
-                          <span className="mt-1 block text-xs font-normal text-[#8a978c]">
-                            Prefills from the catalog; edit for this renew only.
-                            Used on the invoice.
-                          </span>
-                        </label>
-                        <div>
-                          <p className={labelClass}>Renewal starts</p>
-                          <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#5f6f64]">
-                            {renewStartsAt ? formatDateOnly(renewStartsAt) : "—"}
-                          </p>
-                        </div>
-                        <label className={labelClass}>
-                          Discount ({moneySuffix})
-                          <input
-                            type="number"
-                            min={0}
-                            step={membershipCurrency === "USD" ? "0.01" : "1"}
-                            value={newMembershipForm.discountMajor}
-                            onChange={(e) => {
-                              const discountMajor = e.target.value;
-                              setNewMembershipForm({
-                                ...newMembershipForm,
-                                discountMajor,
-                                amountPaidMajor: payableFromListAndDiscount(
-                                  newMembershipForm.listPriceMajor,
-                                  discountMajor,
-                                  membershipCurrency,
-                                ),
-                              });
-                            }}
-                            className={inputClass}
-                            disabled={fieldsLocked}
-                          />
-                        </label>
-                        <label className={labelClass}>
-                          Amount payable ({moneySuffix})
-                          <input
-                            type="number"
-                            min={0}
-                            step={membershipCurrency === "USD" ? "0.01" : "1"}
-                            value={newMembershipForm.amountPaidMajor}
-                            readOnly
-                            className={inputClass}
-                            disabled={fieldsLocked}
-                            title="List price − discount"
-                          />
-                        </label>
-                        <label className={labelClass}>
-                          Payment method
-                          <select
-                            value={newMembershipForm.paymentMethod}
-                            onChange={(e) =>
-                              setNewMembershipForm({
-                                ...newMembershipForm,
-                                paymentMethod: e.target.value,
-                              })
-                            }
-                            className={inputClass}
-                            disabled={fieldsLocked}
-                          >
-                            <option value="">Select method</option>
-                            {PAYMENT_METHOD_OPTIONS.map((method) => (
-                              <option key={method} value={method}>
-                                {method}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className={`${labelClass} sm:col-span-2`}>
-                          Payment reference
-                          <input
-                            value={newMembershipForm.paymentRef}
-                            onChange={(e) =>
-                              setNewMembershipForm({
-                                ...newMembershipForm,
-                                paymentRef: e.target.value,
-                              })
-                            }
-                            className={inputClass}
-                            disabled={fieldsLocked}
-                            placeholder="pay_… / UTR / bank transfer note"
-                          />
-                        </label>
-                        {needsBillingLocation ? (
-                          <label className={`${labelClass} sm:col-span-2`}>
-                            {billingLocationLabel} (for invoice)
-                            <input
-                              value={newMembershipForm.billingLocation}
-                              onChange={(e) =>
-                                setNewMembershipForm({
-                                  ...newMembershipForm,
-                                  billingLocation: e.target.value,
-                                })
-                              }
-                              className={inputClass}
-                              disabled={fieldsLocked}
-                              placeholder={
-                                detail.profile.region === "outside_india"
-                                  ? "Country shown on invoice"
-                                  : "State shown on invoice"
-                              }
-                            />
-                          </label>
-                        ) : null}
-                        <label className={`${labelClass} sm:col-span-2`}>
-                          Admin note (required)
-                          <textarea
-                            value={newMembershipForm.adminNote}
-                            onChange={(e) =>
-                              setNewMembershipForm({
-                                ...newMembershipForm,
-                                adminNote: e.target.value,
-                              })
-                            }
-                            className="mt-1.5 min-h-24 w-full resize-y rounded-xl border border-[#e2e8df] bg-white px-3.5 py-2.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 disabled:cursor-default disabled:bg-[#f7faf6] disabled:text-[#5f6f64]"
-                            disabled={fieldsLocked}
-                            placeholder="Why this renew was created manually (admin only)"
-                            required
-                          />
-                        </label>
-                      </div>
-                      <div className="mt-4 flex flex-wrap items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => requestCreateMembership("renew")}
-                          disabled={fieldsLocked}
-                          className="inline-flex h-11 items-center justify-center rounded-xl bg-[#1f6b3a] px-5 text-sm font-bold text-white disabled:opacity-60"
-                        >
-                          {savingNewMembership
-                            ? "Scheduling…"
-                            : "Schedule renew"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setMembershipComposer(null)}
-                          disabled={fieldsLocked}
-                          className="inline-flex h-11 items-center justify-center rounded-xl border border-[#e2e8df] bg-white px-4 text-sm font-semibold text-[#3d4a3c] disabled:opacity-60"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <label className={labelClass}>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[#e6ebe3] px-5 py-4 sm:px-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMembershipComposer(null);
+                    setUpgradeTargetId(null);
+                  }}
+                  disabled={confirmBusy}
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-[#d7e0d6] bg-white px-4 text-sm font-semibold text-[#3d4a3c] transition hover:bg-[#f6f8f5] disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    requestUpgradeMembership(upgradeTarget.id)
+                  }
+                  disabled={
+                    confirmBusy ||
+                    membershipFieldsLocked ||
+                    !upgradeDirty ||
+                    Boolean(getUpgradeValidationError())
+                  }
+                  className="inline-flex h-10 items-center justify-center rounded-full bg-[#1f6b3a] px-4 text-sm font-semibold text-white transition hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {savingMembershipId === upgradeTarget.id
+                    ? "Upgrading…"
+                    : upgradeTarget.status === "scheduled"
+                      ? "Upgrade renew"
+                      : "Upgrade membership"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {canEditMemberships &&
+        editMembershipTarget &&
+        editMembershipForm ? (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6"
+            onClick={() => {
+              if (!confirmBusy) closeEditMembership();
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="edit-membership-title"
+              className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#e6ebe3] bg-white shadow-[0_20px_48px_rgba(21,32,25,0.18)]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="shrink-0 border-b border-[#e6ebe3] px-5 py-4 sm:px-6">
+                <h2
+                  id="edit-membership-title"
+                  className="text-lg font-semibold text-[#243028]"
+                >
+                  Edit membership
+                </h2>
+                <p className="mt-1 text-xs text-[#8a978c]">
+                  Update plan details for this membership. Payment and invoice
+                  stay unchanged.
+                </p>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6">
+                <div className="grid items-start gap-4 sm:grid-cols-2">
+                  <label className={`${labelClass} sm:col-span-2`}>
                     Plan name
                     <input
-                      value={form.planName}
+                      value={editMembershipForm.planName}
                       onChange={(e) => {
-                        setMembershipForms({
-                          ...membershipForms,
-                          [membership.id]: {
-                            ...form,
+                        setMembershipForms((forms) => ({
+                          ...forms,
+                          [editMembershipTarget.id]: {
+                            ...editMembershipForm,
                             planName: e.target.value,
                           },
-                        });
+                        }));
                         setMembershipSavedId(null);
                       }}
                       className={inputClass}
-                      disabled={fieldsDisabled}
+                      disabled={membershipFieldsLocked}
                     />
                   </label>
                   <label className={labelClass}>
@@ -3083,328 +3784,113 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                       type="number"
                       min={1}
                       max={36}
-                      value={form.planMonths}
+                      value={editMembershipForm.planMonths}
                       onChange={(e) => {
-                        setMembershipForms({
-                          ...membershipForms,
-                          [membership.id]: {
-                            ...form,
+                        setMembershipForms((forms) => ({
+                          ...forms,
+                          [editMembershipTarget.id]: {
+                            ...editMembershipForm,
                             planMonths: e.target.value,
                           },
-                        });
+                        }));
                         setMembershipSavedId(null);
                       }}
                       className={inputClass}
-                      disabled={fieldsDisabled}
+                      disabled={membershipFieldsLocked}
                     />
                   </label>
                   <label className={labelClass}>
                     Status
                     <select
-                      value={form.status}
+                      value={editMembershipForm.status}
                       onChange={(e) => {
-                        setMembershipForms({
-                          ...membershipForms,
-                          [membership.id]: {
-                            ...form,
-                            status: e.target.value as MembershipForm["status"],
+                        setMembershipForms((forms) => ({
+                          ...forms,
+                          [editMembershipTarget.id]: {
+                            ...editMembershipForm,
+                            status: e.target
+                              .value as MembershipForm["status"],
                           },
-                        });
+                        }));
                         setMembershipSavedId(null);
                       }}
                       className={inputClass}
-                      disabled={fieldsDisabled}
+                      disabled={membershipFieldsLocked}
                     >
                       <option value="active">Active</option>
                       <option value="scheduled">Scheduled</option>
                       <option value="expired">Expired</option>
                     </select>
                   </label>
-                  <div className="grid gap-3 rounded-xl bg-[#f7faf6] p-3 text-xs text-[#5f6f64] sm:row-span-2">
-                    <p>
-                      Paid{" "}
-                      <span className="font-semibold text-[#243028]">
-                        {formatMoney(
-                          membership.amountPaidPaise,
-                          membership.currency,
-                        )}
-                      </span>
-                      {membership.discountPaise > 0
-                        ? ` (discount ${formatMoney(membership.discountPaise, membership.currency)})`
-                        : ""}
-                    </p>
-                    <p>
-                      Payment:{" "}
-                      {membership.paymentMethod ?? "—"}
-                      {membership.razorpayPaymentId
-                        ? ` · ${membership.razorpayPaymentId}`
-                        : ""}
-                    </p>
-                    {membership.invoiceNumber ? (
-                      <p>
-                        Invoice:{" "}
-                        <span className="font-semibold text-[#243028]">
-                          {membership.invoiceNumber}
-                        </span>
-                        {membership.amountPaidPaise > 0 ? (
-                          <>
-                            {" · "}
-                            <button
-                              type="button"
-                              onClick={() => void downloadInvoice(membership.id)}
-                              disabled={Boolean(downloadingInvoiceId)}
-                              className="font-semibold text-[#1f6b3a] hover:underline disabled:opacity-60"
-                            >
-                              {downloadingInvoiceId === membership.id
-                                ? "Downloading…"
-                                : "Download"}
-                            </button>
-                          </>
-                        ) : null}
-                      </p>
-                    ) : null}
-                    {membership.adminNote ? (
-                      <p className="rounded-lg bg-[#fff8ef] px-2.5 py-2 text-[#8a5a2f]">
-                        <span className="font-semibold">Admin note: </span>
-                        {membership.adminNote}
-                      </p>
-                    ) : null}
-                    {membership.razorpayInvoiceUrl ? (
-                      <a
-                        href={membership.razorpayInvoiceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="font-semibold text-[#1f6b3a] hover:underline"
-                      >
-                        View Razorpay invoice
-                      </a>
-                    ) : null}
-                  </div>
                   <label className={labelClass}>
                     Starts at
                     <input
                       type="datetime-local"
-                      value={form.startsAt}
+                      value={editMembershipForm.startsAt}
                       onChange={(e) => {
-                        setMembershipForms({
-                          ...membershipForms,
-                          [membership.id]: {
-                            ...form,
+                        setMembershipForms((forms) => ({
+                          ...forms,
+                          [editMembershipTarget.id]: {
+                            ...editMembershipForm,
                             startsAt: e.target.value,
                           },
-                        });
+                        }));
                         setMembershipSavedId(null);
                       }}
                       className={inputClass}
-                      disabled={fieldsDisabled}
+                      disabled={membershipFieldsLocked}
                     />
                   </label>
                   <label className={labelClass}>
                     Ends at
                     <input
                       type="datetime-local"
-                      value={form.endsAt}
+                      value={editMembershipForm.endsAt}
                       onChange={(e) => {
-                        setMembershipForms({
-                          ...membershipForms,
-                          [membership.id]: {
-                            ...form,
+                        setMembershipForms((forms) => ({
+                          ...forms,
+                          [editMembershipTarget.id]: {
+                            ...editMembershipForm,
                             endsAt: e.target.value,
                           },
-                        });
+                        }));
                         setMembershipSavedId(null);
                       }}
                       className={inputClass}
-                      disabled={fieldsDisabled}
+                      disabled={membershipFieldsLocked}
                     />
                   </label>
                 </div>
-
-                {adminCanModify && !isActionTarget ? (
-                  <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => requestSaveMembership(membership.id)}
-                      disabled={
-                        fieldsLocked ||
-                        membershipComposer === "renew" ||
-                        membershipComposer === "upgrade" ||
-                        !membershipDirtyById[membership.id]
-                      }
-                      className="inline-flex h-11 items-center justify-center rounded-xl bg-[#1f6b3a] px-5 text-sm font-bold text-white disabled:opacity-60"
-                    >
-                      {savingThis
-                        ? "Saving…"
-                        : membershipSavedId === membership.id &&
-                            !membershipDirtyById[membership.id]
-                          ? "Saved"
-                          : "Save changes"}
-                    </button>
-                    {membershipSavedId === membership.id &&
-                    !membershipDirtyById[membership.id] ? (
-                      <span className="text-sm font-medium text-[#1f6b3a]">
-                        Changes saved
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
-                  </>
-                )}
               </div>
-            );
-          })
-        )}
-      </section>
-
-      <section className={cardClass}>
-        <h2 className="text-sm font-semibold text-[#243028]">Payments</h2>
-        <p className="mt-1 text-xs text-[#8a978c]">
-          Razorpay checkouts and admin-assigned memberships with invoices.
-        </p>
-        {recoverablePayments.length > 0 && adminCanModify ? (
-          <div className="mt-3 rounded-xl border border-[#f0d9b5] bg-[#fff8ef] px-3.5 py-3">
-            <p className="text-sm font-semibold text-[#8a5a2f]">
-              Payments without membership
-            </p>
-            <p className="mt-1 text-xs text-[#8a5a2f]/90">
-              These look paid (or captured) but never created a membership. Activate
-              to fix.
-            </p>
-            <ul className="mt-3 space-y-2">
-              {recoverablePayments.map((payment) => {
-                const activating = activatingPaymentId === payment.id;
-                return (
-                  <li
-                    key={payment.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/80 px-3 py-2"
-                  >
-                    <div className="text-sm text-[#5f6f64]">
-                      <span className="font-semibold text-[#243028]">
-                        {formatMoney(payment.amountPaise, payment.currency)}
-                      </span>
-                      {" · "}
-                      {payment.planMonths ? `${payment.planMonths} mo` : "—"}
-                      {" · "}
-                      {formatDateTime(payment.createdAt)}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => requestActivatePayment(payment.id)}
-                      disabled={fieldsLocked}
-                      className="inline-flex h-9 items-center justify-center rounded-lg bg-[#1f6b3a] px-3 text-xs font-bold text-white disabled:opacity-60"
-                    >
-                      {activating ? "Activating…" : "Activate membership"}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[#e6ebe3] px-5 py-4 sm:px-6">
+                <button
+                  type="button"
+                  onClick={closeEditMembership}
+                  disabled={confirmBusy}
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-[#d7e0d6] bg-white px-4 text-sm font-semibold text-[#3d4a3c] transition hover:bg-[#f6f8f5] disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    requestSaveMembership(editMembershipTarget.id)
+                  }
+                  disabled={
+                    confirmBusy ||
+                    membershipFieldsLocked ||
+                    !editMembershipDirty
+                  }
+                  className="inline-flex h-10 items-center justify-center rounded-full bg-[#1f6b3a] px-4 text-sm font-semibold text-white transition hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {savingMembershipId === editMembershipTarget.id
+                    ? "Saving…"
+                    : "Save changes"}
+                </button>
+              </div>
+            </div>
           </div>
         ) : null}
-        {paymentRows.length === 0 ? (
-          <p className="mt-3 text-sm text-[#8a978c]">
-            No payments or admin-assigned memberships yet.
-          </p>
-        ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[820px] text-left text-sm">
-              <thead className="text-[#5f6f64]">
-                <tr>
-                  <th className="px-2 py-2 font-medium">When</th>
-                  <th className="px-2 py-2 font-medium">Amount</th>
-                  <th className="px-2 py-2 font-medium">Status</th>
-                  <th className="px-2 py-2 font-medium">Plan</th>
-                  <th className="px-2 py-2 font-medium">Source</th>
-                  <th className="px-2 py-2 font-medium">Reference</th>
-                  <th className="px-2 py-2 font-medium">Invoice</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paymentRows.map((row) => {
-                  const downloading =
-                    row.membershipId != null &&
-                    downloadingInvoiceId === row.membershipId;
-                  const canDownloadThm =
-                    Boolean(row.membershipId) &&
-                    Boolean(row.invoiceNumber) &&
-                    row.amountPaise > 0;
-                  return (
-                    <tr key={row.key} className="border-t border-[#f4f7f4]">
-                      <td className="px-2 py-3 whitespace-nowrap text-[#5f6f64]">
-                        {formatDateTime(row.when)}
-                      </td>
-                      <td className="px-2 py-3 font-medium text-[#243028]">
-                        {formatMoney(row.amountPaise, row.currency)}
-                      </td>
-                      <td className="px-2 py-3 capitalize text-[#5f6f64]">
-                        {row.statusLabel}
-                        {row.needsActivation ? (
-                          <span className="ml-1 text-[11px] font-medium text-[#8a5a2f]">
-                            (no membership)
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="px-2 py-3 text-[#5f6f64]">
-                        {row.planMonths ? `${row.planMonths} mo` : "—"}
-                        {row.couponCode ? (
-                          <span className="block text-[11px] text-[#8a978c]">
-                            {row.couponCode}
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="px-2 py-3 text-[#5f6f64]">
-                        {row.sourceLabel}
-                      </td>
-                      <td className="px-2 py-3">
-                        <p
-                          className="max-w-[180px] truncate text-xs text-[#8a978c]"
-                          title={row.reference}
-                        >
-                          {row.reference}
-                        </p>
-                      </td>
-                      <td className="px-2 py-3">
-                        <div className="flex flex-col gap-1">
-                          {row.invoiceNumber ? (
-                            <span className="text-[11px] font-medium text-[#243028]">
-                              {row.invoiceNumber}
-                            </span>
-                          ) : null}
-                          {canDownloadThm && row.membershipId ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                void downloadInvoice(row.membershipId!)
-                              }
-                              disabled={Boolean(downloadingInvoiceId)}
-                              className="w-fit text-xs font-semibold text-[#1f6b3a] hover:underline disabled:opacity-60"
-                            >
-                              {downloading ? "Downloading…" : "Download invoice"}
-                            </button>
-                          ) : null}
-                          {row.razorpayInvoiceUrl ? (
-                            <a
-                              href={row.razorpayInvoiceUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="w-fit text-xs font-semibold text-[#1f6b3a] hover:underline"
-                            >
-                              Razorpay invoice
-                            </a>
-                          ) : null}
-                          {!canDownloadThm && !row.razorpayInvoiceUrl ? (
-                            <span className="text-xs text-[#8a978c]">—</span>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
 
       {pendingSave ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
