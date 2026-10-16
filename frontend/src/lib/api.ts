@@ -671,7 +671,7 @@ export async function requestCorporateCouponOtp(
     expiresInSeconds: number;
     email: string;
     allowedDomains: string[];
-    /** Present while real email delivery is off. */
+    /** Non-production only when email delivery is not configured. */
     devOtp?: string;
   }>(response);
 }

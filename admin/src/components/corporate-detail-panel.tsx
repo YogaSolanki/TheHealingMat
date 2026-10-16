@@ -115,6 +115,7 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
   const [exportingCouponUsersPlanId, setExportingCouponUsersPlanId] = useState<
     string | null
   >(null);
+  const [copiedCouponId, setCopiedCouponId] = useState<string | null>(null);
   const [exportGate, setExportGate] = useState<
     | { kind: "coupons" }
     | { kind: "couponUsers"; planId: string }
@@ -847,18 +848,52 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
                         checkout
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => onExportCouponUsers(plan.id)}
-                      disabled={
-                        exportingCouponUsersPlanId === plan.id ||
-                        (exportGate?.kind === "couponUsers" &&
-                          exportGate.planId === plan.id)
-                      }
-                      className="inline-flex h-8 shrink-0 items-center rounded-full border border-[#d7e0d6] bg-white px-2.5 text-[11px] font-semibold text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] disabled:opacity-50"
-                    >
-                      {exportingCouponUsersPlanId === plan.id ? "…" : "Export"}
-                    </button>
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void navigator.clipboard
+                            .writeText(plan.coupon!.code)
+                            .then(() => {
+                              setCopiedCouponId(plan.coupon!.id);
+                              setToast({
+                                message: `Copied ${plan.coupon!.code}`,
+                                variant: "success",
+                              });
+                              window.setTimeout(() => {
+                                setCopiedCouponId((current) =>
+                                  current === plan.coupon!.id ? null : current,
+                                );
+                              }, 1500);
+                            })
+                            .catch(() => {
+                              setToast({
+                                message: "Unable to copy coupon code.",
+                                variant: "error",
+                              });
+                            });
+                        }}
+                        className="inline-flex h-8 items-center rounded-full border border-[#1f6b3a]/30 bg-[#e8f2ea] px-2.5 text-[11px] font-semibold text-[#1f6b3a] transition hover:bg-[#dceadf]"
+                      >
+                        {copiedCouponId === plan.coupon.id
+                          ? "Copied"
+                          : "Copy coupon"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onExportCouponUsers(plan.id)}
+                        disabled={
+                          exportingCouponUsersPlanId === plan.id ||
+                          (exportGate?.kind === "couponUsers" &&
+                            exportGate.planId === plan.id)
+                        }
+                        className="inline-flex h-8 items-center rounded-full border border-[#d7e0d6] bg-white px-2.5 text-[11px] font-semibold text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] disabled:opacity-50"
+                      >
+                        {exportingCouponUsersPlanId === plan.id
+                          ? "…"
+                          : "Export"}
+                      </button>
+                    </div>
                   </div>
                 ) : null}
 

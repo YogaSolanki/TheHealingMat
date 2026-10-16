@@ -10,6 +10,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
+import { randomInt } from 'crypto';
 import { DataSource, MoreThanOrEqual, Repository } from 'typeorm';
 import { CouponsService } from '../coupons/coupons.service';
 import { Coupon } from '../coupons/coupon.entity';
@@ -547,9 +548,6 @@ export class CorporateService implements OnModuleInit {
 
   // ─── Member: domain OTP for corporate coupons ───────────────────────────
 
-  /** Temporary fixed OTP until real domain email delivery is enabled. */
-  private readonly corporateDomainOtp = '1111';
-
   async inspectCorporateCoupon(userId: string, couponCode: string) {
     const coupon = await this.coupons.findByCode(couponCode);
     if (!coupon || !this.coupons.isCorporateCoupon(coupon)) {
@@ -636,7 +634,7 @@ export class CorporateService implements OnModuleInit {
       );
     }
 
-    const code = this.corporateDomainOtp;
+    const code = String(randomInt(1000, 9999));
     const codeHash = await bcrypt.hash(code, BCRYPT_ROUNDS);
     const expiresAt = new Date(Date.now() + OTP_TTL_SECONDS * 1000);
     await this.otpChallenges.save(
@@ -652,19 +650,20 @@ export class CorporateService implements OnModuleInit {
       }),
     );
 
-    // Real domain email delivery comes later — use fixed OTP for now.
-    this.logger.log(
-      `[corporate-otp] ${email} → use OTP ${code} (email send disabled)`,
-    );
+    const isProd = this.config.get<string>('NODE_ENV') === 'production';
+    const delivered = await this.sendDomainOtpEmail({ email, code });
+    const masked = this.maskEmail(email);
 
     return {
       success: true,
-      message: `Enter OTP ${code} to verify your work email.`,
+      message: delivered
+        ? `We sent a verification code to ${masked}. Check your inbox.`
+        : `Enter the verification code for ${masked}.`,
       expiresInSeconds: OTP_TTL_SECONDS,
       email,
       allowedDomains: coupon.allowedDomains ?? [],
-      /** UI hint while real email delivery is off. */
-      devOtp: code,
+      // Never expose OTP in production or when email was delivered.
+      ...(isProd || delivered ? {} : { devOtp: code }),
     };
   }
 
@@ -692,13 +691,11 @@ export class CorporateService implements OnModuleInit {
     }
 
     const submitted = dto.code.trim();
-    const ok =
-      submitted === this.corporateDomainOtp ||
-      (await bcrypt.compare(submitted, challenge.codeHash));
+    const ok = await bcrypt.compare(submitted, challenge.codeHash);
     if (!ok) {
       challenge.attempts += 1;
       await this.otpChallenges.save(challenge);
-      throw new UnauthorizedException('Invalid coupon');
+      throw new UnauthorizedException('Invalid or expired OTP.');
     }
 
     challenge.verifiedAt = new Date();
@@ -783,30 +780,58 @@ export class CorporateService implements OnModuleInit {
     return new Date(start.getTime() - istOffsetMs);
   }
 
-  private async sendDomainOtpEmail(input: { email: string; code: string }) {
+  private maskEmail(email: string) {
+    const at = email.lastIndexOf('@');
+    if (at <= 0) return 'your work email';
+    const local = email.slice(0, at);
+    const domain = email.slice(at + 1);
+    const visible = local.slice(0, Math.min(2, local.length));
+    return `${visible}${'*'.repeat(Math.max(1, local.length - visible.length))}@${domain}`;
+  }
+
+  /** Returns true when Resend accepted the message. */
+  private async sendDomainOtpEmail(input: {
+    email: string;
+    code: string;
+  }): Promise<boolean> {
     const apiKey = this.config.get<string>('RESEND_API_KEY')?.trim();
     const from =
+      this.config.get<string>('RESEND_FROM_EMAIL')?.trim() ||
       this.config.get<string>('RESEND_FROM')?.trim() ||
-      'The Healing Mat <hello@thehealingmat.yoga>';
+      'The Healing Mat <onboarding@resend.dev>';
     if (!apiKey) {
       this.logger.warn(
         `[OTP][dev-fallback] corporate domain → ${input.email}: ${input.code}`,
       );
       if (this.config.get<string>('NODE_ENV') === 'production') {
         throw new ServiceUnavailableException(
-          'Email OTP is temporarily unavailable.',
+          'Email OTP is temporarily unavailable (missing RESEND_API_KEY).',
         );
       }
-      return;
+      return false;
     }
-    await sendResendEmail({
-      apiKey,
-      from,
-      to: input.email,
-      subject: 'Your work email verification code — The Healing Mat',
-      text: `Your verification code is ${input.code}. It expires in 10 minutes.`,
-      html: `<p>Your verification code is <strong>${input.code}</strong>.</p><p>It expires in 10 minutes.</p>`,
-    });
+
+    try {
+      await sendResendEmail({
+        apiKey,
+        from,
+        to: input.email,
+        subject: 'Your work email verification code — The Healing Mat',
+        text: `Your The Healing Mat verification code is ${input.code}. It expires in 10 minutes. Do not share it with anyone.`,
+        html: `<p>Your verification code is <strong>${input.code}</strong>.</p><p>It expires in 10 minutes. Do not share it with anyone.</p>`,
+      });
+      return true;
+    } catch (error) {
+      const detail =
+        error instanceof Error ? error.message : 'Unknown email error';
+      const needsDomain =
+        /domain is not verified|verify your domain/i.test(detail);
+      throw new ServiceUnavailableException(
+        needsDomain
+          ? 'Email OTP requires a verified sending domain on Resend. Add and verify your domain, then set RESEND_FROM_EMAIL to an address on that domain.'
+          : `Unable to send OTP email right now. ${detail}`,
+      );
+    }
   }
 
   private toCompanyRow(company: Company, planCount: number) {
