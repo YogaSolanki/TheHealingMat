@@ -34,6 +34,10 @@ import {
   OtpDigitInputs,
 } from "@/components/otp-digit-inputs";
 import { ButtonLoader } from "@/components/site-loader";
+import {
+  formatOtpResendLabel,
+  useOtpResendCooldown,
+} from "@/hooks/use-otp-resend-cooldown";
 import { getStoredToken } from "@/lib/auth-storage";
 import {
   clearCheckoutIntent,
@@ -176,6 +180,12 @@ export function MembershipCheckoutPanel({
   const [success, setSuccess] = useState(false);
   const [paidMembershipId, setPaidMembershipId] = useState<string | null>(null);
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+  const {
+    secondsLeft: resendSecondsLeft,
+    canResend,
+    startCooldown,
+    clearCooldown,
+  } = useOtpResendCooldown();
 
   const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "";
 
@@ -189,6 +199,7 @@ export function MembershipCheckoutPanel({
     setWorkOtp("");
     setCorporateModal(null);
     setOtpHint(null);
+    clearCooldown();
     setApplyReferralDiscount(false);
     setAssignedCoupons([]);
     setError(null);
@@ -316,6 +327,7 @@ export function MembershipCheckoutPanel({
     setOtpHint(null);
     setDomainVerificationId(null);
     setError(null);
+    clearCooldown();
   }
 
   async function applyPromoCode(codeOverride?: string) {
@@ -413,10 +425,11 @@ export function MembershipCheckoutPanel({
     }
   }
 
-  async function sendWorkEmailOtp() {
+  async function sendWorkEmailOtp(options?: { resend?: boolean }) {
     const token = getStoredToken();
     const code = couponInput.trim();
     if (!token || !code || !workEmail.trim() || promoBusy) return;
+    if (options?.resend && !canResend) return;
     setPromoBusy(true);
     setError(null);
     try {
@@ -434,6 +447,7 @@ export function MembershipCheckoutPanel({
         prev ? { ...prev, phase: "otp" } : prev,
       );
       setWorkOtp("");
+      startCooldown();
     } catch (err: unknown) {
       setError(
         err instanceof Error ? err.message : "Unable to send verification code.",
@@ -477,6 +491,7 @@ export function MembershipCheckoutPanel({
       setWorkEmail("");
       setWorkOtp("");
       setOtpHint(null);
+      clearCooldown();
     } catch (err: unknown) {
       setError(
         err instanceof Error ? err.message : "Invalid or expired OTP.",
@@ -507,6 +522,7 @@ export function MembershipCheckoutPanel({
       setWorkEmail("");
       setWorkOtp("");
       setOtpHint(null);
+      clearCooldown();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unable to remove code.");
     } finally {
@@ -1070,6 +1086,37 @@ export function MembershipCheckoutPanel({
                                     {otpHint}
                                   </p>
                                 ) : null}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void sendWorkEmailOtp({ resend: true })
+                                  }
+                                  disabled={promoBusy || !canResend}
+                                  className="mt-3 w-full cursor-pointer text-[13px] font-semibold text-[#1f6b3a] transition hover:text-[#185830] disabled:cursor-not-allowed disabled:opacity-45"
+                                >
+                                  {formatOtpResendLabel(
+                                    "Resend OTP",
+                                    resendSecondsLeft,
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={promoBusy}
+                                  onClick={() => {
+                                    setError(null);
+                                    setWorkOtp("");
+                                    setOtpHint(null);
+                                    clearCooldown();
+                                    setCorporateModal((prev) =>
+                                      prev
+                                        ? { ...prev, phase: "email" }
+                                        : prev,
+                                    );
+                                  }}
+                                  className="mt-1.5 w-full cursor-pointer text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Change work email
+                                </button>
                               </div>
                             ) : null}
                             {error ? (
