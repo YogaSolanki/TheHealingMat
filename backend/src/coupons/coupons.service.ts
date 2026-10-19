@@ -271,6 +271,13 @@ export class CouponsService implements OnModuleInit {
       const at = email.lastIndexOf('@');
       const domain = at >= 0 ? email.slice(at + 1) : '';
       if (!email || !domain || !domains.includes(domain)) invalid();
+      // One work email may redeem each corporate coupon only once
+      // (other coupons from the same company remain available).
+      if (await this.hasVerifiedEmailRedeemedCoupon(coupon.id, email)) {
+        throw new BadRequestException(
+          'This work email already redeemed this coupon.',
+        );
+      }
     }
 
     const alreadyUsed = await this.redemptions.exists({
@@ -279,6 +286,15 @@ export class CouponsService implements OnModuleInit {
     if (alreadyUsed) invalid();
 
     return coupon;
+  }
+
+  /** True when this work email already redeemed this specific coupon. */
+  async hasVerifiedEmailRedeemedCoupon(couponId: string, email: string) {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) return false;
+    return this.redemptions.exists({
+      where: { couponId, verifiedEmail: normalized },
+    });
   }
 
   isCorporateCoupon(coupon: Coupon) {

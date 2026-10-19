@@ -620,6 +620,14 @@ export class CorporateService implements OnModuleInit {
       throw new BadRequestException('Invalid coupon');
     }
 
+    // Per-coupon: a work email may redeem each corporate coupon only once.
+    // Other coupons from the same company can still be redeemed with the same email.
+    if (await this.coupons.hasVerifiedEmailRedeemedCoupon(coupon.id, email)) {
+      throw new BadRequestException(
+        'This work email already redeemed this coupon.',
+      );
+    }
+
     const dayStart = this.startOfIstDay(new Date());
     const sendsToday = await this.otpChallenges.count({
       where: {

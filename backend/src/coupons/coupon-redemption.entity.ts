@@ -9,9 +9,12 @@ import {
 /**
  * One row per successful membership checkout that used a coupon.
  * Enforces at most one redemption per user per coupon.
+ * Corporate seat coupons also store verifiedEmail; each work email may
+ * redeem a given coupon at most once (enforced in CouponsService).
  */
 @Entity({ name: 'coupon_redemptions' })
 @Index(['couponId', 'userId'], { unique: true })
+@Index(['couponId', 'verifiedEmail'])
 export class CouponRedemption {
   @PrimaryGeneratedColumn('uuid')
   id: string;
