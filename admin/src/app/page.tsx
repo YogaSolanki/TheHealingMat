@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function AdminLoginPage() {
   return (
-    <main className="flex min-h-dvh items-center justify-center px-4 py-8 sm:px-6">
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-6 px-4 py-8 sm:px-6">
       <RedirectIfSignedIn />
       <div className="w-full max-w-md rounded-2xl border border-[#e6ebe3] bg-white p-6 shadow-sm sm:p-8">
         <p className="text-[11px] font-medium tracking-[0.22em] uppercase text-[#1f6b3a]">
@@ -22,6 +22,15 @@ export default function AdminLoginPage() {
         </p>
         <LoginForm />
       </div>
+      <p className="text-[12px] text-[#8a978c]">
+        Made by{" "}
+        <a
+          href="mailto:shagun.thakur0107@gmail.com"
+          className="font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a]/35 underline-offset-[2px] transition hover:decoration-[#1f6b3a]"
+        >
+          Shagun Thakur
+        </a>
+      </p>
     </main>
   );
 }

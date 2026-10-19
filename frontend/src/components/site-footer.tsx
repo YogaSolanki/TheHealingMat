@@ -300,9 +300,20 @@ export function SiteFooter() {
 
       <div className="border-t border-[#d9e0d4] bg-[#1f6b3a]">
         <div className="mx-auto flex w-full max-w-[1200px] flex-col items-center gap-3 px-5 py-4 text-center sm:px-6 md:flex-row md:items-center md:justify-between md:gap-4 md:px-6 md:py-3 md:text-left lg:px-8 xl:px-10">
-          <p className="text-[12px] text-[#d7e2d8]">
-            © {new Date().getFullYear()} The Healing Mat. All Rights Reserved.
-          </p>
+          <div className="text-[12px] text-[#d7e2d8]">
+            <p>
+              © {new Date().getFullYear()} The Healing Mat. All Rights Reserved.
+            </p>
+            <p className="mt-1">
+              Made by{" "}
+              <a
+                href="mailto:shagun.thakur0107@gmail.com"
+                className="font-semibold text-white underline decoration-white/35 underline-offset-[3px] transition hover:decoration-white"
+              >
+                Shagun Thakur
+              </a>
+            </p>
+          </div>
 
           <ul className="flex max-w-[420px] flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-[12px] sm:max-w-none md:gap-x-0">
             {legalLinks.map((link, index) => (

@@ -169,6 +169,15 @@ function SidebarBody({
           <LogoutIcon />
           Log out
         </button>
+        <p className="mt-3 px-1 text-center text-[11px] text-[#8a978c]">
+          Made by{" "}
+          <a
+            href="mailto:shagun.thakur0107@gmail.com"
+            className="font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a]/35 underline-offset-[2px] transition hover:decoration-[#1f6b3a]"
+          >
+            Shagun Thakur
+          </a>
+        </p>
       </div>
     </>
   );
