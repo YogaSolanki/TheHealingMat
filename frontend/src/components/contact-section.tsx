@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, type ReactNode, useState } from "react";
+import { FormEvent, type ReactNode, useRef, useState } from "react";
 import { isValidPhoneNumber } from "libphonenumber-js";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
@@ -31,6 +31,15 @@ function isPhoneValid(phone: string): boolean {
   } catch {
     return false;
   }
+}
+
+function isMessageUseful(message: string): boolean {
+  const trimmed = message.trim();
+  if (trimmed.length < 5) return false;
+  const letters = trimmed.replace(/[^a-zA-Z]/g, "");
+  if (letters.length < 4) return false;
+  if (/^[\d\s.,+\-()]+$/.test(trimmed)) return false;
+  return true;
 }
 
 const cream = "#FBF9F5";
@@ -233,10 +242,13 @@ function ContactChannelCard({
 }
 
 function ContactFormCard() {
+  const formOpenedAtRef = useRef(Date.now());
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
+  /** Honeypot — leave empty; bots often fill hidden fields. */
+  const [website, setWebsite] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -248,8 +260,18 @@ function ContactFormCard() {
     event.preventDefault();
     setError(null);
 
+    if (website.trim()) {
+      setSubmitted(true);
+      return;
+    }
+
     if (!isPhoneValid(phone)) {
       setError("Please enter a valid phone number.");
+      return;
+    }
+
+    if (!isMessageUseful(message)) {
+      setError("Please describe how we can help in a short message.");
       return;
     }
 
@@ -260,8 +282,12 @@ function ContactFormCard() {
         phone: phone.replace(/[^\d+]/g, ""),
         email: email.trim() || undefined,
         message: message.trim(),
+        website: website.trim() || undefined,
+        formOpenedAt: formOpenedAtRef.current,
       });
       setSubmitted(true);
+      setWebsite("");
+      formOpenedAtRef.current = Date.now();
     } catch (err) {
       setError(
         err instanceof Error
@@ -295,6 +321,9 @@ function ContactFormCard() {
               setPhone("");
               setEmail("");
               setMessage("");
+              setWebsite("");
+              setError(null);
+              formOpenedAtRef.current = Date.now();
             }}
             className="btn-outline mt-4 inline-flex cursor-pointer items-center gap-1.5 rounded-full border-[1.5px] border-[#1f6b3a] px-4 py-2 text-[12px] font-bold text-[#1f6b3a]"
           >
@@ -312,8 +341,23 @@ function ContactFormCard() {
 
           <form
             onSubmit={onSubmit}
-            className="mt-3.5 flex flex-1 flex-col gap-2.5 sm:mt-4"
+            className="relative mt-3.5 flex flex-1 flex-col gap-2.5 sm:mt-4"
           >
+            <div
+              aria-hidden="true"
+              className="absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
+            >
+              <label htmlFor="contact-website">Website</label>
+              <input
+                id="contact-website"
+                name="website"
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+              />
+            </div>
             <div className="grid gap-2.5 sm:grid-cols-2">
               <div>
                 <label className={labelClass}>

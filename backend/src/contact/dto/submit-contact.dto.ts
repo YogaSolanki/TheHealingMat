@@ -1,6 +1,7 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsEmail,
+  IsNumber,
   IsOptional,
   IsString,
   Matches,
@@ -31,4 +32,16 @@ export class SubmitContactDto {
   @MinLength(5)
   @MaxLength(4000)
   message: string;
+
+  /** Honeypot — must stay empty. Bots that fill it are rejected silently. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  website?: string;
+
+  /** Client timestamp (ms) when the form was opened — used for timing checks. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  formOpenedAt?: number;
 }

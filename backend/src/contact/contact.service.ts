@@ -1,16 +1,26 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThanOrEqual, Repository } from 'typeorm';
 import { sendResendEmail } from '../mail/resend';
+import {
+  checkFormTiming,
+  honeypotFilled,
+  isFreeEmailDomain,
+  isLowQualityEnquiryMessage,
+} from './corporate-enquiry-spam';
 import { ContactMessage } from './contact-message.entity';
 import { CorporateEnquiry } from './corporate-enquiry.entity';
 import { SubmitContactDto } from './dto/submit-contact.dto';
 import { SubmitCorporateEnquiryDto } from './dto/submit-corporate-enquiry.dto';
+
+const CONTACT_RATE_LIMIT = 3;
+const CONTACT_RATE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class ContactService {
@@ -25,10 +35,54 @@ export class ContactService {
   ) {}
 
   async submit(dto: SubmitContactDto) {
+    if (honeypotFilled(dto.website)) {
+      this.logger.warn('Contact message dropped (honeypot).');
+      return {
+        success: true,
+        message: 'Thanks — your message has been sent.',
+        id: 'ok',
+      };
+    }
+
+    const timing = checkFormTiming(dto.formOpenedAt);
+    if (!timing.ok) {
+      throw new BadRequestException(
+        timing.reason === 'too_fast'
+          ? 'Please take a moment to complete the form, then try again.'
+          : 'Please reload the page and submit the form again.',
+      );
+    }
+
     const name = dto.name.trim();
     const phone = dto.phone.trim();
     const email = dto.email?.trim().toLowerCase() || null;
     const message = dto.message.trim();
+
+    if (isLowQualityEnquiryMessage(message)) {
+      throw new BadRequestException(
+        'Please describe how we can help in a short message.',
+      );
+    }
+
+    const since = new Date(Date.now() - CONTACT_RATE_WINDOW_MS);
+    const recentByPhone = await this.messages.count({
+      where: { phone, createdAt: MoreThanOrEqual(since) },
+    });
+    if (recentByPhone >= CONTACT_RATE_LIMIT) {
+      throw new BadRequestException(
+        'Too many messages from this phone today. Please try again tomorrow.',
+      );
+    }
+    if (email) {
+      const recentByEmail = await this.messages.count({
+        where: { email, createdAt: MoreThanOrEqual(since) },
+      });
+      if (recentByEmail >= CONTACT_RATE_LIMIT) {
+        throw new BadRequestException(
+          'Too many messages from this email today. Please try again tomorrow.',
+        );
+      }
+    }
 
     const saved = await this.messages.save(
       this.messages.create({
@@ -61,11 +115,56 @@ export class ContactService {
   }
 
   async submitCorporate(dto: SubmitCorporateEnquiryDto) {
+    // Silent drop for honeypot fills — looks successful to bots.
+    if (honeypotFilled(dto.website)) {
+      this.logger.warn('Corporate enquiry dropped (honeypot).');
+      return {
+        success: true,
+        message: 'Thanks — your corporate enquiry has been sent.',
+        id: 'ok',
+      };
+    }
+
+    const timing = checkFormTiming(dto.formOpenedAt);
+    if (!timing.ok) {
+      throw new BadRequestException(
+        timing.reason === 'too_fast'
+          ? 'Please take a moment to complete the form, then try again.'
+          : 'Please reload the page and submit the form again.',
+      );
+    }
+
     const name = dto.name.trim();
     const company = dto.company.trim();
     const email = dto.email.trim().toLowerCase();
     const phone = dto.phone.trim();
     const message = dto.message.trim();
+
+    if (isFreeEmailDomain(email)) {
+      throw new BadRequestException(
+        'Please use your company work email (not Gmail, Yahoo, Outlook, etc.).',
+      );
+    }
+
+    if (isLowQualityEnquiryMessage(message)) {
+      throw new BadRequestException(
+        'Please describe how we can help in a short message.',
+      );
+    }
+
+    const recentCount = await this.corporateEnquiries.count({
+      where: {
+        email,
+        createdAt: MoreThanOrEqual(
+          new Date(Date.now() - CONTACT_RATE_WINDOW_MS),
+        ),
+      },
+    });
+    if (recentCount >= CONTACT_RATE_LIMIT) {
+      throw new BadRequestException(
+        'Too many enquiries from this email today. Please try again tomorrow.',
+      );
+    }
 
     const saved = await this.corporateEnquiries.save(
       this.corporateEnquiries.create({

@@ -465,6 +465,8 @@ export async function submitContact(input: {
   phone: string;
   email?: string;
   message: string;
+  website?: string;
+  formOpenedAt: number;
 }): Promise<ContactSubmitResponse> {
   const response = await fetch(`${API_URL}/contact`, {
     method: "POST",
@@ -480,6 +482,8 @@ export async function submitCorporateEnquiry(input: {
   email: string;
   phone: string;
   message: string;
+  website?: string;
+  formOpenedAt: number;
 }): Promise<ContactSubmitResponse> {
   const response = await fetch(`${API_URL}/contact/corporate`, {
     method: "POST",

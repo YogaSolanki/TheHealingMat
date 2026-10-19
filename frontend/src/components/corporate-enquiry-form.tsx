@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { isValidPhoneNumber } from "libphonenumber-js";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
@@ -14,6 +14,42 @@ const labelClass =
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const FREE_EMAIL_DOMAINS = new Set([
+  "gmail.com",
+  "googlemail.com",
+  "yahoo.com",
+  "yahoo.co.in",
+  "yahoo.co.uk",
+  "ymail.com",
+  "hotmail.com",
+  "hotmail.co.uk",
+  "outlook.com",
+  "outlook.in",
+  "live.com",
+  "msn.com",
+  "icloud.com",
+  "me.com",
+  "mac.com",
+  "aol.com",
+  "protonmail.com",
+  "proton.me",
+  "gmx.com",
+  "gmx.net",
+  "mail.com",
+  "yandex.com",
+  "yandex.ru",
+  "rediffmail.com",
+  "pm.me",
+  "tutanota.com",
+  "tutamail.com",
+]);
+
+function isFreeEmail(email: string): boolean {
+  const at = email.trim().toLowerCase().lastIndexOf("@");
+  if (at < 0) return false;
+  return FREE_EMAIL_DOMAINS.has(email.trim().toLowerCase().slice(at + 1));
+}
+
 function isPhoneValid(phone: string): boolean {
   if (!phone || phone.replace(/\D/g, "").length < 8) return false;
   try {
@@ -23,6 +59,15 @@ function isPhoneValid(phone: string): boolean {
   }
 }
 
+function isMessageUseful(message: string): boolean {
+  const trimmed = message.trim();
+  if (trimmed.length < 5) return false;
+  const letters = trimmed.replace(/[^a-zA-Z]/g, "");
+  if (letters.length < 4) return false;
+  if (/^[\d\s.,+\-()]+$/.test(trimmed)) return false;
+  return true;
+}
+
 function isFormValid(input: {
   name: string;
   company: string;
@@ -30,21 +75,26 @@ function isFormValid(input: {
   phone: string;
   message: string;
 }): boolean {
+  const email = input.email.trim();
   return (
     input.name.trim().length >= 2 &&
     input.company.trim().length >= 2 &&
-    EMAIL_PATTERN.test(input.email.trim()) &&
+    EMAIL_PATTERN.test(email) &&
+    !isFreeEmail(email) &&
     isPhoneValid(input.phone) &&
-    input.message.trim().length >= 5
+    isMessageUseful(input.message)
   );
 }
 
 export function CorporateEnquiryForm() {
+  const formOpenedAtRef = useRef(Date.now());
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
+  /** Honeypot — leave empty; bots often fill hidden fields. */
+  const [website, setWebsite] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,16 +103,29 @@ export function CorporateEnquiryForm() {
   const canSubmit = formValid && !loading;
   const phoneDigits = phone.replace(/\D/g, "");
   const phoneInvalid = phoneDigits.length > 3 && !isPhoneValid(phone);
+  const emailTrimmed = email.trim();
+  const emailLooksFree =
+    EMAIL_PATTERN.test(emailTrimmed) && isFreeEmail(emailTrimmed);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
+    if (website.trim()) {
+      // Pretend success if a bot filled the honeypot.
+      setSubmitted(true);
+      return;
+    }
+
     if (!formValid) {
       setError(
-        !isPhoneValid(phone)
-          ? "Please enter a valid phone number."
-          : "Please fill in all fields with valid details before submitting.",
+        emailLooksFree
+          ? "Please use your company work email (not Gmail, Yahoo, Outlook, etc.)."
+          : !isPhoneValid(phone)
+            ? "Please enter a valid phone number."
+            : !isMessageUseful(message)
+              ? "Please describe how we can help in a short message."
+              : "Please fill in all fields with valid details before submitting.",
       );
       return;
     }
@@ -75,6 +138,8 @@ export function CorporateEnquiryForm() {
         email: email.trim(),
         phone: phone.replace(/[^\d+]/g, ""),
         message: message.trim(),
+        website: website.trim() || undefined,
+        formOpenedAt: formOpenedAtRef.current,
       });
       setSubmitted(true);
       setName("");
@@ -82,6 +147,8 @@ export function CorporateEnquiryForm() {
       setEmail("");
       setPhone("");
       setMessage("");
+      setWebsite("");
+      formOpenedAtRef.current = Date.now();
     } catch (err) {
       setError(
         err instanceof Error
@@ -107,6 +174,7 @@ export function CorporateEnquiryForm() {
           onClick={() => {
             setSubmitted(false);
             setError(null);
+            formOpenedAtRef.current = Date.now();
           }}
           className="btn-primary mt-4 rounded-full bg-[#1f6b3a] px-5 py-2.5 text-[13px] font-bold text-white"
         >
@@ -117,7 +185,24 @@ export function CorporateEnquiryForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-3">
+    <form onSubmit={onSubmit} className="relative flex flex-col gap-3">
+      {/* Honeypot — hidden from users; leave empty. */}
+      <div
+        aria-hidden="true"
+        className="absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0"
+      >
+        <label htmlFor="enquiry-website">Website</label>
+        <input
+          id="enquiry-website"
+          name="website"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          value={website}
+          onChange={(e) => setWebsite(e.target.value)}
+        />
+      </div>
+
       <div>
         <label htmlFor="enquiry-name" className={labelClass}>
           Your Name <span className="text-[#c45c3a]">*</span>
@@ -165,6 +250,12 @@ export function CorporateEnquiryForm() {
           autoComplete="email"
           disabled={loading}
         />
+        {emailLooksFree ? (
+          <p className="mt-1.5 text-[12px] leading-snug text-[#a14a32]">
+            Please use your company work email (not Gmail, Yahoo, Outlook,
+            etc.).
+          </p>
+        ) : null}
       </div>
 
       <div>
