@@ -8,7 +8,10 @@ import {
   type PublicMembershipPlan,
   type Region,
 } from "@/lib/api";
-import { resolveVisitorRegion } from "@/lib/visitor-region";
+import {
+  peekVisitorRegion,
+  resolveVisitorRegion,
+} from "@/lib/visitor-region";
 
 const STORAGE_KEY = "thm_membership_plans_v2";
 
@@ -126,6 +129,10 @@ const SERVER_SNAPSHOT: PlansSnapshot = {
   region: null,
 };
 
+function clientBootstrapRegion(): Region {
+  return peekVisitorRegion();
+}
+
 function readStored(): MembershipPlansResponse | null {
   if (typeof window === "undefined") return null;
   try {
@@ -222,17 +229,29 @@ class MembershipPlansStore {
   private hydrate() {
     if (this.hydrated || typeof window === "undefined") return;
     this.hydrated = true;
+    const detected = clientBootstrapRegion();
     const stored = readStored();
     if (stored) {
-      const region =
+      const storedRegion =
         stored.region === "outside_india" || stored.currency === "USD"
           ? "outside_india"
           : "india";
+      // Prefer live visitor detection over a stale opposite-currency cache.
+      const region =
+        detected !== storedRegion ? detected : storedRegion;
       this.region = region;
-      this.data = withLiveOffer(stored, region);
+      this.data =
+        region === storedRegion
+          ? withLiveOffer(stored, region)
+          : baseResponseFor(region);
       this.ready = true;
       this.rebuildSnapshot();
+      return;
     }
+    this.region = detected;
+    this.data = baseResponseFor(detected);
+    this.ready = true;
+    this.rebuildSnapshot();
   }
 
   private rebuildSnapshot() {

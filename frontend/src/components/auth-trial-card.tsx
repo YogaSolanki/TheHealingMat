@@ -18,7 +18,11 @@ import {
   type PublicUser,
   type Region,
 } from "@/lib/api";
-import { resolveVisitorRegion } from "@/lib/visitor-region";
+import { membershipPlansStore } from "@/lib/membership-plans-store";
+import {
+  peekVisitorRegion,
+  resolveVisitorRegion,
+} from "@/lib/visitor-region";
 import {
   clearStoredToken,
   getStoredToken,
@@ -341,7 +345,7 @@ export function AuthTrialCard({
   const { showAuthToast } = useAuthModal();
   const [mode, setMode] = useState<Mode>(initialMode);
   const [step, setStep] = useState<Step>("identity");
-  const [region, setRegion] = useState<Region>("india");
+  const [region, setRegion] = useState<Region>(() => peekVisitorRegion());
   const [fullName, setFullName] = useState("");
   const [fullNameTouched, setFullNameTouched] = useState(false);
   const [mobile, setMobile] = useState("");
@@ -893,32 +897,19 @@ export function AuthTrialCard({
               />
             )}
 
-            {mode === "forgot" ? (
-              region === "india" ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRegion("outside_india");
-                    setError(null);
-                  }}
-                  disabled={loading}
-                  className="mt-1.5 block w-full cursor-pointer text-center text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  From outside India? Start here →
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRegion("india");
-                    setError(null);
-                  }}
-                  disabled={loading}
-                  className="mt-1.5 block w-full cursor-pointer text-center text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  From India? Start here →
-                </button>
-              )
+            {mode === "forgot" && region === "india" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setRegion("outside_india");
+                  setError(null);
+                  void membershipPlansStore.refresh("outside_india");
+                }}
+                disabled={loading}
+                className="mt-1.5 block w-full cursor-pointer text-center text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                From outside India? Start here →
+              </button>
             ) : null}
           </div>
 
@@ -954,25 +945,14 @@ export function AuthTrialCard({
                   onClick={() => {
                     setRegion("outside_india");
                     setError(null);
+                    void membershipPlansStore.refresh("outside_india");
                   }}
                   disabled={loading}
                   className="mt-1.5 block w-full cursor-pointer text-center text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   From outside India? Start here →
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRegion("india");
-                    setError(null);
-                  }}
-                  disabled={loading}
-                  className="mt-1.5 block w-full cursor-pointer text-center text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  From India? Start here →
-                </button>
-              )}
+              ) : null}
             </div>
           ) : null}
 
@@ -1018,25 +998,14 @@ export function AuthTrialCard({
                   onClick={() => {
                     setRegion("outside_india");
                     setError(null);
+                    void membershipPlansStore.refresh("outside_india");
                   }}
                   disabled={loading}
                   className="mt-1.5 block w-full cursor-pointer text-center text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   From outside India? Start here →
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRegion("india");
-                    setError(null);
-                  }}
-                  disabled={loading}
-                  className="mt-1.5 block w-full cursor-pointer text-center text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  From India? Start here →
-                </button>
-              )}
+              ) : null}
             </div>
           ) : null}
 

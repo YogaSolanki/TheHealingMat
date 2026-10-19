@@ -10,7 +10,11 @@ import {
   type PublicUser,
   type Region,
 } from "@/lib/api";
-import { resolveVisitorRegion } from "@/lib/visitor-region";
+import { membershipPlansStore } from "@/lib/membership-plans-store";
+import {
+  peekVisitorRegion,
+  resolveVisitorRegion,
+} from "@/lib/visitor-region";
 import {
   clearStoredToken,
   getStoredToken,
@@ -75,7 +79,7 @@ export function TrialSignupCard({
   const router = useRouter();
   const { showAuthToast, openAuth } = useAuthModal();
   const [step, setStep] = useState<"identity" | "otp">("identity");
-  const [region, setRegion] = useState<Region | null>(null);
+  const [region, setRegion] = useState<Region | null>(() => peekVisitorRegion());
   const [fullName, setFullName] = useState("");
   const [fullNameTouched, setFullNameTouched] = useState(false);
   const [mobile, setMobile] = useState("");
@@ -536,33 +540,22 @@ export function TrialSignupCard({
             </div>
           ) : null}
 
-          <div>
-            {isIndia ? (
+          {isIndia ? (
+            <div>
               <button
                 type="button"
                 onClick={() => {
                   setRegion("outside_india");
                   setError(null);
+                  void membershipPlansStore.refresh("outside_india");
                 }}
                 disabled={loading}
                 className="mt-1.5 block w-full cursor-pointer text-center text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 From outside India? Start here →
               </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setRegion("india");
-                  setError(null);
-                }}
-                disabled={loading}
-                className="mt-1.5 block w-full cursor-pointer text-center text-[12px] font-medium text-[#5f7a66] underline decoration-[#5f7a66]/45 underline-offset-[3px] transition hover:text-[#1f6b3a] hover:decoration-[#1f6b3a]/70 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                From India? Start here →
-              </button>
-            )}
-          </div>
+            </div>
+          ) : null}
 
           <label
             htmlFor="signup-age-confirm"

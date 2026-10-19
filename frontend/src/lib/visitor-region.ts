@@ -54,6 +54,14 @@ function writeCache(value: CachedRegion) {
 }
 
 /**
+ * Synchronous best-effort region for first paint (cache → timezone).
+ * Outside-India visitors should not briefly flash India/mobile/INR UI.
+ */
+export function peekVisitorRegion(): Region {
+  return readCache()?.region ?? timezoneFallback();
+}
+
+/**
  * Shared India vs international detection for Membership + Free Trial.
  * Prefer server IP/CDN geo; if unreliable, fall back to browser timezone.
  */
@@ -85,8 +93,8 @@ export async function resolveVisitorRegion(): Promise<Region> {
 }
 
 export function useVisitorRegion() {
-  const [region, setRegion] = useState<Region | null>(() => readCache()?.region ?? null);
-  const [ready, setReady] = useState(() => readCache() != null);
+  const [region, setRegion] = useState<Region | null>(() => peekVisitorRegion());
+  const [ready, setReady] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
