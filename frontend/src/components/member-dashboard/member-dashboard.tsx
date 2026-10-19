@@ -190,6 +190,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const memberDisplayLabels = isActiveMember ? audienceMatchedLabels : [];
   const memberMorningSlots = isActiveMember ? audienceMatchedMorning : [];
   const memberEveningSlots = isActiveMember ? audienceMatchedEvening : [];
+  const memberSpecialSlots = isActiveMember ? audienceMatchedSpecial : [];
   // Cached Class Management labels only (IST) — never fetch for timezone mapping.
   const cachedIstSlotLabels = useMemo(() => {
     if (isTrial || isScheduledTrial) return trialDisplayLabels;
@@ -262,7 +263,8 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const specialSessionLabel = toLocalSlot(
     isActiveMember ? (audienceMatchedSpecial[0] ?? null) : null,
   );
-  const liveSlotDisplay = toLocalSlot(running?.label ?? null);
+  /** IST label for live highlight — compared against IST slot lists. */
+  const liveSlotIst = running?.label?.trim().replace(/\s+/g, " ") || null;
   const trialSlotSubtitle =
     formatSlotList(toLocalSlots(trialDisplayLabels)) ||
     (todaySessionsReady ? "No sessions scheduled today" : "Session times");
@@ -580,10 +582,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
           </div>
 
           {showLocalTimes && cachedIstSlotLabels.length > 0 ? (
-            <div className="border-b border-[#eef2ee] px-4 py-2.5 sm:px-6">
+            <div className="border-b border-[#eef2ee] px-4 py-3 sm:px-6">
               <SessionTimezoneNote
                 istLabels={cachedIstSlotLabels}
                 istDateIso={todaySessionsDate}
+                timeZone={viewerTimeZone}
               />
             </div>
           ) : null}
@@ -702,9 +705,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                         <SessionTimingBlock
                           icon={sunIcon}
                           label="Today's session timings"
-                          slots={toLocalSlots(trialDisplayLabels)}
+                          slots={trialDisplayLabels}
                           tint="bg-[#F4F8F2]"
                           join={disabledJoin}
+                          showDualTimes={showLocalTimes}
+                          slotDisplayOptions={slotDisplayOptions}
                         />
                       ) : (
                         <>
@@ -712,16 +717,20 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                             <SessionTimingBlock
                               icon={sunIcon}
                               label="Morning Sessions"
-                              slots={toLocalSlots(trialMorningSlots)}
+                              slots={trialMorningSlots}
                               tint="bg-[#F4F8F2]"
+                              showDualTimes={showLocalTimes}
+                              slotDisplayOptions={slotDisplayOptions}
                             />
                           ) : null}
                           {hasEvening ? (
                             <SessionTimingBlock
                               icon={moonIcon}
                               label="Evening Sessions"
-                              slots={toLocalSlots(trialEveningSlots)}
+                              slots={trialEveningSlots}
                               tint="bg-[#F7F7F5]"
+                              showDualTimes={showLocalTimes}
+                              slotDisplayOptions={slotDisplayOptions}
                             />
                           ) : null}
                         </>
@@ -762,7 +771,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                   <>
                     <div
                       className={`mb-4 flex flex-wrap items-start gap-3 ${
-                        bothPeriods ? "justify-between" : ""
+                        bothPeriods || showLocalTimes ? "justify-between" : ""
                       }`}
                     >
                       <SectionHeading
@@ -773,9 +782,15 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                           </span>
                         }
                         title="Trial Sessions"
-                        subtitle={trialSlotSubtitle}
+                        subtitle={
+                          showLocalTimes
+                            ? "(local time + IST)"
+                            : trialSlotSubtitle
+                        }
                       />
-                      {bothPeriods ? joinSessionButton : null}
+                      {bothPeriods || showLocalTimes
+                        ? joinSessionButton
+                        : null}
                     </div>
 
                     {!hasTrialSessions ? (
@@ -786,13 +801,26 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                         tint="bg-[#F4F8F2]"
                         emptyLabel="No sessions scheduled for today"
                       />
+                    ) : showLocalTimes ? (
+                      <LocalTimezoneSessionColumns
+                        morningSlots={trialMorningSlots}
+                        specialSlots={[]}
+                        eveningSlots={trialEveningSlots}
+                        fallbackSlots={
+                          !hasMorning && !hasEvening
+                            ? trialDisplayLabels
+                            : []
+                        }
+                        liveSlot={liveSlotIst}
+                        slotDisplayOptions={slotDisplayOptions}
+                      />
                     ) : !hasMorning && !hasEvening ? (
                       <SessionTimingBlock
                         icon={sunIcon}
                         label="Today's session timings"
-                        slots={toLocalSlots(trialDisplayLabels)}
+                        slots={trialDisplayLabels}
                         tint="bg-[#F4F8F2]"
-                        liveSlot={liveSlotDisplay ?? undefined}
+                        liveSlot={liveSlotIst ?? undefined}
                       />
                     ) : (
                       <>
@@ -800,24 +828,24 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                           <SessionTimingBlock
                             icon={sunIcon}
                             label="Morning Sessions"
-                            slots={toLocalSlots(trialMorningSlots)}
+                            slots={trialMorningSlots}
                             tint="bg-[#F4F8F2]"
-                            liveSlot={liveSlotDisplay ?? undefined}
+                            liveSlot={liveSlotIst ?? undefined}
                           />
                         ) : null}
                         {hasEvening ? (
                           <SessionTimingBlock
                             icon={moonIcon}
                             label="Evening Sessions"
-                            slots={toLocalSlots(trialEveningSlots)}
+                            slots={trialEveningSlots}
                             tint="bg-[#F7F7F5]"
-                            liveSlot={liveSlotDisplay ?? undefined}
+                            liveSlot={liveSlotIst ?? undefined}
                           />
                         ) : null}
                       </>
                     )}
 
-                    {!bothPeriods ? (
+                    {!showLocalTimes && !bothPeriods ? (
                       <div className="mt-3 flex justify-center sm:mt-4">
                         <button
                           type="button"
@@ -902,9 +930,11 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                         <SessionTimingBlock
                           icon={sunIcon}
                           label="Q&A Sessions"
-                          slots={toLocalSlots(sundayDisplaySlots)}
+                          slots={sundayDisplaySlots}
                           tint="bg-[#F4F8F2]"
-                          liveSlot={liveSlotDisplay ?? undefined}
+                          liveSlot={liveSlotIst ?? undefined}
+                          showDualTimes={showLocalTimes}
+                          slotDisplayOptions={slotDisplayOptions}
                         />
                       ) : (
                         <>
@@ -912,18 +942,22 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                             <SessionTimingBlock
                               icon={sunIcon}
                               label="Morning Q&A Sessions"
-                              slots={toLocalSlots(sundayMorningSlots)}
+                              slots={sundayMorningSlots}
                               tint="bg-[#F4F8F2]"
-                              liveSlot={liveSlotDisplay ?? undefined}
+                              liveSlot={liveSlotIst ?? undefined}
+                              showDualTimes={showLocalTimes}
+                              slotDisplayOptions={slotDisplayOptions}
                             />
                           ) : null}
                           {hasEvening ? (
                             <SessionTimingBlock
                               icon={moonIcon}
                               label="Evening Q&A Sessions"
-                              slots={toLocalSlots(sundayEveningSlots)}
+                              slots={sundayEveningSlots}
                               tint="bg-[#F7F7F5]"
-                              liveSlot={liveSlotDisplay ?? undefined}
+                              liveSlot={liveSlotIst ?? undefined}
+                              showDualTimes={showLocalTimes}
+                              slotDisplayOptions={slotDisplayOptions}
                             />
                           ) : null}
                         </>
@@ -981,6 +1015,109 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                       <span
                         aria-hidden="true"
                         className="block h-5 w-5 sm:h-6 sm:w-6"
+                        style={{
+                          backgroundColor: "#1f6b3a",
+                          WebkitMaskImage: `url(${calendarIcon.src})`,
+                          WebkitMaskSize: "contain",
+                          WebkitMaskRepeat: "no-repeat",
+                          WebkitMaskPosition: "center",
+                          maskImage: `url(${calendarIcon.src})`,
+                          maskSize: "contain",
+                          maskRepeat: "no-repeat",
+                          maskPosition: "center",
+                        }}
+                      />
+                    </span>
+                  }
+                  label="Tomorrow's Topic"
+                  topic={tomorrowTopic?.trim() || "Coming soon"}
+                  tint="bg-[#F7F7F5]"
+                />
+              </div>
+            </div>
+          ) : showLocalTimes ? (
+            <div className="px-4 py-4 sm:px-6 sm:py-5">
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <SectionHeading
+                  className="mb-0 flex min-w-0 flex-1 items-start gap-2.5"
+                  icon={
+                    <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#eef6f0] sm:h-7 sm:w-7">
+                      <span
+                        aria-hidden="true"
+                        className="block h-3.5 w-3.5 sm:h-4 sm:w-4"
+                        style={{
+                          backgroundColor: "#1f6b3a",
+                          WebkitMaskImage: `url(${calendarIcon.src})`,
+                          WebkitMaskSize: "contain",
+                          WebkitMaskRepeat: "no-repeat",
+                          WebkitMaskPosition: "center",
+                          maskImage: `url(${calendarIcon.src})`,
+                          maskSize: "contain",
+                          maskRepeat: "no-repeat",
+                          maskPosition: "center",
+                        }}
+                      />
+                    </span>
+                  }
+                  title="Regular Yoga Sessions"
+                  subtitle="(Monday to Saturday)"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleJoin()}
+                  disabled={joiningSession}
+                  className={`${memberPrimaryBtnClass} w-full justify-center px-5 py-3 text-[14px] sm:w-auto sm:min-w-[148px] sm:px-6 sm:py-3.5 sm:text-[15px]`}
+                >
+                  {joiningSession ? "Joining…" : "Join Session"}
+                </button>
+              </div>
+
+              {!hasTodaySessions ? (
+                <SessionTimingBlock
+                  icon={sunIcon}
+                  label="Today's session timings"
+                  slots={[]}
+                  tint="bg-[#F4F8F2]"
+                  emptyLabel="No sessions scheduled for today"
+                />
+              ) : (
+                <LocalTimezoneSessionColumns
+                  morningSlots={memberMorningSlots}
+                  specialSlots={memberSpecialSlots}
+                  eveningSlots={memberEveningSlots}
+                  fallbackSlots={
+                    memberMorningSlots.length === 0 &&
+                    memberEveningSlots.length === 0
+                      ? memberDisplayLabels
+                      : []
+                  }
+                  liveSlot={liveSlotIst}
+                  slotDisplayOptions={slotDisplayOptions}
+                  keepEmptySpecial
+                />
+              )}
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <SpecialTopicRow
+                  icon={
+                    <Image
+                      src={sunIcon}
+                      alt=""
+                      width={28}
+                      height={28}
+                      className="h-7 w-7 shrink-0 object-contain"
+                    />
+                  }
+                  label="Today's Topic"
+                  topic={todayTopic?.trim() || "Coming soon"}
+                  tint="bg-[#F4F8F2]"
+                />
+                <SpecialTopicRow
+                  icon={
+                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center">
+                      <span
+                        aria-hidden="true"
+                        className="block h-4 w-4"
                         style={{
                           backgroundColor: "#1f6b3a",
                           WebkitMaskImage: `url(${calendarIcon.src})`,
@@ -1065,9 +1202,9 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                         <SessionTimingBlock
                           icon={sunIcon}
                           label="Today's session timings"
-                          slots={toLocalSlots(memberDisplayLabels)}
+                          slots={memberDisplayLabels}
                           tint="bg-[#F4F8F2]"
-                          liveSlot={liveSlotDisplay ?? undefined}
+                          liveSlot={liveSlotIst ?? undefined}
                         />
                       ) : (
                         <>
@@ -1075,18 +1212,18 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                             <SessionTimingBlock
                               icon={sunIcon}
                               label="Morning Sessions"
-                              slots={toLocalSlots(memberMorningSlots)}
+                              slots={memberMorningSlots}
                               tint="bg-[#F4F8F2]"
-                              liveSlot={liveSlotDisplay ?? undefined}
+                              liveSlot={liveSlotIst ?? undefined}
                             />
                           ) : null}
                           {hasEvening ? (
                             <SessionTimingBlock
                               icon={moonIcon}
                               label="Evening Sessions"
-                              slots={toLocalSlots(memberEveningSlots)}
+                              slots={memberEveningSlots}
                               tint="bg-[#F7F7F5]"
-                              liveSlot={liveSlotDisplay ?? undefined}
+                              liveSlot={liveSlotIst ?? undefined}
                             />
                           ) : null}
                         </>
@@ -1484,57 +1621,59 @@ function SpecialTopicRow({
 function SessionTimezoneNote({
   istLabels,
   istDateIso,
+  timeZone,
 }: {
   /** Cached IST session labels from today's schedule store — no API fetch. */
   istLabels: readonly string[];
   istDateIso: string | null;
+  timeZone: string;
 }) {
   const [open, setOpen] = useState(false);
-  // IST on first paint (SSR-safe); refresh when opening the popup.
-  const [timeZone, setTimeZone] = useState("Asia/Kolkata");
+  const [activeTimeZone, setActiveTimeZone] = useState(timeZone);
 
   useEffect(() => {
-    setTimeZone(getViewerTimeZone());
-  }, []);
+    setActiveTimeZone(timeZone);
+  }, [timeZone]);
 
-  // Map from cache only: left = India time, right = this device timezone.
   const mappings = useMemo(
     () =>
       mapIstSlotsToLocal(istLabels, {
-        timeZone,
+        timeZone: activeTimeZone,
         istDateIso,
       }),
-    [istLabels, timeZone, istDateIso],
+    [istLabels, activeTimeZone, istDateIso],
   );
 
-  const zoneLabel = useMemo(() => {
-    try {
-      return timeZone.replace(/_/g, " ").split("/").pop() ?? timeZone;
-    } catch {
-      return timeZone;
-    }
-  }, [timeZone]);
-
   function openPopup() {
-    // Refresh timezone when opening (e.g. DevTools Sensors override).
-    setTimeZone(getViewerTimeZone());
+    setActiveTimeZone(getViewerTimeZone());
     setOpen(true);
   }
 
   if (mappings.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-1.5 text-[12px] text-[#6b7c6e] sm:text-[13px]">
-      <span className="leading-snug">
-        Session times are based on Indian Standard Time (IST)
+    <div className="flex items-center gap-2.5 rounded-[12px] border border-[#d7e8f2] bg-[#F3F8FC] px-3 py-2.5 sm:gap-3 sm:px-3.5">
+      <span
+        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[#2f6f9a] shadow-[0_1px_3px_rgba(47,111,154,0.12)]"
+        aria-hidden="true"
+      >
+        <GlobeIcon className="h-4 w-4" />
       </span>
+      <p className="min-w-0 flex-1 text-[12px] leading-snug text-[#4a6678] sm:text-[13px]">
+        Times are shown in your{" "}
+        <span className="font-semibold text-[#243028]">local time</span> and{" "}
+        <span className="font-semibold text-[#243028]">
+          Indian Standard Time (IST)
+        </span>
+        .
+      </p>
       <div className="relative inline-flex shrink-0">
         <button
           type="button"
           aria-label="Show Indian time and your local time"
           aria-expanded={open}
           onClick={() => (open ? setOpen(false) : openPopup())}
-          className="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-[#d5e0d6] bg-white text-[11px] font-bold text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#eef6f0]"
+          className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-[#c5d9e6] bg-white text-[12px] font-bold text-[#2f6f9a] transition hover:border-[#2f6f9a] hover:bg-[#e8f3fa]"
         >
           i
         </button>
@@ -1550,38 +1689,47 @@ function SessionTimezoneNote({
             <div
               role="dialog"
               aria-label="Indian time to local time"
-              className="absolute top-0 left-[calc(100%+10px)] z-50 w-[min(calc(100vw-2rem),300px)] rounded-[14px] border border-[#e6ebe3] bg-white p-3 shadow-[0_12px_32px_rgba(31,107,58,0.14)]"
+              className="absolute top-[calc(100%+10px)] right-0 z-50 w-[min(calc(100vw-2rem),340px)] rounded-[16px] border border-[#e6ebe3] bg-white p-3.5 shadow-[0_16px_40px_rgba(31,107,58,0.16)]"
             >
-              <p className="text-[12px] font-semibold text-[#3d4a3c]">
-                IND (IST) → your time ({zoneLabel})
+              <p className="text-[13px] font-bold text-[#243028]">
+                India (IST) ↔ your local time
               </p>
-              <ul className="mt-2 max-h-[240px] space-y-1.5 overflow-y-auto">
-                {mappings.map((row) => (
-                  <li
-                    key={row.istLabel}
-                    className="flex items-center justify-between gap-3 rounded-[10px] bg-[#F7F7F5] px-2.5 py-1.5 text-[12px] font-semibold text-[#3d4a3c]"
-                  >
-                    <span className="whitespace-nowrap text-[#1f6b3a]">
-                      IND {row.istLabel}
-                    </span>
-                    <span className="text-[#8a968c]" aria-hidden="true">
-                      →
-                    </span>
-                    <span className="whitespace-nowrap text-right">
-                      {row.localLabel}
-                      {row.dayOffset === 1 ? (
-                        <span className="ml-1 text-[10px] font-medium text-[#8a968c]">
-                          (+1 day)
+              <p className="mt-0.5 text-[11px] text-[#6b7c6e]">
+                Same class, shown in both clocks
+              </p>
+              <ul className="mt-3 max-h-[300px] space-y-2 overflow-y-auto">
+                {mappings.map((row) => {
+                  const dayHint =
+                    row.dayOffset === 1
+                      ? "next day"
+                      : row.dayOffset === -1
+                        ? "prev day"
+                        : null;
+                  return (
+                    <li
+                      key={row.istLabel}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-[12px] bg-[#F4F8F2] px-2.5 py-2"
+                    >
+                      <span className="inline-flex flex-col items-start rounded-[10px] bg-[#1f6b3a] px-2.5 py-1 text-white">
+                        <span className="text-[12px] font-bold whitespace-nowrap">
+                          {row.localLabel}
                         </span>
-                      ) : null}
-                      {row.dayOffset === -1 ? (
-                        <span className="ml-1 text-[10px] font-medium text-[#8a968c]">
-                          (−1 day)
+                        <span className="text-[9px] font-medium text-white/80">
+                          Your local time
+                          {dayHint ? ` · ${dayHint}` : ""}
                         </span>
-                      ) : null}
-                    </span>
-                  </li>
-                ))}
+                      </span>
+                      <span className="inline-flex flex-col items-end rounded-[10px] border border-[#d7e5d9] bg-white px-2.5 py-1">
+                        <span className="text-[12px] font-bold whitespace-nowrap text-[#1f6b3a]">
+                          {row.istLabel}
+                        </span>
+                        <span className="text-[9px] font-medium text-[#8a968c]">
+                          India (IST)
+                        </span>
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           </>
@@ -1591,7 +1739,234 @@ function SessionTimezoneNote({
   );
 }
 
-/** Compact timing chips — optional Join sits in the same row (2 columns). */
+/**
+ * Outside-India schedule: Morning | Special | Evening in one row,
+ * each slot showing India (IST) + Your local time (compact).
+ */
+function LocalTimezoneSessionColumns({
+  morningSlots,
+  specialSlots,
+  eveningSlots,
+  fallbackSlots = [],
+  liveSlot,
+  slotDisplayOptions,
+  specialTitle = "Special Session",
+  keepEmptySpecial = false,
+}: {
+  morningSlots: readonly string[];
+  specialSlots: readonly string[];
+  eveningSlots: readonly string[];
+  fallbackSlots?: readonly string[];
+  liveSlot: string | null;
+  slotDisplayOptions: { timeZone: string; istDateIso: string | null };
+  specialTitle?: string;
+  /** Keep Special column even when it has no slots (membership Mon–Sat). */
+  keepEmptySpecial?: boolean;
+}) {
+  const useFallback =
+    morningSlots.length === 0 &&
+    eveningSlots.length === 0 &&
+    specialSlots.length === 0 &&
+    fallbackSlots.length > 0;
+
+  const columns = useFallback
+    ? [
+        {
+          key: "all",
+          icon: sunIcon as typeof sunIcon | null,
+          star: false,
+          title: "Today's Sessions",
+          subtitle: "Your practice times",
+          tint: "bg-[#FBF6F0]",
+          slots: fallbackSlots,
+        },
+      ]
+    : [
+        {
+          key: "morning",
+          icon: sunIcon as typeof sunIcon | null,
+          star: false,
+          title: "Morning Sessions",
+          subtitle: "Start your day with energy",
+          tint: "bg-[#FBF6F0]",
+          slots: morningSlots,
+        },
+        {
+          key: "special",
+          icon: null,
+          star: true,
+          title: specialTitle,
+          subtitle: "A focused session for well-being",
+          tint: "bg-[#F4F8F2]",
+          slots: specialSlots,
+        },
+        {
+          key: "evening",
+          icon: moonIcon as typeof sunIcon | null,
+          star: false,
+          title: "Evening Sessions",
+          subtitle: "Relax, unwind and feel better",
+          tint: "bg-[#F0F5FA]",
+          slots: eveningSlots,
+        },
+      ].filter(
+        (col) =>
+          col.slots.length > 0 ||
+          (col.key === "special" && keepEmptySpecial),
+      );
+
+  const colCount = Math.max(1, columns.length);
+  const hasNarrowSpecial =
+    colCount >= 3 && columns.some((col) => col.key === "special");
+
+  return (
+    <div
+      className={`grid items-stretch gap-3 ${
+        hasNarrowSpecial
+          ? "md:grid-cols-[1.55fr_0.65fr_1.55fr]"
+          : colCount >= 3
+            ? "lg:grid-cols-3"
+            : colCount === 2
+              ? "sm:grid-cols-2"
+              : "grid-cols-1"
+      }`}
+    >
+      {columns.map((col) => {
+        const dualSlots = mapIstSlotsToLocal(col.slots, slotDisplayOptions);
+        const liveNormalized = liveSlot?.trim().replace(/\s+/g, " ") ?? "";
+        const isSpecial = col.key === "special";
+
+        return (
+          <div
+            key={col.key}
+            className={`flex h-full flex-col rounded-[14px] px-3 py-3 sm:px-3.5 sm:py-3.5 ${col.tint}`}
+          >
+            <div className="mb-2.5 flex items-start gap-2">
+              <span className="mt-px inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-white/80 bg-white">
+                {col.star ? (
+                  <StarIcon className="h-3.5 w-3.5 text-[#C58A1A]" />
+                ) : col.icon ? (
+                  <Image
+                    src={col.icon}
+                    alt=""
+                    width={22}
+                    height={22}
+                    className="h-[22px] w-[22px] object-contain"
+                  />
+                ) : null}
+              </span>
+              <div className="min-w-0">
+                <p className="text-[16px] font-bold leading-none text-[#243028] sm:text-[17px]">
+                  {col.title}
+                </p>
+                <p className="mt-1 text-[13px] leading-snug text-[#6b7c6e] sm:text-[14px]">
+                  {isSpecial ? "Focused well-being session" : col.subtitle}
+                </p>
+              </div>
+            </div>
+
+            {dualSlots.length === 0 ? (
+              <p className="text-[13px] font-medium text-[#8a968c]">
+                No session scheduled
+              </p>
+            ) : isSpecial ? (
+              <div className="mt-1 flex flex-col gap-2.5 rounded-[10px] border border-white/70 bg-white/55 px-2.5 py-2.5">
+                {dualSlots.map((row) => {
+                  const live = liveNormalized === row.istLabel;
+                  const dayHint =
+                    row.dayOffset === 1
+                      ? "next day"
+                      : row.dayOffset === -1
+                        ? "prev day"
+                        : null;
+                  return (
+                    <div
+                      key={row.istLabel}
+                      className={`flex flex-col gap-2 ${live ? "rounded-md bg-[#F4F8F2] px-1 py-1" : ""}`}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[18px] font-bold leading-none whitespace-nowrap text-[#1f6b3a]">
+                          {row.localLabel}
+                        </p>
+                        <p className="mt-1 text-[10px] leading-none text-[#8a968c]">
+                          Your local time
+                          {dayHint ? (
+                            <span className="text-[#c45c16]"> ({dayHint})</span>
+                          ) : null}
+                        </p>
+                      </div>
+                      <div className="min-w-0 border-t border-[#e6ebe3]/80 pt-2">
+                        <p className="text-[15px] font-bold leading-none whitespace-nowrap text-[#243028]">
+                          {row.istLabel}
+                        </p>
+                        <p className="mt-1 text-[10px] leading-none text-[#8a968c]">
+                          India (IST)
+                        </p>
+                      </div>
+                      {live ? (
+                        <span className="sr-only"> (live now)</span>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex w-full flex-col">
+                {dualSlots.map((row, index) => {
+                  const live = liveNormalized === row.istLabel;
+                  const dayHint =
+                    row.dayOffset === 1
+                      ? "next day"
+                      : row.dayOffset === -1
+                        ? "prev day"
+                        : null;
+                  return (
+                    <div
+                      key={row.istLabel}
+                      className={`w-full py-1.5 ${
+                        index > 0 ? "border-t border-[#e6ebe3]" : ""
+                      } ${live ? "rounded-md bg-white/60" : ""}`}
+                    >
+                      <div className="mx-auto grid w-full max-w-[280px] grid-cols-2 gap-6 sm:max-w-[300px] sm:gap-8">
+                        <div className="min-w-0">
+                          <p className="text-[15px] font-bold leading-none whitespace-nowrap text-[#243028] sm:text-[16px]">
+                            {row.istLabel}
+                          </p>
+                          <p className="mt-1 text-[10px] leading-none text-[#8a968c]">
+                            India (IST)
+                          </p>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[15px] font-bold leading-none whitespace-nowrap text-[#1f6b3a] sm:text-[16px]">
+                            {row.localLabel}
+                          </p>
+                          <p className="mt-1 text-[10px] leading-none text-[#8a968c]">
+                            Your local time
+                            {dayHint ? (
+                              <span className="text-[#c45c16]">
+                                {" "}
+                                ({dayHint})
+                              </span>
+                            ) : null}
+                          </p>
+                        </div>
+                      </div>
+                      {live ? (
+                        <span className="sr-only"> (live now)</span>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Compact timing row — same bar look as India; outside India lists local + IST per class. */
 function SessionTimingBlock({
   icon,
   label,
@@ -1601,17 +1976,107 @@ function SessionTimingBlock({
   join,
   className,
   emptyLabel,
+  showDualTimes = false,
+  slotDisplayOptions,
 }: {
   icon: typeof sunIcon;
   label: string;
+  /** Always IST labels from the schedule. */
   slots: string[];
   tint: string;
+  /** Live session IST label (matched against `slots`). */
   liveSlot?: string;
   join?: ReactNode;
   className?: string;
   emptyLabel?: string;
+  /** Outside India: one clear row per class with local + IST. */
+  showDualTimes?: boolean;
+  slotDisplayOptions?: { timeZone: string; istDateIso: string | null };
 }) {
   const showEmpty = slots.length === 0;
+  const uniqueIstSlots = Array.from(
+    new Map(
+      slots.map((slot) => {
+        const normalized = slot.trim().replace(/\s+/g, " ");
+        return [normalized.toLowerCase(), normalized];
+      }),
+    ).values(),
+  );
+  const dualSlots =
+    showDualTimes && !showEmpty
+      ? mapIstSlotsToLocal(uniqueIstSlots, slotDisplayOptions)
+      : null;
+  const liveNormalized = liveSlot?.trim().replace(/\s+/g, " ") ?? "";
+
+  if (dualSlots) {
+    return (
+      <div
+        className={`mb-3 flex flex-col gap-2 rounded-[14px] px-3 py-2.5 sm:px-4 sm:py-3 ${tint} ${className ?? ""}`}
+      >
+        <div className="flex min-w-0 items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-[#e6ebe3] bg-white sm:h-9 sm:w-9">
+              <Image
+                src={icon}
+                alt=""
+                width={24}
+                height={24}
+                className="h-5 w-5 object-contain sm:h-6 sm:w-6"
+              />
+            </span>
+            <span className="min-w-0 text-[13px] font-bold leading-snug text-[#3d4a3c] sm:text-[14px]">
+              {label}
+            </span>
+          </div>
+          {join ? <div className="shrink-0">{join}</div> : null}
+        </div>
+
+        {/* Compact IST + local rows — full-width dividers, centered times. */}
+        <div className="flex w-full flex-col">
+          {dualSlots.map((row, index) => {
+            const live = liveNormalized === row.istLabel;
+            const dayHint =
+              row.dayOffset === 1
+                ? "next day"
+                : row.dayOffset === -1
+                  ? "prev day"
+                  : null;
+            return (
+              <div
+                key={row.istLabel}
+                className={`w-full py-2 sm:py-2.5 ${
+                  index > 0 ? "border-t border-[#e0e8e1]" : ""
+                } ${live ? "rounded-[8px] bg-white/55" : ""}`}
+              >
+                <div className="mx-auto grid w-full max-w-[280px] grid-cols-2 gap-6 sm:max-w-[300px] sm:gap-8">
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-bold leading-none whitespace-nowrap text-[#243028] sm:text-[15px]">
+                      {row.istLabel}
+                    </p>
+                    <p className="mt-1 text-[10px] leading-none text-[#8a968c] sm:text-[11px]">
+                      India (IST)
+                    </p>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-bold leading-none whitespace-nowrap text-[#1f6b3a] sm:text-[15px]">
+                      {row.localLabel}
+                    </p>
+                    <p className="mt-1 text-[10px] leading-none text-[#8a968c] sm:text-[11px]">
+                      Your local time
+                      {dayHint ? (
+                        <span className="text-[#c45c16]"> ({dayHint})</span>
+                      ) : null}
+                    </p>
+                  </div>
+                </div>
+                {live ? <span className="sr-only"> (live now)</span> : null}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -1619,13 +2084,15 @@ function SessionTimingBlock({
     >
       <div className="flex min-w-0 flex-1 flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2">
         <div className="flex min-w-0 items-center gap-2.5">
-          <Image
-            src={icon}
-            alt=""
-            width={32}
-            height={32}
-            className="h-8 w-8 shrink-0 object-contain sm:h-9 sm:w-9"
-          />
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-[#e6ebe3] bg-white sm:h-10 sm:w-10">
+            <Image
+              src={icon}
+              alt=""
+              width={28}
+              height={28}
+              className="h-6 w-6 object-contain sm:h-7 sm:w-7"
+            />
+          </span>
           <span className="min-w-0 text-[14px] font-bold leading-snug text-[#3d4a3c] sm:text-[15px]">
             {label}
           </span>
@@ -1637,22 +2104,15 @@ function SessionTimingBlock({
               {emptyLabel ?? "No sessions scheduled"}
             </span>
           ) : (
-            Array.from(
-              new Map(
-                slots.map((slot) => [
-                  slot.trim().replace(/\s+/g, " ").toLowerCase(),
-                  slot.trim().replace(/\s+/g, " "),
-                ]),
-              ).values(),
-            ).map((slot) => {
-              const live = liveSlot === slot;
+            uniqueIstSlots.map((slot) => {
+              const live = liveNormalized === slot;
               return (
                 <span
                   key={slot}
-                  className={`rounded-[10px] border px-2.5 py-1 text-[12px] font-bold whitespace-nowrap sm:px-3 sm:py-1.5 sm:text-[13px] ${
+                  className={`rounded-[10px] px-2.5 py-1 text-[12px] font-bold whitespace-nowrap sm:px-3 sm:py-1.5 sm:text-[13px] ${
                     live
-                      ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
-                      : "border-transparent bg-white text-[#1f6b3a]"
+                      ? "bg-[#1f6b3a] text-white"
+                      : "bg-[#1f6b3a] text-white"
                   }`}
                 >
                   {slot}
@@ -1666,6 +2126,20 @@ function SessionTimingBlock({
 
       {join ? <div className="w-full shrink-0 sm:w-auto">{join}</div> : null}
     </div>
+  );
+}
+
+function GlobeIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" />
+      <path
+        d="M3.5 12h17M12 3c2.4 2.6 3.6 5.6 3.6 9s-1.2 6.4-3.6 9c-2.4-2.6-3.6-5.6-3.6-9s1.2-6.4 3.6-9Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 

@@ -22,13 +22,13 @@ export default function AdminLoginPage() {
         </p>
         <LoginForm />
       </div>
-      <p className="text-[12px] text-[#8a978c]">
-        Made by{" "}
+      <p className="text-[12px] text-[#1f6b3a]">
+        Designed &amp; Developed by{" "}
         <a
           href="mailto:shagun.thakur0107@gmail.com"
-          className="font-semibold text-[#1f6b3a] underline decoration-[#1f6b3a]/35 underline-offset-[2px] transition hover:decoration-[#1f6b3a]"
+          className="underline decoration-[#1f6b3a]/35 underline-offset-[2px] transition hover:decoration-[#1f6b3a]"
         >
-          Shagun Thakur
+          Shagun
         </a>
       </p>
     </main>

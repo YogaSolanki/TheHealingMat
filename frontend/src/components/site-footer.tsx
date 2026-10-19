@@ -305,12 +305,12 @@ export function SiteFooter() {
               © {new Date().getFullYear()} The Healing Mat. All Rights Reserved.
             </p>
             <p className="mt-1">
-              Made by{" "}
+              Designed &amp; Developed by{" "}
               <a
                 href="mailto:shagun.thakur0107@gmail.com"
-                className="font-semibold text-white underline decoration-white/35 underline-offset-[3px] transition hover:decoration-white"
+                className="underline decoration-[#d7e2d8]/50 underline-offset-[3px] transition hover:decoration-[#d7e2d8]"
               >
-                Shagun Thakur
+                Shagun
               </a>
             </p>
           </div>
