@@ -1,20 +1,33 @@
 ﻿"use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { extractYoutubeVideoId } from "@/lib/youtube-embed";
+import { toggleElementFullscreen } from "@/lib/video-popup-keyboard";
 
 type YoutubeEmbedPlayerProps = {
   title: string;
   src: string;
+  /** Start playback as soon as the player is ready (popup use). */
+  autoplay?: boolean;
 };
 
 /** YouTube.PlayerState */
 const YT_ENDED = 0;
 const YT_PLAYING = 1;
+const YT_PAUSED = 2;
 
 type YtPlayer = {
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  playVideo: () => void;
   pauseVideo: () => void;
+  getPlayerState: () => number;
   destroy: () => void;
 };
 
@@ -27,7 +40,7 @@ type YtNamespace = {
       height?: string | number;
       playerVars?: Record<string, string | number>;
       events?: {
-        onReady?: () => void;
+        onReady?: (event: { target: YtPlayer }) => void;
         onStateChange?: (event: { data: number; target: YtPlayer }) => void;
       };
     },
@@ -87,17 +100,59 @@ function loadYoutubeApi(): Promise<YtNamespace> {
   return youtubeApiLoader;
 }
 
+export type YoutubeEmbedPlayerHandle = {
+  togglePlay: () => void;
+  toggleFullscreen: () => void;
+  pause: () => void;
+};
+
 /**
  * Clean YouTube embed: no custom overlay buttons.
  * Crops/covers YouTube "More videos" / share chrome and avoids the end card.
+ * Exposes play/pause + fullscreen for popup keyboard controls (Space / F).
  */
-export function YoutubeEmbedPlayer({ title, src }: YoutubeEmbedPlayerProps) {
+export const YoutubeEmbedPlayer = forwardRef<
+  YoutubeEmbedPlayerHandle,
+  YoutubeEmbedPlayerProps
+>(function YoutubeEmbedPlayer({ title, src, autoplay = false }, ref) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const mountRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YtPlayer | null>(null);
   const [coverMoreVideos, setCoverMoreVideos] = useState(false);
   const [useIframeFallback, setUseIframeFallback] = useState(false);
   const reactId = useId().replace(/:/g, "");
   const videoId = extractYoutubeVideoId(src);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      togglePlay: () => {
+        const player = playerRef.current;
+        if (!player) return;
+        try {
+          const state = player.getPlayerState();
+          if (state === YT_PLAYING) {
+            player.pauseVideo();
+          } else {
+            player.playVideo();
+          }
+        } catch {
+          /* player may not be ready */
+        }
+      },
+      toggleFullscreen: () => {
+        void toggleElementFullscreen(rootRef.current);
+      },
+      pause: () => {
+        try {
+          playerRef.current?.pauseVideo();
+        } catch {
+          /* ignore */
+        }
+      },
+    }),
+    [],
+  );
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -128,10 +183,21 @@ export function YoutubeEmbedPlayer({ title, src }: YoutubeEmbedPlayerProps) {
             playsinline: 1,
             fs: 1,
             enablejsapi: 1,
+            autoplay: autoplay ? 1 : 0,
             playlist: videoId,
             origin: window.location.origin,
           },
           events: {
+            onReady: (event) => {
+              if (cancelled) return;
+              if (autoplay) {
+                try {
+                  event.target.playVideo();
+                } catch {
+                  /* autoplay may be blocked */
+                }
+              }
+            },
             onStateChange: (event) => {
               if (cancelled) return;
               // Only cover YouTube's end-screen "More videos" card — never on
@@ -148,6 +214,9 @@ export function YoutubeEmbedPlayer({ title, src }: YoutubeEmbedPlayerProps) {
               }
               if (event.data === YT_PLAYING) {
                 setCoverMoreVideos(false);
+              }
+              if (event.data === YT_PAUSED) {
+                // keep controls visible
               }
             },
           },
@@ -168,10 +237,11 @@ export function YoutubeEmbedPlayer({ title, src }: YoutubeEmbedPlayerProps) {
       setCoverMoreVideos(false);
       mount.replaceChildren();
     };
-  }, [videoId, title, reactId]);
+  }, [videoId, title, reactId, autoplay]);
 
   return (
     <div
+      ref={rootRef}
       className="relative aspect-video w-full overflow-hidden bg-black"
       onContextMenu={(event) => event.preventDefault()}
     >
@@ -210,12 +280,10 @@ export function YoutubeEmbedPlayer({ title, src }: YoutubeEmbedPlayerProps) {
       <div
         aria-hidden="true"
         className={`absolute right-0 bottom-14 z-20 h-28 w-72 sm:bottom-16 sm:h-32 sm:w-80 ${
-          coverMoreVideos
-            ? "bg-black"
-            : "pointer-events-none"
+          coverMoreVideos ? "bg-black" : "pointer-events-none"
         }`}
         onContextMenu={(event) => event.preventDefault()}
       />
     </div>
   );
-}
+});

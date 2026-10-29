@@ -49,34 +49,72 @@ const testimonials: {
   author: string;
 }[] = [
   {
-    key: "anjali",
+    key: "piyush-bharti",
     quote: (
       <>
-        The sessions are simple, practical and fit perfectly into my daily
-        routine. I feel more energetic and relaxed.
+        I&apos;ve had a very good experience with The Healing Mat. The sessions
+        are simple, practical and easy to follow, even for someone who is not
+        very experienced with yoga. I especially like the daily sessions and the
+        flexibility of timings. The approach is focused on making health a part
+        of everyday life rather than following complicated routines. Highly
+        recommended for anyone looking for an affordable and consistent way to
+        practise yoga and wellness.
       </>
     ),
-    author: "Anjali S.",
+    author: "Piyush Bharti",
   },
   {
-    key: "rajesh",
+    key: "dhanraj-solanki",
     quote: (
       <>
-        The teachers are knowledgeable and very supportive. My back pain has
-        improved so much.
+        One of the best things about The Healing Mat is that yoga actually fits
+        into your routine here. You don&apos;t have to change your whole day for
+        one class. I also really like the mix of yoga, pranayama, relaxation and
+        meditation. The Sunday Q&amp;A is another great idea because you can ask
+        your doubts and get proper guidance. Overall a very practical and
+        positive approach to wellness.
       </>
     ),
-    author: "Rajesh K.",
+    author: "Dhanraj Solanki",
   },
   {
-    key: "meera",
+    key: "bhavya-ahuja",
     quote: (
       <>
-        A wonderful platform for the whole family. Multiple Sessions keep us
-        consistent and motivated.
+        One thing I really appreciate is that Pradeep doesn&apos;t make the
+        class only about flexibility or difficult yoga poses. He keeps
+        explaining the practical side of yoga and how small things can be
+        included in our normal day. And yes, his jokes in between definitely
+        help 😄. You learn something, you exercise and you also have a few
+        laughs. For me that&apos;s a very good combination.
       </>
     ),
-    author: "Meera T.",
+    author: "Bhavya Ahuja",
+  },
+  {
+    key: "sunder-singh",
+    quote: (
+      <>
+        Pradeep has a very different way of taking yoga classes. One minute you
+        are doing a serious exercise and the next minute he says something funny
+        and the whole class is laughing 😂. I think this makes a big difference
+        because yoga doesn&apos;t feel like a boring routine. At the same time,
+        he makes sure the important part of the practice is properly explained.
+        Really enjoying the sessions.
+      </>
+    ),
+    author: "Sunder Singh",
+  },
+  {
+    key: "ashish-dabhas",
+    quote: (
+      <>
+        Healing Mat is an excellent platform for beginners and the advance level
+        participants. I am really happy with their classes. I recommend them
+        very strongly.
+      </>
+    ),
+    author: "Dr Ashish Dabas",
   },
 ];
 

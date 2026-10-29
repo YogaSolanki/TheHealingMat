@@ -20,6 +20,11 @@ import {
   getAnnualPerDayLabel,
   useMembershipPlans,
 } from "@/lib/membership-plans-store";
+import {
+  handlePopupVideoKeyDown,
+  toggleElementFullscreen,
+  toggleHtmlVideoPlayback,
+} from "@/lib/video-popup-keyboard";
 
 const INTRO_VIDEO_SRC = "/intro-video.mp4";
 const INTRO_CLOSE_MS = 220;
@@ -128,21 +133,27 @@ function IntroVideoModal({
   }, [rendered, exiting]);
 
   useEffect(() => {
-    if (!rendered) return;
+    if (!rendered || exiting) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") handleClose();
+      handlePopupVideoKeyDown(event, {
+        onEscape: handleClose,
+        onTogglePlay: () => toggleHtmlVideoPlayback(videoRef.current),
+        onToggleFullscreen: () => {
+          void toggleElementFullscreen(videoRef.current);
+        },
+      });
     }
 
-    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
     return () => {
       document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keydown", onKeyDown, true);
     };
-  }, [rendered, handleClose]);
+  }, [rendered, exiting, handleClose]);
 
   if (!mounted || !rendered) return null;
 

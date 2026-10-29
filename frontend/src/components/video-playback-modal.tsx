@@ -9,6 +9,15 @@ import {
 import { createPortal } from "react-dom";
 import { SiteLoader } from "@/components/site-loader";
 import {
+  YoutubeEmbedPlayer,
+  type YoutubeEmbedPlayerHandle,
+} from "@/components/youtube-embed-player";
+import {
+  handlePopupVideoKeyDown,
+  toggleElementFullscreen,
+  toggleHtmlVideoPlayback,
+} from "@/lib/video-popup-keyboard";
+import {
   isDirectVideoUrl,
   isYoutubeEmbedUrl,
   toVideoEmbedUrl,
@@ -32,6 +41,7 @@ function withAutoplay(embedUrl: string) {
   try {
     const url = new URL(embedUrl);
     url.searchParams.set("autoplay", "1");
+    url.searchParams.set("enablejsapi", "1");
     return url.toString();
   } catch {
     return embedUrl;
@@ -61,6 +71,8 @@ export function VideoPlaybackModal({
   unavailableHint = "Add a video URL for this video in the admin dashboard.",
 }: VideoPlaybackModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const youtubeRef = useRef<YoutubeEmbedPlayerHandle>(null);
   const [mounted, setMounted] = useState(false);
   const [rendered, setRendered] = useState(open);
   const [exiting, setExiting] = useState(false);
@@ -77,6 +89,7 @@ export function VideoPlaybackModal({
     if (exiting) return;
     const video = videoRef.current;
     if (video) video.pause();
+    youtubeRef.current?.pause();
     onClose();
   }, [exiting, onClose]);
 
@@ -149,20 +162,42 @@ export function VideoPlaybackModal({
   }, [rendered, exiting, directSrc, open]);
 
   useEffect(() => {
-    if (!rendered) return;
+    if (!rendered || exiting) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") handleClose();
+      handlePopupVideoKeyDown(event, {
+        onEscape: handleClose,
+        onTogglePlay: () => {
+          if (directSrc) {
+            toggleHtmlVideoPlayback(videoRef.current);
+            return;
+          }
+          if (youtube) {
+            youtubeRef.current?.togglePlay();
+          }
+        },
+        onToggleFullscreen: () => {
+          if (directSrc && videoRef.current) {
+            void toggleElementFullscreen(videoRef.current);
+            return;
+          }
+          if (youtube) {
+            youtubeRef.current?.toggleFullscreen();
+            return;
+          }
+          void toggleElementFullscreen(stageRef.current);
+        },
+      });
     }
 
-    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
     return () => {
       document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keydown", onKeyDown, true);
     };
-  }, [rendered, handleClose]);
+  }, [rendered, exiting, handleClose, directSrc, youtube]);
 
   if (!mounted || !rendered) return null;
 
@@ -202,45 +237,55 @@ export function VideoPlaybackModal({
           <CloseGlyph />
         </button>
 
-        {loadingVideo ? (
-          <div className="flex aspect-video w-full items-center justify-center bg-black">
-            <SiteLoader size="lg" tone="light" label="Loading video" />
-          </div>
-        ) : directSrc ? (
-          <video
-            key={directSrc}
-            ref={videoRef}
-            src={directSrc}
-            playsInline
-            preload="auto"
-            controls
-            controlsList="nodownload noremoteplayback"
-            onEnded={handleClose}
-            className="aspect-video w-full bg-black"
-            aria-label={title}
-          />
-        ) : playableEmbed ? (
-          <iframe
-            key={playableEmbed}
-            title={title}
-            src={playableEmbed}
-            className="aspect-video w-full border-0 bg-black"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-          />
-        ) : (
-          <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 bg-[#111] px-6 text-center">
-            <p className="font-serif text-[1.2rem] font-bold text-white">
-              Video unavailable
-            </p>
-            <p className="max-w-[360px] text-[13px] text-white/70">
-              {loadError
-                ? "Could not load this video. Please try again."
-                : unavailableHint}
-            </p>
-          </div>
-        )}
+        <div ref={stageRef} className="relative w-full bg-black">
+          {loadingVideo ? (
+            <div className="flex aspect-video w-full items-center justify-center bg-black">
+              <SiteLoader size="lg" tone="light" label="Loading video" />
+            </div>
+          ) : directSrc ? (
+            <video
+              key={directSrc}
+              ref={videoRef}
+              src={directSrc}
+              playsInline
+              preload="auto"
+              controls
+              controlsList="nodownload noremoteplayback"
+              onEnded={handleClose}
+              className="aspect-video w-full bg-black"
+              aria-label={title}
+            />
+          ) : playableEmbed && youtube ? (
+            <YoutubeEmbedPlayer
+              key={playableEmbed}
+              ref={youtubeRef}
+              title={title}
+              src={playableEmbed}
+              autoplay
+            />
+          ) : playableEmbed ? (
+            <iframe
+              key={playableEmbed}
+              title={title}
+              src={playableEmbed}
+              className="aspect-video w-full border-0 bg-black"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+            />
+          ) : (
+            <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 bg-[#111] px-6 text-center">
+              <p className="font-serif text-[1.2rem] font-bold text-white">
+                Video unavailable
+              </p>
+              <p className="max-w-[360px] text-[13px] text-white/70">
+                {loadError
+                  ? "Could not load this video. Please try again."
+                  : unavailableHint}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>,
     document.body,
