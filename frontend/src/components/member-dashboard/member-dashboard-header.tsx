@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SiteLogo } from "@/components/site-logo";
+import { lockBodyScroll } from "@/lib/body-scroll-lock";
 import {
   isHealthGuidePath,
   isMemberNavOrphanPath,
@@ -66,17 +67,30 @@ export function MemberDashboardHeader() {
   }, [pathname]);
 
   useEffect(() => {
+    if (!menuOpen) return;
+    const unlock = lockBodyScroll();
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") setMenuOpen(false);
     }
-
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+    return () => {
+      unlock();
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
 
   return (
     <header className="relative z-50 bg-white header-shell">
-      <div className="flex h-[72px] w-full items-center justify-between gap-2 pr-4 pl-5 sm:h-[84px] sm:gap-3 sm:pr-6 sm:pl-7 lg:pr-6 lg:pl-8 xl:pr-10 xl:pl-12">
+      {menuOpen ? (
+        <button
+          type="button"
+          aria-label="Close menu"
+          className="auth-modal-backdrop fixed inset-0 z-[40] bg-black/45 backdrop-blur-md lg:hidden"
+          onClick={() => setMenuOpen(false)}
+        />
+      ) : null}
+
+      <div className="relative z-[60] flex h-[72px] w-full items-center justify-between gap-2 bg-white pr-4 pl-5 sm:h-[84px] sm:gap-3 sm:pr-6 sm:pl-7 lg:pr-6 lg:pl-8 xl:pr-10 xl:pl-12">
         <SiteLogo
           priority
           href="/dashboard"
@@ -132,7 +146,7 @@ export function MemberDashboardHeader() {
 
       <div
         id="member-mobile-nav"
-        className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-300 lg:hidden ${
+        className={`relative z-[60] grid overflow-hidden transition-[grid-template-rows,opacity] duration-300 lg:hidden ${
           menuOpen
             ? "grid-rows-[1fr] opacity-100"
             : "pointer-events-none grid-rows-[0fr] opacity-0"
@@ -140,7 +154,7 @@ export function MemberDashboardHeader() {
         aria-hidden={!menuOpen}
       >
         <div className="min-h-0 overflow-hidden">
-          <nav className="flex flex-col gap-1 border-t border-[#e8ebe4] bg-white px-4 py-3 sm:px-6">
+          <nav className="flex flex-col gap-1 border-t border-[#e8ebe4] bg-white px-4 py-3 shadow-[0_18px_40px_rgba(0,0,0,0.12)] sm:px-6">
             {navItems.map((item, index) => {
               const active = isActive(pathname, item.href);
               return (

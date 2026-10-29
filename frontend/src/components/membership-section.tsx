@@ -47,21 +47,24 @@ type PlanCardModel = {
 
 function toPlanCard(plan: PublicMembershipPlan): PlanCardModel {
   const currency = plan.currency ?? "INR";
-  const hasOffer =
+  const offerPricePaise =
     currency === "INR" &&
     plan.offerPricePaise != null &&
-    plan.offerPricePaise < plan.listPricePaise;
-  const displayPerDay =
-    hasOffer && plan.offerPricePaise != null
-      ? Math.max(1, Math.round(plan.offerPricePaise / 100 / (plan.months * 30)))
-      : plan.perDayRupees;
+    plan.offerPricePaise < plan.listPricePaise
+      ? plan.offerPricePaise
+      : null;
+  const hasOffer = offerPricePaise != null;
+  const displayPerDay = hasOffer
+    ? Math.max(1, Math.round(offerPricePaise / 100 / (plan.months * 30)))
+    : plan.perDayRupees;
 
   return {
     months: plan.months,
     price: formatMembershipMoney(
-      plan.offerPricePaise ?? plan.listPricePaise,
+      offerPricePaise ?? plan.listPricePaise,
       currency,
     ).replace(/\.00$/, ""),
+    // Regular catalog price, struck through next to the live offer price.
     originalPrice: hasOffer
       ? formatMembershipMoney(plan.listPricePaise, currency).replace(/\.00$/, "")
       : null,
@@ -255,7 +258,14 @@ function PlansBlock({
 }) {
   const isRenew = variant === "renew";
   const { data, error } = useMembershipPlans(region);
-  const plans = data.plans.map(toPlanCard);
+  // API/admin should enforce a single featured plan; guard the UI anyway.
+  const featuredMonths = data.plans.find((plan) => plan.featured)?.months;
+  const plans = data.plans.map((plan) =>
+    toPlanCard({
+      ...plan,
+      featured: Boolean(plan.featured && plan.months === featuredMonths),
+    }),
+  );
   const liveOffer = data.offer;
 
   return (
@@ -376,8 +386,14 @@ function PlanCard({
         {label}
       </p>
       {plan.originalPrice ? (
-        <p className="relative z-10 mt-1.5 text-center text-[12px] font-medium text-[#8a978c] line-through sm:text-[13px]">
-          {plan.originalPrice}
+        <p className="relative z-10 mt-1.5 text-center text-[12px] font-medium text-[#8a978c] sm:text-[13px]">
+          <span className="relative inline-block px-0.5">
+            <span
+              aria-hidden="true"
+              className="absolute top-1/2 left-[-6%] h-[1.5px] w-[112%] -translate-y-1/2 rotate-[-14deg] bg-[#c45c16]"
+            />
+            {plan.originalPrice}
+          </span>
         </p>
       ) : null}
       <p

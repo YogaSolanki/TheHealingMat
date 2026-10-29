@@ -14,18 +14,21 @@ function isExcludedPath(pathname: string) {
   if (pathname.startsWith("/u/")) return true;
   if (pathname.startsWith("/membership/checkout")) return true;
   if (pathname === "/trial") return true;
+  // Keep reading uninterrupted on Health Articles list + article pages.
+  if (pathname === "/articles" || pathname.startsWith("/articles/")) return true;
   return false;
 }
 
 /**
  * Persistent Free Trial CTA for guests — appears after scrolling past the
- * hero and stays visible through the middle and end of every public page.
+ * hero, and hides when the site footer is in view so footer links stay usable.
  */
 export function StickyFreeTrialCta() {
   const pathname = usePathname();
   const { openAuth } = useAuthModal();
   const [signedIn, setSignedIn] = useState(true);
-  const [visible, setVisible] = useState(false);
+  const [pastHero, setPastHero] = useState(false);
+  const [footerInView, setFooterInView] = useState(false);
 
   useEffect(() => {
     setSignedIn(Boolean(getStoredToken()));
@@ -33,28 +36,55 @@ export function StickyFreeTrialCta() {
 
   useEffect(() => {
     if (signedIn || isExcludedPath(pathname)) {
-      setVisible(false);
+      setPastHero(false);
+      setFooterInView(false);
       return;
     }
 
-    function update() {
+    function updateScroll() {
       if (getStoredToken()) {
-        setVisible(false);
+        setPastHero(false);
         return;
       }
-      setVisible(window.scrollY > SHOW_AFTER_SCROLL_PX);
+      setPastHero(window.scrollY > SHOW_AFTER_SCROLL_PX);
     }
 
-    update();
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
+    updateScroll();
+    window.addEventListener("scroll", updateScroll, { passive: true });
+    window.addEventListener("resize", updateScroll);
+
+    const footer = document.getElementById("site-footer");
+    let observer: IntersectionObserver | null = null;
+    if (footer) {
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          setFooterInView(Boolean(entry?.isIntersecting));
+        },
+        {
+          // Hide a bit before the footer fully covers the CTA.
+          root: null,
+          rootMargin: "0px 0px -8px 0px",
+          threshold: 0,
+        },
+      );
+      observer.observe(footer);
+      // Sync immediately in case the page loads already near the footer.
+      const rect = footer.getBoundingClientRect();
+      setFooterInView(rect.top < window.innerHeight && rect.bottom > 0);
+    } else {
+      setFooterInView(false);
+    }
+
     return () => {
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", updateScroll);
+      window.removeEventListener("resize", updateScroll);
+      observer?.disconnect();
     };
   }, [pathname, signedIn]);
 
   if (signedIn || isExcludedPath(pathname)) return null;
+
+  const visible = pastHero && !footerInView;
 
   return (
     <div

@@ -530,19 +530,25 @@ export function MembershipPlansPanel() {
             />
           </label>
 
-          <label className="mt-4 inline-flex items-center gap-2 text-sm text-[#243028]">
-            <input
-              type="checkbox"
-              checked={form.featured}
-              onChange={(e) =>
-                setForm((prev) =>
-                  prev ? { ...prev, featured: e.target.checked } : prev,
-                )
-              }
-              className="h-4 w-4 rounded border-[#c5d0c4] text-[#1f6b3a] focus:ring-[#1f6b3a]"
-            />
-            Featured plan (Best Value badge)
-          </label>
+          <div className="mt-4">
+            <label className="inline-flex items-center gap-2 text-sm text-[#243028]">
+              <input
+                type="checkbox"
+                checked={form.featured}
+                onChange={(e) =>
+                  setForm((prev) =>
+                    prev ? { ...prev, featured: e.target.checked } : prev,
+                  )
+                }
+                className="h-4 w-4 rounded border-[#c5d0c4] text-[#1f6b3a] focus:ring-[#1f6b3a]"
+              />
+              Featured plan (Best Value badge)
+            </label>
+            <p className="mt-1.5 text-[12px] leading-snug text-[#6b7c6e]">
+              Only one plan can be featured. Saving this as Best Value will
+              remove the badge from any other plan.
+            </p>
+          </div>
 
           <div className="mt-5 flex flex-wrap gap-3">
             <button

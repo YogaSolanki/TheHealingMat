@@ -482,15 +482,28 @@ export function MembershipOffersPanel() {
                         <div className="flex flex-wrap gap-1.5">
                           {[...offer.prices]
                             .sort((a, b) => b.months - a.months)
-                            .map((row) => (
-                              <span
-                                key={`${offer.id}-${row.months}`}
-                                className="rounded-full bg-[#e8f2ea] px-2.5 py-1 text-[11px] font-semibold text-[#1f6b3a]"
-                              >
-                                {row.months}m ·{" "}
-                                {formatInr(row.offerPricePaise)}
-                              </span>
-                            ))}
+                            .map((row) => {
+                              const base = sortedPlans.find(
+                                (plan) => plan.months === row.months,
+                              );
+                              const showStrike =
+                                base != null &&
+                                row.offerPricePaise < base.listPricePaise;
+                              return (
+                                <span
+                                  key={`${offer.id}-${row.months}`}
+                                  className="inline-flex items-center gap-1.5 rounded-full bg-[#e8f2ea] px-2.5 py-1 text-[11px] font-semibold text-[#1f6b3a]"
+                                >
+                                  {row.months}m ·
+                                  {showStrike ? (
+                                    <span className="font-medium text-[#8a978c] line-through">
+                                      {formatInr(base.listPricePaise)}
+                                    </span>
+                                  ) : null}
+                                  {formatInr(row.offerPricePaise)}
+                                </span>
+                              );
+                            })}
                         </div>
                       </td>
                       <td className="px-5 py-3 text-[12px] text-[#5f6f64]">
@@ -666,9 +679,22 @@ export function MembershipOffersPanel() {
                           className="h-4 w-4 rounded border-[#c5d5c8] text-[#1f6b3a] focus:ring-[#1f6b3a]"
                         />
                         {row.months}-month plan
-                        <span className="font-normal text-[#8a978c]">
-                          · base {base ? formatInr(base.listPricePaise) : "—"}
-                        </span>
+                        {base ? (
+                          <span className="font-normal text-[#8a978c]">
+                            · regular{" "}
+                            <span
+                              className={
+                                row.included &&
+                                Number(row.priceRupees) * 100 <
+                                  base.listPricePaise
+                                  ? "line-through"
+                                  : undefined
+                              }
+                            >
+                              {formatInr(base.listPricePaise)}
+                            </span>
+                          </span>
+                        ) : null}
                       </label>
 
                       {row.included ? (

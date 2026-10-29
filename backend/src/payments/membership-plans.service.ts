@@ -42,6 +42,44 @@ export class MembershipPlansService implements OnModuleInit {
       plan.perDayUsdCents = defaults.perDayUsdCents;
       await this.plans.save(plan);
     }
+
+    await this.ensureSingleFeatured();
+  }
+
+  /**
+   * Keep at most one Best Value plan.
+   * When `keepId` is set (admin just featured that plan), clear every other row.
+   * On boot with no keepId, keep the first featured by sortOrder/months.
+   */
+  private async ensureSingleFeatured(keepId?: string) {
+    if (keepId) {
+      await this.plans
+        .createQueryBuilder()
+        .update(MembershipPlan)
+        .set({ featured: false })
+        .where('id != :id', { id: keepId })
+        .andWhere('featured = true')
+        .execute();
+      return;
+    }
+
+    const featured = await this.plans.find({
+      where: { featured: true },
+      order: { sortOrder: 'ASC', months: 'ASC' },
+    });
+    if (featured.length <= 1) return;
+
+    const winner = featured[0];
+    await this.plans
+      .createQueryBuilder()
+      .update(MembershipPlan)
+      .set({ featured: false })
+      .where('featured = true')
+      .andWhere('id != :id', { id: winner.id })
+      .execute();
+    this.logger.log(
+      `Cleared duplicate Best Value badges; kept plan ${winner.months} months.`,
+    );
   }
 
   listAdmin() {
@@ -106,6 +144,11 @@ export class MembershipPlansService implements OnModuleInit {
     if (dto.perk !== undefined) plan.perk = this.normalizePerk(dto.perk);
     if (dto.active != null) plan.active = dto.active;
     if (dto.sortOrder != null) plan.sortOrder = dto.sortOrder;
+
+    // Only one plan can carry the Best Value badge at a time.
+    if (plan.featured) {
+      await this.ensureSingleFeatured(plan.id);
+    }
 
     return this.plans.save(plan);
   }

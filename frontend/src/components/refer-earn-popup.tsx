@@ -255,14 +255,6 @@ function ReferEarnPopup({
             </button>
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="mt-auto flex shrink-0 items-center border-t border-[#eef2ee] px-4 py-2.5 sm:px-7 sm:py-3 lg:px-8">
-          <p className="inline-flex items-center gap-1.5 text-[11px] text-[#8a968c]">
-            <InfoIcon />
-            Referral terms apply.
-          </p>
-        </div>
       </div>
     </div>,
     document.body,
@@ -272,7 +264,7 @@ function ReferEarnPopup({
 const steps = [
   {
     title: "Share",
-    description: "Tell someone about The Healing Mat.",
+    description: "Share your referral link or code with friends and family.",
     icon: ShareIcon,
   },
   {
@@ -370,20 +362,6 @@ function LoginIcon() {
         strokeWidth="1.7"
         strokeLinecap="round"
         strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function InfoIcon() {
-  return (
-    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 shrink-0" fill="none" aria-hidden="true">
-      <circle cx="8" cy="8" r="6.2" stroke="currentColor" strokeWidth="1.4" />
-      <path
-        d="M8 7.2v4M8 5.2h.01"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
       />
     </svg>
   );

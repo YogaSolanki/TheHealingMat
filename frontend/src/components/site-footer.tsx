@@ -32,7 +32,7 @@ import {
   SITE_WHATSAPP_URL,
 } from "@/lib/site-contact";
 
-/** Explore column — no FAQs (those live under Get Started). */
+/** Explore column — FAQs stay under Get Started for guests; shown here when logged in. */
 const exploreLinks = [
   { href: "/", label: "Home" },
   { href: "/membership", label: "Membership" },
@@ -41,6 +41,8 @@ const exploreLinks = [
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
 ];
+
+const exploreFaqLink = { href: "/faq", label: "FAQs" };
 
 /** Bottom legal bar only — never place these in Explore / Get Started. */
 const legalLinks = [
@@ -180,9 +182,12 @@ export function SiteFooter() {
   const [signedIn, setSignedIn] = useState(false);
   const isMemberDashboard = isDashboardPath(pathname);
   const homeHref = signedIn ? "/dashboard" : "/";
-  const exploreLinksForUser = exploreLinks.map((link) =>
-    link.label === "Home" ? { ...link, href: homeHref } : link,
-  );
+  const exploreLinksForUser = [
+    ...exploreLinks.map((link) =>
+      link.label === "Home" ? { ...link, href: homeHref } : link,
+    ),
+    ...(signedIn ? [exploreFaqLink] : []),
+  ];
   const showTopBorder =
     pathname === "/corporate/enquiry" ||
     pathname === "/contact" ||
@@ -199,12 +204,17 @@ export function SiteFooter() {
 
   return (
     <footer
+      id="site-footer"
       className={`w-full bg-[#FBF9F5] ${
         showTopBorder ? "border-t border-[#d9e0d4]" : ""
       } ${isMemberDashboard ? "" : "mt-auto"}`}
     >
-      {/* Approved structure: Brand | Explore | Get Started | Contact */}
-      <div className="mx-auto grid w-full max-w-[1200px] grid-cols-2 gap-x-4 gap-y-8 px-5 py-8 sm:gap-x-6 sm:px-6 sm:py-9 md:grid-cols-4 md:gap-0 md:px-6 md:py-9 lg:px-8 xl:px-10">
+      {/* Guests: Brand | Explore | Get Started | Contact. Members: no Get Started. */}
+      <div
+        className={`mx-auto grid w-full max-w-[1200px] grid-cols-2 gap-x-4 gap-y-8 px-5 py-8 sm:gap-x-6 sm:px-6 sm:py-9 md:gap-0 md:px-6 md:py-9 lg:px-8 xl:px-10 ${
+          signedIn ? "md:grid-cols-3" : "md:grid-cols-4"
+        }`}
+      >
         <div className="col-span-2 flex flex-col items-start text-left md:col-span-1 md:pr-4 lg:pr-6 xl:pr-8">
           <div className="flex flex-col items-start">
             <SiteLogo
@@ -245,9 +255,11 @@ export function SiteFooter() {
           <FooterLinkColumn title="Explore" links={exploreLinksForUser} />
         </div>
 
-        <div className="min-w-0 md:border-l md:border-[#dde3d8] md:px-4 lg:px-6 xl:px-8">
-          <GetStartedColumn />
-        </div>
+        {!signedIn ? (
+          <div className="min-w-0 md:border-l md:border-[#dde3d8] md:px-4 lg:px-6 xl:px-8">
+            <GetStartedColumn />
+          </div>
+        ) : null}
 
         <div className="col-span-2 min-w-0 md:col-span-1 md:border-l md:border-[#dde3d8] md:pl-4 lg:pl-6 xl:pl-8">
           <h3 className="text-[14px] font-bold text-[#1f6b3a] sm:text-[15px]">

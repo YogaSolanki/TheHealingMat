@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useAuthModal } from "@/components/auth-modal-provider";
 import { SiteLogo } from "@/components/site-logo";
 import { getStoredToken } from "@/lib/auth-storage";
+import { lockBodyScroll } from "@/lib/body-scroll-lock";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -44,6 +45,19 @@ export function SiteHeader() {
     setSignedIn(Boolean(getStoredToken()));
   }, [pathname]);
 
+  useEffect(() => {
+    if (!open) return;
+    const unlock = lockBodyScroll();
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      unlock();
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
   function openLogin() {
     setOpen(false);
     openAuth("login");
@@ -56,7 +70,16 @@ export function SiteHeader() {
 
   return (
     <header className="relative z-50 bg-white header-shell">
-      <div className="flex h-[72px] w-full items-center justify-between gap-2 pr-4 pl-5 sm:h-[84px] sm:gap-3 sm:pr-6 sm:pl-7 lg:pr-6 lg:pl-8 xl:pr-10 xl:pl-12">
+      {open ? (
+        <button
+          type="button"
+          aria-label="Close menu"
+          className="auth-modal-backdrop fixed inset-0 z-[40] bg-black/45 backdrop-blur-md lg:hidden"
+          onClick={() => setOpen(false)}
+        />
+      ) : null}
+
+      <div className="relative z-[60] flex h-[72px] w-full items-center justify-between gap-2 bg-white pr-4 pl-5 sm:h-[84px] sm:gap-3 sm:pr-6 sm:pl-7 lg:pr-6 lg:pl-8 xl:pr-10 xl:pl-12">
         <SiteLogo priority className="min-w-0" />
 
         <nav className="hidden items-center gap-3 lg:flex xl:gap-5 2xl:gap-7">
@@ -144,7 +167,7 @@ export function SiteHeader() {
 
       <div
         id="mobile-nav"
-        className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:hidden ${
+        className={`relative z-[60] grid overflow-hidden transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:hidden ${
           open
             ? "grid-rows-[1fr] opacity-100"
             : "pointer-events-none grid-rows-[0fr] opacity-0"
@@ -152,7 +175,7 @@ export function SiteHeader() {
         aria-hidden={!open}
       >
         <div className="min-h-0 overflow-hidden">
-          <div className="border-t border-[#e8ebe4] bg-white">
+          <div className="border-t border-[#e8ebe4] bg-white shadow-[0_18px_40px_rgba(0,0,0,0.12)]">
             <nav className="flex flex-col gap-1 px-4 py-3 sm:px-6">
               {navLinks.map((link, index) => {
                 const active = isActivePath(pathname, link.href);

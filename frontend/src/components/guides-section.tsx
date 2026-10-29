@@ -78,11 +78,12 @@ const trustItems: { key: string; label: ReactNode; icon: ReactNode }[] = [
     icon: <HiOutlinePlay className={trustIconClass} />,
   },
   {
-    key: "ages",
+    key: "wellbeing",
     label: (
       <>
-        For All Ages
-        <br />& Stages
+        For Everyday
+        <br />
+        Well-being
       </>
     ),
     icon: <HiOutlineUserGroup className={trustIconClass} />,

@@ -105,7 +105,7 @@ export function ResourcesSection({ items }: { items: ResourceGuide[] }) {
                           href={guide.pdfHref}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex h-full flex-col"
+                          className="flex h-full cursor-pointer flex-col"
                           aria-label={`Open PDF: ${guide.title}`}
                         >
                           <ResourceCardBody guide={guide} cta="Open PDF" />

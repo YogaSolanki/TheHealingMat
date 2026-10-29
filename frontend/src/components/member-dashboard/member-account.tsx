@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { CountrySelect } from "@/components/country-select";
 import { ChangePasswordModal } from "@/components/member-dashboard/change-password-modal";
+import { LogoutConfirmPopup } from "@/components/member-dashboard/logout-confirm-popup";
 import { memberPrimaryBtnClass } from "@/components/member-dashboard/member-button-styles";
 import { MemberSelect } from "@/components/member-dashboard/member-select";
 import { useMemberDashboard } from "@/components/member-dashboard/member-dashboard-provider";
@@ -38,6 +39,7 @@ export function MemberAccountPage() {
   const { user, signOut, signingOut, updateUser } = useMemberDashboard();
   const { access } = useMemberAccess();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [passwordToast, setPasswordToast] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState(user.fullName);
@@ -494,7 +496,7 @@ export function MemberAccountPage() {
               </div>
               <button
                 type="button"
-                onClick={signOut}
+                onClick={() => setLogoutConfirmOpen(true)}
                 disabled={signingOut}
                 aria-busy={signingOut}
                 className="inline-flex w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-[14px] border border-[#fecaca] bg-white px-5 py-2.5 text-[13px] font-semibold text-[#dc2626] transition hover:bg-[#fef2f2] disabled:cursor-wait disabled:opacity-80 sm:w-auto sm:self-center sm:text-[14px]"
@@ -526,6 +528,15 @@ export function MemberAccountPage() {
         open={sessionLinkOpen}
         link={user.accessLink}
         onClose={() => setSessionLinkOpen(false)}
+      />
+
+      <LogoutConfirmPopup
+        open={logoutConfirmOpen}
+        busy={signingOut}
+        onClose={() => {
+          if (!signingOut) setLogoutConfirmOpen(false);
+        }}
+        onConfirm={signOut}
       />
 
       {passwordToast

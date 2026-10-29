@@ -244,7 +244,7 @@ function ContactChannelCard({
 function ContactFormCard() {
   const formOpenedAtRef = useRef(Date.now());
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState("+91");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   /** Honeypot — leave empty; bots often fill hidden fields. */
@@ -255,6 +255,10 @@ function ContactFormCard() {
 
   const phoneDigits = phone.replace(/\D/g, "");
   const phoneInvalid = phoneDigits.length > 3 && !isPhoneValid(phone);
+  const formValid =
+    name.trim().length > 0 &&
+    isPhoneValid(phone) &&
+    isMessageUseful(message);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -318,7 +322,7 @@ function ContactFormCard() {
             onClick={() => {
               setSubmitted(false);
               setName("");
-              setPhone("");
+              setPhone("+91");
               setEmail("");
               setMessage("");
               setWebsite("");
@@ -379,6 +383,7 @@ function ContactFormCard() {
                 <PhoneInput
                   defaultCountry="in"
                   preferredCountries={["in", "us", "gb", "ae", "au", "sg"]}
+                  forceDialCode
                   value={phone}
                   onChange={(next) => {
                     setPhone(next);
@@ -436,7 +441,7 @@ function ContactFormCard() {
             <div className="mt-auto space-y-2 pt-1">
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !formValid}
                 className="btn-primary inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-full bg-[#1f6b3a] px-5 py-2.5 text-[13px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? (
