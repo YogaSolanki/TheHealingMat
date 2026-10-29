@@ -4,14 +4,15 @@ import {
   type LegalDocumentSection,
 } from "@/components/legal-document-page";
 import {
-  SITE_ADDRESS_LINES,
   SITE_EMAIL,
   SITE_PHONE_DISPLAY,
   SITE_WHATSAPP_URL,
 } from "@/lib/site-contact";
 
-const EFFECTIVE_DATE = "5 September 2026";
-const LAST_UPDATED = "5 September 2026";
+const LAST_UPDATED = "29 October 2026";
+
+const CONTACT_ADDRESS =
+  "GC 51, 5th Floor, Aditya Gold Crest, Vaibhav Khand, Indirapuram, Ghaziabad, Uttar Pradesh 201014, India";
 
 const sections: LegalDocumentSection[] = [
   {
@@ -25,16 +26,16 @@ const sections: LegalDocumentSection[] = [
         </p>
         <p>Our services may include:</p>
         <ul>
-          <li>Free Trial access</li>
-          <li>Paid memberships</li>
-          <li>Daily Classes</li>
-          <li>Yoga and movement practices</li>
-          <li>Wellness programs</li>
-          <li>Health and wellness resources</li>
-          <li>Articles, videos and other educational material</li>
+          <li>Free trial access.</li>
+          <li>Paid memberships.</li>
+          <li>Daily Classes.</li>
+          <li>Yoga and movement practices.</li>
+          <li>Wellness programs.</li>
+          <li>Health and wellness resources.</li>
+          <li>Articles, videos and other material.</li>
         </ul>
         <p>
-          The Healing Mat is a wellness service. It is not a medical service.
+          The Healing Mat is a wellness service, not a medical service.
         </p>
       </>
     ),
@@ -46,43 +47,45 @@ const sections: LegalDocumentSection[] = [
       <>
         <p>
           You must provide accurate information when creating an account or
-          purchasing a membership.
+          purchasing a membership and keep your account information reasonably up
+          to date.
         </p>
         <p>
-          You are responsible for ensuring that the information associated with
-          your account remains reasonably accurate.
+          The Healing Mat&apos;s online membership service is intended for adults
+          aged 18 years and above. You must be legally capable of entering into
+          the applicable agreement.
         </p>
-        <p>
-          Where applicable, additional requirements relating to age or use by
-          minors will be governed by applicable law.
-        </p>
+        <p>Use of the services remains subject to applicable law.</p>
       </>
     ),
   },
   {
     id: "account",
-    title: "3. Your THM Account",
+    title: "3. Your The Healing Mat Account",
     content: (
       <>
-        <p>Some THM services require you to create an account.</p>
+        <p>Some services require you to create an account.</p>
         <p>Your account may be associated with:</p>
         <ul>
-          <li>Your name</li>
-          <li>Registered mobile number or email address</li>
-          <li>Personal THM Access Link</li>
-          <li>Referral Code</li>
-          <li>Membership information</li>
-          <li>Transaction history</li>
+          <li>Your name.</li>
+          <li>Your registered mobile number or email address.</li>
+          <li>Your personal The Healing Mat access link.</li>
+          <li>Your referral code.</li>
+          <li>Membership information.</li>
+          <li>Transaction history.</li>
         </ul>
         <p>
-          You should not knowingly provide false information or create duplicate
-          accounts to misuse a Free Trial, referral benefit, coupon or other THM
+          You must not knowingly provide false information or create duplicate
+          accounts to misuse a free trial, referral benefit, coupon or other
           offer.
         </p>
-        <p>You are responsible for keeping your account access secure.</p>
         <p>
-          If you believe someone has accessed your account without your
-          permission, please contact us.
+          You are responsible for keeping your account access secure. Do not
+          share your password or OTP with anyone.
+        </p>
+        <p>
+          If you believe someone has accessed your account without permission,
+          please contact us promptly.
         </p>
       </>
     ),
@@ -92,27 +95,26 @@ const sections: LegalDocumentSection[] = [
     title: "4. Free Trial",
     content: (
       <>
-        <p>The Healing Mat may offer a Free Trial to eligible users.</p>
         <p>
-          The availability, duration, start date and other conditions of the Free
-          Trial may be determined by THM from time to time.
+          The Healing Mat may offer free trials to eligible users so that they
+          can experience our classes before deciding whether to purchase a
+          membership.
         </p>
         <p>
-          The Free Trial is intended to allow a person to experience The Healing
-          Mat before deciding whether to purchase a membership.
+          Taking a free trial is optional. You may choose whether to participate
+          before purchasing a paid membership.
         </p>
         <p>
-          A person who has already used a Free Trial is not automatically
-          entitled to another Free Trial.
+          The availability, duration, start date and other conditions of a free
+          trial will be communicated through the applicable registration or trial
+          information.
         </p>
         <p>
-          THM may refuse or withdraw a Free Trial where it reasonably believes
-          that the offer is being misused.
+          A person who has already used a free trial is not automatically
+          entitled to another trial. The Healing Mat may refuse or withdraw a
+          trial where it reasonably believes that the offer is being misused.
         </p>
-        <p>
-          The detailed Free Trial rules are available through the applicable
-          information provided during registration.
-        </p>
+        <p>A free trial does not itself constitute a paid membership.</p>
       </>
     ),
   },
@@ -122,25 +124,28 @@ const sections: LegalDocumentSection[] = [
     content: (
       <>
         <p>
-          A THM membership provides access to the Daily Classes and other benefits
-          included with the membership purchased by you.
+          A membership provides access to Daily Classes and other benefits
+          included in the plan purchased by you.
         </p>
         <p>
           The membership period begins according to the membership start date
-          selected during purchase and the applicable membership terms.
+          recorded and displayed during the purchase process.
         </p>
-        <p>Membership information, including:</p>
-        <ul>
-          <li>Plan</li>
-          <li>Start date</li>
-          <li>End date</li>
-          <li>Price</li>
-          <li>Applicable benefits</li>
-        </ul>
-        <p>will be shown to you during the purchase process.</p>
         <p>
-          A membership does not automatically renew unless THM specifically
-          offers an automatic-renewal arrangement and you agree to it.
+          Before completing your purchase, you should be able to review the
+          relevant membership information, including:
+        </p>
+        <ul>
+          <li>Plan and duration.</li>
+          <li>Membership start date and end date.</li>
+          <li>Price and applicable taxes or charges.</li>
+          <li>Included benefits.</li>
+          <li>Applicable cancellation and refund terms.</li>
+        </ul>
+        <p>
+          A membership does not automatically renew unless The Healing Mat
+          specifically offers an automatic-renewal arrangement and you expressly
+          agree to it.
         </p>
       </>
     ),
@@ -156,70 +161,142 @@ const sections: LegalDocumentSection[] = [
         </p>
         <p>
           The schedule, timing, format, content or availability of particular
-          Daily Classes may change from time to time.
+          classes may change from time to time.
         </p>
         <p>
-          THM may modify, replace or discontinue a particular class, program or
-          resource where reasonably necessary.
+          The Healing Mat may modify, replace or discontinue a particular class,
+          program or resource where reasonably necessary. We will make reasonable
+          efforts to provide the services included with your membership.
         </p>
         <p>
-          We will make reasonable efforts to provide the services included with
-          your membership.
-        </p>
-        <p>
-          The Healing Mat does not promise that a particular trainer, class,
-          topic or session will always be available.
+          We do not promise that a particular trainer, class, topic or session
+          will always be available.
         </p>
       </>
     ),
   },
   {
-    id: "health-disclaimer",
-    title: "7. Health, Safety & Medical Disclaimer",
+    id: "health-safety",
+    title: "7. Health, Safety and Medical Disclaimer",
     content: (
       <>
+        <p className="font-semibold text-[#1f6b3a]">7.1 General Wellness Service</p>
         <p>
-          The Healing Mat provides yoga, movement, relaxation and wellness
-          practices for general health and wellbeing.
+          The Healing Mat provides online yoga, movement, stretching, breathing,
+          relaxation and wellness sessions for general health and wellbeing. Our
+          services are not medical services and do not provide medical advice,
+          diagnosis or treatment.
+        </p>
+
+        <p className="font-semibold text-[#1f6b3a]">
+          7.2 Consult a Healthcare Professional
         </p>
         <p>
-          Our Daily Classes, programs, videos, guides and other resources are not
-          medical advice, diagnosis or treatment.
-        </p>
-        <p>The Healing Mat does not claim to:</p>
-        <ul>
-          <li>Diagnose diseases or medical conditions</li>
-          <li>Cure diseases or medical conditions</li>
-          <li>Replace medical treatment</li>
-          <li>Replace medication prescribed by a healthcare professional</li>
-          <li>Guarantee a particular medical or health outcome</li>
-        </ul>
-        <p>
-          Yoga and physical activity may involve risks, including discomfort,
-          strain or injury.
+          You are advised to consult a qualified healthcare professional before
+          beginning our sessions, particularly if you have a medical condition,
+          heart or blood pressure concerns, diabetes, an injury, balance
+          difficulties, are pregnant or have recently given birth, have recently
+          undergone surgery, or have been advised to restrict physical activity.
         </p>
         <p>
-          You are responsible for considering whether a particular activity is
-          appropriate for your health and ability.
+          Do not stop, change or delay prescribed medical treatment or medication
+          on the basis of information provided through The Healing Mat.
+        </p>
+
+        <p className="font-semibold text-[#1f6b3a]">
+          7.3 One-Way Online Instruction
         </p>
         <p>
-          If you have a medical condition, injury, are pregnant, have recently
-          undergone surgery, have been advised to restrict physical activity, or
-          have another health concern, you should seek appropriate professional
-          medical advice before participating where appropriate.
+          Our sessions are delivered online and are primarily one-way
+          demonstrations and instructions. Unless expressly stated otherwise, our
+          instructors do not continuously observe participants, monitor their
+          physical condition, assess their individual capabilities, or correct
+          each participant&apos;s posture and movements in real time.
         </p>
         <p>
-          You should practise within your own ability and stop if you experience
-          pain, dizziness, difficulty breathing, chest pain or other concerning
-          symptoms.
+          We may demonstrate alternative versions or modifications of an
+          exercise. However, we cannot determine which version is suitable for
+          every participant. You are responsible for selecting only movements and
+          variations that are appropriate for your health, strength, flexibility,
+          balance and physical ability. If you are unsure whether an exercise is
+          suitable for you, skip it and seek appropriate professional advice.
+        </p>
+
+        <p className="font-semibold text-[#1f6b3a]">
+          7.4 Practise Safely and Within Your Ability
         </p>
         <p>
-          Nothing provided by The Healing Mat creates a doctor-patient or other
-          medical relationship.
+          You must participate at your own pace and avoid overexertion. Do not
+          force a movement, attempt a difficult variation merely to keep up with
+          the instructor, or continue exercising when you feel exhausted, unwell
+          or uncomfortable.
         </p>
         <p>
-          For more detailed guidance, please see our{" "}
-          <Link href="/health-and-safety">Health &amp; Safety page</Link>.
+          Choose the easier option, take breaks or stop whenever necessary.
+          Ensure that you have a safe practice area and suitable support where
+          required.
+        </p>
+
+        <p className="font-semibold text-[#1f6b3a]">
+          7.5 Stop if You Experience Symptoms
+        </p>
+        <p>
+          Stop the session immediately if you experience pain, dizziness, unusual
+          breathlessness, chest discomfort, weakness, nausea or any other
+          concerning symptom. Do not resume until it is safe to do so. Seek
+          advice from a qualified healthcare professional where appropriate.
+        </p>
+        <p>
+          If you experience severe or potentially life-threatening symptoms, seek
+          emergency medical assistance immediately.
+        </p>
+
+        <p className="font-semibold text-[#1f6b3a]">
+          7.6 Risks and Personal Responsibility
+        </p>
+        <p>
+          Like other physical activities, yoga involves certain risks, which may
+          include muscle strain, falls, aggravation of an existing condition,
+          injury or other adverse health events. In some circumstances, strenuous
+          physical activity may contribute to a serious medical emergency,
+          particularly where an underlying health condition is present.
+        </p>
+        <p>
+          By participating, you acknowledge that you are responsible for
+          assessing your own readiness to exercise, following appropriate safety
+          precautions, choosing suitable exercises and stopping when necessary.
+          You should not assume that an exercise is safe for you simply because
+          it is demonstrated during a THM session.
+        </p>
+
+        <p className="font-semibold text-[#1f6b3a]">
+          7.7 Limitation of Responsibility
+        </p>
+        <p>
+          To the extent permitted by applicable law, The Healing Mat is not
+          responsible for injury, loss or harm arising from a participant&apos;s
+          failure to follow safety guidance, selection of exercises beyond their
+          ability, overexertion, failure to stop when experiencing concerning
+          symptoms, or failure to seek appropriate medical advice.
+        </p>
+        <p>
+          The Healing Mat does not guarantee that participation will be free from
+          risk or that any particular health outcome will be achieved. Our
+          sessions are not individually supervised medical or exercise
+          consultations.
+        </p>
+        <p>
+          Nothing in these Terms excludes or limits any liability, duty, right or
+          remedy that cannot lawfully be excluded or limited under applicable
+          law.
+        </p>
+
+        <p className="font-semibold text-[#1f6b3a]">7.8 No Guaranteed Results</p>
+        <p>
+          Individual responses to yoga and physical activity vary. The Healing
+          Mat does not guarantee weight loss, cure or reversal of disease,
+          prevention of medical conditions, or any specific physical or mental
+          health outcome.
         </p>
       </>
     ),
@@ -229,19 +306,17 @@ const sections: LegalDocumentSection[] = [
     title: "8. Individual Results",
     content: (
       <>
-        <p>People respond differently to yoga and physical activity.</p>
-        <p>The Healing Mat does not guarantee:</p>
-        <ul>
-          <li>Weight loss</li>
-          <li>Pain relief</li>
-          <li>Increased flexibility</li>
-          <li>Improvement in a medical condition</li>
-          <li>Stress reduction</li>
-          <li>Any other particular physical or mental health result</li>
-        </ul>
         <p>
-          Any examples, testimonials or general health information provided by THM
-          should not be understood as a guarantee of your individual results.
+          People respond differently to yoga and physical activity.
+        </p>
+        <p>
+          The Healing Mat does not guarantee weight loss, pain relief, increased
+          flexibility, improvement in a medical condition, stress reduction or
+          any other particular physical or mental health result.
+        </p>
+        <p>
+          Testimonials, examples and general wellness information should not be
+          understood as guarantees of your individual results.
         </p>
       </>
     ),
@@ -251,14 +326,16 @@ const sections: LegalDocumentSection[] = [
     title: "9. Payments",
     content: (
       <>
-        <p>Membership prices will be displayed before payment.</p>
         <p>
-          You are responsible for paying the applicable membership price and any
-          applicable taxes or charges shown during checkout.
+          Membership prices and applicable taxes or charges will be displayed
+          before payment.
         </p>
-        <p>Payments may be processed through third-party payment providers.</p>
         <p>
-          Your payment may therefore also be subject to the applicable terms of
+          You are responsible for paying the amount shown during checkout.
+        </p>
+        <p>
+          Payments may be processed through third-party payment providers,
+          including Razorpay, and may also be subject to the applicable terms of
           the payment provider.
         </p>
         <p>
@@ -270,273 +347,258 @@ const sections: LegalDocumentSection[] = [
   },
   {
     id: "cancellation-refunds",
-    title: "10. Cancellation & Refunds",
+    title: "10. Cancellation and Refunds",
     content: (
       <>
         <p>
-          Membership cancellation and refunds are governed by The Healing
-          Mat&apos;s{" "}
-          <Link href="/refund">Refund &amp; Cancellation Policy</Link>.
+          Membership cancellations and refunds are governed by The Healing
+          Mat&apos;s separate{" "}
+          <Link href="/refund">Refund &amp; Cancellation Policy</Link>, which
+          forms part of the information governing your purchase.
         </p>
         <p>
-          The current policy provides for cancellation requests within the
-          applicable cancellation period and explains the process for requesting
-          and receiving a refund.
+          Under the standard cancellation policy, you may request cancellation
+          before your membership start date or within 3 calendar days of the
+          membership start date recorded in our system.
         </p>
-        <p>The detailed policy is available on the THM website.</p>
         <p>
-          Nothing in these Terms is intended to remove any rights that cannot
-          legally be excluded under applicable law.
+          Cancellation requests are handled manually through the support channels
+          specified in the Refund &amp; Cancellation Policy.
+        </p>
+        <p>
+          Where a refund is approved, The Healing Mat will initiate it within 10
+          working days, subject to the applicable payment mechanism. The time
+          taken for the amount to reach your account may depend on your payment
+          provider or bank.
+        </p>
+        <p>
+          Genuine payment errors, duplicate payments, failure to activate paid
+          membership access and other service-related problems may be reviewed
+          individually.
+        </p>
+        <p>
+          Nothing in these Terms or the Refund &amp; Cancellation Policy is
+          intended to exclude, restrict or override consumer rights or remedies
+          that cannot lawfully be excluded or restricted under applicable law.
+        </p>
+        <p>
+          Please read the full{" "}
+          <Link href="/refund">Refund &amp; Cancellation Policy</Link> before
+          purchasing a membership.
         </p>
       </>
     ),
   },
   {
     id: "referrals-coupons",
-    title: "11. Referral Codes, Coupons & Rewards",
+    title: "11. Referrals, Coupons and Promotional Offers",
     content: (
       <>
         <p>
-          THM may offer referral programs, coupon codes, discounts or rewards.
-        </p>
-        <p>These offers may have specific eligibility conditions.</p>
-        <p>Referral Codes and coupons must not be:</p>
-        <ul>
-          <li>Used fraudulently</li>
-          <li>Shared or generated for misuse</li>
-          <li>Used to create duplicate accounts</li>
-          <li>Used to obtain benefits contrary to the applicable offer rules</li>
-        </ul>
-        <p>
-          THM may cancel or reverse a referral benefit, discount or reward where
-          it reasonably determines that the applicable rules have been misused.
+          The Healing Mat may offer referral benefits, coupons, discounts or
+          other promotions from time to time.
         </p>
         <p>
-          The specific referral and coupon rules may change from time to time and
-          will be communicated through the applicable THM program information.
+          Each offer may have its own eligibility conditions, validity period and
+          usage rules. These conditions will be communicated with the applicable
+          offer.
+        </p>
+        <p>
+          You must not misuse, manipulate or attempt to obtain unauthorised
+          benefits through referral codes, coupons or promotional offers.
+        </p>
+        <p>
+          Where a membership purchased using a referral benefit or coupon is
+          cancelled or refunded, the associated benefit or reward may be affected
+          in accordance with the applicable offer terms and applicable law.
         </p>
       </>
     ),
   },
   {
-    id: "access-link",
-    title: "12. Personal THM Access Link",
+    id: "acceptable-use",
+    title: "12. Acceptable Use",
     content: (
       <>
         <p>
-          Eligible users may receive a permanent Personal THM Access Link
-          associated with their account.
+          You agree to use The Healing Mat website and services lawfully and
+          responsibly.
         </p>
-        <p>The link is intended for the individual account holder.</p>
+        <p>You must not:</p>
+        <ul>
+          <li>Use the services for unlawful purposes.</li>
+          <li>
+            Attempt to gain unauthorised access to accounts, systems or
+            restricted areas.
+          </li>
+          <li>Interfere with the operation or security of the website.</li>
+          <li>
+            Deliberately misuse free trials, referral benefits, coupons or
+            promotional offers.
+          </li>
+          <li>
+            Copy, distribute, sell or commercially exploit member-only content
+            without permission.
+          </li>
+          <li>
+            Misrepresent yourself or provide information intended to deceive The
+            Healing Mat or other users.
+          </li>
+        </ul>
         <p>
-          You must not intentionally share your Personal THM Access Link to
-          provide unauthorised access to another person.
-        </p>
-        <p>
-          THM may restrict access where an account or access link is being
-          misused.
+          We may take reasonable action where we identify misuse, security risks
+          or a breach of these Terms. Any action affecting paid access will be
+          subject to applicable law and the circumstances involved.
         </p>
       </>
     ),
   },
   {
-    id: "content-use",
-    title: "13. Use of THM Content",
+    id: "intellectual-property",
+    title: "13. Website Content and Intellectual Property",
     content: (
       <>
         <p>
-          The Healing Mat&apos;s website, Daily Classes, videos, photographs,
-          graphics, written material, guides, programs, logos, trademarks and
-          other content belong to THM or are used with appropriate rights.
+          Unless otherwise stated, the content provided by The Healing Mat,
+          including its branding, text, videos, class materials, graphics, guides
+          and other resources, is owned by or used with permission by The Healing
+          Mat or the relevant rights holder.
         </p>
         <p>
-          Your membership gives you permission to use the applicable content for
-          your personal, non-commercial use during the permitted access period.
+          You may use the content for your own personal, non-commercial wellness
+          activities in accordance with your membership and these Terms.
         </p>
-        <p>You must not, without permission:</p>
-        <ul>
-          <li>Copy or reproduce THM content</li>
-          <li>Re-upload THM videos</li>
-          <li>Sell or commercially distribute THM content</li>
-          <li>Publicly broadcast protected member content</li>
-          <li>Share protected content with non-members</li>
-          <li>Use THM content to provide your own commercial service</li>
-          <li>Remove copyright or ownership information</li>
-        </ul>
         <p>
-          Your membership does not transfer ownership of THM content to you.
+          You must not reproduce, distribute, publicly republish, sell, record
+          for redistribution or commercially exploit our content without prior
+          written permission, except where permitted by law.
+        </p>
+        <p>
+          Purchasing a membership gives you access to the included services; it
+          does not transfer ownership of the underlying content or intellectual
+          property.
         </p>
       </>
     ),
   },
   {
-    id: "misuse",
-    title: "14. Website and Service Misuse",
-    content: (
-      <>
-        <p>You must not use the THM website or services to:</p>
-        <ul>
-          <li>Commit fraud</li>
-          <li>Attempt unauthorised access</li>
-          <li>Interfere with the website or services</li>
-          <li>Circumvent access controls</li>
-          <li>Abuse referral, coupon or Free Trial offers</li>
-          <li>Misrepresent your identity</li>
-          <li>Use THM content for unauthorised commercial purposes</li>
-          <li>Do anything unlawful or harmful</li>
-        </ul>
-        <p>
-          We may restrict or suspend access where necessary to protect THM, our
-          members or our services.
-        </p>
-      </>
-    ),
-  },
-  {
-    id: "suspension",
-    title: "15. Account Suspension or Termination",
+    id: "personal-access-links",
+    title: "14. Personal Access Links and Member Access",
     content: (
       <>
         <p>
-          THM may suspend or terminate an account where there is reasonable
-          evidence of:
+          The Healing Mat may provide a personal access link or other means of
+          accessing classes and member services.
         </p>
-        <ul>
-          <li>Fraud</li>
-          <li>Serious misuse</li>
-          <li>Unauthorised access</li>
-          <li>Account sharing</li>
-          <li>Repeated abuse of offers</li>
-          <li>Copyright infringement</li>
-          <li>Illegal activity</li>
-          <li>Serious violation of these Terms</li>
-        </ul>
-        <p>Where appropriate, we may provide notice before taking action.</p>
         <p>
-          Nothing in this section limits any rights available to you under
-          applicable law.
+          You are responsible for keeping your access details secure and must not
+          knowingly share or misuse them in a way that enables unauthorised
+          access to member-only services.
+        </p>
+        <p>
+          Access is subject to your trial or membership status and the applicable
+          service rules.
+        </p>
+        <p>
+          If you believe your access link has been misused or exposed, contact us
+          so that we can review the issue.
         </p>
       </>
     ),
   },
   {
     id: "third-party",
-    title: "16. Third-Party Services",
+    title: "15. Third-Party Services",
     content: (
       <>
         <p>
-          Some parts of The Healing Mat&apos;s service may depend on third-party
-          providers, including:
+          The Healing Mat may rely on third-party services for payments,
+          communications, website hosting, video delivery and other operational
+          functions.
         </p>
-        <ul>
-          <li>Payment providers</li>
-          <li>OTP/authentication services</li>
-          <li>Communication services</li>
-          <li>Hosting or technology providers</li>
-          <li>Other services required to operate the website</li>
-        </ul>
         <p>
-          THM is not responsible for independent failures or policies of
-          third-party services, although we will take reasonable steps to address
-          issues affecting our service where possible.
+          Your use of a third-party service may be subject to that
+          provider&apos;s own terms and policies.
+        </p>
+        <p>
+          The Healing Mat is not responsible for independent failures or policies
+          of third-party services. However, we will make reasonable efforts to
+          address issues affecting our services where possible.
         </p>
       </>
     ),
   },
   {
     id: "service-changes",
-    title: "17. Changes to the Service",
+    title: "16. Changes to the Service",
     content: (
       <>
         <p>
           The Healing Mat may improve, modify or update its website and services
           from time to time.
         </p>
-        <p>This may include changes to:</p>
+        <p>Changes may include updates to:</p>
         <ul>
-          <li>Daily Class schedules</li>
-          <li>Class topics</li>
-          <li>Trainers</li>
-          <li>Programs</li>
-          <li>Website features</li>
-          <li>Resources</li>
-          <li>Membership offerings</li>
+          <li>Daily Class schedules.</li>
+          <li>Class topics and trainers.</li>
+          <li>Programs and resources.</li>
+          <li>Website features.</li>
+          <li>Membership offerings.</li>
         </ul>
         <p>
           We will make reasonable efforts to ensure that material changes do not
-          unfairly deprive a customer of the service they have purchased.
+          unfairly deprive a customer of the service they have purchased. Where a
+          change materially affects a purchased service, we will consider the
+          circumstances and applicable legal requirements.
         </p>
       </>
     ),
   },
   {
     id: "privacy",
-    title: "18. Privacy",
+    title: "17. Privacy",
     content: (
       <>
         <p>
-          Your personal information is handled in accordance with our{" "}
+          Your personal information is handled in accordance with our separate{" "}
           <Link href="/privacy">Privacy Policy</Link>.
         </p>
-        <p>The Privacy Policy explains:</p>
-        <ul>
-          <li>What information we collect</li>
-          <li>Why we collect it</li>
-          <li>How we use it</li>
-          <li>When we share it</li>
-          <li>Your applicable choices and rights</li>
-        </ul>
-        <p>You can view the Privacy Policy from the website footer.</p>
-      </>
-    ),
-  },
-  {
-    id: "health-safety",
-    title: "19. Health & Safety Information",
-    content: (
-      <>
         <p>
-          The detailed Health &amp; Safety guidance available on our website
-          forms an important part of your understanding of how to participate
-          safely.
+          The Privacy Policy explains what information we collect, why we collect
+          it, how we use it, when we share it, how long we retain it and how you
+          can exercise applicable privacy rights.
         </p>
         <p>
-          Please read it before beginning a physical practice.
-        </p>
-        <p>
-          However, the{" "}
-          <Link href="/health-and-safety">Health &amp; Safety page</Link> does
-          not replace professional medical advice.
+          Please review the Privacy Policy available through our website footer.
         </p>
       </>
     ),
   },
   {
-    id: "availability",
-    title: "20. No Guarantee of Continuous Availability",
+    id: "service-availability",
+    title: "18. Service Availability",
     content: (
       <>
         <p>
-          We aim to keep The Healing Mat services available and reliable.
+          We aim to keep The Healing Mat&apos;s services available and reliable.
+          However, temporary interruptions may occur because of technical
+          problems, internet or hosting failures, maintenance, third-party
+          service failures or events outside our reasonable control.
         </p>
-        <p>However, temporary interruptions may occur because of:</p>
-        <ul>
-          <li>Technical problems</li>
-          <li>Internet or hosting failures</li>
-          <li>Maintenance</li>
-          <li>Third-party service failures</li>
-          <li>Events outside our reasonable control</li>
-        </ul>
         <p>
           We will make reasonable efforts to restore affected services where
           possible.
         </p>
+        <p>
+          This section does not remove any rights you may have under applicable
+          law if a paid service is not provided as agreed.
+        </p>
       </>
     ),
   },
   {
-    id: "liability",
-    title: "21. Limitation of Liability",
+    id: "limitation-of-liability",
+    title: "19. Limitation of Liability",
     content: (
       <>
         <p>
@@ -545,58 +607,60 @@ const sections: LegalDocumentSection[] = [
           arising from your use of the website or services.
         </p>
         <p>
-          The Healing Mat&apos;s liability, where legally permitted to be limited,
-          will be subject to applicable law and the circumstances of the claim.
+          Any limitation of liability is subject to applicable law and the
+          circumstances of the claim.
         </p>
         <p>
-          Nothing in these Terms is intended to exclude or limit liability that
-          cannot legally be excluded or limited.
-        </p>
-        <p className="text-[13px] italic text-[#5f6f64]">
-          The final wording of this section must be reviewed and approved by a
-          qualified lawyer.
+          Nothing in these Terms is intended to exclude or limit liability or
+          consumer rights that cannot lawfully be excluded or limited.
         </p>
       </>
     ),
   },
   {
     id: "terms-changes",
-    title: "22. Changes to These Terms",
+    title: "20. Changes to These Terms",
     content: (
       <>
-        <p>We may update these Terms from time to time.</p>
         <p>
-          When we make significant changes, we may provide appropriate notice
-          through the website or other suitable communication.
+          We may update these Terms to reflect changes in our services,
+          technology, business practices or legal requirements.
         </p>
         <p>
-          The updated Terms will be published on this page with the revised Last
-          Updated date.
+          The updated version will be published on this page with the revised
+          effective or last-updated date. Where appropriate, we may also provide
+          notice through the website or another suitable communication channel.
         </p>
         <p>
-          Your continued use of the services after the effective date of updated
-          Terms will be subject to the updated Terms, to the extent permitted by
-          applicable law.
+          Changes will apply in accordance with applicable law. We will not rely
+          solely on continued use of the website to obtain consent where fresh
+          consent is legally required.
         </p>
       </>
     ),
   },
   {
     id: "governing-law",
-    title: "23. Governing Law",
+    title: "21. Governing Law and Disputes",
     content: (
       <>
-        <p>These Terms will be governed by the applicable laws of India.</p>
+        <p>These Terms are governed by the applicable laws of India.</p>
         <p>
-          The appropriate jurisdiction and dispute-resolution provisions will be
-          confirmed by The Healing Mat&apos;s legal counsel.
+          Disputes will be handled in accordance with applicable law. Nothing in
+          these Terms prevents you from exercising any consumer rights or
+          approaching a consumer forum or other competent authority where legally
+          available.
+        </p>
+        <p>
+          Any additional jurisdiction or dispute-resolution provisions will be
+          subject to applicable law.
         </p>
       </>
     ),
   },
   {
     id: "contact",
-    title: "24. Contact Us",
+    title: "22. Contact Us",
     content: (
       <>
         <p>
@@ -618,10 +682,7 @@ const sections: LegalDocumentSection[] = [
             </a>
           </li>
           <li>
-            Address:{" "}
-            <span className="font-semibold">
-              {SITE_ADDRESS_LINES.join(", ")}
-            </span>
+            Address: <span className="font-semibold">{CONTACT_ADDRESS}</span>
           </li>
         </ul>
       </>
@@ -633,18 +694,19 @@ export function TermsAndConditionsContent() {
   return (
     <LegalDocumentPage
       title="Terms & Conditions"
-      effectiveDate={EFFECTIVE_DATE}
       lastUpdated={LAST_UPDATED}
       intro={
         <>
           <p>Welcome to The Healing Mat.</p>
           <p>
             These Terms &amp; Conditions govern your use of The Healing Mat
-            website, account, Free Trial and paid membership.
+            website, account, free trial and paid membership.
           </p>
           <p>
-            By creating an account, registering for a Free Trial or purchasing a
-            membership, you agree to these Terms &amp; Conditions.
+            By creating an account, registering for a free trial or purchasing a
+            membership, you agree to the applicable terms set out here. Where
+            acceptance is required, you must take an affirmative action to
+            indicate your agreement.
           </p>
           <p>
             If you do not agree with these Terms, please do not use the services.
@@ -653,48 +715,20 @@ export function TermsAndConditionsContent() {
       }
       sections={sections}
       afterSections={
-        <>
-          <div className="mt-10 rounded-[18px] border border-[#e6ebe3] bg-[#FBF9F5] px-5 py-5 sm:px-6">
-            <h2 className="font-serif text-[1.15rem] font-bold text-[#1f6b3a] sm:text-[1.25rem]">
-              Before You Purchase
-            </h2>
-            <p className="mt-3">
-              When you create an account or purchase a membership, you will be
-              asked to confirm your acceptance of these Terms.
-            </p>
-            <p className="mt-3 font-medium text-[#3d4a3c]">
-              ☐ I agree to the Terms &amp; Conditions.
-            </p>
-            <p className="mt-2 text-[13px] text-[#5f6f64]">
-              The checkbox must be unticked by default. The user must actively
-              select it before completing the applicable registration or purchase
-              step.
-            </p>
-          </div>
-
-          <div className="mt-8 rounded-[18px] border border-[#e6ebe3] px-5 py-5 sm:px-6">
-            <h2 className="font-serif text-[1.15rem] font-bold text-[#1f6b3a] sm:text-[1.25rem]">
-              Important
-            </h2>
-            <p className="mt-3">
-              These Terms are a V1 working draft prepared for legal review.
-            </p>
-            <p className="mt-3">
-              They should be reviewed by a qualified lawyer before publication,
-              particularly for:
-            </p>
-            <ul>
-              <li>Consumer protection requirements</li>
-              <li>Digital personal-data requirements</li>
-              <li>Health/wellness liability</li>
-              <li>Refund and cancellation provisions</li>
-              <li>Liability limitations</li>
-              <li>Minor/child participation</li>
-              <li>Jurisdiction and dispute resolution</li>
-              <li>Enforceability of the account/content provisions</li>
-            </ul>
-          </div>
-        </>
+        <div className="mt-10 rounded-[18px] border border-[#e6ebe3] bg-[#FBF9F5] px-5 py-5 sm:px-6">
+          <h2 className="font-serif text-[1.15rem] font-bold text-[#1f6b3a] sm:text-[1.25rem]">
+            Before You Register or Purchase
+          </h2>
+          <p className="mt-3">
+            Please review the applicable membership details, price, start date,
+            benefits and cancellation terms before completing a purchase.
+          </p>
+          <p className="mt-3">
+            Where the website requires acceptance of these Terms, the acceptance
+            checkbox must be unticked by default. You must actively select it
+            before completing the applicable registration or purchase step.
+          </p>
+        </div>
       }
     />
   );

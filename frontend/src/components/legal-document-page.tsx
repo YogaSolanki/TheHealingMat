@@ -11,22 +11,18 @@ export type LegalDocumentSection = {
 
 type LegalDocumentPageProps = {
   title: string;
-  effectiveDate?: string;
   lastUpdated?: string;
   intro: ReactNode;
   sections: LegalDocumentSection[];
   afterSections?: ReactNode;
-  statusLabel?: string;
 };
 
 export function LegalDocumentPage({
   title,
-  effectiveDate,
   lastUpdated,
   intro,
   sections,
   afterSections,
-  statusLabel = "Working Draft — For Legal Review",
 }: LegalDocumentPageProps) {
   return (
     <div className="w-full bg-white">
@@ -41,21 +37,11 @@ export function LegalDocumentPage({
           <h1 className="mt-2 font-serif text-[1.85rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[2.25rem]">
             {title}
           </h1>
-          {effectiveDate || lastUpdated ? (
-            <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-[#5f6f64]">
-              {effectiveDate ? (
-                <p>
-                  <span className="font-semibold text-[#3d4a3c]">Effective Date:</span>{" "}
-                  {effectiveDate}
-                </p>
-              ) : null}
-              {lastUpdated ? (
-                <p>
-                  <span className="font-semibold text-[#3d4a3c]">Last Updated:</span>{" "}
-                  {lastUpdated}
-                </p>
-              ) : null}
-            </div>
+          {lastUpdated ? (
+            <p className="mt-4 text-[13px] text-[#5f6f64]">
+              <span className="font-semibold text-[#3d4a3c]">Last Updated:</span>{" "}
+              {lastUpdated}
+            </p>
           ) : null}
         </div>
       </section>
@@ -92,11 +78,6 @@ export function LegalDocumentPage({
           </div>
 
           {afterSections}
-
-          <div className="mt-10 rounded-[18px] border border-[#d9e0d4] bg-[#eef6f0] px-5 py-4 sm:px-6">
-            <p className="text-[13px] font-bold text-[#1f6b3a]">Status</p>
-            <p className="mt-1 text-[13px] text-[#3d4a3c]">{statusLabel}</p>
-          </div>
         </div>
       </section>
     </div>

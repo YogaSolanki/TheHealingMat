@@ -9,236 +9,265 @@ import {
   SITE_WHATSAPP_URL,
 } from "@/lib/site-contact";
 
+const LAST_UPDATED = "29 October 2026";
+
+const CONTACT_ADDRESS =
+  "GC 51, 5th Floor, Aditya Gold Crest, Vaibhav Khand, Indirapuram, Ghaziabad, Uttar Pradesh 201014, India";
+
 const sections: LegalDocumentSection[] = [
   {
-    id: "not-medical-treatment",
-    title: "1. The Healing Mat Is Not Medical Treatment",
+    id: "general-disclaimer",
+    title: "1. General Disclaimer",
     content: (
       <>
         <p>
-          The Healing Mat provides yoga, movement, relaxation and wellness
-          practices for general health and wellbeing.
+          The Healing Mat provides online yoga, movement, stretching, breathing,
+          relaxation and wellness sessions intended to support general health and
+          wellbeing.
         </p>
         <p>
-          Our classes, programs, videos, guides and other resources are not
-          medical advice, diagnosis or treatment.
+          Our services, classes, videos, articles and other resources are for
+          general wellness purposes only. They are not a substitute for
+          professional medical advice, diagnosis or treatment.
         </p>
-        <p>We do not claim that yoga or any THM program can:</p>
-        <ul>
-          <li>Diagnose a disease or medical condition</li>
-          <li>Cure a disease or medical condition</li>
-          <li>Replace medical treatment</li>
-          <li>Replace medication prescribed by your doctor</li>
-          <li>Guarantee a particular health outcome</li>
-        </ul>
         <p>
-          If you have a medical concern, please consult an appropriately
-          qualified healthcare professional.
+          The information provided through The Healing Mat should not be
+          interpreted as a medical prescription or as a guarantee of any
+          particular health outcome.
         </p>
       </>
     ),
   },
   {
-    id: "know-your-health",
-    title: "2. Know Your Own Health",
+    id: "consult-healthcare",
+    title: "2. Consult a Healthcare Professional",
     content: (
       <>
         <p>
-          Before beginning any physical activity, consider whether the activity
-          is appropriate for your current health and fitness level.
+          We recommend consulting a qualified healthcare professional before
+          starting our sessions, particularly if you:
         </p>
-        <p>Please take additional care if you:</p>
         <ul>
-          <li>Have a medical condition</li>
-          <li>Have an injury or ongoing pain</li>
-          <li>Have recently had surgery</li>
-          <li>Are pregnant or have recently given birth</li>
-          <li>Have been advised to restrict physical activity</li>
-          <li>Are recovering from an illness or injury</li>
           <li>
-            Have any other concern about whether yoga or exercise is suitable for
-            you
+            Have a medical condition, including diabetes, heart disease, high or
+            low blood pressure, or a respiratory condition.
+          </li>
+          <li>
+            Have an injury, persistent pain, balance difficulties or a condition
+            affecting your ability to exercise.
+          </li>
+          <li>Are pregnant or have recently given birth.</li>
+          <li>
+            Have recently undergone surgery or are recovering from an illness.
+          </li>
+          <li>
+            Have been advised to restrict or modify your physical activity.
+          </li>
+          <li>
+            Are unsure whether yoga or a particular exercise is suitable for you.
           </li>
         </ul>
         <p>
-          When in doubt, speak with your doctor or another appropriately
-          qualified healthcare professional before participating.
+          Do not stop, change or delay prescribed medication or medical treatment
+          based on information provided through The Healing Mat.
         </p>
       </>
     ),
   },
   {
-    id: "practise-within-ability",
-    title: "3. Practise Within Your Ability",
+    id: "online-classes",
+    title: "3. Online Classes and Limited Supervision",
     content: (
       <>
         <p>
-          Our Daily Classes may include different levels and types of movement.
+          The Healing Mat provides online classes that are primarily one-way
+          demonstrations and instructions.
         </p>
-        <p>You should:</p>
+        <p>
+          Unless expressly stated otherwise, our instructors do not continuously
+          observe participants, monitor their physical condition, assess their
+          individual capabilities or correct each participant&apos;s posture and
+          movements in real time.
+        </p>
+        <p>
+          You should not assume that the instructor can see whether you are
+          exercising correctly, experiencing discomfort or pushing beyond your
+          limits.
+        </p>
+        <p>
+          Our sessions are designed to offer general guidance to adults with
+          different levels of ability. However, not every exercise or variation
+          will be suitable for every person.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "choose-exercises",
+    title: "4. Choose Exercises Suitable for You",
+    content: (
+      <>
+        <p>
+          Some sessions may demonstrate easier versions, modifications or
+          alternative movements.
+        </p>
+        <p>
+          You are responsible for choosing the version that suits your strength,
+          flexibility, balance, health and physical ability.
+        </p>
         <ul>
-          <li>Follow the instructions at your own comfortable pace</li>
-          <li>Avoid forcing a movement</li>
-          <li>Modify or skip an exercise if necessary</li>
-          <li>Take breaks when you need them</li>
-          <li>Practise in a safe and suitable space</li>
-          <li>Keep enough room around you to move safely</li>
-        </ul>
-        <p>You do not need to complete every movement.</p>
-        <p>Yoga is not a competition.</p>
-      </>
-    ),
-  },
-  {
-    id: "stop-if-not-right",
-    title: "4. Stop If Something Does Not Feel Right",
-    content: (
-      <>
-        <p>If you experience:</p>
-        <ul>
-          <li>Sharp or unusual pain</li>
-          <li>Dizziness</li>
-          <li>Difficulty breathing</li>
-          <li>Chest pain</li>
-          <li>Feeling faint</li>
-          <li>Significant discomfort</li>
-          <li>Any other concerning symptom</li>
+          <li>Start gently and progress at your own pace.</li>
+          <li>
+            Do not force a stretch or attempt a difficult movement simply to keep
+            up with the instructor.
+          </li>
+          <li>Take breaks whenever necessary.</li>
+          <li>
+            Use a stable chair, wall or other suitable support where appropriate.
+          </li>
+          <li>
+            Skip any movement that you are unsure about or cannot perform
+            comfortably.
+          </li>
+          <li>
+            Do not continue exercising when you feel exhausted, unwell or
+            uncomfortable.
+          </li>
         </ul>
         <p>
-          stop the activity and seek appropriate medical attention if necessary.
-        </p>
-        <p>Do not continue simply because the class is still in progress.</p>
-      </>
-    ),
-  },
-  {
-    id: "older-adults-beginners",
-    title: "5. Special Care for Older Adults and Beginners",
-    content: (
-      <>
-        <p>
-          The Healing Mat welcomes beginners and people of different ages and
-          fitness levels.
-        </p>
-        <p>
-          However, being a beginner or older adult does not mean that every
-          exercise is suitable for everyone.
-        </p>
-        <p>
-          Start gradually and choose movements appropriate to your ability.
-        </p>
-        <p>
-          If you have concerns about your health or physical limitations, consult
-          an appropriate healthcare professional before beginning.
+          If you are unsure whether an exercise is appropriate for you, do not
+          attempt it until you have obtained suitable professional advice.
         </p>
       </>
     ),
   },
   {
-    id: "therapeutic-programs",
-    title: "6. Therapeutic & Health-Related Programs",
+    id: "risks",
+    title: "5. Risks Associated with Physical Activity",
     content: (
       <>
-        <p>Some THM content may focus on areas such as:</p>
-        <ul>
-          <li>Back comfort</li>
-          <li>Stress management</li>
-          <li>Flexibility</li>
-          <li>Mobility</li>
-          <li>Healthy ageing</li>
-          <li>Relaxation</li>
-          <li>Lifestyle wellbeing</li>
-        </ul>
-        <p>These programs are intended to support general wellbeing.</p>
         <p>
-          The word &ldquo;therapeutic&rdquo; or similar health-related terminology
-          does not mean that The Healing Mat is providing medical treatment or
-          guaranteeing a medical result.
+          Like other physical activities, yoga involves certain risks, which may
+          include muscle strain, falls, aggravation of an existing condition,
+          injury or other adverse health events.
+        </p>
+        <p>
+          In some circumstances, strenuous physical activity may contribute to a
+          serious medical emergency, particularly where an underlying health
+          condition is present.
+        </p>
+        <p>
+          You are responsible for assessing your readiness to exercise, following
+          appropriate safety precautions and participating within your abilities.
+        </p>
+        <p>
+          Participation in a THM session does not guarantee that an activity will
+          be free from risk.
         </p>
       </>
     ),
   },
   {
-    id: "individual-results",
-    title: "7. Individual Results May Vary",
+    id: "stop-if-unwell",
+    title: "6. Stop if You Feel Unwell",
     content: (
       <>
-        <p>People respond differently to yoga and physical activity.</p>
+        <p>
+          Stop exercising immediately if you experience pain, dizziness, unusual
+          breathlessness, chest discomfort, weakness, nausea or any other
+          concerning symptom.
+        </p>
+        <p>
+          Do not resume until it is safe to do so. Seek advice from a qualified
+          healthcare professional where appropriate.
+        </p>
+        <p>
+          If you experience severe or potentially life-threatening symptoms, seek
+          emergency medical assistance immediately.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "no-guaranteed-outcomes",
+    title: "7. No Guaranteed Health Outcomes",
+    content: (
+      <>
+        <p>
+          People respond differently to yoga and physical activity. Results may
+          vary depending on individual health, physical ability, consistency,
+          lifestyle and other circumstances.
+        </p>
         <p>The Healing Mat does not guarantee:</p>
         <ul>
-          <li>Weight loss</li>
-          <li>Pain relief</li>
-          <li>Increased flexibility</li>
-          <li>Improvement in a medical condition</li>
-          <li>Any particular physical or mental health result</li>
+          <li>Weight loss or a particular body shape.</li>
+          <li>A cure, reversal or prevention of any disease.</li>
+          <li>Relief from pain or improvement in a medical condition.</li>
+          <li>A particular level of flexibility, strength or fitness.</li>
+          <li>Any specific physical or mental health outcome.</li>
         </ul>
         <p>
-          Consistency, individual circumstances, health status and many other
-          factors can affect results.
+          Our services are intended to support general wellness and should not be
+          considered a replacement for medical care or an individually prescribed
+          treatment programme.
         </p>
       </>
     ),
   },
   {
-    id: "emergency",
-    title: "8. Emergency Situations",
+    id: "limitation-of-responsibility",
+    title: "8. Limitation of Responsibility",
     content: (
       <>
         <p>
-          The Healing Mat&apos;s classes and support channels are not intended to
-          provide emergency medical assistance.
+          To the extent permitted by applicable law, The Healing Mat is not
+          responsible for injury, loss or harm arising from a participant&apos;s
+          failure to follow safety guidance, selection of exercises beyond their
+          ability, overexertion, failure to stop when experiencing concerning
+          symptoms, or failure to seek appropriate medical advice.
         </p>
         <p>
-          If you experience a medical emergency, stop the activity and contact
-          the appropriate emergency or medical service.
+          The Healing Mat does not provide individually supervised medical or
+          exercise consultations unless expressly stated otherwise.
+        </p>
+        <p>
+          Nothing in this Disclaimer excludes or limits any liability, duty,
+          right or remedy that cannot lawfully be excluded or limited under
+          applicable law.
         </p>
       </>
     ),
   },
   {
-    id: "your-responsibility",
-    title: "9. Your Responsibility",
+    id: "read-alongside",
+    title: "9. Read Alongside Our Terms & Conditions",
     content: (
       <>
         <p>
-          By participating in The Healing Mat&apos;s Daily Classes and wellness
-          activities, you are responsible for:
-        </p>
-        <ul>
-          <li>Providing accurate information when it is requested</li>
-          <li>Considering your own health and limitations</li>
-          <li>Following appropriate safety precautions</li>
-          <li>Practising within your ability</li>
-          <li>Seeking professional medical advice where appropriate</li>
-        </ul>
-        <p>
-          The Healing Mat will take reasonable steps to provide its services
-          responsibly, but participation in physical activity always carries some
-          inherent risk.
+          This Disclaimer should be read alongside The Healing Mat&apos;s{" "}
+          <Link href="/terms">Terms &amp; Conditions</Link> and{" "}
+          <Link href="/privacy">Privacy Policy</Link>.
         </p>
         <p>
-          Nothing on this page or elsewhere on the website should be interpreted
-          as a guarantee that an injury or adverse health event cannot occur.
+          In the event of any inconsistency, the applicable Terms &amp;
+          Conditions and relevant legal requirements will govern to the extent
+          permitted by law.
         </p>
       </>
     ),
   },
   {
-    id: "questions",
-    title: "10. Questions Before You Start?",
+    id: "contact",
+    title: "10. Contact Us",
     content: (
       <>
         <p>
-          If you are unsure whether a particular practice is appropriate for you,
-          please consult an appropriately qualified healthcare professional before
-          participating.
-        </p>
-        <p>
-          If you have a question about a THM class or program, you can contact
-          us:
+          If you have questions about this Disclaimer or our services, please
+          contact us.
         </p>
         <p className="font-semibold text-[#1f6b3a]">The Healing Mat</p>
         <ul className="list-none pl-0">
+          <li>Contact Person: Pradeep Singh Solanki, Partner</li>
           <li>
             Email:{" "}
             <a href={`mailto:${SITE_EMAIL}`} className="font-semibold">
@@ -246,10 +275,24 @@ const sections: LegalDocumentSection[] = [
             </a>
           </li>
           <li>
-            WhatsApp/Phone:{" "}
+            Phone/WhatsApp:{" "}
             <a href={SITE_WHATSAPP_URL} className="font-semibold">
               {SITE_PHONE_DISPLAY}
             </a>
+          </li>
+          <li>
+            Website:{" "}
+            <a
+              href="https://www.thehealingmat.yoga"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold"
+            >
+              https://www.thehealingmat.yoga
+            </a>
+          </li>
+          <li>
+            Address: <span className="font-semibold">{CONTACT_ADDRESS}</span>
           </li>
         </ul>
       </>
@@ -260,39 +303,16 @@ const sections: LegalDocumentSection[] = [
 export function HealthAndSafetyContent() {
   return (
     <LegalDocumentPage
-      title="Health & Safety"
+      title="Disclaimer"
+      lastUpdated={LAST_UPDATED}
       intro={
-        <>
-          <p className="font-semibold text-[#1f6b3a]">Your health comes first.</p>
-          <p>
-            Yoga and movement can be an enjoyable way to support general health
-            and wellbeing. However, every person&apos;s body and health
-            circumstances are different.
-          </p>
-          <p>
-            Please read these guidelines before participating in The Healing
-            Mat&apos;s Daily Classes.
-          </p>
-        </>
+        <p>
+          This Disclaimer explains important health, safety and wellness
+          information about participating in The Healing Mat sessions and using
+          our resources.
+        </p>
       }
       sections={sections}
-      afterSections={
-        <div className="mt-10 rounded-[18px] border border-[#e6ebe3] px-5 py-5 sm:px-6">
-          <h2 className="font-serif text-[1.15rem] font-bold text-[#1f6b3a] sm:text-[1.25rem]">
-            Important
-          </h2>
-          <p className="mt-3">
-            This page provides general health and safety guidance. The{" "}
-            <Link href="/terms">Terms &amp; Conditions</Link> contain the
-            contractual health and liability provisions applicable to your use of
-            The Healing Mat.
-          </p>
-          <p className="mt-3">
-            The final wording of both documents should be reviewed by a qualified
-            lawyer before publication.
-          </p>
-        </div>
-      }
     />
   );
 }

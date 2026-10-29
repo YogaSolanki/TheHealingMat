@@ -47,7 +47,7 @@ const legalLinks = [
   { href: "/privacy", label: "Privacy Policy" },
   { href: "/refund", label: "Refund Policy" },
   { href: "/terms", label: "Terms & Conditions" },
-  { href: "#cookies", label: "Cookie Policy" },
+  { href: "/cookies", label: "Cookie Policy" },
   { href: "/health-and-safety", label: "Disclaimer" },
 ];
 
