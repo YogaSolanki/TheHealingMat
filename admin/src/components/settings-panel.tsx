@@ -144,6 +144,7 @@ export function SettingsPanel() {
   const [settings, setSettings] = useState<AdminSiteSettings | null>(null);
   const [timings, setTimings] = useState<AdminSessionTiming[]>([]);
   const [referralDiscountPercent, setReferralDiscountPercent] = useState("20");
+  const [referralMessageTemplate, setReferralMessageTemplate] = useState("");
   const [newTiming, setNewTiming] = useState<TimeParts>(DEFAULT_TIME);
   const [newTimingSundayQa, setNewTimingSundayQa] = useState(false);
   const [newTimingTrial, setNewTimingTrial] = useState(false);
@@ -198,6 +199,11 @@ export function SettingsPanel() {
       setReferralDiscountPercent(
         String(nextSettings.referralDiscountPercent ?? 20),
       );
+      setReferralMessageTemplate(
+        nextSettings.referralMessageTemplate ||
+          nextSettings.defaultReferralMessageTemplate ||
+          "",
+      );
       setTimings(nextTimings);
       const special = nextTimings.find((row) => row.isSpecial);
       if (special) {
@@ -227,15 +233,27 @@ export function SettingsPanel() {
       return;
     }
 
+    const message = referralMessageTemplate.trim();
+    if (message.length > 2000) {
+      showError("Referral message must be 2000 characters or fewer.");
+      return;
+    }
+
     setSaving(true);
     setError(null);
     setSaved(false);
     try {
       const next = await updateAdminSettings(token, {
         referralDiscountPercent: percent,
+        referralMessageTemplate: message || null,
       });
       setSettings(next);
       setReferralDiscountPercent(String(next.referralDiscountPercent ?? 20));
+      setReferralMessageTemplate(
+        next.referralMessageTemplate ||
+          next.defaultReferralMessageTemplate ||
+          "",
+      );
       setSaved(true);
       showSuccess("Referral settings saved.");
     } catch (err: unknown) {
@@ -383,7 +401,8 @@ export function SettingsPanel() {
             Settings
           </h1>
           <p className="mt-1 text-sm text-[#5f6f64]">
-            Referral discount and session times used for Class Management.
+            Referral discount, share message, and session times for Class
+            Management.
           </p>
         </div>
         <ReloadButton
@@ -427,6 +446,61 @@ export function SettingsPanel() {
             Applied at checkout for every referred member. Set to 0 to disable.
           </p>
         </div>
+
+        <div>
+          <h2 className="text-sm font-semibold text-[#243028]">
+            Referral share message
+          </h2>
+          <p className="mt-1 text-[13px] leading-relaxed text-[#6b7c6e]">
+            Shown on the member Refer &amp; Win card (copy + WhatsApp). Use
+            placeholders{" "}
+            <code className="rounded bg-[#f3f6f2] px-1 py-0.5 text-[12px]">
+              {"{{referralCode}}"}
+            </code>
+            ,{" "}
+            <code className="rounded bg-[#f3f6f2] px-1 py-0.5 text-[12px]">
+              {"{{referralLink}}"}
+            </code>
+            , and{" "}
+            <code className="rounded bg-[#f3f6f2] px-1 py-0.5 text-[12px]">
+              {"{{discountPercent}}"}
+            </code>
+            . Clear the field and save to restore the default message.
+          </p>
+          <label className="mt-3 block text-sm font-semibold text-[#243028]">
+            Message
+            <textarea
+              value={referralMessageTemplate}
+              onChange={(event) => {
+                setReferralMessageTemplate(event.target.value);
+                setSaved(false);
+              }}
+              rows={5}
+              maxLength={2000}
+              className={`${inputClass} min-h-[120px] resize-y`}
+              disabled={saving}
+            />
+          </label>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[12px] text-[#6b7c6e]">
+              {referralMessageTemplate.length}/2000
+            </p>
+            <button
+              type="button"
+              disabled={saving || !settings?.defaultReferralMessageTemplate}
+              onClick={() => {
+                setReferralMessageTemplate(
+                  settings?.defaultReferralMessageTemplate ?? "",
+                );
+                setSaved(false);
+              }}
+              className="text-[13px] font-semibold text-[#1f6b3a] underline-offset-2 hover:underline disabled:opacity-50"
+            >
+              Reset to default
+            </button>
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="submit"

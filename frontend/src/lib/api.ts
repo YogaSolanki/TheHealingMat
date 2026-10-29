@@ -912,6 +912,11 @@ export type MyReferralsResponse = {
   referrals: ReferralListItem[];
   /** Site-wide discount % for referred friends at checkout. */
   referralDiscountPercent?: number;
+  /**
+   * Admin-editable share message template.
+   * Placeholders: {{referralCode}}, {{referralLink}}, {{discountPercent}}
+   */
+  referralMessageTemplate?: string;
 };
 
 export async function getMyReferrals(

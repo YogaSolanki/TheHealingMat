@@ -13,6 +13,10 @@ import {
 } from '../payments/invoice-category';
 import { DEFAULT_REFERRAL_DISCOUNT_PERCENT } from '../payments/membership-plans';
 import { UpdateSiteSettingsDto } from './dto/update-site-settings.dto';
+import {
+  DEFAULT_REFERRAL_MESSAGE_TEMPLATE,
+  normalizeReferralMessageTemplate,
+} from './referral-message';
 import { SiteSettings } from './site-settings.entity';
 
 @Injectable()
@@ -25,6 +29,7 @@ export class SettingsService implements OnModuleInit {
 
   async onModuleInit() {
     await this.ensureReferralDiscountColumn();
+    await this.ensureReferralMessageTemplateColumn();
     await this.ensurePrivateSpacePasswordColumn();
     await this.ensureInvoiceFinancialYearOverrideColumn();
     await this.ensureRow();
@@ -44,6 +49,12 @@ export class SettingsService implements OnModuleInit {
   async getReferralDiscountPercent(): Promise<number> {
     const row = await this.ensureRow();
     return this.normalizePercent(row.referralDiscountPercent);
+  }
+
+  /** Resolved template (never empty) for member share / WhatsApp messages. */
+  async getReferralMessageTemplate(): Promise<string> {
+    const row = await this.ensureRow();
+    return normalizeReferralMessageTemplate(row.referralMessageTemplate);
   }
 
   /** Stored private-space password hash, or null when using env fallback only. */
@@ -106,6 +117,10 @@ export class SettingsService implements OnModuleInit {
         dto.referralDiscountPercent,
       );
     }
+    if (dto.referralMessageTemplate !== undefined) {
+      const next = dto.referralMessageTemplate?.trim() || null;
+      row.referralMessageTemplate = next;
+    }
     const saved = await this.settings.save(row);
     return this.toAdminResponse(saved);
   }
@@ -116,6 +131,10 @@ export class SettingsService implements OnModuleInit {
       referralDiscountPercent: this.normalizePercent(
         row.referralDiscountPercent,
       ),
+      referralMessageTemplate: normalizeReferralMessageTemplate(
+        row.referralMessageTemplate,
+      ),
+      defaultReferralMessageTemplate: DEFAULT_REFERRAL_MESSAGE_TEMPLATE,
       updatedAt: row.updatedAt.toISOString(),
     };
   }
@@ -131,6 +150,13 @@ export class SettingsService implements OnModuleInit {
     await this.settings.query(`
       ALTER TABLE "site_settings"
       ADD COLUMN IF NOT EXISTS "referralDiscountPercent" integer NOT NULL DEFAULT ${DEFAULT_REFERRAL_DISCOUNT_PERCENT}
+    `);
+  }
+
+  private async ensureReferralMessageTemplateColumn() {
+    await this.settings.query(`
+      ALTER TABLE "site_settings"
+      ADD COLUMN IF NOT EXISTS "referralMessageTemplate" text NULL
     `);
   }
 
@@ -164,6 +190,7 @@ export class SettingsService implements OnModuleInit {
       this.settings.create({
         liveSessionUrl: fromEnv,
         referralDiscountPercent: DEFAULT_REFERRAL_DISCOUNT_PERCENT,
+        referralMessageTemplate: null,
         privateSpacePasswordHash: null,
         invoiceFinancialYearOverride: null,
       }),

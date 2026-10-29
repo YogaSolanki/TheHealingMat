@@ -40,8 +40,11 @@ export class ReferralsService {
   ) {}
 
   async listMine(referrer: User) {
-    const referralDiscountPercent =
-      await this.settings.getReferralDiscountPercent();
+    const [referralDiscountPercent, referralMessageTemplate] =
+      await Promise.all([
+        this.settings.getReferralDiscountPercent(),
+        this.settings.getReferralMessageTemplate(),
+      ]);
 
     const referred = await this.users.find({
       where: { referredByUserId: referrer.id },
@@ -53,6 +56,7 @@ export class ReferralsService {
         successfulCount: 0,
         referrals: [] as ReferralListItem[],
         referralDiscountPercent,
+        referralMessageTemplate,
       };
     }
 
@@ -93,7 +97,12 @@ export class ReferralsService {
       (row) => row.status === 'SUCCESSFUL',
     ).length;
 
-    return { successfulCount, referrals, referralDiscountPercent };
+    return {
+      successfulCount,
+      referrals,
+      referralDiscountPercent,
+      referralMessageTemplate,
+    };
   }
 
   private resolveStatus(

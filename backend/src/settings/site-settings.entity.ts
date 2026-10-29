@@ -24,6 +24,14 @@ export class SiteSettings {
   referralDiscountPercent: number;
 
   /**
+   * Share / WhatsApp referral message template for members.
+   * Placeholders: {{referralCode}}, {{referralLink}}, {{discountPercent}}
+   * Null/empty → built-in default message.
+   */
+  @Column({ type: 'text', nullable: true })
+  referralMessageTemplate: string | null;
+
+  /**
    * bcrypt hash of the Admin → Settings → Private space gate password.
    * When null, AuthService falls back to ADMIN_PRIVATE_SPACE_PASSWORD env.
    */

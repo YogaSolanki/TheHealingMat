@@ -28,4 +28,14 @@ export class UpdateSiteSettingsDto {
   @Min(0, { message: 'Referral discount cannot be negative.' })
   @Max(100, { message: 'Referral discount cannot exceed 100%.' })
   referralDiscountPercent?: number;
+
+  /**
+   * Member referral share message. Use {{referralCode}}, {{referralLink}},
+   * and {{discountPercent}}. Empty/null restores the default message.
+   */
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsString()
+  @MaxLength(2000)
+  referralMessageTemplate?: string | null;
 }

@@ -20,6 +20,7 @@ import {
 import { getStoredToken } from "@/lib/auth-storage";
 import { lockBodyScroll } from "@/lib/body-scroll-lock";
 import { useMyMilestones } from "@/lib/milestones-store";
+import { fillReferralMessageTemplate } from "@/lib/referral-message";
 import { useMyReferrals } from "@/lib/session-store";
 import { FaWhatsapp } from "react-icons/fa";
 
@@ -121,15 +122,24 @@ export function MemberReferPage() {
     referrals,
     successfulCount,
     referralDiscountPercent,
+    referralMessageTemplate,
     loading: loadingReferrals,
     refreshing,
     refresh,
   } = useMyReferrals();
   const referralCode = user.referralCode;
   const referralLink = referralShareLink(user.accessLink, referralCode);
-  const readyMadeMessage = `Join me on The Healing Mat! Your friend gets 14 days of FREE yoga classes + ${referralDiscountPercent}% OFF membership. Use my referral code ${referralCode} or sign up here: ${referralLink}`;
   const [copiedField, setCopiedField] = useState<"code" | "link" | "message" | null>(null);
   const [messageOpen, setMessageOpen] = useState(false);
+  const [messageRefreshing, setMessageRefreshing] = useState(false);
+  /** Last known ready-made message — shown immediately; refreshed quietly on open. */
+  const [readyMadeMessage, setReadyMadeMessage] = useState(() =>
+    fillReferralMessageTemplate(referralMessageTemplate, {
+      referralCode,
+      referralLink,
+      discountPercent: referralDiscountPercent,
+    }),
+  );
   const {
     milestones,
     loading: loadingMilestones,
@@ -292,8 +302,54 @@ export function MemberReferPage() {
     }
   }
 
-  function shareOnWhatsApp() {
-    const message = encodeURIComponent(readyMadeMessage);
+  function applyReadyMadeMessage(template: string | null | undefined, percent: number) {
+    const next = fillReferralMessageTemplate(template, {
+      referralCode,
+      referralLink,
+      discountPercent: percent,
+    });
+    setReadyMadeMessage(next);
+    return next;
+  }
+
+  /** Open with the saved message; refresh quietly and keep the updated text in state. */
+  async function onToggleReadyMadeMessage() {
+    if (messageOpen) {
+      setMessageOpen(false);
+      return;
+    }
+    setMessageOpen(true);
+    if (messageRefreshing) return;
+    setMessageRefreshing(true);
+    try {
+      const latest = await refresh();
+      if (latest) {
+        applyReadyMadeMessage(
+          latest.referralMessageTemplate,
+          latest.referralDiscountPercent ?? referralDiscountPercent,
+        );
+      }
+    } catch {
+      /* keep the saved message already shown */
+    } finally {
+      setMessageRefreshing(false);
+    }
+  }
+
+  async function shareOnWhatsApp() {
+    let text = readyMadeMessage;
+    try {
+      const latest = await refresh();
+      if (latest) {
+        text = applyReadyMadeMessage(
+          latest.referralMessageTemplate,
+          latest.referralDiscountPercent ?? referralDiscountPercent,
+        );
+      }
+    } catch {
+      /* use saved message if refresh fails */
+    }
+    const message = encodeURIComponent(text);
     window.open(`https://wa.me/?text=${message}`, "_blank", "noopener,noreferrer");
   }
 
@@ -349,7 +405,7 @@ export function MemberReferPage() {
                   <div className="flex min-w-0 flex-col items-center">
                     <button
                       type="button"
-                      onClick={shareOnWhatsApp}
+                      onClick={() => void shareOnWhatsApp()}
                       className={`${memberPrimaryBtnClass} w-full min-h-[48px] px-3 py-3 text-[13px] sm:px-4 sm:text-[14px]`}
                     >
                       <FaWhatsapp className="h-4 w-4 shrink-0" />
@@ -362,7 +418,7 @@ export function MemberReferPage() {
                   <div className="flex min-w-0 flex-col items-center">
                     <button
                       type="button"
-                      onClick={() => setMessageOpen((current) => !current)}
+                      onClick={() => void onToggleReadyMadeMessage()}
                       className={`${memberOutlineBtnClass} w-full min-h-[48px] px-3 py-3 text-[13px] sm:px-4 sm:text-[14px]`}
                     >
                       <MessageBubbleIcon className="h-4 w-4 shrink-0" />

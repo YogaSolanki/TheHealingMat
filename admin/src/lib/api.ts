@@ -1352,6 +1352,10 @@ export function updateAdminRewardRedemption(
 export type AdminSiteSettings = {
   liveSessionUrl: string | null;
   referralDiscountPercent: number;
+  /** Resolved share message (default applied when DB value is empty). */
+  referralMessageTemplate: string;
+  /** Built-in default for reset / hint text. */
+  defaultReferralMessageTemplate: string;
   updatedAt: string;
 };
 
@@ -1364,6 +1368,7 @@ export function updateAdminSettings(
   body: {
     liveSessionUrl?: string | null;
     referralDiscountPercent?: number;
+    referralMessageTemplate?: string | null;
   },
 ) {
   return authJson<AdminSiteSettings>("PATCH", "/admin/settings", token, body);

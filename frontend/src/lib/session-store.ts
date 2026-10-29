@@ -29,6 +29,7 @@ const EMPTY_REFERRALS: MyReferralsResponse = {
   successfulCount: 0,
   referrals: [],
   referralDiscountPercent: 20,
+  referralMessageTemplate: undefined,
 };
 
 type SessionSnapshot = {
@@ -170,6 +171,8 @@ class SessionStore {
           : [],
         referralDiscountPercent:
           storedReferrals.referralDiscountPercent ?? 20,
+        referralMessageTemplate:
+          storedReferrals.referralMessageTemplate?.trim() || undefined,
       };
       this.referralsReady = true;
       changed = true;
@@ -371,6 +374,8 @@ class SessionStore {
           successfulCount: data.successfulCount ?? 0,
           referrals: Array.isArray(data.referrals) ? data.referrals : [],
           referralDiscountPercent: data.referralDiscountPercent ?? 20,
+          referralMessageTemplate:
+            data.referralMessageTemplate?.trim() || undefined,
         };
         this.setReferrals(normalized);
         return normalized;
@@ -474,7 +479,7 @@ export function useMyReferrals() {
   async function refresh() {
     setRefreshing(true);
     try {
-      await sessionStore.ensureReferrals({ force: true });
+      return await sessionStore.ensureReferrals({ force: true });
     } finally {
       setRefreshing(false);
       setLoading(false);
@@ -485,6 +490,7 @@ export function useMyReferrals() {
     referrals: referrals.referrals,
     successfulCount: referrals.successfulCount,
     referralDiscountPercent: referrals.referralDiscountPercent ?? 20,
+    referralMessageTemplate: referrals.referralMessageTemplate,
     loading: loading && !ready,
     refreshing,
     refresh,
