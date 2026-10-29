@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+Disallow: /dashboard
+Disallow: /auth/
+Disallow: /membership/checkout
+Disallow: /u/
+
+Sitemap: https://thehealingmat.yoga/sitemap.xml
