@@ -13,7 +13,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { createReadStream, existsSync } from 'fs';
 import { join } from 'path';
 import Razorpay from 'razorpay';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { CouponsService } from '../coupons/coupons.service';
 import { detectVisitorRegion } from '../common/visitor-region';
 import { CorporatePlan } from '../corporate/corporate-plan.entity';
@@ -21,6 +21,7 @@ import { sendResendEmail } from '../mail/resend';
 import { SettingsService } from '../settings/settings.service';
 import { TrialRegistration } from '../trials/trial-registration.entity';
 import { TrialStatus } from '../users/enums/trial-status.enum';
+import { isUniqueViolation } from '../users/account-identity';
 import { Region } from '../users/enums/region.enum';
 import { User } from '../users/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -63,6 +64,7 @@ export class PaymentsService {
 
   constructor(
     private readonly config: ConfigService,
+    private readonly dataSource: DataSource,
     private readonly coupons: CouponsService,
     private readonly membershipPlans: MembershipPlansService,
     private readonly membershipOffers: MembershipOffersService,
@@ -816,33 +818,63 @@ export class PaymentsService {
   /**
    * Mark order paid and activate membership. Idempotent for verify + webhook races.
    * Skips the "already scheduled" purchase guard — payment is already confirmed.
+   * Serializes on the payment_orders row so concurrent verify/webhook/reconcile
+   * cannot create two memberships (and two invoices) for the same payment.
    */
   private async fulfillPaidOrder(order: PaymentOrder, paymentId: string) {
-    if (order.status !== 'paid') {
-      order.status = 'paid';
-      order.razorpayPaymentId = paymentId;
-      await this.orders.save(order);
-    } else if (!order.razorpayPaymentId && paymentId) {
-      order.razorpayPaymentId = paymentId;
-      await this.orders.save(order);
-    }
+    const lockedOrder = await this.dataSource.transaction(async (manager) => {
+      const locked = await manager.findOne(PaymentOrder, {
+        where: { id: order.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked) return null;
 
-    const existing = await this.memberships.findOne({
-      where: { paymentOrderId: order.id },
+      if (locked.status !== 'paid') {
+        locked.status = 'paid';
+        locked.razorpayPaymentId = paymentId;
+        await manager.save(locked);
+      } else if (!locked.razorpayPaymentId && paymentId) {
+        locked.razorpayPaymentId = paymentId;
+        await manager.save(locked);
+      }
+
+      const existing = await manager.findOne(Membership, {
+        where: { paymentOrderId: locked.id },
+      });
+      if (existing) {
+        return { order: locked, membership: existing };
+      }
+
+      return { order: locked, membership: null };
     });
-    if (existing) return existing;
 
-    if (order.planMonths == null) return null;
+    if (!lockedOrder) return null;
+    if (lockedOrder.membership) return lockedOrder.membership;
 
-    const user = await this.users.findOne({ where: { id: order.userId } });
+    const paidOrder = lockedOrder.order;
+    if (paidOrder.planMonths == null) return null;
+
+    const user = await this.users.findOne({ where: { id: paidOrder.userId } });
     if (!user) {
       this.logger.error(
-        `Cannot fulfill order ${order.id}: user ${order.userId} not found`,
+        `Cannot fulfill order ${paidOrder.id}: user ${paidOrder.userId} not found`,
       );
       return null;
     }
 
-    return this.activateMembership(user, order, { skipPurchaseCheck: true });
+    try {
+      return await this.activateMembership(user, paidOrder, {
+        skipPurchaseCheck: true,
+      });
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        const existing = await this.memberships.findOne({
+          where: { paymentOrderId: paidOrder.id },
+        });
+        if (existing) return existing;
+      }
+      throw err;
+    }
   }
 
   /**
@@ -933,25 +965,36 @@ export class PaymentsService {
       order.startsOn,
     );
 
-    const membership = await this.memberships.save(
-      this.memberships.create({
-        userId: user.id,
-        planMonths: plan.months,
-        planName: plan.name,
-        listPricePaise: order.listPricePaise,
-        discountPaise: order.discountPaise,
-        amountPaidPaise: order.amountPaise,
-        currency: order.currency || 'INR',
-        paymentMethod: 'Online (Razorpay)',
-        status,
-        startsAt,
-        endsAt,
-        paymentOrderId: order.id,
-        razorpayPaymentId: order.razorpayPaymentId,
-        razorpayInvoiceId: order.razorpayInvoiceId,
-        razorpayInvoiceUrl: order.razorpayInvoiceUrl,
-      }),
-    );
+    let membership: Membership;
+    try {
+      membership = await this.memberships.save(
+        this.memberships.create({
+          userId: user.id,
+          planMonths: plan.months,
+          planName: plan.name,
+          listPricePaise: order.listPricePaise,
+          discountPaise: order.discountPaise,
+          amountPaidPaise: order.amountPaise,
+          currency: order.currency || 'INR',
+          paymentMethod: 'Online (Razorpay)',
+          status,
+          startsAt,
+          endsAt,
+          paymentOrderId: order.id,
+          razorpayPaymentId: order.razorpayPaymentId,
+          razorpayInvoiceId: order.razorpayInvoiceId,
+          razorpayInvoiceUrl: order.razorpayInvoiceUrl,
+        }),
+      );
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        const existing = await this.memberships.findOne({
+          where: { paymentOrderId: order.id },
+        });
+        if (existing) return existing;
+      }
+      throw err;
+    }
 
     if (status === 'active') {
       // Paid access begins now — close any prior active term and end the trial.

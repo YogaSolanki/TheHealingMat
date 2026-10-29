@@ -45,7 +45,9 @@ export class Membership {
   @Column({ type: 'timestamptz' })
   endsAt: Date;
 
-  @Column()
+  /** One membership per payment order — prevents verify/webhook duplicate invoices. */
+  @Index({ unique: true })
+  @Column({ unique: true })
   paymentOrderId: string;
 
   @Column({ type: 'varchar', nullable: true })

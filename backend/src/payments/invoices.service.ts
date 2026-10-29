@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { SettingsService } from '../settings/settings.service';
+import { isUniqueViolation } from '../users/account-identity';
 import { Region } from '../users/enums/region.enum';
 import { User } from '../users/user.entity';
 import {
@@ -112,6 +113,35 @@ export class InvoicesService implements OnModuleInit {
         }`,
       );
     }
+
+    // One membership per payment order — stops verify/webhook races creating two invoices.
+    try {
+      await this.dataSource.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "UQ_memberships_paymentOrderId"
+        ON "memberships" ("paymentOrderId")
+      `);
+    } catch (err) {
+      this.logger.warn(
+        `Could not create unique index on memberships.paymentOrderId: ${
+          err instanceof Error ? err.message : String(err)
+        }. Resolve duplicate memberships for the same payment order, then restart.`,
+      );
+    }
+
+    // One invoice per Razorpay payment id (pay_…) — extra guard on paymentReference.
+    try {
+      await this.dataSource.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "UQ_invoices_paymentReference_pay"
+        ON "invoices" ("paymentReference")
+        WHERE "paymentReference" LIKE 'pay_%'
+      `);
+    } catch (err) {
+      this.logger.warn(
+        `Could not create unique index on invoices.paymentReference: ${
+          err instanceof Error ? err.message : String(err)
+        }. Resolve duplicate invoices for the same pay_ reference, then restart.`,
+      );
+    }
   }
 
   categoryForUserRegion(region: Region): InvoiceCategory {
@@ -140,6 +170,12 @@ export class InvoicesService implements OnModuleInit {
     return this.invoices.findOne({ where: { invoiceNumber } });
   }
 
+  async findByPaymentReference(paymentReference: string) {
+    const ref = paymentReference.trim();
+    if (!ref) return null;
+    return this.invoices.findOne({ where: { paymentReference: ref } });
+  }
+
   /**
    * Issue (or return existing) invoice for a paid membership.
    * Returns null when amount paid is zero — no invoice / no serial consumed.
@@ -161,37 +197,63 @@ export class InvoicesService implements OnModuleInit {
       input.category ?? this.categoryForUserRegion(user.region);
     const issuedAt = membership.createdAt ?? new Date();
 
-    return this.dataSource.transaction(async (manager) => {
-      const again = await manager.findOne(Invoice, {
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const again = await manager.findOne(Invoice, {
+          where: { membershipId: membership.id },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (again) return again;
+
+        // Another invoice may already exist for this Razorpay payment (duplicate membership race).
+        const paymentReference = input.paymentReference?.trim() || null;
+        if (paymentReference?.startsWith('pay_')) {
+          const byPayment = await manager.findOne(Invoice, {
+            where: { paymentReference },
+          });
+          if (byPayment) return byPayment;
+        }
+
+        const allocated = await this.allocateNumber(category, issuedAt, manager);
+
+        const invoice = manager.create(Invoice, {
+          invoiceNumber: allocated.invoiceNumber,
+          category,
+          financialYear: allocated.financialYear,
+          serial: allocated.serial,
+          membershipId: membership.id,
+          userId: user.id,
+          currency: membership.currency || 'INR',
+          listPricePaise: membership.listPricePaise,
+          discountPaise: membership.discountPaise,
+          amountPaidPaise: membership.amountPaidPaise,
+          paymentReference,
+          paymentMethod: input.paymentMethod,
+          discountLabel: input.discountLabel?.trim() || null,
+          paymentStatus: 'paid',
+          paidAt: issuedAt,
+          poNumber: null,
+          poDate: null,
+          issuedAt,
+        });
+
+        return manager.save(invoice);
+      });
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err;
+      const byMembership = await this.invoices.findOne({
         where: { membershipId: membership.id },
       });
-      if (again) return again;
-
-      const allocated = await this.allocateNumber(category, issuedAt, manager);
-
-      const invoice = manager.create(Invoice, {
-        invoiceNumber: allocated.invoiceNumber,
-        category,
-        financialYear: allocated.financialYear,
-        serial: allocated.serial,
-        membershipId: membership.id,
-        userId: user.id,
-        currency: membership.currency || 'INR',
-        listPricePaise: membership.listPricePaise,
-        discountPaise: membership.discountPaise,
-        amountPaidPaise: membership.amountPaidPaise,
-        paymentReference: input.paymentReference,
-        paymentMethod: input.paymentMethod,
-        discountLabel: input.discountLabel?.trim() || null,
-        paymentStatus: 'paid',
-        paidAt: issuedAt,
-        poNumber: null,
-        poDate: null,
-        issuedAt,
-      });
-
-      return manager.save(invoice);
-    });
+      if (byMembership) return byMembership;
+      const paymentReference = input.paymentReference?.trim() || null;
+      if (paymentReference) {
+        const byPayment = await this.invoices.findOne({
+          where: { paymentReference },
+        });
+        if (byPayment) return byPayment;
+      }
+      throw err;
+    }
   }
 
   /**

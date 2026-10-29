@@ -922,6 +922,17 @@ export class AdminDashboardService {
       }
     }
 
+    if (paymentRef?.startsWith('pay_')) {
+      const existingForPayment = await this.memberships.findOne({
+        where: { razorpayPaymentId: paymentRef },
+      });
+      if (existingForPayment) {
+        throw new BadRequestException(
+          'This Razorpay payment already has a membership. Edit that membership instead.',
+        );
+      }
+    }
+
     if (payment && payment.status !== 'paid') {
       payment.status = 'paid';
       await this.paymentOrders.save(payment);
