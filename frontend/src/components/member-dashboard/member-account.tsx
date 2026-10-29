@@ -428,7 +428,7 @@ export function MemberAccountPage() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[15px] font-bold text-[#243028] sm:text-[16px]">
-                      Exclusive E-book
+                      Weight Loss Without the Drama
                     </span>
                     <span
                       className={`mt-1 block text-[13px] leading-relaxed sm:text-[14px] ${
@@ -439,7 +439,7 @@ export function MemberAccountPage() {
                         ? "Preparing your download…"
                         : ebookError
                           ? ebookError
-                          : "Download your member-only e-book."}
+                          : "Download your exclusive annual-member e-book."}
                     </span>
                   </span>
                   <ChevronRightIcon className="h-5 w-5 shrink-0 text-[#8a9a8d]" />

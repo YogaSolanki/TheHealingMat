@@ -888,7 +888,7 @@ export async function downloadMembershipEbook(accessToken: string) {
   return downloadAuthenticatedPdf(
     accessToken,
     "/memberships/ebook",
-    "The-Healing-Mat-E-Book.pdf",
+    "E-Book_Weight Loss Without The Drama.pdf",
     "Unable to download the e-book.",
   );
 }

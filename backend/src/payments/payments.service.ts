@@ -552,8 +552,8 @@ export class PaymentsService {
 
   /**
    * E-book PDF for active 12-month members only.
-   * Shipped with the backend at assets/ebooks/E-Book_WLWTD.pdf (commit + deploy).
-   * Also accepts the older uploads/… path as a fallback.
+   * Shipped with the backend at assets/ebooks/E-Book_Weight Loss Without The Drama.pdf.
+   * Also accepts older filenames/paths as fallbacks.
    */
   async getTwelveMonthEbook(user: User) {
     await this.expireEnded(user.id);
@@ -573,8 +573,11 @@ export class PaymentsService {
       );
     }
 
+    const ebookFilename = 'E-Book_Weight Loss Without The Drama.pdf';
     const candidates = [
+      join(process.cwd(), 'assets', 'ebooks', ebookFilename),
       join(process.cwd(), 'assets', 'ebooks', 'E-Book_WLWTD.pdf'),
+      join(process.cwd(), 'uploads', 'milestones', 'ebooks', ebookFilename),
       join(
         process.cwd(),
         'uploads',
@@ -593,7 +596,7 @@ export class PaymentsService {
 
     return {
       stream: createReadStream(filePath),
-      filename: 'The-Healing-Mat-E-Book.pdf',
+      filename: ebookFilename,
     };
   }
 

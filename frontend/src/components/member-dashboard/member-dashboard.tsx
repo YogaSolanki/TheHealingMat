@@ -1438,13 +1438,13 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 <CompactNavCard
                   icon={<BookIcon className="h-5 w-5 text-[#1f6b3a]" />}
                   iconBg="bg-[#eef6f0]"
-                  title="Exclusive E-book"
+                  title="Weight Loss Without the Drama"
                   subtitle={
                     downloadingEbook
                       ? "Preparing your download…"
                       : ebookError
                         ? ebookError
-                        : "Download your member-only e-book."
+                        : "Download your exclusive annual-member e-book."
                   }
                   disabled={downloadingEbook}
                   onClick={() => {
