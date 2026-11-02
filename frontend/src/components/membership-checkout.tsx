@@ -45,6 +45,7 @@ import {
   saveCheckoutIntent,
   type CheckoutStartMode,
 } from "@/lib/checkout-intent";
+import { RAZORPAY_CHECKOUT_LOGO } from "@/lib/razorpay-logo";
 import {
   BASE_MEMBERSHIP_PLANS_INR,
   BASE_MEMBERSHIP_PLANS_USD,
@@ -710,6 +711,8 @@ export function MembershipCheckoutPanel({
         currency: checkoutCurrency,
         name: "The Healing Mat",
         description: confirmedQuote.planName,
+        // Base64 logo — Razorpay cannot load localhost /images URLs in checkout.
+        image: RAZORPAY_CHECKOUT_LOGO,
         order_id: razorpayOrderId,
         prefill: {
           name: user?.fullName,
