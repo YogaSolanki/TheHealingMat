@@ -16,6 +16,8 @@ type YoutubeEmbedPlayerProps = {
   src: string;
   /** Start playback as soon as the player is ready (popup use). */
   autoplay?: boolean;
+  /** Fill a sized parent instead of enforcing aspect-video on the root. */
+  fill?: boolean;
 };
 
 /** YouTube.PlayerState */
@@ -107,14 +109,19 @@ export type YoutubeEmbedPlayerHandle = {
 };
 
 /**
- * Clean YouTube embed: no custom overlay buttons.
- * Crops/covers YouTube "More videos" / share chrome and avoids the end card.
- * Exposes play/pause + fullscreen for popup keyboard controls (Space / F).
+ * YouTube embed sized to a clean 16:9 stage.
+ * Keeps native controls visible in the modal (no iframe crop).
+ * Covers only the end-screen “More videos” card. Space / F via handle.
  */
 export const YoutubeEmbedPlayer = forwardRef<
   YoutubeEmbedPlayerHandle,
   YoutubeEmbedPlayerProps
->(function YoutubeEmbedPlayer({ title, src, autoplay = false }, ref) {
+>(function YoutubeEmbedPlayer({
+  title,
+  src,
+  autoplay = false,
+  fill = false,
+}, ref) {
   const rootRef = useRef<HTMLDivElement>(null);
   const mountRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YtPlayer | null>(null);
@@ -178,12 +185,15 @@ export const YoutubeEmbedPlayer = forwardRef<
           height: "100%",
           playerVars: {
             rel: 0,
+            controls: 1,
             modestbranding: 1,
             iv_load_policy: 3,
             playsinline: 1,
             fs: 1,
             enablejsapi: 1,
             autoplay: autoplay ? 1 : 0,
+            // Loop this video so YouTube’s end-screen grid never appears.
+            loop: 1,
             playlist: videoId,
             origin: window.location.origin,
           },
@@ -200,12 +210,11 @@ export const YoutubeEmbedPlayer = forwardRef<
             },
             onStateChange: (event) => {
               if (cancelled) return;
-              // Only cover YouTube's end-screen "More videos" card — never on
-              // pause, or the black block hides mute / captions / settings.
+              // Safety net if loop fails — reset instead of showing related videos.
               if (event.data === YT_ENDED) {
                 try {
-                  event.target.pauseVideo();
                   event.target.seekTo(0, true);
+                  event.target.pauseVideo();
                 } catch {
                   // ignore
                 }
@@ -214,9 +223,6 @@ export const YoutubeEmbedPlayer = forwardRef<
               }
               if (event.data === YT_PLAYING) {
                 setCoverMoreVideos(false);
-              }
-              if (event.data === YT_PAUSED) {
-                // keep controls visible
               }
             },
           },
@@ -242,48 +248,52 @@ export const YoutubeEmbedPlayer = forwardRef<
   return (
     <div
       ref={rootRef}
-      className="relative aspect-video w-full overflow-hidden bg-black"
+      className={
+        fill
+          ? "relative h-full w-full overflow-hidden bg-black"
+          : "relative aspect-video w-full overflow-hidden bg-black"
+      }
       onContextMenu={(event) => event.preventDefault()}
     >
       {useIframeFallback ? (
         <iframe
           title={title}
           src={src}
-          className="absolute inset-x-0 top-[-60px] h-[calc(100%+60px)] w-full border-0 sm:top-[-64px] sm:h-[calc(100%+64px)]"
+          className="absolute inset-0 h-full w-full border-0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
           loading="lazy"
         />
       ) : (
-        <div className="absolute inset-x-0 top-[-60px] h-[calc(100%+60px)] w-full sm:top-[-64px] sm:h-[calc(100%+64px)]">
-          <div
-            ref={mountRef}
-            className="h-full w-full [&>iframe]:h-full [&>iframe]:w-full"
-          />
-        </div>
+        <div
+          ref={mountRef}
+          className="absolute inset-0 h-full w-full [&>iframe]:absolute [&>iframe]:inset-0 [&>iframe]:h-full [&>iframe]:w-full"
+        />
       )}
 
-      {/* Top chrome: title / More videos / share / copy link */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 z-10 h-14 sm:h-16"
-        onContextMenu={(event) => event.preventDefault()}
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-0 right-0 z-20 h-16 w-40 sm:h-[4.5rem] sm:w-48"
-        onContextMenu={(event) => event.preventDefault()}
-      />
-
-      {/* Bottom-right "More videos" end card only (not while paused) */}
-      <div
-        aria-hidden="true"
-        className={`absolute right-0 bottom-14 z-20 h-28 w-72 sm:bottom-16 sm:h-32 sm:w-80 ${
-          coverMoreVideos ? "bg-black" : "pointer-events-none"
-        }`}
-        onContextMenu={(event) => event.preventDefault()}
-      />
+      {/* Blocks YouTube end-screen recommendations; tap to replay from the start. */}
+      {coverMoreVideos ? (
+        <button
+          type="button"
+          className="absolute inset-0 z-20 flex cursor-pointer items-center justify-center bg-black/90 text-white"
+          aria-label="Replay video"
+          onClick={() => {
+            setCoverMoreVideos(false);
+            try {
+              playerRef.current?.seekTo(0, true);
+              playerRef.current?.playVideo();
+            } catch {
+              /* ignore */
+            }
+          }}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          <span className="rounded-full border border-white/35 bg-white/10 px-4 py-2 text-[13px] font-semibold backdrop-blur-sm">
+            Replay
+          </span>
+        </button>
+      ) : null}
     </div>
   );
 });
