@@ -3,6 +3,11 @@ import type { ReactNode } from "react";
 
 const cream = "#FBF9F5";
 
+/** Titles keep "1. …" for headings; Contents uses <ol> markers, so strip the prefix. */
+function sectionTitleWithoutNumber(title: string) {
+  return title.replace(/^\d+\.\s*/, "");
+}
+
 export type LegalDocumentSection = {
   id: string;
   title: string;
@@ -59,7 +64,7 @@ export function LegalDocumentPage({
               {sections.map((section) => (
                 <li key={section.id}>
                   <Link href={`#${section.id}`} className="text-[13px] no-underline">
-                    {section.title}
+                    {sectionTitleWithoutNumber(section.title)}
                   </Link>
                 </li>
               ))}
