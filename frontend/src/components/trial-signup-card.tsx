@@ -45,6 +45,11 @@ import {
   otpSentToastMessage,
   useOtpResendCooldown,
 } from "@/hooks/use-otp-resend-cooldown";
+import { PasswordRequirementsHint } from "@/components/password-requirements-hint";
+import {
+  formatPasswordValidationError,
+  isValidPassword,
+} from "@/lib/password-rules";
 
 const OTP_LENGTH = 4;
 
@@ -84,6 +89,8 @@ export function TrialSignupCard({
   const [fullNameTouched, setFullNameTouched] = useState(false);
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [otp, setOtp] = useState("");
   const [challengeId, setChallengeId] = useState("");
   const [destinationMasked, setDestinationMasked] = useState<string | null>(
@@ -212,6 +219,10 @@ export function TrialSignupCard({
       setError("Please confirm that you are 18 years of age or older.");
       return;
     }
+    if (!isValidPassword(password)) {
+      setError(formatPasswordValidationError(password));
+      return;
+    }
 
     if (activeRegion === "india") {
       const digits = mobile.replace(/\D/g, "").slice(-10);
@@ -310,11 +321,15 @@ export function TrialSignupCard({
 
     setLoading(true);
     try {
+      if (!isValidPassword(password)) {
+        throw new Error(formatPasswordValidationError(password));
+      }
       const referralCode = isMembership ? "" : referralCodeInput.trim();
       const result = await verifyOtp({
         challengeId,
         code: otp,
         fullName: fullName.trim(),
+        password,
         signupIntent: intent,
         ...(referralCode ? { referralCode } : {}),
       });
@@ -338,6 +353,7 @@ export function TrialSignupCard({
     termsAccepted &&
     ageConfirmed &&
     isValidFullName(fullName) &&
+    isValidPassword(password) &&
     (isIndia
       ? mobileDigits.length === 10
       : email.trim().includes("@"));
@@ -519,6 +535,86 @@ export function TrialSignupCard({
                 autoComplete="email"
               />
             )}
+          </div>
+
+          <div>
+            <label className={labelClass}>Password</label>
+            <div className="relative">
+              <input
+                required
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={`${fieldClass} px-3.5 ${
+                  password ? "pr-[4.5rem]" : "pr-11"
+                }`}
+                placeholder="Create a password"
+                autoComplete="new-password"
+                minLength={8}
+                maxLength={72}
+                aria-invalid={password.length > 0 && !isValidPassword(password)}
+              />
+              <div className="absolute inset-y-0 right-1 flex items-center">
+                {password ? (
+                  <span
+                    aria-hidden="true"
+                    className={`inline-flex h-8 w-8 items-center justify-center ${
+                      isValidPassword(password)
+                        ? "text-[#1f6b3a]"
+                        : "text-[#c45c4a]"
+                    }`}
+                  >
+                    {isValidPassword(password) ? (
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="9"
+                          stroke="currentColor"
+                          strokeWidth="1.7"
+                        />
+                        <path
+                          d="m8 12.2 2.6 2.6L16.2 9"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="9"
+                          stroke="currentColor"
+                          strokeWidth="1.7"
+                        />
+                        <path
+                          d="m9 9 6 6M15 9l-6 6"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    )}
+                  </span>
+                ) : (
+                  <span className="inline-flex h-8 w-8" aria-hidden="true" />
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-[#8a968c] transition hover:bg-[#f6f8f5] hover:text-[#1f6b3a]"
+                >
+                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                </button>
+              </div>
+            </div>
+            {password && !isValidPassword(password) ? (
+              <PasswordRequirementsHint password={password} />
+            ) : null}
           </div>
 
           {!isMembership ? (
@@ -757,6 +853,34 @@ function ShieldCheckIcon() {
       />
       <path
         d="M10 12.2 11.4 13.6 14.3 10.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+      <path
+        d="M3 3l18 18M10.5 10.6a2.5 2.5 0 0 0 3 3M7 7.3C4.7 8.7 3 12 3 12s3.5 6.5 9.5 6.5c1.5 0 2.9-.3 4.1-.8M17.2 15.4C19.3 14 21.5 12 21.5 12S18 5.5 12 5.5c-.9 0-1.7.1-2.5.3"
         stroke="currentColor"
         strokeWidth="1.7"
         strokeLinecap="round"

@@ -1,19 +1,31 @@
 const FULL_NAME_SURNAME_MESSAGE = "Please enter your full name.";
+const FULL_NAME_CHARS_MESSAGE =
+  "Full name can only include letters and spaces.";
+
+/** Letters (any language) and spaces only. */
+const FULL_NAME_ALLOWED = /^[\p{L}\s]+$/u;
 
 /**
- * Capitalizes the first letter of each name part as the user types.
- * Preserves spaces and trailing spaces so typing stays natural.
+ * Keeps only letters and spaces, then capitalizes each name part.
+ * Preserves trailing spaces so typing stays natural.
  */
 export function formatFullNameInput(value: string): string {
-  return value.replace(/(^|\s)(\S)/g, (_, space: string, letter: string) => {
-    return `${space}${letter.toUpperCase()}`;
-  });
+  return value
+    .replace(/[^\p{L}\s]/gu, "")
+    .replace(/(^|\s)(\S)/g, (_, space: string, letter: string) => {
+      return `${space}${letter.toUpperCase()}`;
+    });
 }
 
 /**
  * Requires at least two name parts (first + surname / repeated first name).
+ * Numbers and special characters are not allowed.
  */
 export function validateFullName(value: string): string | null {
+  if (value.length > 0 && !FULL_NAME_ALLOWED.test(value)) {
+    return FULL_NAME_CHARS_MESSAGE;
+  }
+
   const parts = value
     .trim()
     .split(/\s+/)

@@ -604,12 +604,18 @@ export function AuthTrialCard({
       }
 
       const referralCode = referralCodeInput.trim();
+      if (mode === "signup") {
+        if (!isValidPassword(password)) {
+          throw new Error(formatPasswordValidationError(password));
+        }
+      }
       const result = await verifyOtp({
         challengeId,
         code: otp,
         ...(mode === "signup"
           ? {
               fullName,
+              password,
               ...(referralCode ? { referralCode } : {}),
             }
           : {}),
@@ -1042,7 +1048,8 @@ export function AuthTrialCard({
               (mode === "signup" &&
                 (!ageConfirmed ||
                   !termsAccepted ||
-                  !isValidFullName(fullName)))
+                  !isValidFullName(fullName) ||
+                  !isValidPassword(password)))
             }
             className={primaryBtnClass}
           >
