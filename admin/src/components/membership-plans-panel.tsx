@@ -58,17 +58,24 @@ function formatUsdPerDay(cents: number) {
   }).format(cents / 100);
 }
 
-/** Annualized ≈ / day from list price (÷ 365, rounded). */
-function calcPerDayRupees(priceRupees: string): string {
-  const n = Number(priceRupees);
-  if (!Number.isFinite(n) || n <= 0) return "";
-  return String(Math.max(1, Math.round(n / 365)));
+/** Billable days for ≈/day: 3→91.25, 6→182.5, 12→365 (months × 365/12). */
+function daysForMembershipMonths(months: number): number {
+  return (months * 365) / 12;
 }
 
-function calcPerDayUsdCents(priceUsd: string): string {
+/** ≈ / day from list price ÷ plan days, rounded. */
+function calcPerDayRupees(priceRupees: string, months: number): string {
+  const n = Number(priceRupees);
+  const days = daysForMembershipMonths(months);
+  if (!Number.isFinite(n) || n <= 0 || days <= 0) return "";
+  return String(Math.max(1, Math.round(n / days)));
+}
+
+function calcPerDayUsdCents(priceUsd: string, months: number): string {
   const n = Number(priceUsd);
-  if (!Number.isFinite(n) || n <= 0) return "";
-  return String(Math.max(1, Math.round((n * 100) / 365)));
+  const days = daysForMembershipMonths(months);
+  if (!Number.isFinite(n) || n <= 0 || days <= 0) return "";
+  return String(Math.max(1, Math.round((n * 100) / days)));
 }
 
 function toForm(plan: AdminMembershipPlan): PlanForm {
@@ -77,10 +84,12 @@ function toForm(plan: AdminMembershipPlan): PlanForm {
   return {
     name: plan.name,
     priceRupees,
-    perDayRupees: calcPerDayRupees(priceRupees) || String(plan.perDayRupees),
+    perDayRupees:
+      calcPerDayRupees(priceRupees, plan.months) || String(plan.perDayRupees),
     priceUsd,
     perDayUsdCents:
-      calcPerDayUsdCents(priceUsd) || String(plan.perDayUsdCents ?? 0),
+      calcPerDayUsdCents(priceUsd, plan.months) ||
+      String(plan.perDayUsdCents ?? 0),
     featured: plan.featured,
     perk: plan.perk ?? "",
     sortOrder: String(plan.sortOrder),
@@ -451,7 +460,10 @@ export function MembershipPlansPanel() {
                       ? {
                           ...prev,
                           priceRupees,
-                          perDayRupees: calcPerDayRupees(priceRupees),
+                          perDayRupees: calcPerDayRupees(
+                            priceRupees,
+                            editingPlan.months,
+                          ),
                         }
                       : prev,
                   );
@@ -473,7 +485,9 @@ export function MembershipPlansPanel() {
                 required
               />
               <span id="per-day-inr-hint" className="mt-1 block text-[11px] text-[#8a968c]">
-                Auto: list price ÷ 365
+                Auto: list price ÷{" "}
+                {daysForMembershipMonths(editingPlan.months)} days (
+                {editingPlan.months} mo)
               </span>
             </label>
             <label className="block text-sm text-[#5f6f64]">
@@ -489,7 +503,10 @@ export function MembershipPlansPanel() {
                       ? {
                           ...prev,
                           priceUsd,
-                          perDayUsdCents: calcPerDayUsdCents(priceUsd),
+                          perDayUsdCents: calcPerDayUsdCents(
+                            priceUsd,
+                            editingPlan.months,
+                          ),
                         }
                       : prev,
                   );
@@ -511,7 +528,9 @@ export function MembershipPlansPanel() {
                 required
               />
               <span id="per-day-usd-hint" className="mt-1 block text-[11px] text-[#8a968c]">
-                Auto: (USD × 100) ÷ 365
+                Auto: (USD × 100) ÷{" "}
+                {daysForMembershipMonths(editingPlan.months)} days (
+                {editingPlan.months} mo)
               </span>
             </label>
           </div>

@@ -49,10 +49,18 @@ function formatInr(paise: number) {
   }).format(paise / 100);
 }
 
-/** ≈ ₹/day from offer price using 30 days per month. */
+/** Billable days for ≈/day: 3→91.25, 6→182.5, 12→365 (months × 365/12). */
+function daysForMembershipMonths(months: number): number {
+  return (months * 365) / 12;
+}
+
+/** ≈ ₹/day from offer price ÷ plan days, rounded. */
 function perDayFromPrice(priceRupees: number, months: number) {
   if (!Number.isFinite(priceRupees) || priceRupees < 1 || months < 1) return 1;
-  return Math.max(1, Math.round(priceRupees / (months * 30)));
+  return Math.max(
+    1,
+    Math.round(priceRupees / daysForMembershipMonths(months)),
+  );
 }
 
 function toDateInput(value: string | null) {
