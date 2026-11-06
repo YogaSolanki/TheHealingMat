@@ -1397,7 +1397,7 @@ export type AdminScheduledClass = {
   isSpecial: boolean;
   /** Derived from the session timing’s Sunday Q&A flag. */
   isSundayQa: boolean;
-  /** Derived from the session timing’s trial flag (Mon–Sat). */
+  /** Derived from the session timing’s trial flag (Mon–Sun). */
   isTrial: boolean;
   createdAt: string;
   updatedAt: string;

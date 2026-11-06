@@ -16,7 +16,7 @@ export type SessionTimingsSnapshot = {
   evening: string[];
   /** Sunday-only Q&A times from Settings. */
   sundayQa: string[];
-  /** Mon–Sat trial-only class times from Settings. */
+  /** Trial-only class times from Settings (Mon–Sun). */
   trialLabels: string[];
   /** Preferred class time dropdown options (Mon–Sat membership timings). */
   preferredOptions: string[];

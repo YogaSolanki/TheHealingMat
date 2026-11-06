@@ -192,11 +192,13 @@ export function ClassManagementCard() {
   );
   const selectedIsSunday = isSundayIso(selectedDate);
 
-  /** Mon–Sat: regular + special. Sunday: Q&A timings only. */
+  /** Mon–Sat: membership + special + trial. Sunday: Q&A + trial. */
   const dayTimings = useMemo(
     () =>
       activeTimings.filter((row) =>
-        selectedIsSunday ? Boolean(row.isSundayQa) : !row.isSundayQa,
+        selectedIsSunday
+          ? Boolean(row.isSundayQa) || Boolean(row.isTrial)
+          : !row.isSundayQa,
       ),
     [activeTimings, selectedIsSunday],
   );
@@ -209,7 +211,9 @@ export function ClassManagementCard() {
   function timingsForDate(iso: string) {
     const sunday = isSundayIso(iso);
     return activeTimings.filter((row) =>
-      sunday ? Boolean(row.isSundayQa) : !row.isSundayQa,
+      sunday
+        ? Boolean(row.isSundayQa) || Boolean(row.isTrial)
+        : !row.isSundayQa,
     );
   }
 
@@ -810,15 +814,15 @@ export function ClassManagementCard() {
             <p className="mt-4 rounded-xl bg-[#fff8f0] px-3.5 py-3 text-sm text-[#8a5a2f]">
               {selectedIsSunday ? (
                 <>
-                  No Sunday Q&amp;A times yet. Add times in{" "}
+                  No Sunday Q&amp;A or Trial times yet. Add times in{" "}
                   <Link
                     href="/dashboard/settings"
                     className="font-semibold underline underline-offset-2"
                   >
                     Settings
                   </Link>{" "}
-                  and check <span className="font-semibold">Sunday Q&amp;A</span>
-                  .
+                  and check <span className="font-semibold">Sunday Q&amp;A</span>{" "}
+                  or <span className="font-semibold">Trial</span>.
                 </>
               ) : (
                 <>
@@ -838,12 +842,12 @@ export function ClassManagementCard() {
               {/*Slots for selected day */}
               <div className="mt-4 space-y-2">
                 <h4 className="text-sm font-semibold text-[#243028]">
-                  {selectedIsSunday ? "Q&A slots" : "Class slots"}
+                  {selectedIsSunday ? "Sunday slots" : "Class slots"}
                 </h4>
                 {selectedIsSunday ? (
                   <p className="text-xs text-[#8a978c]">
-                    Sunday only shows Q&amp;A times from Settings. Membership,
-                    Trial, and Special slots are Mon–Sat.
+                    Sunday shows Q&amp;A and Trial times from Settings.
+                    Membership and Special slots are Mon–Sat.
                   </p>
                 ) : specialTiming ? (
                   <p className="text-xs text-[#8a978c]">

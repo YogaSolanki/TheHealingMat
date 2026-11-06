@@ -9,8 +9,8 @@ import {
 
 /**
  * Admin-configured class start times (e.g. "6:30 AM").
- * Same clock time may exist once for Mon–Sat membership, once for trial,
- * and once for Sunday Q&A.
+ * Same clock time may exist once for Mon–Sat membership, once for trial
+ * (Mon–Sun), and once for Sunday Q&A.
  */
 @Entity({ name: 'session_timings' })
 @Index('UQ_session_timings_label_kind', ['label', 'isSundayQa', 'isTrial'], {
@@ -45,7 +45,7 @@ export class SessionTiming {
   isSundayQa: boolean;
 
   /**
-   * Mon–Sat trial-only class times. Shown to trial users instead of
+   * Trial-only class times (Mon–Sun). Shown to trial users instead of
    * membership times. Cannot also be Sunday Q&A or Special.
    */
   @Column({ type: 'boolean', default: false })

@@ -599,7 +599,7 @@ export function SettingsPanel() {
           </h2>
           <p className="mt-1 text-[13px] leading-relaxed text-[#6b7c6e]">
             Regular times are Mon–Sat membership classes. Check Trial for
-            trial-only Mon–Sat slots, or Sunday Q&amp;A for Sunday-only slots —
+            trial-only Mon–Sun slots, or Sunday Q&amp;A for Sunday-only slots —
             each kind can reuse the same clock time.
           </p>
         </div>
@@ -688,7 +688,7 @@ export function SettingsPanel() {
                     {row.isSundayQa
                       ? "Only on Sunday in Class Management"
                       : row.isTrial
-                        ? "Trial class time (Mon–Sat)"
+                        ? "Trial class time (Mon–Sun)"
                         : "Membership class time"}
                   </p>
                 </div>

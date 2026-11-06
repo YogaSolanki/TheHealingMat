@@ -409,7 +409,7 @@ export class TrialMessagingService implements OnModuleInit, OnModuleDestroy {
   private async formatSessionTimes() {
     try {
       const rows = await this.sessionTimings.list(false);
-      // Trial emails list trial-only Mon–Sat class times (not membership slots).
+      // Trial emails list trial-only class times (Mon–Sun; not membership slots).
       const labels = rows
         .filter((row) => Boolean(row.isTrial))
         .map((row) => row.label)

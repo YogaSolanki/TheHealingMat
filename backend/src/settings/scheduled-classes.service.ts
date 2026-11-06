@@ -53,19 +53,14 @@ function assertTimingMatchesDay(
       'A session time cannot be both Trial and Sunday Q&A.',
     );
   }
-  if (sunday && !timing.isSundayQa) {
+  if (sunday && !timing.isSundayQa && !timing.isTrial) {
     throw new BadRequestException(
-      'On Sunday only Sunday Q&A session times can be scheduled.',
+      'On Sunday only Sunday Q&A or Trial session times can be scheduled.',
     );
   }
   if (!sunday && timing.isSundayQa) {
     throw new BadRequestException(
       'Sunday Q&A session times can only be scheduled on Sunday.',
-    );
-  }
-  if (sunday && timing.isTrial) {
-    throw new BadRequestException(
-      'Trial session times are Mon–Sat only. Use Sunday Q&A times on Sunday.',
     );
   }
 }
@@ -85,7 +80,7 @@ function timingMatchesAudience(
   const isTrial = asBool(timing.isTrial);
   const isSundayQa = asBool(timing.isSundayQa);
   if (audience === 'trial') {
-    // Trial users: trial-only Mon–Sat slots, or shared Sunday Q&A.
+    // Trial users: trial class times (Mon–Sun), or shared Sunday Q&A.
     return isTrial || isSundayQa;
   }
   // Membership users: regular + special + Sunday Q&A — never trial-only slots.
