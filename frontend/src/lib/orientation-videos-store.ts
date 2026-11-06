@@ -6,13 +6,14 @@ import {
   type ApiOrientationVideo,
 } from "@/lib/content-api";
 
-const STORAGE_KEY = "thm_orientation_videos_v1";
+const STORAGE_KEY = "thm_orientation_videos_v2";
 
 export type OrientationVideoCard = {
   id: string;
   slug: string;
   title: string;
   subtitle: string;
+  description: string;
   duration: string;
   coverUrl: string;
   category: string;
@@ -34,6 +35,7 @@ function toCard(video: ApiOrientationVideo): OrientationVideoCard {
     slug: video.slug,
     title: video.title,
     subtitle: video.subtitle,
+    description: video.description || "",
     duration: video.duration || "",
     coverUrl: video.coverUrl || "",
     category: video.category || "Orientation",

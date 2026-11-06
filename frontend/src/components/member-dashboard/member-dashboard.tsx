@@ -1376,9 +1376,14 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                           <h3 className="line-clamp-2 text-[13px] font-bold leading-snug text-[#243028] sm:text-[14px]">
                             {video.title}
                           </h3>
-                          <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-[#6b7c6e]">
+                          <p className="mt-1 line-clamp-2 text-[12px] font-semibold leading-snug text-[#1f6b3a]">
                             {video.subtitle}
                           </p>
+                          {video.description ? (
+                            <p className="mt-1 line-clamp-3 text-[12px] leading-snug text-[#6b7c6e]">
+                              {video.description}
+                            </p>
+                          ) : null}
                         </div>
                         <div className="mt-2 flex shrink-0 items-center justify-between gap-2">
                           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1f6b3a] sm:text-[12px]">
