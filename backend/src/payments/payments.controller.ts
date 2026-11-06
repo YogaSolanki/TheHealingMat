@@ -71,6 +71,9 @@ export class PaymentsController {
   @Get('memberships/ebook')
   async membershipEbook(@CurrentUser() user: User) {
     const file = await this.payments.getTwelveMonthEbook(user);
+    if (file.kind === 'url') {
+      return { url: file.url };
+    }
     return new StreamableFile(file.stream, {
       type: 'application/pdf',
       disposition: `attachment; filename="${file.filename}"`,

@@ -19,6 +19,10 @@ import {
 } from './referral-message';
 import { SiteSettings } from './site-settings.entity';
 
+/** Default Drive fallback when env / DB have no e-book URL yet. */
+export const DEFAULT_MEMBERSHIP_EBOOK_URL =
+  'https://drive.google.com/file/d/1h3OEN5SKhRU4JYk5YtRCWTonaWyfhp9R/view?usp=sharing';
+
 @Injectable()
 export class SettingsService implements OnModuleInit {
   constructor(
@@ -32,7 +36,9 @@ export class SettingsService implements OnModuleInit {
     await this.ensureReferralMessageTemplateColumn();
     await this.ensurePrivateSpacePasswordColumn();
     await this.ensureInvoiceFinancialYearOverrideColumn();
+    await this.ensureMembershipEbookUrlColumn();
     await this.ensureRow();
+    await this.ensureMembershipEbookUrlSeeded();
   }
 
   async getAdminSettings() {
@@ -43,6 +49,13 @@ export class SettingsService implements OnModuleInit {
   async getLiveSessionUrl(): Promise<string | null> {
     const row = await this.ensureRow();
     const url = row.liveSessionUrl?.trim();
+    return url || null;
+  }
+
+  /** External e-book PDF URL for entitled 12-month members (fallback / alternate). */
+  async getMembershipEbookUrl(): Promise<string | null> {
+    const row = await this.ensureRow();
+    const url = row.membershipEbookUrl?.trim();
     return url || null;
   }
 
@@ -112,6 +125,9 @@ export class SettingsService implements OnModuleInit {
       const next = dto.liveSessionUrl?.trim() || null;
       row.liveSessionUrl = next;
     }
+    if (dto.membershipEbookUrl !== undefined) {
+      row.membershipEbookUrl = dto.membershipEbookUrl?.trim() || null;
+    }
     if (dto.referralDiscountPercent !== undefined) {
       row.referralDiscountPercent = this.normalizePercent(
         dto.referralDiscountPercent,
@@ -128,6 +144,7 @@ export class SettingsService implements OnModuleInit {
   private toAdminResponse(row: SiteSettings) {
     return {
       liveSessionUrl: row.liveSessionUrl,
+      membershipEbookUrl: row.membershipEbookUrl,
       referralDiscountPercent: this.normalizePercent(
         row.referralDiscountPercent,
       ),
@@ -137,6 +154,13 @@ export class SettingsService implements OnModuleInit {
       defaultReferralMessageTemplate: DEFAULT_REFERRAL_MESSAGE_TEMPLATE,
       updatedAt: row.updatedAt.toISOString(),
     };
+  }
+
+  private resolveMembershipEbookUrlSeed() {
+    return (
+      this.config.get<string>('MEMBERSHIP_EBOOK_URL')?.trim() ||
+      DEFAULT_MEMBERSHIP_EBOOK_URL
+    );
   }
 
   private normalizePercent(value: number | null | undefined) {
@@ -174,6 +198,21 @@ export class SettingsService implements OnModuleInit {
     `);
   }
 
+  private async ensureMembershipEbookUrlColumn() {
+    await this.settings.query(`
+      ALTER TABLE "site_settings"
+      ADD COLUMN IF NOT EXISTS "membershipEbookUrl" text NULL
+    `);
+  }
+
+  /** Backfill Drive / env URL once if the column is still empty. */
+  private async ensureMembershipEbookUrlSeeded() {
+    const row = await this.ensureRow();
+    if (row.membershipEbookUrl?.trim()) return;
+    row.membershipEbookUrl = this.resolveMembershipEbookUrlSeed();
+    await this.settings.save(row);
+  }
+
   private async ensureRow(): Promise<SiteSettings> {
     const existing = await this.settings.find({
       order: { createdAt: 'ASC' },
@@ -189,6 +228,7 @@ export class SettingsService implements OnModuleInit {
     return this.settings.save(
       this.settings.create({
         liveSessionUrl: fromEnv,
+        membershipEbookUrl: this.resolveMembershipEbookUrlSeed(),
         referralDiscountPercent: DEFAULT_REFERRAL_DISCOUNT_PERCENT,
         referralMessageTemplate: null,
         privateSpacePasswordHash: null,

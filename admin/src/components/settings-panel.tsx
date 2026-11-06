@@ -143,6 +143,7 @@ function TimeSelects({
 export function SettingsPanel() {
   const [settings, setSettings] = useState<AdminSiteSettings | null>(null);
   const [timings, setTimings] = useState<AdminSessionTiming[]>([]);
+  const [membershipEbookUrl, setMembershipEbookUrl] = useState("");
   const [referralDiscountPercent, setReferralDiscountPercent] = useState("20");
   const [referralMessageTemplate, setReferralMessageTemplate] = useState("");
   const [newTiming, setNewTiming] = useState<TimeParts>(DEFAULT_TIME);
@@ -196,6 +197,7 @@ export function SettingsPanel() {
         listAdminSessionTimings(token),
       ]);
       setSettings(nextSettings);
+      setMembershipEbookUrl(nextSettings.membershipEbookUrl ?? "");
       setReferralDiscountPercent(
         String(nextSettings.referralDiscountPercent ?? 20),
       );
@@ -227,6 +229,20 @@ export function SettingsPanel() {
     event.preventDefault();
     if (!token || saving) return;
 
+    const ebookUrl = membershipEbookUrl.trim();
+    if (ebookUrl) {
+      try {
+        const parsed = new URL(ebookUrl);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          showError("E-book URL must start with https://");
+          return;
+        }
+      } catch {
+        showError("Enter a valid e-book URL including https://");
+        return;
+      }
+    }
+
     const percent = Number(referralDiscountPercent);
     if (!Number.isInteger(percent) || percent < 0 || percent > 100) {
       showError("Referral discount must be a whole number between 0 and 100.");
@@ -244,10 +260,12 @@ export function SettingsPanel() {
     setSaved(false);
     try {
       const next = await updateAdminSettings(token, {
+        membershipEbookUrl: ebookUrl || null,
         referralDiscountPercent: percent,
         referralMessageTemplate: message || null,
       });
       setSettings(next);
+      setMembershipEbookUrl(next.membershipEbookUrl ?? "");
       setReferralDiscountPercent(String(next.referralDiscountPercent ?? 20));
       setReferralMessageTemplate(
         next.referralMessageTemplate ||
@@ -255,7 +273,7 @@ export function SettingsPanel() {
           "",
       );
       setSaved(true);
-      showSuccess("Referral settings saved.");
+      showSuccess("Settings saved.");
     } catch (err: unknown) {
       showError(
         err instanceof Error ? err.message : "Unable to save settings.",
@@ -401,7 +419,7 @@ export function SettingsPanel() {
             Settings
           </h1>
           <p className="mt-1 text-sm text-[#5f6f64]">
-            Referral discount, share message, and session times for Class
+            Referral discount, e-book fallback link, and session times for Class
             Management.
           </p>
         </div>
@@ -421,6 +439,30 @@ export function SettingsPanel() {
         onSubmit={onSubmitReferral}
         className="space-y-5 rounded-2xl border border-[#e6ebe3] bg-white p-5 shadow-sm sm:p-6"
       >
+        <div>
+          <h2 className="text-sm font-semibold text-[#243028]">
+            Membership e-book fallback
+          </h2>
+          <p className="mt-1 text-[13px] leading-relaxed text-[#6b7c6e]">
+            If the local PDF download fails, members with an active 12-month
+            plan are sent to this link (Google Drive, CDN, etc.).
+          </p>
+          <label className="mt-3 block text-sm font-semibold text-[#243028]">
+            E-book URL
+            <input
+              type="url"
+              value={membershipEbookUrl}
+              onChange={(event) => {
+                setMembershipEbookUrl(event.target.value);
+                setSaved(false);
+              }}
+              className={inputClass}
+              disabled={saving}
+              placeholder="https://drive.google.com/file/d/…/view"
+            />
+          </label>
+        </div>
+
         <div>
           <h2 className="text-sm font-semibold text-[#243028]">
             Referral discount

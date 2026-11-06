@@ -21,6 +21,17 @@ export class UpdateSiteSettingsDto {
   )
   liveSessionUrl?: string | null;
 
+  /** External e-book PDF URL (Google Drive, CDN, etc.) for 12-month members. */
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null && value !== '')
+  @IsString()
+  @MaxLength(2000)
+  @IsUrl(
+    { require_protocol: true },
+    { message: 'Enter a valid URL including https://' },
+  )
+  membershipEbookUrl?: string | null;
+
   /** Global referral discount percent (0–100). Applies to all referral codes. */
   @IsOptional()
   @Type(() => Number)

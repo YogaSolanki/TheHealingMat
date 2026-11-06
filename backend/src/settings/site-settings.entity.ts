@@ -17,6 +17,13 @@ export class SiteSettings {
   liveSessionUrl: string | null;
 
   /**
+   * Fallback / alternate URL for the 12-month membership e-book PDF
+   * (e.g. Google Drive). Used when the local file cannot be streamed.
+   */
+  @Column({ type: 'text', nullable: true })
+  membershipEbookUrl: string | null;
+
+  /**
    * Site-wide referral discount for referred members at checkout.
    * Same percent applies to every referral code.
    */

@@ -518,10 +518,16 @@ export class PaymentsService {
         .map((row) => [row.membershipId as string, row]),
     );
 
+    const ebookDownloadable =
+      state === 'active' && current != null && current.planMonths === 12;
+    const ebookFallbackUrl = ebookDownloadable
+      ? await this.settings.getMembershipEbookUrl()
+      : null;
+
     return {
       state,
-      ebookDownloadable:
-        state === 'active' && current != null && current.planMonths === 12,
+      ebookDownloadable,
+      ebookFallbackUrl,
       current: current
         ? this.toPublicMembership(
             current,
@@ -552,10 +558,15 @@ export class PaymentsService {
 
   /**
    * E-book PDF for active 12-month members only.
-   * Shipped with the backend at assets/ebooks/E-Book_Weight Loss Without The Drama.pdf.
-   * Also accepts older filenames/paths as fallbacks.
+   * Prefers the local asset when present; otherwise returns the external
+   * fallback URL from Admin → Settings (e.g. Google Drive).
    */
-  async getTwelveMonthEbook(user: User) {
+  async getTwelveMonthEbook(
+    user: User,
+  ): Promise<
+    | { kind: 'file'; stream: ReturnType<typeof createReadStream>; filename: string }
+    | { kind: 'url'; url: string }
+  > {
     await this.expireEnded(user.id);
     const now = new Date();
     const current =
@@ -587,17 +598,26 @@ export class PaymentsService {
       ),
     ];
     const filePath = candidates.find((path) => existsSync(path));
-    if (!filePath) {
-      this.logger.error(
-        `[ebook] Missing file. Tried: ${candidates.join(' | ')}`,
-      );
-      throw new NotFoundException('E-book file is not available yet.');
+    if (filePath) {
+      return {
+        kind: 'file',
+        stream: createReadStream(filePath),
+        filename: ebookFilename,
+      };
     }
 
-    return {
-      stream: createReadStream(filePath),
-      filename: ebookFilename,
-    };
+    const fallbackUrl = await this.settings.getMembershipEbookUrl();
+    if (fallbackUrl) {
+      this.logger.warn(
+        `[ebook] Local file missing; returning fallback URL for user ${user.id}`,
+      );
+      return { kind: 'url', url: fallbackUrl };
+    }
+
+    this.logger.error(
+      `[ebook] Missing file and no fallback URL. Tried: ${candidates.join(' | ')}`,
+    );
+    throw new NotFoundException('E-book file is not available yet.');
   }
 
   async notifyMembershipPurchaseWhatsApp(

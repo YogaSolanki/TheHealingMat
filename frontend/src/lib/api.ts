@@ -570,6 +570,8 @@ export type MembershipAccessResponse = {
   state: "trial" | "active" | "expired" | "scheduled" | "pending";
   /** True when the member has an active 12-month membership (e-book entitlement). */
   ebookDownloadable?: boolean;
+  /** External PDF URL used when the API stream fails (e.g. Google Drive). */
+  ebookFallbackUrl?: string | null;
   current: PublicMembership | null;
   scheduled: PublicMembership | null;
   lastExpired: PublicMembership | null;
@@ -883,14 +885,26 @@ export async function downloadMembershipInvoice(
   );
 }
 
-/** Active 12-month members only. */
-export async function downloadMembershipEbook(accessToken: string) {
-  return downloadAuthenticatedPdf(
-    accessToken,
-    "/memberships/ebook",
-    "E-Book_Weight Loss Without The Drama.pdf",
-    "Unable to download the e-book.",
-  );
+/** Active 12-month members only. Opens fallback URL if the API stream fails. */
+export async function downloadMembershipEbook(
+  accessToken: string,
+  fallbackUrl?: string | null,
+) {
+  try {
+    return await downloadAuthenticatedPdf(
+      accessToken,
+      "/memberships/ebook",
+      "E-Book_Weight Loss Without The Drama.pdf",
+      "Unable to download the e-book.",
+    );
+  } catch (err) {
+    const url = fallbackUrl?.trim();
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    throw err;
+  }
 }
 
 export type ReferralStatus =

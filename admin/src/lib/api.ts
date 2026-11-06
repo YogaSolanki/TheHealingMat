@@ -1351,6 +1351,8 @@ export function updateAdminRewardRedemption(
 
 export type AdminSiteSettings = {
   liveSessionUrl: string | null;
+  /** External 12-month e-book PDF URL (Google Drive / CDN). */
+  membershipEbookUrl: string | null;
   referralDiscountPercent: number;
   /** Resolved share message (default applied when DB value is empty). */
   referralMessageTemplate: string;
@@ -1367,6 +1369,7 @@ export function updateAdminSettings(
   token: string,
   body: {
     liveSessionUrl?: string | null;
+    membershipEbookUrl?: string | null;
     referralDiscountPercent?: number;
     referralMessageTemplate?: string | null;
   },

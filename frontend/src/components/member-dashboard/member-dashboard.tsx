@@ -1459,7 +1459,10 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                       setEbookError(null);
                       setDownloadingEbook(true);
                       try {
-                        await downloadMembershipEbook(token);
+                        await downloadMembershipEbook(
+                          token,
+                          access.ebookFallbackUrl,
+                        );
                       } catch (err) {
                         setEbookError(
                           err instanceof Error
