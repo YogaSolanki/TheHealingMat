@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { AdminExportPasswordDialog } from "@/components/admin-export-password-dialog";
+import { IndiaStateSelect } from "@/components/india-state-select";
 import { PanelLoader } from "@/components/panel-loader";
 import { ReloadButton } from "@/components/reload-button";
 import {
@@ -25,7 +26,6 @@ import {
   invalidateCached,
   setCached,
 } from "@/lib/dashboard-cache";
-
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-IN", {
     day: "numeric",
@@ -462,14 +462,12 @@ export function CorporatesPanel() {
                 </label>
                 <label className={labelClass}>
                   State
-                  <input
+                  <IndiaStateSelect
                     value={form.state}
-                    onChange={(e) =>
-                      setForm({ ...form, state: e.target.value })
-                    }
-                    className={inputClass}
+                    onChange={(state) => setForm({ ...form, state })}
+                    placeholder="Select state"
                     disabled={adding}
-                    placeholder="For invoice"
+                    className="mt-1.5"
                   />
                 </label>
               </div>

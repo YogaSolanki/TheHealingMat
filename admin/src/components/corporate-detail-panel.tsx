@@ -21,6 +21,7 @@ import {
   type AdminCorporatePlan,
   type AdminMembershipPlan,
 } from "@/lib/api";
+import { IndiaStateSelect } from "@/components/india-state-select";
 import { invalidateCached, DASHBOARD_CACHE_KEYS } from "@/lib/dashboard-cache";
 
 const inputClass =
@@ -600,11 +601,12 @@ export function CorporateDetailPanel({ companyId }: { companyId: string }) {
           </label>
           <label className={labelClass}>
             State
-            <input
+            <IndiaStateSelect
               value={state}
-              onChange={(e) => setState(e.target.value)}
-              className={nestedInputClass}
+              onChange={setState}
+              placeholder="Select state"
               disabled={!editing || saving}
+              className="mt-1.5"
             />
           </label>
           <label className={labelClass}>

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { AdminConfirmDialog } from "@/components/admin-confirm-dialog";
 import { AdminToast } from "@/components/admin-toast";
+import { CountrySelect } from "@/components/country-select";
+import { IndiaStateSelect } from "@/components/india-state-select";
 import { ReloadButton } from "@/components/reload-button";
 import {
   ADMIN_TOKEN_KEY,
@@ -22,7 +24,6 @@ import {
   type AdminUserDetail,
   type AdminUserMembership,
 } from "@/lib/api";
-import { INDIA_STATES } from "@/lib/india-profile";
 import { invalidateCached, DASHBOARD_CACHE_KEYS } from "@/lib/dashboard-cache";
 
 const inputClass =
@@ -947,9 +948,7 @@ export function UserDetailPanel({ userId }: { userId: string }) {
             base.amountPaidMajor = major;
           }
         }
-        if (!detail?.profile.state?.trim()) {
-          base.billingLocation = "";
-        }
+        base.billingLocation = detail?.profile.state?.trim() ?? "";
         setNewMembershipForm(base);
       }
       if (next !== "upgrade") {
@@ -1185,13 +1184,10 @@ export function UserDetailPanel({ userId }: { userId: string }) {
         return "Payment reference is required for paid memberships.";
       }
     }
-    if (
-      !detail.profile.state?.trim() &&
-      newMembershipForm.billingLocation.trim().length < 2
-    ) {
+    if (newMembershipForm.billingLocation.trim().length < 2) {
       return detail.profile.region === "outside_india"
         ? "Enter the member’s country for the invoice."
-        : "Enter the member’s state for the invoice.";
+        : "Select the member’s state for the invoice.";
     }
     return null;
   }
@@ -1631,7 +1627,6 @@ export function UserDetailPanel({ userId }: { userId: string }) {
     accountActionBusy;
   const membershipCurrency =
     detail.profile.region === "outside_india" ? "USD" : "INR";
-  const needsBillingLocation = !detail.profile.state?.trim();
   const billingLocationLabel =
     detail.profile.region === "outside_india" ? "Country" : "State";
   const moneySuffix = membershipCurrency === "USD" ? "USD" : "INR";
@@ -2080,34 +2075,27 @@ export function UserDetailPanel({ userId }: { userId: string }) {
           <label className={labelClass}>
             {profileForm.region === "outside_india" ? "Country" : "State"}
             {profileForm.region === "outside_india" ? (
-              <input
+              <CountrySelect
                 value={profileForm.state}
-                onChange={(e) => {
-                  setProfileForm({ ...profileForm, state: e.target.value });
+                onChange={(country) => {
+                  setProfileForm({ ...profileForm, state: country });
                   setProfileSaved(false);
                 }}
-                className={inputClass}
+                placeholder="Select country"
                 disabled={profileFieldsLocked}
-                placeholder="Enter country"
-                maxLength={120}
+                className="mt-1.5"
               />
             ) : (
-              <select
+              <IndiaStateSelect
                 value={profileForm.state}
-                onChange={(e) => {
-                  setProfileForm({ ...profileForm, state: e.target.value });
+                onChange={(state) => {
+                  setProfileForm({ ...profileForm, state });
                   setProfileSaved(false);
                 }}
-                className={inputClass}
+                placeholder="Select state"
                 disabled={profileFieldsLocked}
-              >
-                <option value="">Not set</option>
-                {INDIA_STATES.map((state) => (
-                  <option key={state} value={state}>
-                    {state}
-                  </option>
-                ))}
-              </select>
+                className="mt-1.5"
+              />
             )}
           </label>
 
@@ -3112,36 +3100,36 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                           placeholder="pay_… / UTR / bank transfer note"
                         />
                       </label>
-                      {needsBillingLocation ? (
-                        <label className={`${labelClass} sm:col-span-2`}>
-                          {billingLocationLabel} (for invoice)
-                          <input
+                      <label className={`${labelClass} sm:col-span-2`}>
+                        {billingLocationLabel} (for invoice)
+                        {detail.profile.region === "outside_india" ? (
+                          <CountrySelect
                             value={newMembershipForm.billingLocation}
-                            onChange={(e) =>
+                            onChange={(country) =>
                               setNewMembershipForm({
                                 ...newMembershipForm,
-                                billingLocation: e.target.value,
+                                billingLocation: country,
                               })
                             }
-                            className={inputClass}
+                            placeholder="Select country for invoice"
                             disabled={membershipFieldsLocked}
-                            placeholder={
-                              detail.profile.region === "outside_india"
-                                ? "Country shown on invoice"
-                                : "State shown on invoice"
-                            }
+                            className="mt-1.5"
                           />
-                        </label>
-                      ) : (
-                        <div className="sm:col-span-2">
-                          <p className={labelClass}>
-                            {billingLocationLabel} (invoice)
-                          </p>
-                          <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
-                            {detail.profile.state}
-                          </p>
-                        </div>
-                      )}
+                        ) : (
+                          <IndiaStateSelect
+                            value={newMembershipForm.billingLocation}
+                            onChange={(state) =>
+                              setNewMembershipForm({
+                                ...newMembershipForm,
+                                billingLocation: state,
+                              })
+                            }
+                            placeholder="Select state for invoice"
+                            disabled={membershipFieldsLocked}
+                            className="mt-1.5"
+                          />
+                        )}
+                      </label>
                     </div>
                   </div>
 
@@ -3387,36 +3375,36 @@ export function UserDetailPanel({ userId }: { userId: string }) {
                           placeholder="pay_… / UTR / bank transfer note"
                         />
                       </label>
-                      {needsBillingLocation ? (
-                        <label className={`${labelClass} sm:col-span-2`}>
-                          {billingLocationLabel} (for invoice)
-                          <input
+                      <label className={`${labelClass} sm:col-span-2`}>
+                        {billingLocationLabel} (for invoice)
+                        {detail.profile.region === "outside_india" ? (
+                          <CountrySelect
                             value={newMembershipForm.billingLocation}
-                            onChange={(e) =>
+                            onChange={(country) =>
                               setNewMembershipForm({
                                 ...newMembershipForm,
-                                billingLocation: e.target.value,
+                                billingLocation: country,
                               })
                             }
-                            className={inputClass}
+                            placeholder="Select country for invoice"
                             disabled={membershipFieldsLocked}
-                            placeholder={
-                              detail.profile.region === "outside_india"
-                                ? "Country shown on invoice"
-                                : "State shown on invoice"
-                            }
+                            className="mt-1.5"
                           />
-                        </label>
-                      ) : (
-                        <div className="sm:col-span-2">
-                          <p className={labelClass}>
-                            {billingLocationLabel} (invoice)
-                          </p>
-                          <p className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 text-sm text-[#5f6f64]">
-                            {detail.profile.state}
-                          </p>
-                        </div>
-                      )}
+                        ) : (
+                          <IndiaStateSelect
+                            value={newMembershipForm.billingLocation}
+                            onChange={(state) =>
+                              setNewMembershipForm({
+                                ...newMembershipForm,
+                                billingLocation: state,
+                              })
+                            }
+                            placeholder="Select state for invoice"
+                            disabled={membershipFieldsLocked}
+                            className="mt-1.5"
+                          />
+                        )}
+                      </label>
                     </div>
                   </div>
 
