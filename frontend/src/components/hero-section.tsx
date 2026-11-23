@@ -279,7 +279,7 @@ export function HeroSection() {
             </h1>
 
             <p className="mt-3 w-full max-w-[420px] text-[14px] leading-relaxed font-semibold text-[#2c3a30] sm:mt-4 sm:max-w-none sm:text-[16px] lg:text-[15px] xl:text-[17px]">
-              Simple yoga. Consistent guidance. Real Results
+              Simple Yoga. Consistent Guidance. Real Results
             </p>
 
             <ul className="mt-5 grid w-full grid-cols-4 gap-x-2 gap-y-4 sm:mt-7 sm:gap-x-0 sm:gap-y-5">

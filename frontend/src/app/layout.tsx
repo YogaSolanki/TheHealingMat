@@ -18,7 +18,7 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: "The Healing Mat | Daily Yoga for Better Health",
   description:
-    "Simple yoga. Consistent guidance. Real Results Daily yoga sessions for all age groups and experience levels.",
+    "Simple Yoga. Consistent Guidance. Real Results Daily yoga sessions for all age groups and experience levels.",
   icons: {
     icon: [{ url: "/icon.png", type: "image/png" }],
     apple: [{ url: "/apple-icon.png", type: "image/png" }],
