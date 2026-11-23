@@ -5,22 +5,12 @@ import { CountrySelect } from "@/components/country-select";
 import { MemberDatePicker } from "@/components/member-dashboard/member-date-picker";
 import { MemberSelect } from "@/components/member-dashboard/member-select";
 import { ButtonLoader } from "@/components/site-loader";
-import {
-  updateProfile,
-  type PublicUser,
-} from "@/lib/api";
+import { updateProfile, type PublicUser } from "@/lib/api";
 import { getStoredToken } from "@/lib/auth-storage";
 import { INDIA_STATES } from "@/lib/india-states";
-import {
-  convertIstSlotToLocal,
-  getViewerTimeZone,
-  isIndiaTimeZone,
-} from "@/lib/member-session-schedule";
-import { useSessionTimings } from "@/lib/session-timings-store";
 import { updateMemberAuthCache } from "@/lib/session-store";
 
 export type MembershipCheckoutDetailsValue = {
-  preferredClassTime: string;
   startsOn: string;
 };
 
@@ -31,9 +21,14 @@ type MembershipCheckoutDetailsProps = {
   minStartsOn?: string;
   /** When renewing after an active term — adjusts helper copy. */
   isRenewAfterCurrent?: boolean;
-  onContinue: (value: MembershipCheckoutDetailsValue) => void;
+  onContinue: (
+    value: MembershipCheckoutDetailsValue,
+  ) => void | Promise<void>;
   onClose?: () => void;
 };
+
+/** Members may defer the start date by at most this many days from the earliest allowed day. */
+const MAX_START_DEFER_DAYS = 15;
 
 function todayIso() {
   const now = new Date();
@@ -42,10 +37,10 @@ function todayIso() {
   return `${now.getFullYear()}-${month}-${day}`;
 }
 
-function addMonthsIso(isoDate: string, months: number) {
+function addDaysIso(isoDate: string, days: number) {
   const [y, m, d] = isoDate.split("-").map(Number);
   const date = new Date(y, m - 1, d);
-  date.setMonth(date.getMonth() + months);
+  date.setDate(date.getDate() + days);
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${date.getFullYear()}-${month}-${day}`;
@@ -53,6 +48,10 @@ function addMonthsIso(isoDate: string, months: number) {
 
 function maxIso(a: string, b: string) {
   return a >= b ? a : b;
+}
+
+function minIso(a: string, b: string) {
+  return a <= b ? a : b;
 }
 
 export function MembershipCheckoutDetails({
@@ -67,69 +66,27 @@ export function MembershipCheckoutDetails({
   const locationLabel = isIndia ? "State" : "Country";
   const needsLocation = !user.state?.trim();
   const minStart = maxIso(minStartsOn?.trim() || todayIso(), todayIso());
+  const maxStart = addDaysIso(minStart, MAX_START_DEFER_DAYS);
   const [location, setLocation] = useState(user.state?.trim() ?? "");
-  const [preferredClassTime, setPreferredClassTime] = useState(
-    user.preferredClassTime?.trim() ?? "",
-  );
   const [startsOn, setStartsOn] = useState(minStart);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [viewerTimeZone, setViewerTimeZone] = useState("Asia/Kolkata");
-  const { preferredOptions, loading: timingsLoading, ensure: ensureSessionTimings } =
-    useSessionTimings(false);
 
   useEffect(() => {
-    setStartsOn((prev) => (prev < minStart ? minStart : prev));
-  }, [minStart]);
-
-  useEffect(() => {
-    setViewerTimeZone(getViewerTimeZone());
-  }, []);
-
-  /** Outside-India members (or non-IST devices) see local clock + IST note. */
-  const showLocalTimes =
-    user.region === "outside_india" || !isIndiaTimeZone(viewerTimeZone);
+    setStartsOn((prev) => {
+      if (prev < minStart) return minStart;
+      if (prev > maxStart) return maxStart;
+      return prev;
+    });
+  }, [minStart, maxStart]);
 
   const stateOptions = useMemo(
     () => INDIA_STATES.map((name) => ({ value: name, label: name })),
     [],
   );
 
-  const timeOptions = useMemo(() => {
-    function preferredTimeLabel(istSlot: string) {
-      if (!showLocalTimes) return `${istSlot} IST`;
-      const mapped = convertIstSlotToLocal(istSlot, {
-        timeZone: viewerTimeZone,
-      });
-      if (!mapped) return `${istSlot} IST`;
-      const dayHint =
-        mapped.dayOffset === 1
-          ? " (+1 day)"
-          : mapped.dayOffset === -1
-            ? " (−1 day)"
-            : "";
-      return `${mapped.localLabel} your time · ${mapped.istLabel} IST${dayHint}`;
-    }
-
-    const options = preferredOptions.map((slot) => ({
-      value: slot,
-      label: preferredTimeLabel(slot),
-    }));
-    const current = preferredClassTime.trim();
-    if (current && !preferredOptions.includes(current)) {
-      options.unshift({
-        value: current,
-        label: preferredTimeLabel(current),
-      });
-    }
-    return options;
-  }, [preferredOptions, preferredClassTime, showLocalTimes, viewerTimeZone]);
-
-  const maxStart = addMonthsIso(minStart, 6);
   const canContinue =
-    (!needsLocation || Boolean(location.trim())) &&
-    Boolean(preferredClassTime.trim()) &&
-    Boolean(startsOn.trim());
+    (!needsLocation || Boolean(location.trim())) && Boolean(startsOn.trim());
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -143,19 +100,15 @@ export function MembershipCheckoutDetails({
       );
       return;
     }
-    if (!preferredClassTime.trim()) {
-      setError("Please choose your preferred class time.");
-      return;
-    }
     if (!startsOn.trim()) {
       setError("Please choose your membership start date.");
       return;
     }
-    if (startsOn.trim() < minStart) {
+    if (startsOn.trim() < minStart || startsOn.trim() > maxStart) {
       setError(
         isRenewAfterCurrent
-          ? "Start date must be on or after your current membership ends."
-          : "Please choose a valid membership start date.",
+          ? `Choose a start date within ${MAX_START_DEFER_DAYS} days after your current membership ends.`
+          : `Start today or choose a date within the next ${MAX_START_DEFER_DAYS} days.`,
       );
       return;
     }
@@ -167,24 +120,31 @@ export function MembershipCheckoutDetails({
     }
 
     setSaving(true);
+    setError(null);
     try {
-      const result = await updateProfile(token, {
-        fullName: user.fullName,
-        ...(needsLocation ? { state: location.trim() } : {}),
-        preferredClassTime: preferredClassTime.trim(),
-      });
-      updateMemberAuthCache(result.user);
-      onContinue({
-        preferredClassTime: preferredClassTime.trim(),
-        startsOn: startsOn.trim(),
-      });
+      if (needsLocation) {
+        const result = await updateProfile(token, {
+          fullName: user.fullName,
+          state: location.trim(),
+        });
+        updateMemberAuthCache(result.user);
+      }
+      // Keep the button loader visible briefly so the tap always feels acknowledged,
+      // even when there is no profile save to wait on.
+      await Promise.all([
+        Promise.resolve(
+          onContinue({
+            startsOn: minIso(maxIso(startsOn.trim(), minStart), maxStart),
+          }),
+        ),
+        new Promise((resolve) => window.setTimeout(resolve, 450)),
+      ]);
     } catch (err: unknown) {
       setError(
         err instanceof Error
           ? err.message
-          : "Could not save your preferences. Please try again.",
+          : "Could not save your details. Please try again.",
       );
-    } finally {
       setSaving(false);
     }
   }
@@ -195,10 +155,14 @@ export function MembershipCheckoutDetails({
         Membership details
       </h1>
       <p className="mt-1.5 text-[13px] text-[#5f6f64] sm:text-[14px]">
-        Tell us a few preferences for {planName}, then continue to payment.
+        A few details before you continue to payment
+        {planName ? ` for ${planName}` : ""}.
       </p>
 
-      <form onSubmit={(event) => void onSubmit(event)} className="mt-4 space-y-3.5">
+      <form
+        onSubmit={(event) => void onSubmit(event)}
+        className="mt-4 space-y-3.5"
+      >
         {needsLocation ? (
           <div>
             <label className="mb-1 block text-[13px] font-semibold text-[#243028]">
@@ -223,29 +187,13 @@ export function MembershipCheckoutDetails({
           </div>
         ) : null}
 
-        <div>
-          <label className="mb-1 block text-[13px] font-semibold text-[#243028]">
-            Preferred class time
-          </label>
-          <MemberSelect
-            value={preferredClassTime}
-            onChange={setPreferredClassTime}
-            options={timeOptions}
-            placeholder={
-              timingsLoading ? "Loading times…" : "Select preferred time"
-            }
-            size="sm"
-            className="!max-w-none"
-            onOpen={() => {
-              void ensureSessionTimings();
-            }}
-          />
-          <p className="mt-1.5 text-[12px] leading-snug text-[#6b7c6e]">
-            Session times are based on{" "}
-            <span className="font-semibold text-[#3d4a3c]">
-              Indian Standard Time (IST)
-            </span>
-            .
+        <div className="rounded-[14px] border border-[#d9e8dc] bg-[#f4f8f2] px-3.5 py-3">
+          <p className="text-[13px] font-semibold text-[#1f6b3a]">
+            Flexible session timings
+          </p>
+          <p className="mt-1 text-[12px] leading-snug text-[#5f6f64]">
+            Attend any available morning or evening session. You are not
+            restricted to a particular class time.
           </p>
         </div>
 
@@ -267,8 +215,8 @@ export function MembershipCheckoutDetails({
           />
           <p className="mt-1.5 text-[12px] leading-snug text-[#6b7c6e]">
             {isRenewAfterCurrent
-              ? "Starts after your current membership ends."
-              : "Today starts membership now; a later date keeps your current access."}
+              ? `Starts after your current membership ends. You can choose a date within the next ${MAX_START_DEFER_DAYS} days from that handoff.`
+              : `Start today or choose a date within the next ${MAX_START_DEFER_DAYS} days. Your membership begins on the date you select.`}
           </p>
         </div>
 
@@ -281,13 +229,11 @@ export function MembershipCheckoutDetails({
         <button
           type="submit"
           disabled={saving || !canContinue}
+          aria-busy={saving}
           className="btn-primary inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-5 py-2.5 text-[14px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
           {saving ? (
-            <>
-              <ButtonLoader tone="light" size="sm" label="Saving" />
-              Saving…
-            </>
+            <ButtonLoader tone="light" size="sm" label="Continuing" />
           ) : (
             "Continue to payment"
           )}
@@ -297,7 +243,8 @@ export function MembershipCheckoutDetails({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex w-full cursor-pointer items-center justify-center pt-0.5 text-[13px] font-semibold text-[#5f6f64] underline-offset-2 hover:underline"
+            disabled={saving}
+            className="inline-flex w-full cursor-pointer items-center justify-center pt-0.5 text-[13px] font-semibold text-[#5f6f64] underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
           >
             Cancel
           </button>

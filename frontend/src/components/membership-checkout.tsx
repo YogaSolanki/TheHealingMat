@@ -321,6 +321,7 @@ export function MembershipCheckoutPanel({
     setStep("payment");
   }
 
+
   function closeCorporateModal() {
     setCorporateModal(null);
     setWorkEmail("");
@@ -1431,17 +1432,19 @@ export function MembershipCheckoutPanel({
             <button
               type="button"
               disabled={paying || verifying || promoBusy}
+              aria-busy={paying || verifying}
               onClick={() => void onPay()}
               className="btn-primary mt-6 inline-flex w-full items-center justify-center gap-2 rounded-[16px] bg-[#1f6b3a] px-5 py-3 text-[14px] font-bold text-white disabled:opacity-60"
             >
-              {paying || verifying ? <ButtonLoader /> : null}
-              {verifying
-                ? "Confirming…"
-                : paying
-                  ? "Opening payment…"
-                  : quote.amountPaise === 0
-                    ? "Confirm membership"
-                    : `Pay ${payableLabel}`}
+              {paying || verifying ? (
+                <ButtonLoader
+                  label={verifying ? "Confirming payment" : "Opening payment"}
+                />
+              ) : quote.amountPaise === 0 ? (
+                "Confirm membership"
+              ) : (
+                `Pay ${payableLabel}`
+              )}
             </button>
 
             <button

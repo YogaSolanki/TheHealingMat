@@ -121,6 +121,7 @@ export class PaymentsService {
     const startMode = dto.startMode ?? 'now';
     const startsOn = this.normalizeStartsOn(dto.startsOn);
     await this.assertCanPurchase(user.id);
+    await this.assertStartsOnWithinDeferWindow(user.id, startsOn);
 
     if (dto.planMonths != null) {
       const quote = await this.buildQuote(
@@ -1289,6 +1290,64 @@ export class PaymentsService {
       throw new BadRequestException('startsOn must be YYYY-MM-DD.');
     }
     return value.trim();
+  }
+
+  /**
+   * Members may defer membership start by at most 15 IST calendar days from
+   * the earliest allowed start (today, or the day after an active term ends).
+   */
+  private async assertStartsOnWithinDeferWindow(
+    userId: string,
+    startsOn: string | null,
+  ) {
+    if (!startsOn) return;
+
+    const maxDeferDays = 15;
+    const now = new Date();
+    let earliest = this.startOfLocalDay(now);
+
+    const active = await this.findActive(userId);
+    if (active) {
+      earliest = this.laterDate(earliest, this.dayAfter(active.endsAt));
+    }
+
+    const chosen = this.parseStartsOn(startsOn);
+    if (!chosen) return;
+
+    const chosenDay = this.startOfLocalDay(chosen);
+    if (chosenDay.getTime() < earliest.getTime()) {
+      throw new BadRequestException(
+        'Start date must be on or after the earliest allowed membership start.',
+      );
+    }
+
+    const { year, month, day } = getIstYmd(earliest);
+    const latestParts = this.addIstCalendarDays(year, month, day, maxDeferDays);
+    const latestDay = istMidnight(
+      latestParts.year,
+      latestParts.month,
+      latestParts.day,
+    );
+
+    if (chosenDay.getTime() > latestDay.getTime()) {
+      throw new BadRequestException(
+        `Start today or choose a date within the next ${maxDeferDays} days.`,
+      );
+    }
+  }
+
+  private addIstCalendarDays(
+    year: number,
+    month: number,
+    day: number,
+    days: number,
+  ) {
+    const utc = new Date(Date.UTC(year, month - 1, day + days));
+    return {
+      year: utc.getUTCFullYear(),
+      month: utc.getUTCMonth() + 1,
+      day: utc.getUTCDate(),
+    };
   }
 
   private parseStartsOn(value?: string | null): Date | null {
