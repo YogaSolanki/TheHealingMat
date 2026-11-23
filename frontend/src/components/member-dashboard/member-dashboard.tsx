@@ -14,6 +14,7 @@ import { memberPrimaryBtnClass, memberPrimaryBtnSmClass, memberOutlineBtnClass, 
 import { TodayYogaSessionsSkeleton, MemberDashboardSkeleton } from "@/components/member-dashboard/member-dashboard-skeleton";
 import { OrientationVideoModal } from "@/components/member-dashboard/orientation-video-modal";
 import { PersonalSessionLinkPopup } from "@/components/member-dashboard/personal-session-link-popup";
+import { SampleSessionModal } from "@/components/member-dashboard/sample-session-modal";
 import { SessionNoticePopup } from "@/components/member-dashboard/session-notice-popup";
 import { TrialWelcomePopup } from "@/components/member-dashboard/trial-welcome-popup";
 import {
@@ -31,11 +32,16 @@ import {
   type OrientationVideoCard,
 } from "@/lib/orientation-videos-store";
 import {
+  useSampleSessionCards,
+  type SampleSessionCard,
+} from "@/lib/sample-sessions-store";
+import {
   greetingForName,
   daypartYogaMessage,
   useMemberAccess,
 } from "@/lib/member-access";
 import { useTrialEnabled } from "@/lib/trial-enabled-store";
+import { useVideoDurationLabel } from "@/lib/use-video-duration";
 import {
   displaySlotLabel,
   displaySlotLabels,
@@ -282,10 +288,13 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const [startingTrial, setStartingTrial] = useState(false);
   const [activeOrientation, setActiveOrientation] =
     useState<OrientationVideoCard | null>(null);
+  const [activeSampleSession, setActiveSampleSession] =
+    useState<SampleSessionCard | null>(null);
   const [sessionLinkOpen, setSessionLinkOpen] = useState(false);
   const [downloadingEbook, setDownloadingEbook] = useState(false);
   const [ebookError, setEbookError] = useState<string | null>(null);
   const { cards: startHereVideos } = useOrientationVideoCards(isActiveMember);
+  const { cards: sampleSessions } = useSampleSessionCards(isScheduledTrial);
   const { successfulCount: successfulReferrals } = useMyReferrals();
   const trialEnabled = useTrialEnabled();
   const canStartFreeTrial =
@@ -662,6 +671,68 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
               <p className="mt-2 text-[14px] leading-relaxed text-[#3d4a3c] sm:text-[15px]">
                 Your session link will become active when your trial starts.
               </p>
+
+              {sampleSessions.length > 0 ? (
+                <div className="mt-5 rounded-[16px] border border-[#d9e8dc] bg-[#f4f8f2] px-3.5 py-4 sm:px-4 sm:py-5">
+                  <h3 className="text-[15px] font-bold text-[#1f6b3a] sm:text-[16px]">
+                    While You Wait — Explore Our Sample Sessions
+                  </h3>
+                  <p className="mt-1 max-w-[640px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
+                    Get a glimpse of The Healing Mat with these three specially
+                    selected sessions.
+                  </p>
+                  <div className="mt-3.5 grid gap-3 sm:grid-cols-3 sm:gap-3.5">
+                    {sampleSessions.slice(0, 3).map((video) => (
+                      <article
+                        key={video.slug || video.id}
+                        className="flex h-[130px] overflow-hidden rounded-[16px] border border-[#e6ebe3] bg-white sm:h-[140px]"
+                      >
+                        <div className="relative h-full w-[120px] shrink-0 bg-[#eef6f0] sm:w-[132px]">
+                          {video.coverUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={video.coverUrl}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center">
+                              <PlayCircleIcon className="h-9 w-9 text-[#1f6b3a]/35" />
+                            </div>
+                          )}
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/15">
+                            <PlayCircleIcon className="h-9 w-9 text-white drop-shadow" />
+                          </span>
+                        </div>
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 py-2.5 sm:px-3.5 sm:py-3">
+                          <div className="min-h-0 flex-1 overflow-hidden">
+                            <h4 className="line-clamp-2 text-[13px] font-bold leading-snug text-[#243028] sm:text-[14px]">
+                              {video.title}
+                            </h4>
+                            <p className="mt-1 line-clamp-2 text-[12px] font-semibold leading-snug text-[#1f6b3a]">
+                              {video.subtitle}
+                            </p>
+                          </div>
+                          <div className="mt-2 flex shrink-0 items-center justify-between gap-2">
+                            <SessionVideoDuration
+                              videoUrl={video.videoUrl}
+                              fallback={video.duration}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setActiveSampleSession(video)}
+                              className={`${memberOutlineBtnSmClass} px-3 py-1.5 text-[11px] sm:text-[12px]`}
+                            >
+                              Watch Video
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
               <div className="mt-5">
                 {(() => {
                   const hasMorning = trialMorningSlots.length > 0;
@@ -1391,10 +1462,10 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                           ) : null}
                         </div>
                         <div className="mt-2 flex shrink-0 items-center justify-between gap-2">
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1f6b3a] sm:text-[12px]">
-                            <ClockIcon className="h-3.5 w-3.5 shrink-0" />
-                            {video.duration || "Video"}
-                          </span>
+                          <SessionVideoDuration
+                            videoUrl={video.videoUrl}
+                            fallback={video.duration}
+                          />
                           <button
                             type="button"
                             onClick={() => setActiveOrientation(video)}
@@ -1417,6 +1488,13 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
           slug={activeOrientation?.slug ?? null}
           title={activeOrientation?.title ?? "Orientation video"}
           onClose={() => setActiveOrientation(null)}
+        />
+
+        <SampleSessionModal
+          open={activeSampleSession !== null}
+          slug={activeSampleSession?.slug ?? null}
+          title={activeSampleSession?.title ?? "Sample session"}
+          onClose={() => setActiveSampleSession(null)}
         />
 
         <PersonalSessionLinkPopup
@@ -2363,6 +2441,22 @@ function PlayCircleIcon({ className }: { className?: string }) {
       <circle cx="12" cy="12" r="9" fill="currentColor" opacity="0.9" />
       <path d="M10 8.5v7l6-3.5-6-3.5Z" fill="#fff" />
     </svg>
+  );
+}
+
+function SessionVideoDuration({
+  videoUrl,
+  fallback,
+}: {
+  videoUrl?: string | null;
+  fallback?: string;
+}) {
+  const label = useVideoDurationLabel(videoUrl, fallback);
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1f6b3a] sm:text-[12px]">
+      <ClockIcon className="h-3.5 w-3.5 shrink-0" />
+      {label}
+    </span>
   );
 }
 

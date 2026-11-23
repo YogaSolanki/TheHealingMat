@@ -8,6 +8,7 @@ import { HealthArticle } from './health-article.entity';
 import { HealthVideo } from './health-video.entity';
 import { OrientationVideo } from './orientation-video.entity';
 import { ResourceGuide } from './resource-guide.entity';
+import { SampleSession } from './sample-session.entity';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ResourceGuide } from './resource-guide.entity';
       HealthArticle,
       HealthVideo,
       OrientationVideo,
+      SampleSession,
     ]),
   ],
   controllers: [ContentPublicController, ContentAdminController],

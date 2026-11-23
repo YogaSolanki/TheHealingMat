@@ -7,7 +7,11 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/enums/role.enum';
 import { ContentService } from './content.service';
@@ -24,6 +28,17 @@ import {
 @Controller('admin')
 export class ContentAdminController {
   constructor(private readonly content: ContentService) {}
+
+  @Post('content-covers')
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  uploadCover(@UploadedFile() file: Express.Multer.File) {
+    return this.content.uploadCoverImage(file);
+  }
 
   @Get('resources')
   listResources() {
@@ -115,5 +130,28 @@ export class ContentAdminController {
   @Delete('orientation-videos/:id')
   deleteOrientationVideo(@Param('id', ParseUUIDPipe) id: string) {
     return this.content.deleteOrientationVideo(id);
+  }
+
+  @Get('sample-sessions')
+  listSampleSessions() {
+    return this.content.listSampleSessions(false);
+  }
+
+  @Post('sample-sessions')
+  createSampleSession(@Body() dto: CreateVideoDto) {
+    return this.content.createSampleSession(dto);
+  }
+
+  @Patch('sample-sessions/:id')
+  updateSampleSession(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateVideoDto,
+  ) {
+    return this.content.updateSampleSession(id, dto);
+  }
+
+  @Delete('sample-sessions/:id')
+  deleteSampleSession(@Param('id', ParseUUIDPipe) id: string) {
+    return this.content.deleteSampleSession(id);
   }
 }

@@ -41,4 +41,14 @@ export class ContentPublicController {
   getOrientationVideo(@Param('slug') slug: string) {
     return this.content.getOrientationVideoBySlug(slug, true);
   }
+
+  @Get('sample-sessions')
+  listSampleSessions() {
+    return this.content.listSampleSessions(true);
+  }
+
+  @Get('sample-sessions/:slug')
+  getSampleSession(@Param('slug') slug: string) {
+    return this.content.getSampleSessionBySlug(slug, true);
+  }
 }

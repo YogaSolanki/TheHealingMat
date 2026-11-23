@@ -12,7 +12,11 @@ import { PanelLoader } from "@/components/panel-loader";
 import { ReloadButton } from "@/components/reload-button";
 import { AdminConfirmDialog } from "@/components/admin-confirm-dialog";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import { ADMIN_TOKEN_KEY } from "@/lib/api";
+import {
+  ADMIN_TOKEN_KEY,
+  mediaUrl,
+  uploadAdminContentCover,
+} from "@/lib/api";
 import {
   DASHBOARD_CACHE_KEYS,
   getCached,
@@ -20,7 +24,12 @@ import {
   setCached,
 } from "@/lib/dashboard-cache";
 
-export type ContentKind = "resources" | "articles" | "videos" | "orientation";
+export type ContentKind =
+  | "resources"
+  | "articles"
+  | "videos"
+  | "orientation"
+  | "sample";
 
 export type ContentItem = {
   id: string;
@@ -128,7 +137,9 @@ export function ContentCrudPanel({
         ? DASHBOARD_CACHE_KEYS.articles
         : kind === "orientation"
           ? DASHBOARD_CACHE_KEYS.orientation
-          : DASHBOARD_CACHE_KEYS.videos;
+          : kind === "sample"
+            ? DASHBOARD_CACHE_KEYS.sampleSessions
+            : DASHBOARD_CACHE_KEYS.videos;
 
   const [items, setItems] = useState<ContentItem[]>(
     () => getCached<ContentItem[]>(cacheKey) ?? [],
@@ -143,6 +154,7 @@ export function ContentCrudPanel({
   const [pendingDeleteItem, setPendingDeleteItem] =
     useState<ContentItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   const load = useCallback(
     async (options?: { force?: boolean }) => {
@@ -197,7 +209,12 @@ export function ContentCrudPanel({
     setEditing(null);
     setForm({
       ...emptyForm(),
-      category: kind === "orientation" ? "Orientation" : "",
+      category:
+        kind === "orientation"
+          ? "Orientation"
+          : kind === "sample"
+            ? "Sample Session"
+            : "",
     });
     setFormOpen(true);
   }
@@ -241,14 +258,81 @@ export function ContentCrudPanel({
       payload.readTime = form.readTime.trim();
       payload.body = normalizeArticleBody(form.body);
     }
-    if (kind === "videos" || kind === "orientation") {
-      payload.duration = form.duration.trim();
+    if (kind === "videos" || kind === "orientation" || kind === "sample") {
       payload.videoUrl = form.videoUrl.trim() || null;
+      // Duration is derived from the video file when possible (not edited in admin).
+      if (form.duration.trim()) {
+        payload.duration = form.duration.trim();
+      }
       if (kind === "orientation" && !payload.category) {
         payload.category = "Orientation";
       }
+      if (kind === "sample" && !payload.category) {
+        payload.category = "Sample Session";
+      }
     }
     return payload;
+  }
+
+  useEffect(() => {
+    if (kind !== "videos" && kind !== "orientation" && kind !== "sample") {
+      return;
+    }
+    const source = form.videoUrl.trim();
+    if (!source || !/\.(mp4|webm|ogg)(\?|$)/i.test(source)) {
+      return;
+    }
+
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    let cancelled = false;
+
+    const onMeta = () => {
+      if (cancelled) return;
+      const seconds = Math.round(video.duration);
+      if (!Number.isFinite(seconds) || seconds <= 0) return;
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      const label =
+        mins <= 0
+          ? `${secs} sec`
+          : secs === 0
+            ? `${mins} min`
+            : `${mins} min ${secs}s`;
+      setForm((prev) =>
+        prev.duration === label ? prev : { ...prev, duration: label },
+      );
+    };
+
+    video.addEventListener("loadedmetadata", onMeta);
+    video.src = source;
+    return () => {
+      cancelled = true;
+      video.removeEventListener("loadedmetadata", onMeta);
+      video.removeAttribute("src");
+      video.load();
+    };
+  }, [form.videoUrl, kind]);
+
+  async function onCoverFileChange(file: File | null) {
+    if (!file) return;
+    const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
+    if (!token) {
+      setError("Please sign in again.");
+      return;
+    }
+    setUploadingCover(true);
+    setError(null);
+    try {
+      const coverUrl = await uploadAdminContentCover(token, file);
+      setForm((prev) => ({ ...prev, coverUrl }));
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to upload cover image.",
+      );
+    } finally {
+      setUploadingCover(false);
+    }
   }
 
   async function onSubmit(event: FormEvent) {
@@ -496,16 +580,73 @@ export function ContentCrudPanel({
                   className={inputClass}
                 />
               </Field>
-              <Field label="Cover image URL">
-                <input
-                  value={form.coverUrl}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, coverUrl: e.target.value }))
-                  }
-                  placeholder="https://..."
-                  className={inputClass}
-                />
-              </Field>
+              <div className="sm:col-span-2">
+                <span className="mb-1.5 block text-sm font-medium text-[#3d4a3c]">
+                  Cover image
+                </span>
+                <div className="flex flex-wrap items-start gap-3">
+                  <div className="flex h-24 w-36 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#e2e8df] bg-[#f7faf6]">
+                    {form.coverUrl.trim() ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={
+                          mediaUrl(form.coverUrl.trim()) ?? form.coverUrl.trim()
+                        }
+                        alt=""
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display =
+                            "none";
+                        }}
+                      />
+                    ) : (
+                      <span className="px-2 text-center text-[11px] font-medium text-[#8a968c]">
+                        No cover
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#d9e2d8] bg-white px-3.5 py-2 text-xs font-semibold text-[#1f6b3a] hover:bg-[#f4f7f4]">
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          className="sr-only"
+                          disabled={uploadingCover}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] ?? null;
+                            e.target.value = "";
+                            void onCoverFileChange(file);
+                          }}
+                        />
+                        {uploadingCover ? "Uploading…" : "Upload image"}
+                      </label>
+                      {form.coverUrl.trim() ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((prev) => ({ ...prev, coverUrl: "" }))
+                          }
+                          className="text-xs font-semibold text-[#9a4030] hover:underline"
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
+                    <input
+                      value={form.coverUrl}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          coverUrl: e.target.value,
+                        }))
+                      }
+                      placeholder="Or paste image URL (https://…)"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              </div>
 
               {kind === "resources" ? (
                 <>
@@ -545,35 +686,22 @@ export function ContentCrudPanel({
                 </Field>
               ) : null}
 
-              {kind === "videos" || kind === "orientation" ? (
-                <>
-                  <Field label="Duration">
-                    <input
-                      value={form.duration}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          duration: e.target.value,
-                        }))
-                      }
-                      placeholder="12 min"
-                      className={inputClass}
-                    />
-                  </Field>
-                  <Field label="Video URL">
-                    <input
-                      value={form.videoUrl}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          videoUrl: e.target.value,
-                        }))
-                      }
-                      placeholder="https://youtu.be/... or YouTube watch URL"
-                      className={inputClass}
-                    />
-                  </Field>
-                </>
+              {kind === "videos" ||
+              kind === "orientation" ||
+              kind === "sample" ? (
+                <Field label="Video URL">
+                  <input
+                    value={form.videoUrl}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        videoUrl: e.target.value,
+                      }))
+                    }
+                    placeholder="https://youtu.be/... or YouTube watch URL"
+                    className={inputClass}
+                  />
+                </Field>
               ) : null}
             </div>
 

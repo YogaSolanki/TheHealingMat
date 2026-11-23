@@ -73,6 +73,7 @@ export function fetchVideo(slug: string) {
 }
 
 export type ApiOrientationVideo = ApiHealthVideo;
+export type ApiSampleSession = ApiHealthVideo;
 
 export function fetchOrientationVideos() {
   return fetchJson<ApiOrientationVideo[]>("/orientation-videos");
@@ -80,4 +81,12 @@ export function fetchOrientationVideos() {
 
 export function fetchOrientationVideo(slug: string) {
   return fetchJson<ApiOrientationVideo>(`/orientation-videos/${slug}`);
+}
+
+export function fetchSampleSessions() {
+  return fetchJson<ApiSampleSession[]>("/sample-sessions");
+}
+
+export function fetchSampleSession(slug: string) {
+  return fetchJson<ApiSampleSession>(`/sample-sessions/${slug}`);
 }

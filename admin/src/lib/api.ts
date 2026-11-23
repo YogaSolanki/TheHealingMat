@@ -1611,3 +1611,57 @@ export function deleteAdminOrientationVideo(token: string, id: string) {
     token,
   ).then(() => undefined);
 }
+
+export async function uploadAdminContentCover(token: string, file: File) {
+  const body = new FormData();
+  body.append("image", file);
+  const response = await fetch(`${API_URL}/admin/content-covers`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body,
+  });
+  const payload = (await response.json().catch(() => ({}))) as ApiErrorBody & {
+    coverUrl?: string;
+  };
+  if (!response.ok) {
+    throw new Error(readErrorMessage(payload, "Unable to upload cover image."));
+  }
+  if (!payload.coverUrl) {
+    throw new Error("Unable to upload cover image.");
+  }
+  return payload.coverUrl;
+}
+
+export function listAdminSampleSessions(token: string) {
+  return authJson<AdminContentItem[]>("GET", "/admin/sample-sessions", token);
+}
+export function createAdminSampleSession(
+  token: string,
+  body: Record<string, unknown>,
+) {
+  return authJson<AdminContentItem>(
+    "POST",
+    "/admin/sample-sessions",
+    token,
+    body,
+  );
+}
+export function updateAdminSampleSession(
+  token: string,
+  id: string,
+  body: Record<string, unknown>,
+) {
+  return authJson<AdminContentItem>(
+    "PATCH",
+    `/admin/sample-sessions/${id}`,
+    token,
+    body,
+  );
+}
+export function deleteAdminSampleSession(token: string, id: string) {
+  return authJson<{ success: boolean }>(
+    "DELETE",
+    `/admin/sample-sessions/${id}`,
+    token,
+  ).then(() => undefined);
+}

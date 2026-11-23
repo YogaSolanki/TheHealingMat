@@ -122,10 +122,15 @@ export function TrialWelcomePopup({
               {trialEndsOnLabel}
             </span>
           </p>
+          <div className="rounded-[16px] border border-[#d9e8dc] bg-[#f4f8f2] px-3.5 py-3 text-left">
+            <p className="text-[13px] leading-relaxed text-[#3d4a3c]">
+              While you wait for your trial to begin, enjoy three recorded
+              sample sessions, available right here on your Home page.
+            </p>
+          </div>
           <p className="text-[13px] text-[#6d8474]">
-            You can join the sessions once your free trial begins on{" "}
-            {trialStartsOnLabel}. The Join button for each session will become
-            active at its scheduled joining time.
+            Your live session Join buttons will become active when your trial
+            begins.
           </p>
         </div>
 

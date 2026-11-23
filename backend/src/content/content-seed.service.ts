@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { HealthArticle } from './health-article.entity';
 import { HealthVideo } from './health-video.entity';
 import { ResourceGuide } from './resource-guide.entity';
+import { SampleSession } from './sample-session.entity';
 
 const PLACEHOLDER =
   'https://placehold.co/800x600/E8F0E4/1f6b3a?text=The+Healing+Mat';
@@ -19,12 +20,15 @@ export class ContentSeedService implements OnModuleInit {
     private readonly articles: Repository<HealthArticle>,
     @InjectRepository(HealthVideo)
     private readonly videos: Repository<HealthVideo>,
+    @InjectRepository(SampleSession)
+    private readonly sampleSessions: Repository<SampleSession>,
   ) {}
 
   async onModuleInit() {
     await this.seedResources();
     await this.seedArticles();
     await this.seedVideos();
+    await this.seedSampleSessions();
   }
 
   private async seedResources() {
@@ -247,5 +251,52 @@ export class ContentSeedService implements OnModuleInit {
       );
     }
     this.logger.log(`Seeded ${rows.length} health videos`);
+  }
+
+  private async seedSampleSessions() {
+    if ((await this.sampleSessions.count()) > 0) return;
+
+    const rows = [
+      {
+        slug: 'everyday-yoga',
+        title: 'Everyday Yoga',
+        subtitle: 'Chair & Standing Yoga',
+        description:
+          'A gentle introduction to everyday yoga you can practise at home — chair-friendly and standing options included.',
+        category: 'Sample Session',
+        duration: '18 min',
+      },
+      {
+        slug: 'full-body-movement',
+        title: 'Full Body Movement',
+        subtitle: 'Gentle Stretches & Mobility',
+        description:
+          'Light stretches and mobility work to wake up the body and ease stiffness from sitting or long days.',
+        category: 'Sample Session',
+        duration: '16 min',
+      },
+      {
+        slug: 'breathing-relaxation',
+        title: 'Breathing & Relaxation',
+        subtitle: 'Breathe, Unwind & Reset',
+        description:
+          'Simple breathing and relaxation practices to settle the mind and restore calm.',
+        category: 'Sample Session',
+        duration: '12 min',
+      },
+    ];
+
+    for (const [index, row] of rows.entries()) {
+      await this.sampleSessions.save(
+        this.sampleSessions.create({
+          ...row,
+          coverUrl: PLACEHOLDER,
+          videoUrl: null,
+          sortOrder: index,
+          published: true,
+        }),
+      );
+    }
+    this.logger.log(`Seeded ${rows.length} sample sessions`);
   }
 }

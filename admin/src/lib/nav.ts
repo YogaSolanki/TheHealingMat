@@ -6,6 +6,11 @@ export const ADMIN_NAV = [
   { href: "/dashboard/articles", label: "Articles", icon: "blog" },
   { href: "/dashboard/videos", label: "Videos", icon: "videos" },
   { href: "/dashboard/orientation", label: "Orientation", icon: "orientation" },
+  {
+    href: "/dashboard/sample-sessions",
+    label: "Sample Sessions",
+    icon: "videos",
+  },
   { href: "/dashboard/plans", label: "Plans", icon: "plans" },
   { href: "/dashboard/offers", label: "Offers", icon: "offers" },
   { href: "/dashboard/coupons", label: "Coupons", icon: "coupon" },

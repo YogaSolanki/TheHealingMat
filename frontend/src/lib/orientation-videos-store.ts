@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+import { mediaUrl } from "@/lib/api";
 import {
   fetchOrientationVideos,
   type ApiOrientationVideo,
 } from "@/lib/content-api";
 
-const STORAGE_KEY = "thm_orientation_videos_v2";
+const STORAGE_KEY = "thm_orientation_videos_v3";
 
 export type OrientationVideoCard = {
   id: string;
@@ -16,6 +17,7 @@ export type OrientationVideoCard = {
   description: string;
   duration: string;
   coverUrl: string;
+  videoUrl: string | null;
   category: string;
 };
 
@@ -37,7 +39,8 @@ function toCard(video: ApiOrientationVideo): OrientationVideoCard {
     subtitle: video.subtitle,
     description: video.description || "",
     duration: video.duration || "",
-    coverUrl: video.coverUrl || "",
+    coverUrl: mediaUrl(video.coverUrl) || video.coverUrl || "",
+    videoUrl: video.videoUrl || null,
     category: video.category || "Orientation",
   };
 }

@@ -17,6 +17,7 @@ export const DASHBOARD_CACHE_KEYS = {
   articles: "content:articles",
   videos: "content:videos",
   orientation: "content:orientation",
+  sampleSessions: "content:sample-sessions",
   classes: "dashboard:classes",
 } as const;
 

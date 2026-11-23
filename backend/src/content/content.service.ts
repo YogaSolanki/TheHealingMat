@@ -4,6 +4,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { extname, join } from 'path';
+import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
 import {
   CreateArticleDto,
@@ -17,6 +20,10 @@ import { HealthArticle } from './health-article.entity';
 import { HealthVideo } from './health-video.entity';
 import { OrientationVideo } from './orientation-video.entity';
 import { ResourceGuide } from './resource-guide.entity';
+import { SampleSession } from './sample-session.entity';
+
+const CONTENT_COVER_UPLOAD_DIR = join(process.cwd(), 'uploads', 'content-covers');
+const ALLOWED_COVER_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 
 @Injectable()
 export class ContentService {
@@ -29,6 +36,8 @@ export class ContentService {
     private readonly videos: Repository<HealthVideo>,
     @InjectRepository(OrientationVideo)
     private readonly orientationVideos: Repository<OrientationVideo>,
+    @InjectRepository(SampleSession)
+    private readonly sampleSessions: Repository<SampleSession>,
   ) {}
 
   // ── Resources ─────────────────────────────────────────────
@@ -268,6 +277,98 @@ export class ContentService {
     );
     await this.orientationVideos.remove(item);
     return { success: true };
+  }
+
+  // ── Sample sessions (waiting trial members) ───────────────
+
+  listSampleSessions(publishedOnly = false) {
+    return this.sampleSessions.find({
+      where: publishedOnly ? { published: true } : undefined,
+      order: { sortOrder: 'ASC', createdAt: 'DESC' },
+    });
+  }
+
+  async getSampleSessionBySlug(slug: string, publishedOnly = false) {
+    const item = await this.sampleSessions.findOne({ where: { slug } });
+    if (!item || (publishedOnly && !item.published)) {
+      throw new NotFoundException('Sample session not found.');
+    }
+    return item;
+  }
+
+  async createSampleSession(dto: CreateVideoDto) {
+    await this.ensureUniqueSlug(this.sampleSessions, dto.slug);
+    return this.sampleSessions.save(
+      this.sampleSessions.create({
+        slug: this.normalizeSlug(dto.slug),
+        title: dto.title.trim(),
+        subtitle: dto.subtitle.trim(),
+        description: dto.description.trim(),
+        category: dto.category?.trim() || 'Sample Session',
+        duration: dto.duration?.trim() || '',
+        coverUrl: dto.coverUrl?.trim() || '',
+        videoUrl: dto.videoUrl?.trim() || null,
+        sortOrder:
+          dto.sortOrder ?? (await this.nextSortOrder(this.sampleSessions)),
+        published: dto.published ?? true,
+      }),
+    );
+  }
+
+  async updateSampleSession(id: string, dto: UpdateVideoDto) {
+    const item = await this.requireById(
+      this.sampleSessions,
+      id,
+      'Sample session',
+    );
+    if (dto.slug && dto.slug !== item.slug) {
+      await this.ensureUniqueSlug(this.sampleSessions, dto.slug, id);
+      item.slug = this.normalizeSlug(dto.slug);
+    }
+    if (dto.title !== undefined) item.title = dto.title.trim();
+    if (dto.subtitle !== undefined) item.subtitle = dto.subtitle.trim();
+    if (dto.description !== undefined) item.description = dto.description.trim();
+    if (dto.category !== undefined) {
+      item.category = dto.category.trim() || 'Sample Session';
+    }
+    if (dto.duration !== undefined) item.duration = dto.duration.trim();
+    if (dto.coverUrl !== undefined) item.coverUrl = dto.coverUrl.trim();
+    if (dto.videoUrl !== undefined) item.videoUrl = dto.videoUrl?.trim() || null;
+    if (dto.sortOrder !== undefined) item.sortOrder = dto.sortOrder;
+    if (dto.published !== undefined) item.published = dto.published;
+    return this.sampleSessions.save(item);
+  }
+
+  async deleteSampleSession(id: string) {
+    const item = await this.requireById(
+      this.sampleSessions,
+      id,
+      'Sample session',
+    );
+    await this.sampleSessions.remove(item);
+    return { success: true };
+  }
+
+  uploadCoverImage(file: Express.Multer.File | undefined) {
+    if (!file) {
+      throw new BadRequestException('Image file is required.');
+    }
+
+    const ext = extname(file.originalname || '').toLowerCase();
+    if (!ALLOWED_COVER_EXT.has(ext)) {
+      throw new BadRequestException(
+        'Upload a JPG, PNG, WEBP, or GIF image.',
+      );
+    }
+
+    if (!existsSync(CONTENT_COVER_UPLOAD_DIR)) {
+      mkdirSync(CONTENT_COVER_UPLOAD_DIR, { recursive: true });
+    }
+
+    const filename = `${randomUUID()}${ext}`;
+    writeFileSync(join(CONTENT_COVER_UPLOAD_DIR, filename), file.buffer);
+
+    return { coverUrl: `/uploads/content-covers/${filename}` };
   }
 
   // ── helpers ───────────────────────────────────────────────
