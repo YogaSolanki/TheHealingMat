@@ -1358,6 +1358,8 @@ export type AdminSiteSettings = {
   referralMessageTemplate: string;
   /** Built-in default for reset / hint text. */
   defaultReferralMessageTemplate: string;
+  /** When false, free trial is off site-wide (membership only). */
+  trialEnabled: boolean;
   updatedAt: string;
 };
 
@@ -1372,6 +1374,7 @@ export function updateAdminSettings(
     membershipEbookUrl?: string | null;
     referralDiscountPercent?: number;
     referralMessageTemplate?: string | null;
+    trialEnabled?: boolean;
   },
 ) {
   return authJson<AdminSiteSettings>("PATCH", "/admin/settings", token, body);

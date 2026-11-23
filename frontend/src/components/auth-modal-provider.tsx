@@ -14,6 +14,7 @@ import { AuthLoginModal } from "@/components/auth-login-modal";
 import { CheckoutModalHost } from "@/components/checkout-modal-provider";
 import { SiteToast } from "@/components/site-toast";
 import { getStoredToken } from "@/lib/auth-storage";
+import { useTrialEnabled } from "@/lib/trial-enabled-store";
 
 type AuthMode = "login" | "signup" | "forgot";
 /** Same signup flow; only popup copy changes. */
@@ -63,10 +64,11 @@ const AuthModalContext = createContext<AuthModalContextValue | null>(null);
 export function AuthModalProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const trialEnabled = useTrialEnabled();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>("login");
   const [signupIntent, setSignupIntent] =
-    useState<AuthSignupIntent>("trial");
+    useState<AuthSignupIntent>("membership");
   const [initialReferralCode, setInitialReferralCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<AuthToast | null>(null);
@@ -91,18 +93,25 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
         return;
       }
       setMode(nextMode);
-      setSignupIntent(
-        nextMode === "signup" && options?.intent === "membership"
-          ? "membership"
-          : "trial",
-      );
+      if (nextMode === "signup") {
+        const requested = options?.intent;
+        if (!trialEnabled) {
+          setSignupIntent("membership");
+        } else if (requested === "membership") {
+          setSignupIntent("membership");
+        } else {
+          setSignupIntent("trial");
+        }
+      } else {
+        setSignupIntent(trialEnabled ? "trial" : "membership");
+      }
       setInitialReferralCode(
         nextMode === "signup" ? options?.referralCode?.trim() || "" : "",
       );
       setError(null);
       setOpen(true);
     },
-    [router],
+    [router, trialEnabled],
   );
 
   const closeAuth = useCallback(() => {

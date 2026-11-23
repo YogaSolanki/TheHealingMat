@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsInt,
   IsOptional,
   IsString,
@@ -49,4 +50,9 @@ export class UpdateSiteSettingsDto {
   @IsString()
   @MaxLength(2000)
   referralMessageTemplate?: string | null;
+
+  /** When false, free trial signup/start is disabled site-wide. */
+  @IsOptional()
+  @IsBoolean()
+  trialEnabled?: boolean;
 }

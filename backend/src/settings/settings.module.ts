@@ -12,6 +12,7 @@ import { SessionTimingsPublicController } from './session-timings-public.control
 import { SessionTimingsService } from './session-timings.service';
 import { SessionTopicsAdminController } from './session-topics-admin.controller';
 import { SettingsAdminController } from './settings-admin.controller';
+import { SettingsPublicController } from './settings-public.controller';
 import { SettingsService } from './settings.service';
 import { SessionsController } from './sessions.controller';
 import { SiteSettings } from './site-settings.entity';
@@ -28,6 +29,7 @@ import { SiteSettings } from './site-settings.entity';
   ],
   controllers: [
     SettingsAdminController,
+    SettingsPublicController,
     SessionTimingsAdminController,
     SessionTimingsPublicController,
     ClassesAdminController,

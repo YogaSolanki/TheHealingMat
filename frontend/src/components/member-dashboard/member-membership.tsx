@@ -559,7 +559,7 @@ export function MemberMembershipPage() {
               </p>
               <p className="mt-0.5 text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
                 {access.state === "pending"
-                  ? "Complete your membership below to unlock daily yoga sessions. You can also start a free trial from Home if you are eligible."
+                  ? "Complete your membership below to unlock daily yoga sessions."
                   : access.state === "expired"
                     ? "Your account and referral information are still available. Renew membership to restore session access."
                     : "Early renewal leaves your current membership unchanged and creates the next scheduled membership. It begins automatically after this one ends."}

@@ -7,6 +7,7 @@ import { useAuthModal } from "@/components/auth-modal-provider";
 import { SiteLogo } from "@/components/site-logo";
 import { getStoredToken } from "@/lib/auth-storage";
 import { lockBodyScroll } from "@/lib/body-scroll-lock";
+import { useTrialEnabled } from "@/lib/trial-enabled-store";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -39,6 +40,11 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const { openAuth } = useAuthModal();
+  const trialEnabled = useTrialEnabled();
+  const signupLabel = trialEnabled ? "Free Trial" : "Become a Member";
+  const signupLabelMobile = trialEnabled
+    ? "Start Free Trial"
+    : "Become a Member";
 
   useEffect(() => {
     setOpen(false);
@@ -65,7 +71,9 @@ export function SiteHeader() {
 
   function openSignup() {
     setOpen(false);
-    openAuth("signup");
+    openAuth("signup", {
+      intent: trialEnabled ? "trial" : "membership",
+    });
   }
 
   return (
@@ -123,7 +131,7 @@ export function SiteHeader() {
                 onClick={openSignup}
                 className="btn-primary hidden cursor-pointer items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-3 py-2 text-[12px] font-semibold text-white lg:inline-flex xl:gap-2 xl:px-4 xl:py-2.5 xl:text-sm"
               >
-                Free Trial
+                {signupLabel}
                 <span aria-hidden="true">→</span>
               </button>
             </>
@@ -236,7 +244,7 @@ export function SiteHeader() {
                         : "0ms",
                     }}
                   >
-                    Start Free Trial
+                    {signupLabelMobile}
                     <span aria-hidden="true">→</span>
                   </button>
                   <button

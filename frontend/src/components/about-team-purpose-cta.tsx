@@ -7,6 +7,7 @@ import { StartTrialButton } from "@/components/start-trial-button";
 import { TrialTrustRow } from "@/components/trial-trust-row";
 import { getStoredToken } from "@/lib/auth-storage";
 import { useMemberAccess } from "@/lib/member-access";
+import { useTrialEnabled } from "@/lib/trial-enabled-store";
 
 const cream = "#FBF9F5";
 
@@ -35,6 +36,8 @@ function TeamPeopleIcon() {
 export function AboutTeamPurposeCta() {
   const { access } = useMemberAccess();
   const [signedIn, setSignedIn] = useState(false);
+
+  const trialEnabled = useTrialEnabled();
 
   useEffect(() => {
     setSignedIn(Boolean(getStoredToken()));
@@ -98,11 +101,13 @@ export function AboutTeamPurposeCta() {
               Start Your 14-Day Free Trial
               <span aria-hidden="true">→</span>
             </StartTrialButton>
-            <TrialTrustRow
-              centerLastWhenWrapped
-              className="mt-4 max-md:flex-col max-md:items-center max-md:gap-y-1.5 md:justify-center md:gap-x-4 xl:gap-x-5"
-              itemClassName="text-[#5f6f64]"
-            />
+            {trialEnabled ? (
+              <TrialTrustRow
+                centerLastWhenWrapped
+                className="mt-4 max-md:flex-col max-md:items-center max-md:gap-y-1.5 md:justify-center md:gap-x-4 xl:gap-x-5"
+                itemClassName="text-[#5f6f64]"
+              />
+            ) : null}
           </div>
         </div>
       </div>

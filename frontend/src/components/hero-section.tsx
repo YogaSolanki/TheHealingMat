@@ -20,6 +20,7 @@ import {
   getAnnualPerDayLabel,
   useMembershipPlans,
 } from "@/lib/membership-plans-store";
+import { useTrialEnabled } from "@/lib/trial-enabled-store";
 import {
   handlePopupVideoKeyDown,
   toggleElementFullscreen,
@@ -77,8 +78,13 @@ function AffordableIcon() {
   );
 }
 
-const trustItems = [
+const trialTrustItems = [
   "No payment details required",
+  "Hassle-free registration",
+];
+
+const membershipTrustItems = [
+  "Flexible 3, 6 & 12 month plans",
   "Hassle-free registration",
 ];
 
@@ -205,8 +211,10 @@ function IntroVideoModal({
 }
 
 export function HeroSection() {
+  const trialEnabled = useTrialEnabled();
   const { data: plansData } = useMembershipPlans();
   const [introOpen, setIntroOpen] = useState(false);
+  const trustItems = trialEnabled ? trialTrustItems : membershipTrustItems;
 
   const annualPerDayLabel = useMemo(() => {
     return `${getAnnualPerDayLabel(plansData.plans)}/Day`;

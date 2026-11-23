@@ -22,6 +22,7 @@ import { lockBodyScroll } from "@/lib/body-scroll-lock";
 import { useMyMilestones } from "@/lib/milestones-store";
 import { fillReferralMessageTemplate } from "@/lib/referral-message";
 import { useMyReferrals } from "@/lib/session-store";
+import { useTrialEnabled } from "@/lib/trial-enabled-store";
 import { FaWhatsapp } from "react-icons/fa";
 
 function referralShareLink(accessLink: string, referralCode: string) {
@@ -118,6 +119,7 @@ function rowUiStatus(
 
 export function MemberReferPage() {
   const { user, updateUser } = useMemberDashboard();
+  const trialEnabled = useTrialEnabled();
   const {
     referrals,
     successfulCount,
@@ -387,13 +389,18 @@ export function MemberReferPage() {
                   </h2>
                   <p className="mt-2.5 text-[13px] leading-[1.6] text-[#5f6f64] sm:text-[14px]">
                     Give a friend the gift of better health. They get{" "}
-                    <span className="font-bold text-[#243028]">14 days of FREE</span> yoga
-                    classes +{" "}
+                    {trialEnabled ? (
+                      <>
+                        <span className="font-bold text-[#243028]">
+                          14 days of FREE
+                        </span>{" "}
+                        yoga classes +{" "}
+                      </>
+                    ) : null}
                     <span className="font-bold text-[#243028]">
                       {referralDiscountPercent}% OFF
                     </span>{" "}
-                    on
-                    membership, and{" "}
+                    on membership, and{" "}
                     <span className="font-bold text-[#1f6b3a]">you get rewarded</span> when
                     they join!
                   </p>

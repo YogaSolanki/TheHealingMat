@@ -19,7 +19,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   if (checking || !admin) {
     return (
-      <main className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-[#fbf9f5]">
+      <main className="flex h-dvh flex-col items-center justify-center gap-3 bg-[#fbf9f5]">
         <div
           className="h-9 w-9 animate-spin rounded-full border-2 border-[#d9e2d8] border-t-[#1f6b3a]"
           aria-hidden="true"
@@ -36,7 +36,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     "Dashboard";
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-[#fbf9f5]">
+    <div className="fixed inset-0 flex overflow-hidden bg-[#fbf9f5]">
       <aside className="hidden h-full w-[300px] min-w-[300px] shrink-0 flex-col overflow-hidden border-r border-[#e6ebe3] bg-[#f4f8f2] px-5 py-7 text-[#243028] md:flex">
         <SidebarBody pathname={pathname} onSignOut={signOut} />
       </aside>
@@ -59,7 +59,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       ) : null}
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex h-16 shrink-0 items-center gap-3 border-b border-[#e6ebe3] bg-white px-5 sm:px-8">
           <button
             type="button"
@@ -100,7 +100,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <div className="scrollbar-hide min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-6 sm:px-8">
+        <div className="scrollbar-hide min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-5 py-6 sm:px-8">
           <AdminSessionProvider value={{ admin, setAdmin }}>
             <PageTransition>{children}</PageTransition>
           </AdminSessionProvider>

@@ -676,6 +676,7 @@ export class AdminDashboardService {
     }
 
     if (dto.startFreeTrial) {
+      await this.trialsService.assertTrialEnabled();
       await this.trialsService.ensureFreeTrial(user);
     }
 

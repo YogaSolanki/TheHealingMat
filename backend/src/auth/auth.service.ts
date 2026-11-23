@@ -684,7 +684,10 @@ export class AuthService {
   ) {
     // Default: start trial for new accounts (OTP trial signup + Google signup).
     // Login / membership signup pass startFreeTrial: false so trial is opt-in.
-    const shouldStartTrial = options?.startFreeTrial ?? isNewAccount;
+    // Admin → Settings can disable trial site-wide (membership-only pilot).
+    const trialEnabled = await this.settings.isTrialEnabled();
+    const shouldStartTrial =
+      trialEnabled && (options?.startFreeTrial ?? isNewAccount);
     const withTrial = shouldStartTrial
       ? await this.trials.ensureFreeTrial(user)
       : user;

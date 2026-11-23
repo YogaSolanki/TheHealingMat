@@ -52,6 +52,13 @@ export class SiteSettings {
   @Column({ type: 'varchar', length: 8, nullable: true })
   invoiceFinancialYearOverride: string | null;
 
+  /**
+   * When false, free-trial signup / start is off site-wide (membership only).
+   * Admin can re-enable from Settings. Defaults off for pilot launch.
+   */
+  @Column({ type: 'boolean', default: false })
+  trialEnabled: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

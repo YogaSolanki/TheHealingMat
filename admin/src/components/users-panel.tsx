@@ -793,7 +793,7 @@ export function UsersPanel() {
 
   if (error && users.length === 0) {
     return (
-      <section className="flex min-h-[calc(100dvh-7rem)] flex-col">
+      <section className="flex h-[calc(100dvh-7rem)] max-h-[calc(100dvh-7rem)] flex-col">
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_rgba(21,32,25,0.04)]">
           <div className="flex shrink-0 justify-end border-b border-[#e6ebe3] px-5 py-4">
             <ReloadButton
@@ -829,7 +829,7 @@ export function UsersPanel() {
         }}
         onConfirm={() => void confirmDeactivateUser()}
       />
-      <section className="flex min-h-[calc(100dvh-7rem)] flex-col">
+      <section className="flex h-[calc(100dvh-7rem)] max-h-[calc(100dvh-7rem)] flex-col">
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_rgba(21,32,25,0.04)]">
         <div className="flex shrink-0 flex-col gap-2.5 border-b border-[#e6ebe3] px-5 py-3.5">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
@@ -931,7 +931,7 @@ export function UsersPanel() {
           </p>
         ) : null}
 
-        <div className="min-h-0 flex-1 overflow-x-auto pb-28">
+        <div className="min-h-0 flex-1 overflow-x-auto">
           <table className="w-full min-w-[860px] table-fixed text-left text-sm">
             <thead className="text-[#5f6f64]">
               <tr>
@@ -1497,7 +1497,12 @@ export function UsersPanel() {
                     disabled={adding}
                     className="h-4 w-4 rounded border-[#d7e0d6] text-[#1f6b3a] focus:ring-[#1f6b3a]"
                   />
-                  Start free trial (like website trial signup)
+                  <span>
+                    Start free trial (like website trial signup)
+                    <span className="mt-0.5 block text-[12px] font-medium text-[#6b7c6e]">
+                      Requires Free trial enabled in Settings.
+                    </span>
+                  </span>
                 </label>
 
                 {addError ? (

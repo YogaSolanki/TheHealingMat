@@ -24,6 +24,7 @@ import { StartTrialButton } from "@/components/start-trial-button";
 import { TrialTrustRow } from "@/components/trial-trust-row";
 import type { PublicMembershipPlan, Region } from "@/lib/api";
 import type { CheckoutStartMode } from "@/lib/checkout-intent";
+import { useTrialEnabled } from "@/lib/trial-enabled-store";
 import {
   formatMembershipMoney,
   formatMembershipPerDay,
@@ -751,6 +752,8 @@ function DailySessionsBlock() {
 }
 
 function StillNotSureCta() {
+  const trialEnabled = useTrialEnabled();
+
   return (
     <section className="mx-auto w-full max-w-[1440px] px-4 pt-2 pb-10 sm:px-6 sm:pb-12 lg:px-6 lg:pb-14 xl:px-8">
       <div
@@ -778,10 +781,12 @@ function StillNotSureCta() {
 
           <div className="relative z-10 flex flex-col items-center justify-center px-5 py-5 text-center sm:px-7 sm:py-6 md:px-6 md:py-5 md:pr-14 lg:px-7 lg:py-6 lg:pr-20 xl:pr-24">
             <h2 className="max-w-[560px] font-serif text-[1.25rem] leading-tight font-bold tracking-tight text-[#1f6b3a] sm:text-[1.4rem] lg:text-[1.55rem]">
-              Still Not Sure?
+              {trialEnabled ? "Still Not Sure?" : "Ready to Begin?"}
             </h2>
             <p className="mt-1 max-w-[480px] text-[12px] leading-snug text-[#5f6f64] sm:text-[13px]">
-              Try The Healing Mat for 14 days before you decide.
+              {trialEnabled
+                ? "Try The Healing Mat for 14 days before you decide."
+                : "Choose a membership and start your daily practice."}
             </p>
 
             <StartTrialButton className="btn-primary mt-3.5 inline-flex items-center gap-1.5 rounded-[16px] bg-[#1f6b3a] px-5 py-2 text-[13px] font-bold text-white sm:mt-4 sm:px-6 sm:py-2.5 sm:text-[14px]">
@@ -789,10 +794,12 @@ function StillNotSureCta() {
               <span aria-hidden="true">→</span>
             </StartTrialButton>
 
-            <TrialTrustRow
-              className="mt-2.5 sm:mt-3"
-              itemClassName="text-[#5f6f64]"
-            />
+            {trialEnabled ? (
+              <TrialTrustRow
+                className="mt-2.5 sm:mt-3"
+                itemClassName="text-[#5f6f64]"
+              />
+            ) : null}
           </div>
         </div>
       </div>

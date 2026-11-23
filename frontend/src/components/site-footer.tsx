@@ -23,6 +23,7 @@ import { useAuthModal } from "@/components/auth-modal-provider";
 import { useReferEarnPopup } from "@/components/refer-earn-popup";
 import { SiteLogo } from "@/components/site-logo";
 import { getStoredToken } from "@/lib/auth-storage";
+import { useTrialEnabled } from "@/lib/trial-enabled-store";
 import { isDashboardPath, isMembershipBrowsePath } from "@/lib/member-routes";
 import {
   SITE_ADDRESS_LINES,
@@ -122,6 +123,7 @@ function FooterLinkColumn({
 function GetStartedColumn() {
   const { openAuth } = useAuthModal();
   const { openReferEarn } = useReferEarnPopup();
+  const trialEnabled = useTrialEnabled();
 
   return (
     <div>
@@ -129,15 +131,17 @@ function GetStartedColumn() {
         Get Started
       </h3>
       <ul className="mt-2 space-y-1.5">
-        <li>
-          <button
-            type="button"
-            onClick={() => openAuth("signup")}
-            className="link-underline cursor-pointer text-[13px] font-medium text-[#1f6b3a] hover:text-[#1f6b3a]"
-          >
-            Start 14-Day Free Trial
-          </button>
-        </li>
+        {trialEnabled ? (
+          <li>
+            <button
+              type="button"
+              onClick={() => openAuth("signup", { intent: "trial" })}
+              className="link-underline cursor-pointer text-[13px] font-medium text-[#1f6b3a] hover:text-[#1f6b3a]"
+            >
+              Start 14-Day Free Trial
+            </button>
+          </li>
+        ) : null}
         <li>
           <Link
             href="/membership"

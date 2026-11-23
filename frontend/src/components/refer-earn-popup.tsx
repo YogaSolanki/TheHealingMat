@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import referEarnHero from "@/assets/refer.png";
 import { useAuthModal } from "@/components/auth-modal-provider";
 import { getStoredToken } from "@/lib/auth-storage";
+import { useTrialEnabled } from "@/lib/trial-enabled-store";
 
 const CLOSE_MS = 220;
 
@@ -70,6 +71,7 @@ function ReferEarnPopup({
   onClose: () => void;
 }) {
   const { openAuth } = useAuthModal();
+  const trialEnabled = useTrialEnabled();
   const [mounted, setMounted] = useState(false);
   const [rendered, setRendered] = useState(open);
   const [exiting, setExiting] = useState(false);
@@ -240,17 +242,21 @@ function ReferEarnPopup({
               Not a member yet?
             </p>
             <p className="mt-1 flex-1 text-[11px] leading-snug text-[#5f6f64] sm:text-[12px]">
-              Experience The Healing Mat with our 14-Day Free Trial.
+              {trialEnabled
+                ? "Experience The Healing Mat with our 14-Day Free Trial."
+                : "Join The Healing Mat with a membership that fits your pace."}
             </p>
             <button
               type="button"
               onClick={() => {
                 handleClose();
-                openAuth("signup");
+                openAuth("signup", {
+                  intent: trialEnabled ? "trial" : "membership",
+                });
               }}
               className="btn-primary mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#1f6b3a] px-3 py-2 text-[12px] font-bold text-white sm:w-auto sm:self-start sm:px-4 sm:text-[13px]"
             >
-              Start Your Free Trial
+              {trialEnabled ? "Start Your Free Trial" : "Become a Member"}
               <span aria-hidden="true">→</span>
             </button>
           </div>
@@ -269,7 +275,7 @@ const steps = [
   },
   {
     title: "They join",
-    description: "They can start a free trial or choose a membership.",
+    description: "They choose a membership that works for them.",
     icon: PeopleIcon,
   },
   {

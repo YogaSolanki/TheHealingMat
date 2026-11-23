@@ -224,6 +224,18 @@ export async function getHealth(): Promise<HealthResponse> {
   return parseJson<HealthResponse>(response);
 }
 
+export type PublicSiteSettings = {
+  /** When false, free trial CTAs/signup are off (membership only). */
+  trialEnabled: boolean;
+};
+
+export async function getPublicSiteSettings(): Promise<PublicSiteSettings> {
+  const response = await fetch(`${API_URL}/settings/public`, {
+    cache: "no-store",
+  });
+  return parseJson<PublicSiteSettings>(response);
+}
+
 export async function getVisitorRegion(): Promise<{
   region: Region;
   country: string | null;

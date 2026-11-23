@@ -14,6 +14,10 @@ import { ReferralCapture } from "@/components/referral-capture";
 import { FORCE_LOGOUT_EVENT, getStoredToken } from "@/lib/auth-storage";
 import { isDashboardPath, shouldShowMemberHeader } from "@/lib/member-routes";
 import { sessionStore } from "@/lib/session-store";
+import {
+  ensureTrialEnabledLoaded,
+  useTrialEnabled,
+} from "@/lib/trial-enabled-store";
 
 /** Attach sessionStorage after mount so SSR HTML matches the hydration pass. */
 function SessionClientAttach() {
@@ -25,6 +29,7 @@ function SessionClientAttach() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const trialEnabled = useTrialEnabled();
   const [signedIn, setSignedIn] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const isAuthCallback = pathname === "/auth/callback";
@@ -35,6 +40,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     shouldShowMemberHeader(pathname, signedIn);
   // Public pages need a client token read before choosing public vs member nav.
   const headerPending = !isAuthCallback && !isMemberDashboard && !authChecked;
+
+  useEffect(() => {
+    ensureTrialEnabledLoaded();
+  }, []);
 
   useEffect(() => {
     setSignedIn(Boolean(getStoredToken()));
@@ -66,10 +75,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </div>
       {!isAuthCallback ? <SiteFooter /> : null}
-      {authChecked && !signedIn && !isAuthCallback ? (
+      {authChecked && !signedIn && !isAuthCallback && trialEnabled ? (
         <FreeTrialPromoPopup />
       ) : null}
-      {authChecked && !signedIn && !isAuthCallback ? (
+      {authChecked && !signedIn && !isAuthCallback && trialEnabled ? (
         <StickyFreeTrialCta />
       ) : null}
     </ReferEarnPopupProvider>

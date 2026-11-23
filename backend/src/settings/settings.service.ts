@@ -37,6 +37,7 @@ export class SettingsService implements OnModuleInit {
     await this.ensurePrivateSpacePasswordColumn();
     await this.ensureInvoiceFinancialYearOverrideColumn();
     await this.ensureMembershipEbookUrlColumn();
+    await this.ensureTrialEnabledColumn();
     await this.ensureRow();
     await this.ensureMembershipEbookUrlSeeded();
   }
@@ -44,6 +45,19 @@ export class SettingsService implements OnModuleInit {
   async getAdminSettings() {
     const row = await this.ensureRow();
     return this.toAdminResponse(row);
+  }
+
+  /** Public flags for marketing / auth UI (no secrets). */
+  async getPublicSettings() {
+    const row = await this.ensureRow();
+    return {
+      trialEnabled: Boolean(row.trialEnabled),
+    };
+  }
+
+  async isTrialEnabled(): Promise<boolean> {
+    const row = await this.ensureRow();
+    return Boolean(row.trialEnabled);
   }
 
   async getLiveSessionUrl(): Promise<string | null> {
@@ -137,6 +151,9 @@ export class SettingsService implements OnModuleInit {
       const next = dto.referralMessageTemplate?.trim() || null;
       row.referralMessageTemplate = next;
     }
+    if (dto.trialEnabled !== undefined) {
+      row.trialEnabled = Boolean(dto.trialEnabled);
+    }
     const saved = await this.settings.save(row);
     return this.toAdminResponse(saved);
   }
@@ -152,6 +169,7 @@ export class SettingsService implements OnModuleInit {
         row.referralMessageTemplate,
       ),
       defaultReferralMessageTemplate: DEFAULT_REFERRAL_MESSAGE_TEMPLATE,
+      trialEnabled: Boolean(row.trialEnabled),
       updatedAt: row.updatedAt.toISOString(),
     };
   }
@@ -205,6 +223,13 @@ export class SettingsService implements OnModuleInit {
     `);
   }
 
+  private async ensureTrialEnabledColumn() {
+    await this.settings.query(`
+      ALTER TABLE "site_settings"
+      ADD COLUMN IF NOT EXISTS "trialEnabled" boolean NOT NULL DEFAULT false
+    `);
+  }
+
   /** Backfill Drive / env URL once if the column is still empty. */
   private async ensureMembershipEbookUrlSeeded() {
     const row = await this.ensureRow();
@@ -233,6 +258,7 @@ export class SettingsService implements OnModuleInit {
         referralMessageTemplate: null,
         privateSpacePasswordHash: null,
         invoiceFinancialYearOverride: null,
+        trialEnabled: false,
       }),
     );
   }

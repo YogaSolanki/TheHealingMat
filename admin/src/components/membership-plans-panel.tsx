@@ -343,7 +343,7 @@ export function MembershipPlansPanel() {
   }
 
   return (
-    <div className="flex min-h-[calc(100dvh-7rem)] flex-col gap-6">
+    <div className="flex min-h-0 flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-serif text-2xl font-bold text-[#243028]">

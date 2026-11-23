@@ -364,7 +364,7 @@ export function CouponsPanel() {
   }
 
   return (
-    <section className="flex min-h-[calc(100dvh-7rem)] flex-col gap-4">
+    <section className="flex h-[calc(100dvh-7rem)] max-h-[calc(100dvh-7rem)] flex-col gap-4">
       <AdminConfirmDialog
         open={Boolean(pendingDeleteCoupon)}
         title="Delete coupon?"
@@ -518,7 +518,7 @@ export function CouponsPanel() {
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-x-auto pb-28">
+        <div className="min-h-0 flex-1 overflow-x-auto">
           <table className="w-full min-w-[920px] table-fixed text-left text-sm">
             <thead className="text-[#5f6f64]">
               <tr>

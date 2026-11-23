@@ -13,6 +13,7 @@ import {
   getAnnualPerDayLabel,
   useMembershipPlans,
 } from "@/lib/membership-plans-store";
+import { useTrialEnabled } from "@/lib/trial-enabled-store";
 
 const cream = "#FBF9F5";
 
@@ -68,6 +69,7 @@ function ChatIcon() {
 }
 
 export function CtaBannerSection() {
+  const trialEnabled = useTrialEnabled();
   const { data: plansData } = useMembershipPlans();
   const annualPerDay = useMemo(
     () => getAnnualPerDayLabel(plansData.plans),
@@ -187,7 +189,9 @@ export function CtaBannerSection() {
               <span aria-hidden="true">→</span>
             </StartTrialButton>
 
-            <TrialTrustRow className="mt-2.5 sm:mt-3" />
+            {trialEnabled ? (
+              <TrialTrustRow className="mt-2.5 sm:mt-3" />
+            ) : null}
           </div>
         </div>
       </div>

@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { SettingsService } from '../settings/settings.service';
 import { User } from '../users/user.entity';
 import { TrialStatus } from '../users/enums/trial-status.enum';
 import { buildMemberAccessLink } from '../common/frontend-url';
@@ -25,6 +26,9 @@ import { TrialRegistration } from './trial-registration.entity';
 
 export { FREE_TRIAL_DAYS };
 
+const TRIAL_DISABLED_MESSAGE =
+  'Free trial is not available right now. Please choose a membership to continue.';
+
 @Injectable()
 export class TrialsService {
   private readonly logger = new Logger(TrialsService.name);
@@ -40,13 +44,26 @@ export class TrialsService {
     private readonly users: Repository<User>,
     private readonly config: ConfigService,
     private readonly messaging: TrialMessagingService,
+    private readonly settings: SettingsService,
   ) {}
+
+  /** Throws when Admin → Settings has free trial disabled. */
+  async assertTrialEnabled() {
+    if (!(await this.settings.isTrialEnabled())) {
+      throw new BadRequestException(TRIAL_DISABLED_MESSAGE);
+    }
+  }
 
   /**
    * Ensures the member has a 14-day trial on the next 1st/3rd Monday cohort.
    * Idempotent: existing registrations are only status-refreshed.
+   * No-op when Admin → Settings has free trial disabled.
    */
   async ensureFreeTrial(user: User): Promise<User> {
+    if (!(await this.settings.isTrialEnabled())) {
+      return user;
+    }
+
     const existing = await this.registrations.findOne({
       where: { userId: user.id },
     });
@@ -134,6 +151,7 @@ export class TrialsService {
     );
 
     return {
+      trialEnabled: await this.settings.isTrialEnabled(),
       cohort: {
         id: cohort.id,
         label: cohort.label,
@@ -156,6 +174,7 @@ export class TrialsService {
    * Same cohort / messaging path as signup via ensureFreeTrial.
    */
   async startFreeTrial(user: User) {
+    await this.assertTrialEnabled();
     if (user.hasUsedFreeTrial) {
       throw new ConflictException(
         'One Free Trial per user. This account has already used its trial.',
@@ -167,6 +186,7 @@ export class TrialsService {
   }
 
   async register(user: User, dto: RegisterTrialDto) {
+    await this.assertTrialEnabled();
     if (user.hasUsedFreeTrial) {
       throw new ConflictException(
         'One Free Trial per user. This account has already used its trial.',

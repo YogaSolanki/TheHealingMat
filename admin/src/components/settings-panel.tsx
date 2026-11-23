@@ -143,6 +143,7 @@ function TimeSelects({
 export function SettingsPanel() {
   const [settings, setSettings] = useState<AdminSiteSettings | null>(null);
   const [timings, setTimings] = useState<AdminSessionTiming[]>([]);
+  const [trialEnabled, setTrialEnabled] = useState(false);
   const [membershipEbookUrl, setMembershipEbookUrl] = useState("");
   const [referralDiscountPercent, setReferralDiscountPercent] = useState("20");
   const [referralMessageTemplate, setReferralMessageTemplate] = useState("");
@@ -153,6 +154,7 @@ export function SettingsPanel() {
   const [specialEditTime, setSpecialEditTime] = useState<TimeParts>(DEFAULT_TIME);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [trialSaving, setTrialSaving] = useState(false);
   const [timingBusy, setTimingBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -197,6 +199,7 @@ export function SettingsPanel() {
         listAdminSessionTimings(token),
       ]);
       setSettings(nextSettings);
+      setTrialEnabled(Boolean(nextSettings.trialEnabled));
       setMembershipEbookUrl(nextSettings.membershipEbookUrl ?? "");
       setReferralDiscountPercent(
         String(nextSettings.referralDiscountPercent ?? 20),
@@ -225,9 +228,37 @@ export function SettingsPanel() {
     void load();
   }, [load]);
 
+  async function onToggleTrialEnabled() {
+    if (!token || trialSaving || saving) return;
+    const nextEnabled = !trialEnabled;
+    const previous = trialEnabled;
+    setTrialEnabled(nextEnabled);
+    setTrialSaving(true);
+    setError(null);
+    try {
+      const next = await updateAdminSettings(token, {
+        trialEnabled: nextEnabled,
+      });
+      setSettings(next);
+      setTrialEnabled(Boolean(next.trialEnabled));
+      showSuccess(
+        next.trialEnabled
+          ? "Free trial enabled."
+          : "Free trial disabled. Membership only.",
+      );
+    } catch (err: unknown) {
+      setTrialEnabled(previous);
+      showError(
+        err instanceof Error ? err.message : "Unable to update free trial.",
+      );
+    } finally {
+      setTrialSaving(false);
+    }
+  }
+
   async function onSubmitReferral(event: FormEvent) {
     event.preventDefault();
-    if (!token || saving) return;
+    if (!token || saving || trialSaving) return;
 
     const ebookUrl = membershipEbookUrl.trim();
     if (ebookUrl) {
@@ -419,13 +450,13 @@ export function SettingsPanel() {
             Settings
           </h1>
           <p className="mt-1 text-sm text-[#5f6f64]">
-            Referral discount, e-book fallback link, and session times for Class
-            Management.
+            Free trial switch, referral discount, e-book fallback link, and
+            session times for Class Management.
           </p>
         </div>
         <ReloadButton
           onClick={() => void load()}
-          disabled={loading || saving || timingBusy}
+          disabled={loading || saving || trialSaving || timingBusy}
         />
       </div>
 
@@ -439,6 +470,55 @@ export function SettingsPanel() {
         onSubmit={onSubmitReferral}
         className="space-y-5 rounded-2xl border border-[#e6ebe3] bg-white p-5 shadow-sm sm:p-6"
       >
+        <div>
+          <h2 className="text-sm font-semibold text-[#243028]">Free trial</h2>
+          <p className="mt-1 text-[13px] leading-relaxed text-[#6b7c6e]">
+            When disabled, the public site only offers membership signup. Trial
+            CTAs, promo popups, and trial start APIs stay off until you enable
+            this again.
+          </p>
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-[#e2e8df] bg-[#f7faf6] px-3.5 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[#243028]">
+                Enable free trial
+              </p>
+              <p className="mt-0.5 text-[12px] leading-relaxed text-[#6b7c6e]">
+                {trialSaving
+                  ? "Saving…"
+                  : trialEnabled
+                    ? "Free trial is available on the website and in the member area."
+                    : "Pilot mode: membership only. Free trial is hidden and blocked."}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2.5">
+              {trialSaving ? (
+                <span
+                  className="h-5 w-5 animate-spin rounded-full border-2 border-[#d9e2d8] border-t-[#1f6b3a]"
+                  aria-hidden="true"
+                />
+              ) : null}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={trialEnabled}
+                aria-busy={trialSaving}
+                aria-label="Enable free trial"
+                disabled={saving || trialSaving}
+                onClick={() => void onToggleTrialEnabled()}
+                className={`relative h-7 w-12 shrink-0 rounded-full transition ${
+                  trialEnabled ? "bg-[#1f6b3a]" : "bg-[#d7e0d6]"
+                } disabled:opacity-60`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition ${
+                    trialEnabled ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div>
           <h2 className="text-sm font-semibold text-[#243028]">
             Membership e-book fallback
@@ -546,7 +626,7 @@ export function SettingsPanel() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || trialSaving}
             className="inline-flex h-11 items-center justify-center rounded-xl bg-[#1f6b3a] px-5 text-sm font-bold text-white disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save referral settings"}

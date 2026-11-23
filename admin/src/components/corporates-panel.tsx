@@ -230,7 +230,7 @@ export function CorporatesPanel() {
 
   if (error && companies.length === 0) {
     return (
-      <section className="flex min-h-[calc(100dvh-7rem)] flex-col">
+      <section className="flex h-[calc(100dvh-7rem)] max-h-[calc(100dvh-7rem)] flex-col">
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_rgba(21,32,25,0.04)]">
           <div className="flex shrink-0 justify-end border-b border-[#e6ebe3] px-5 py-4">
             <ReloadButton
@@ -250,7 +250,7 @@ export function CorporatesPanel() {
 
   return (
     <>
-      <section className="flex min-h-[calc(100dvh-7rem)] flex-col">
+      <section className="flex h-[calc(100dvh-7rem)] max-h-[calc(100dvh-7rem)] flex-col">
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_rgba(21,32,25,0.04)]">
           <div className="flex shrink-0 flex-col gap-3 border-b border-[#e6ebe3] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
@@ -307,7 +307,7 @@ export function CorporatesPanel() {
             </p>
           ) : null}
 
-          <div className="min-h-0 flex-1 overflow-x-auto pb-28">
+          <div className="min-h-0 flex-1 overflow-x-auto">
             <table className="w-full min-w-[860px] table-fixed text-left text-sm">
               <thead className="text-[#5f6f64]">
                 <tr>

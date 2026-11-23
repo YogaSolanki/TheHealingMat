@@ -9,6 +9,7 @@ import {
   clearLegacyReferralStorage,
   stripReferralCodeFromUrl,
 } from "@/lib/referral-storage";
+import { useTrialEnabled } from "@/lib/trial-enabled-store";
 
 /** Same key as FreeTrialPromoPopup — avoids a second auto-open later. */
 const PROMO_SESSION_KEY = "thm_trial_promo_shown";
@@ -21,6 +22,7 @@ export function ReferralCapture() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const { openAuth } = useAuthModal();
+  const trialEnabled = useTrialEnabled();
   const handledRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -45,8 +47,11 @@ export function ReferralCapture() {
       /* ignore */
     }
 
-    openAuth("signup", { referralCode: code });
-  }, [searchParams, pathname, openAuth]);
+    openAuth("signup", {
+      intent: trialEnabled ? "trial" : "membership",
+      referralCode: code,
+    });
+  }, [searchParams, pathname, openAuth, trialEnabled]);
 
   return null;
 }

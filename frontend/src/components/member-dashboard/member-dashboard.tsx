@@ -35,6 +35,7 @@ import {
   daypartYogaMessage,
   useMemberAccess,
 } from "@/lib/member-access";
+import { useTrialEnabled } from "@/lib/trial-enabled-store";
 import {
   displaySlotLabel,
   displaySlotLabels,
@@ -286,7 +287,9 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   const [ebookError, setEbookError] = useState<string | null>(null);
   const { cards: startHereVideos } = useOrientationVideoCards(isActiveMember);
   const { successfulCount: successfulReferrals } = useMyReferrals();
-  const canStartFreeTrial = isUnaffiliated && !user.hasUsedFreeTrial;
+  const trialEnabled = useTrialEnabled();
+  const canStartFreeTrial =
+    trialEnabled && isUnaffiliated && !user.hasUsedFreeTrial;
   const membershipDaysLeft = daysRemaining(access.validUntilIso);
 
   const nextMilestone = nextReferralMilestone(successfulReferrals);
@@ -426,7 +429,9 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
   }
 
   const supportingMessage = isUnaffiliated
-    ? "Complete your membership to unlock daily yoga sessions, or start a free trial if you are eligible."
+    ? canStartFreeTrial
+      ? "Complete your membership to unlock daily yoga sessions, or start a free trial if you are eligible."
+      : "Complete your membership to unlock daily yoga sessions."
     : isScheduledTrial || isTrial
     ? `Your trial starts on ${access.trialStartsOnLabel ?? "the upcoming cohort Monday"}.`
     : isExpired
@@ -1507,7 +1512,9 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                 title="My Membership"
                 subtitle={
                   isUnaffiliated
-                    ? "Complete membership or start a free trial"
+                    ? canStartFreeTrial
+                      ? "Complete membership or start a free trial"
+                      : "Complete your membership"
                     : isScheduledTrial
                       ? `Starts ${access.trialStartsOnLabel ?? "—"}`
                       : isExpired
