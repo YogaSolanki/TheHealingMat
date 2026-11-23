@@ -692,7 +692,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                             </span>
                           }
                           title="Trial Sessions"
-                          subtitle="Join opens on your start date"
+                          subtitle="Trial session access begins on your start date."
                         />
                         {bothPeriods ? disabledJoin : null}
                       </div>
