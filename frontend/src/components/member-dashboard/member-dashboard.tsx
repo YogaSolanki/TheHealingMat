@@ -696,14 +696,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                               alt=""
                               className="absolute inset-0 h-full w-full object-cover"
                             />
-                          ) : (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <PlayCircleIcon className="h-8 w-8 text-[#1f6b3a]/35 sm:h-9 sm:w-9" />
-                            </div>
-                          )}
-                          <span className="absolute inset-0 flex items-center justify-center bg-black/15">
-                            <PlayCircleIcon className="h-8 w-8 text-white drop-shadow sm:h-9 sm:w-9" />
-                          </span>
+                          ) : null}
                         </div>
                         <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 px-2.5 py-2.5 sm:px-3.5 sm:py-3">
                           <div className="min-w-0">
