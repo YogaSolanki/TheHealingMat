@@ -174,14 +174,56 @@ export class AdminDashboardService {
     };
   }
 
-  async listUsers() {
-    const users = await this.users.find({
-      order: { createdAt: 'DESC' },
-      take: 100,
-    });
+  async listUsers(options?: {
+    page?: number;
+    limit?: number;
+    q?: string;
+    accountStatus?: 'all' | 'active' | 'inactive';
+  }) {
+    const page = Math.max(1, Math.floor(options?.page ?? 1));
+    const limit = Math.min(
+      100,
+      Math.max(1, Math.floor(options?.limit ?? 100)),
+    );
+    const q = options?.q?.trim().toLowerCase() ?? '';
+    const accountStatus = options?.accountStatus ?? 'all';
+
+    const qb = this.users
+      .createQueryBuilder('user')
+      .orderBy('user.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    if (accountStatus === 'active') {
+      qb.andWhere('user.accountStatus = :accountStatus', {
+        accountStatus: AccountStatus.Active,
+      });
+    } else if (accountStatus === 'inactive') {
+      qb.andWhere('user.accountStatus = :accountStatus', {
+        accountStatus: AccountStatus.Inactive,
+      });
+    }
+
+    if (q) {
+      qb.andWhere(
+        `(LOWER(user.fullName) LIKE :q
+          OR LOWER(user.referralCode) LIKE :q
+          OR LOWER(COALESCE(user.email, '')) LIKE :q
+          OR LOWER(COALESCE(user.mobile, '')) LIKE :q)`,
+        { q: `%${q}%` },
+      );
+    }
+
+    const [users, total] = await qb.getManyAndCount();
 
     if (users.length === 0) {
-      return { users: [] };
+      return {
+        users: [],
+        total,
+        page,
+        limit,
+        hasMore: page * limit < total,
+      };
     }
 
     const trials = await this.trials.find({
@@ -207,6 +249,10 @@ export class AdminDashboardService {
             : null,
         };
       }),
+      total,
+      page,
+      limit,
+      hasMore: page * limit < total,
     };
   }
 

@@ -71,6 +71,13 @@ export class Coupon {
   @Column({ type: 'uuid', nullable: true })
   corporatePlanId: string | null;
 
+  /**
+   * Membership term this coupon applies to (3 / 6 / 12).
+   * null = legacy / unrestricted (avoid for new admin coupons).
+   */
+  @Column({ type: 'int', nullable: true })
+  planMonths: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

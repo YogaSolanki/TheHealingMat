@@ -1582,6 +1582,17 @@ export class PaymentsService {
         }
       }
 
+      // Consumer coupons are scoped to one membership term (3 / 6 / 12).
+      // Corporate coupons may rematch plan above via corporatePlanId.
+      if (
+        coupon.planMonths != null &&
+        coupon.planMonths !== plan.months
+      ) {
+        throw new BadRequestException(
+          `This coupon is only valid for the ${coupon.planMonths}-month plan.`,
+        );
+      }
+
       await this.coupons.assertRedeemable(coupon, user.id, {
         verifiedEmail,
       });

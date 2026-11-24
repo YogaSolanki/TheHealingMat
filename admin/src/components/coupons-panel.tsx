@@ -18,9 +18,11 @@ import {
   deleteAdminCoupon,
   generateAdminCoupon,
   getAdminCouponDetails,
+  getAdminUsers,
   listAdminCoupons,
   type AdminCoupon,
   type AdminCouponDetails,
+  type AdminUserRow,
   type CouponDiscountType,
   type GeneratedCoupon,
 } from "@/lib/api";
@@ -53,16 +55,29 @@ export function CouponsPanel() {
   const [discountType, setDiscountType] =
     useState<CouponDiscountType>("fixed");
   const [discountValue, setDiscountValue] = useState("");
+  const [planMonths, setPlanMonths] = useState<3 | 6 | 12>(3);
   const [maxUses, setMaxUses] = useState("1");
   const [draft, setDraft] = useState<GeneratedCoupon | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(() => !hasCached(cacheKey));
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [assignTarget, setAssignTarget] = useState<AdminCoupon | null>(null);
-  const [referralCode, setReferralCode] = useState("");
+  const [assignUsers, setAssignUsers] = useState<AdminUserRow[]>([]);
+  const [assignUsersLoading, setAssignUsersLoading] = useState(false);
+  const [assignUsersLoadingMore, setAssignUsersLoadingMore] = useState(false);
+  const [assignPage, setAssignPage] = useState(1);
+  const [assignHasMore, setAssignHasMore] = useState(false);
+  const [assignTotal, setAssignTotal] = useState(0);
+  const [assignQuery, setAssignQuery] = useState("");
+  const [assignSearch, setAssignSearch] = useState("");
+  const [selectedReferralCodes, setSelectedReferralCodes] = useState<string[]>(
+    [],
+  );
   const [assigning, setAssigning] = useState(false);
   const [detailsTarget, setDetailsTarget] = useState<AdminCoupon | null>(null);
   const [details, setDetails] = useState<AdminCouponDetails | null>(null);
@@ -147,6 +162,7 @@ export function CouponsPanel() {
         coupon.code,
         coupon.userName,
         coupon.discountLabel,
+        coupon.planMonths ? `${coupon.planMonths} month` : "",
         coupon.assignedReferralCode ?? "",
         ...(coupon.allowedDomains ?? []),
         coupon.corporatePlanId ? "corporate seats" : "",
@@ -157,6 +173,27 @@ export function CouponsPanel() {
     );
   }, [coupons, query]);
 
+  function resetCreateForm() {
+    setUserName("");
+    setDiscountType("fixed");
+    setDiscountValue("");
+    setPlanMonths(3);
+    setMaxUses("1");
+    setDraft(null);
+    setFormError(null);
+  }
+
+  function openCreate() {
+    resetCreateForm();
+    setCreateOpen(true);
+  }
+
+  function closeCreate() {
+    if (generating || saving) return;
+    setCreateOpen(false);
+    resetCreateForm();
+  }
+
   async function onGenerate(event: FormEvent) {
     event.preventDefault();
     if (!canGenerate) return;
@@ -165,40 +202,40 @@ export function CouponsPanel() {
     const value = Math.floor(Number(discountValue));
     const uses = Math.floor(Number(maxUses));
     if (discountType === "percent" && value > 100) {
-      setError("Percent off cannot be more than 100.");
+      setFormError("Percent off cannot be more than 100.");
       return;
     }
     if (uses < 1) {
-      setError("Usage limit must be at least 1.");
+      setFormError("Usage limit must be at least 1.");
       return;
     }
 
     const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
     if (!token) {
-      setError("Please sign in again.");
+      setFormError("Please sign in again.");
       return;
     }
 
     setGenerating(true);
-    setError(null);
-    setNotice(null);
+    setFormError(null);
     try {
       const generated = await generateAdminCoupon(token, {
         userName: name,
         discountType,
         discountValue: value,
+        planMonths,
         maxUses: uses,
       });
       setDraft(generated);
       setUserName(generated.userName);
       setDiscountType(generated.discountType);
       setDiscountValue(String(generated.discountValue));
+      setPlanMonths(generated.planMonths as 3 | 6 | 12);
       setMaxUses(String(generated.maxUses));
-      setNotice(
-        `Coupon generated (${generated.maxUses} use${generated.maxUses === 1 ? "" : "s"}). Save it to keep it.`,
-      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate coupon");
+      setFormError(
+        err instanceof Error ? err.message : "Failed to generate coupon",
+      );
     } finally {
       setGenerating(false);
     }
@@ -208,12 +245,12 @@ export function CouponsPanel() {
     if (!draft) return;
     const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
     if (!token) {
-      setError("Please sign in again.");
+      setFormError("Please sign in again.");
       return;
     }
 
     setSaving(true);
-    setError(null);
+    setFormError(null);
     setNotice(null);
     try {
       await createAdminCoupon(token, {
@@ -222,18 +259,18 @@ export function CouponsPanel() {
         discountType: draft.discountType,
         discountValue: draft.discountValue,
         discountLabel: draft.discountLabel,
+        planMonths: draft.planMonths,
         maxUses: draft.maxUses,
         expiresAt: draft.expiresAt,
       });
-      setNotice(`Saved ${draft.code} · ${draft.maxUses} use limit`);
-      setDraft(null);
-      setUserName("");
-      setDiscountValue("");
-      setMaxUses("1");
-      setDiscountType("fixed");
+      setNotice(
+        `Saved ${draft.code} · ${draft.planMonths}-month plan · ${draft.maxUses} use limit`,
+      );
+      setCreateOpen(false);
+      resetCreateForm();
       await load({ force: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save coupon");
+      setFormError(err instanceof Error ? err.message : "Failed to save coupon");
     } finally {
       setSaving(false);
     }
@@ -279,22 +316,117 @@ export function CouponsPanel() {
   function openAssign(coupon: AdminCoupon) {
     setMenuOpenId(null);
     setAssignTarget(coupon);
-    setReferralCode(coupon.assignedReferralCode ?? "");
+    setAssignQuery("");
+    setAssignSearch("");
+    setAssignUsers([]);
+    setAssignPage(1);
+    setAssignHasMore(false);
+    setAssignTotal(0);
+    setSelectedReferralCodes(
+      coupon.assignedReferralCode ? [coupon.assignedReferralCode] : [],
+    );
     setError(null);
   }
 
   function closeAssign() {
     if (assigning) return;
     setAssignTarget(null);
-    setReferralCode("");
+    setAssignQuery("");
+    setAssignSearch("");
+    setAssignUsers([]);
+    setAssignPage(1);
+    setAssignHasMore(false);
+    setAssignTotal(0);
+    setSelectedReferralCodes([]);
+  }
+
+  async function loadAssignUsers(options: {
+    page: number;
+    q: string;
+    replace: boolean;
+  }) {
+    const token = window.localStorage.getItem(ADMIN_TOKEN_KEY);
+    if (!token) {
+      setError("Please sign in again.");
+      return;
+    }
+
+    if (options.replace) {
+      setAssignUsersLoading(true);
+    } else {
+      setAssignUsersLoadingMore(true);
+    }
+
+    try {
+      const data = await getAdminUsers(token, {
+        page: options.page,
+        limit: 10,
+        q: options.q,
+        accountStatus: "active",
+      });
+      const users = data.users ?? [];
+      setAssignUsers((current) =>
+        options.replace
+          ? users
+          : [
+              ...current,
+              ...users.filter(
+                (user) => !current.some((row) => row.id === user.id),
+              ),
+            ],
+      );
+      setAssignPage(data.page ?? options.page);
+      setAssignHasMore(Boolean(data.hasMore));
+      setAssignTotal(data.total ?? users.length);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load members");
+    } finally {
+      setAssignUsersLoading(false);
+      setAssignUsersLoadingMore(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!assignTarget) return;
+    const handle = window.setTimeout(() => {
+      setAssignSearch(assignQuery.trim());
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [assignQuery, assignTarget]);
+
+  useEffect(() => {
+    if (!assignTarget) return;
+    void loadAssignUsers({ page: 1, q: assignSearch, replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when search settles
+  }, [assignSearch, assignTarget?.id]);
+
+  const assignLimit = assignTarget
+    ? Math.max(0, assignTarget.maxUses - (assignTarget.usageCount ?? 0))
+    : 0;
+
+  function toggleAssignUser(referralCode: string) {
+    setSelectedReferralCodes((current) => {
+      if (current.includes(referralCode)) {
+        return current.filter((code) => code !== referralCode);
+      }
+      if (current.length >= assignLimit) {
+        return current;
+      }
+      return [...current, referralCode];
+    });
   }
 
   async function onAssign(event: FormEvent) {
     event.preventDefault();
     if (!assignTarget) return;
-    const code = referralCode.trim();
-    if (code.length < 3) {
-      setError("Enter the member’s referral code.");
+    if (selectedReferralCodes.length === 0) {
+      setError("Select at least one member.");
+      return;
+    }
+    if (selectedReferralCodes.length > assignLimit) {
+      setError(
+        `This coupon allows only ${assignLimit} assignment${assignLimit === 1 ? "" : "s"}.`,
+      );
       return;
     }
 
@@ -309,14 +441,18 @@ export function CouponsPanel() {
     setNotice(null);
     try {
       const updated = await assignAdminCoupon(token, assignTarget.id, {
-        referralCode: code,
+        referralCodes: selectedReferralCodes,
         maxUses: 1,
       });
+      const count = updated.assignedCount ?? selectedReferralCodes.length;
       setNotice(
-        `Assigned ${updated.code} to ${updated.userName} (1 use only)`,
+        count === 1
+          ? `Assigned ${updated.code} to ${updated.userName} (1 use only)`
+          : `Assigned personal coupons to ${count} members (1 use each)`,
       );
       setAssignTarget(null);
-      setReferralCode("");
+      setAssignQuery("");
+      setSelectedReferralCodes([]);
       await load({ force: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to assign coupon");
@@ -391,151 +527,55 @@ export function CouponsPanel() {
         </p>
       ) : null}
 
-      <div className="shrink-0 rounded-2xl border border-[#e6ebe3] bg-white p-5 shadow-[0_4px_16px_rgba(21,32,25,0.03)]">
-        <h2 className="text-sm font-semibold text-[#243028]">Generate coupon</h2>
-        <p className="mt-1 text-xs text-[#8a978c]">
-          Set a usage limit (e.g. 1 = single use, 10 = ten members). Leave
-          unassigned for a shared code, or assign to one member for a personal
-          coupon. Fixed OFF uses the member&apos;s currency (₹ for India, $ for
-          outside India).
-        </p>
-
-        <form onSubmit={onGenerate} className="mt-4 space-y-3">
-          <div className="grid gap-3 sm:grid-cols-[1.2fr_1fr_0.9fr_0.9fr_auto] sm:items-end">
-            <label className="min-w-0 text-sm text-[#5f6f64]">
-              Label / user name
-              <input
-                type="text"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                placeholder="e.g. Diwali offer"
-                className="mt-1.5 h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
-              />
-            </label>
-
-            <label className="min-w-0 text-sm text-[#5f6f64]">
-              Offer type
-              <select
-                value={discountType}
-                onChange={(e) =>
-                  setDiscountType(e.target.value as CouponDiscountType)
-                }
-                className="mt-1.5 h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
-              >
-                <option value="fixed">Fixed OFF (₹ / $)</option>
-                <option value="percent">% OFF</option>
-              </select>
-            </label>
-
-            <label className="min-w-0 text-sm text-[#5f6f64]">
-              Value
-              <input
-                type="number"
-                min={1}
-                max={discountType === "percent" ? 100 : undefined}
-                step={1}
-                value={discountValue}
-                onChange={(e) => setDiscountValue(e.target.value)}
-                placeholder={discountType === "percent" ? "50" : "100"}
-                className="mt-1.5 h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
-              />
-            </label>
-
-            <label className="min-w-0 text-sm text-[#5f6f64]">
-              Max uses
-              <input
-                type="number"
-                min={1}
-                step={1}
-                value={maxUses}
-                onChange={(e) => setMaxUses(e.target.value)}
-                placeholder="1"
-                className="mt-1.5 h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
-              />
-            </label>
-
-            <button
-              type="submit"
-              disabled={!canGenerate || generating}
-              className="h-11 rounded-full bg-[#1f6b3a] px-5 text-sm font-semibold text-white hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              {generating ? "Generating…" : draft ? "Regenerate" : "Generate"}
-            </button>
-          </div>
-        </form>
-
-        {draft ? (
-          <div className="mt-4 rounded-2xl border border-[#d7e5d9] bg-[#f4f8f2] px-4 py-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-[#5f6f64]">
-              Generated for {draft.userName} · {draft.discountLabel} ·{" "}
-              {draft.maxUses} use{draft.maxUses === 1 ? "" : "s"}
-            </p>
-            <p className="mt-2 break-all font-mono text-xl font-semibold tracking-wide text-[#1f6b3a]">
-              {draft.code}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void onSave()}
-                disabled={saving}
-                className="h-10 rounded-full bg-[#1f6b3a] px-4 text-sm font-semibold text-white hover:bg-[#185830] disabled:opacity-60"
-              >
-                {saving ? "Saving…" : "Save to backend"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setDraft(null);
-                  setNotice(null);
-                }}
-                className="h-10 rounded-full px-4 text-sm font-medium text-[#5f6f64] hover:bg-white"
-              >
-                Discard
-              </button>
-            </div>
-          </div>
-        ) : null}
-      </div>
-
       <div className="flex min-h-0 flex-1 flex-col rounded-2xl bg-white shadow-[0_8px_24px_rgba(21,32,25,0.04)]">
         <div className="flex shrink-0 flex-col gap-3 border-b border-[#e6ebe3] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-[#5f6f64]">
             {coupons.length} saved coupon{coupons.length === 1 ? "" : "s"}
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search code, name, offer, or referral…"
-              className="h-10 w-full rounded-full bg-[#fbf9f5] px-4 text-sm outline-none placeholder:text-[#9aa59a] focus:bg-white focus:ring-2 focus:ring-[#1f6b3a]/20 sm:max-w-xs"
+              className="h-10 w-full rounded-full bg-[#fbf9f5] px-4 text-sm outline-none placeholder:text-[#9aa59a] focus:bg-white focus:ring-2 focus:ring-[#1f6b3a]/20 sm:w-64"
             />
-            <ReloadButton
-              onClick={() => void load({ force: true })}
-              loading={loading}
-              label="Reload coupons"
-            />
+            <div className="flex items-center gap-2">
+              <ReloadButton
+                onClick={() => void load({ force: true })}
+                loading={loading}
+                label="Reload coupons"
+              />
+              <button
+                type="button"
+                onClick={openCreate}
+                className="inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-[#1f6b3a] px-4 text-sm font-semibold text-white transition hover:bg-[#185830]"
+              >
+                + New Coupon
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-x-auto">
-          <table className="w-full min-w-[920px] table-fixed text-left text-sm">
+          <table className="w-full min-w-[980px] table-fixed text-left text-sm">
             <thead className="text-[#5f6f64]">
               <tr>
-                <th className="w-[18%] px-5 py-3 font-medium">Code</th>
-                <th className="w-[18%] px-5 py-3 font-medium">Audience</th>
+                <th className="w-[16%] px-5 py-3 font-medium">Code</th>
+                <th className="w-[16%] px-5 py-3 font-medium">Audience</th>
+                <th className="w-[10%] px-5 py-3 font-medium">Plan</th>
                 <th className="w-[12%] px-5 py-3 font-medium">Offer</th>
-                <th className="w-[12%] px-5 py-3 font-medium">Uses</th>
+                <th className="w-[10%] px-5 py-3 font-medium">Uses</th>
                 <th className="w-[12%] px-5 py-3 font-medium">Status</th>
-                <th className="w-[14%] px-5 py-3 font-medium">Created</th>
-                <th className="w-[14%] px-5 py-3 font-medium">Actions</th>
+                <th className="w-[12%] px-5 py-3 font-medium">Created</th>
+                <th className="w-[12%] px-5 py-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-5 py-16 text-center text-[#8a978c]"
                   >
                     {coupons.length === 0
@@ -582,6 +622,11 @@ export function CouponsPanel() {
                           Open (anyone with code)
                         </p>
                       )}
+                    </td>
+                    <td className="px-5 py-3 text-[#243028]">
+                      {coupon.planMonths
+                        ? `${coupon.planMonths} mo`
+                        : "—"}
                     </td>
                     <td className="px-5 py-3">
                       <span className="rounded-full bg-[#e8f2ea] px-2.5 py-1 text-[11px] font-semibold text-[#1f6b3a]">
@@ -672,6 +717,188 @@ export function CouponsPanel() {
           </table>
         </div>
       </div>
+
+      {createOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#152019]/35 px-4 py-6">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="new-coupon-title"
+            className="max-h-[min(92dvh,720px)] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-[0_20px_50px_rgba(21,32,25,0.18)] sm:p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2
+                  id="new-coupon-title"
+                  className="text-lg font-semibold text-[#243028]"
+                >
+                  New Coupon
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={closeCreate}
+                disabled={generating || saving}
+                aria-label="Close"
+                className="rounded-full px-2 text-xl leading-none text-[#8a978c] hover:bg-[#f4f7f4] disabled:opacity-50"
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={onGenerate} className="mt-5 space-y-3.5">
+              {formError ? (
+                <p className="rounded-xl bg-[#fff8f7] px-3.5 py-2.5 text-sm text-[#8a2f2f]">
+                  {formError}
+                </p>
+              ) : null}
+
+              <label className="block text-sm text-[#5f6f64]">
+                Label / user name
+                <input
+                  type="text"
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                  placeholder="e.g. Diwali offer"
+                  disabled={generating || saving}
+                  className="mt-1.5 h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 disabled:opacity-60"
+                />
+              </label>
+
+              <div className="space-y-1.5">
+                <p className="text-sm text-[#5f6f64]">Plan</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {([3, 6, 12] as const).map((months) => {
+                    const active = planMonths === months;
+                    return (
+                      <button
+                        key={months}
+                        type="button"
+                        disabled={generating || saving}
+                        onClick={() => setPlanMonths(months)}
+                        className={`h-11 rounded-xl border text-sm font-semibold transition disabled:opacity-60 ${
+                          active
+                            ? "border-[#1f6b3a] bg-[#e8f2ea] text-[#1f6b3a]"
+                            : "border-[#e2e8df] bg-white text-[#243028] hover:border-[#c9d4c6]"
+                        }`}
+                      >
+                        {months} months
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <p className="text-sm text-[#5f6f64]">Offer type</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      { value: "fixed", label: "Fixed OFF (₹ / $)" },
+                      { value: "percent", label: "% OFF" },
+                    ] as const
+                  ).map((option) => {
+                    const active = discountType === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        disabled={generating || saving}
+                        onClick={() => setDiscountType(option.value)}
+                        className={`h-11 rounded-xl border text-sm font-semibold transition disabled:opacity-60 ${
+                          active
+                            ? "border-[#1f6b3a] bg-[#e8f2ea] text-[#1f6b3a]"
+                            : "border-[#e2e8df] bg-white text-[#243028] hover:border-[#c9d4c6]"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="grid gap-3.5 sm:grid-cols-2">
+                <label className="block text-sm text-[#5f6f64]">
+                  Value
+                  <input
+                    type="number"
+                    min={1}
+                    max={discountType === "percent" ? 100 : undefined}
+                    step={1}
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(e.target.value)}
+                    placeholder={discountType === "percent" ? "50" : "100"}
+                    disabled={generating || saving}
+                    className="mt-1.5 h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 disabled:opacity-60"
+                  />
+                </label>
+
+                <label className="block text-sm text-[#5f6f64]">
+                  Max uses
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={maxUses}
+                    onChange={(e) => setMaxUses(e.target.value)}
+                    placeholder="1"
+                    disabled={generating || saving}
+                    className="mt-1.5 h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15 disabled:opacity-60"
+                  />
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={!canGenerate || generating || saving}
+                className="h-11 w-full rounded-full bg-[#1f6b3a] px-5 text-sm font-semibold text-white hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {generating
+                  ? "Generating…"
+                  : draft
+                    ? "Regenerate code"
+                    : "Generate code"}
+              </button>
+            </form>
+
+            {draft ? (
+              <div className="mt-4 rounded-2xl border border-[#d7e5d9] bg-[#f4f8f2] px-4 py-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-[#5f6f64]">
+                  {draft.userName} · {draft.planMonths}-month plan ·{" "}
+                  {draft.discountLabel} · {draft.maxUses} use
+                  {draft.maxUses === 1 ? "" : "s"}
+                </p>
+                <p className="mt-2 break-all font-mono text-xl font-semibold tracking-wide text-[#1f6b3a]">
+                  {draft.code}
+                </p>
+                <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDraft(null);
+                      setFormError(null);
+                    }}
+                    disabled={saving}
+                    className="h-10 rounded-full px-4 text-sm font-medium text-[#5f6f64] hover:bg-white disabled:opacity-60"
+                  >
+                    Discard
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void onSave()}
+                    disabled={saving}
+                    className="h-10 rounded-full bg-[#1f6b3a] px-4 text-sm font-semibold text-white hover:bg-[#185830] disabled:opacity-60"
+                  >
+                    {saving ? "Saving…" : "Save coupon"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {detailsTarget ? (
         <div
@@ -804,45 +1031,217 @@ export function CouponsPanel() {
 
       {assignTarget ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#152019]/35 px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#152019]/35 px-4 py-6"
           onClick={closeAssign}
         >
           <div
-            className="w-full max-w-md rounded-2xl bg-white p-5 shadow-[0_20px_50px_rgba(21,32,25,0.18)]"
+            className="flex max-h-[min(92dvh,720px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-[0_20px_50px_rgba(21,32,25,0.18)]"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"
             aria-labelledby="assign-coupon-title"
           >
-            <h3
-              id="assign-coupon-title"
-              className="text-base font-semibold text-[#243028]"
+            <div className="shrink-0 border-b border-[#e6ebe3] px-5 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3
+                    id="assign-coupon-title"
+                    className="text-base font-semibold text-[#243028]"
+                  >
+                    Assign coupon
+                  </h3>
+                  <p className="mt-1 text-sm text-[#5f6f64]">
+                    Select up to{" "}
+                    <span className="font-semibold text-[#243028]">
+                      {assignLimit}
+                    </span>{" "}
+                    member{assignLimit === 1 ? "" : "s"} for{" "}
+                    <span className="font-mono font-semibold text-[#1f6b3a]">
+                      {assignTarget.code}
+                    </span>{" "}
+                    (coupon uses limit). Each gets a single-use personal coupon.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeAssign}
+                  disabled={assigning}
+                  aria-label="Close"
+                  className="rounded-full px-2 text-xl leading-none text-[#8a978c] hover:bg-[#f4f7f4] disabled:opacity-50"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <form
+              onSubmit={(event) => void onAssign(event)}
+              className="flex min-h-0 flex-1 flex-col"
             >
-              Assign coupon
-            </h3>
-            <p className="mt-1 text-sm text-[#5f6f64]">
-              Lock{" "}
-              <span className="font-mono font-semibold text-[#1f6b3a]">
-                {assignTarget.code}
-              </span>{" "}
-              to one member. After assign it becomes a single-use personal
-              coupon for them only.
-            </p>
-
-            <form onSubmit={(event) => void onAssign(event)} className="mt-4 space-y-3">
-              <label className="block text-sm text-[#5f6f64]">
-                Referral code
+              <div className="shrink-0 space-y-3 border-b border-[#e6ebe3] px-5 py-3">
                 <input
-                  type="text"
-                  value={referralCode}
-                  onChange={(e) => setReferralCode(e.target.value)}
-                  placeholder="e.g. sonu-ab12"
+                  type="search"
+                  value={assignQuery}
+                  onChange={(e) => setAssignQuery(e.target.value)}
+                  placeholder="Search name, referral, email, or mobile…"
                   autoFocus
-                  className="mt-1.5 h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 font-mono text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
+                  className="h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
                 />
-              </label>
+                <div className="flex items-center justify-between gap-2 text-xs text-[#5f6f64]">
+                  <span>
+                    {selectedReferralCodes.length}/{assignLimit} selected
+                    {assignUsers.length > 0
+                      ? ` · ${assignUsers.length}${assignTotal > assignUsers.length ? `/${assignTotal}` : ""} shown`
+                      : ""}
+                  </span>
+                  {assignUsers.length > 0 ? (
+                    <button
+                      type="button"
+                      disabled={assigning || assignLimit < 1}
+                      onClick={() => {
+                        const visibleCodes = assignUsers.map(
+                          (user) => user.referralCode,
+                        );
+                        const selectedVisible = visibleCodes.filter((code) =>
+                          selectedReferralCodes.includes(code),
+                        );
+                        const allAllowedVisibleSelected =
+                          selectedVisible.length >=
+                          Math.min(assignLimit, visibleCodes.length);
+                        setSelectedReferralCodes((current) => {
+                          if (allAllowedVisibleSelected) {
+                            return current.filter(
+                              (code) => !visibleCodes.includes(code),
+                            );
+                          }
+                          const next = [...current];
+                          for (const code of visibleCodes) {
+                            if (next.length >= assignLimit) break;
+                            if (!next.includes(code)) next.push(code);
+                          }
+                          return next;
+                        });
+                      }}
+                      className="font-semibold text-[#1f6b3a] hover:underline disabled:opacity-60"
+                    >
+                      {assignUsers
+                        .slice(0, assignLimit)
+                        .every((user) =>
+                          selectedReferralCodes.includes(user.referralCode),
+                        ) && selectedReferralCodes.length > 0
+                        ? "Clear shown"
+                        : "Select shown"}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
 
-              <div className="flex flex-wrap justify-end gap-2 pt-1">
+              <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+                {assignUsersLoading ? (
+                  <p className="px-3 py-8 text-center text-sm text-[#5f6f64]">
+                    Loading members…
+                  </p>
+                ) : assignUsers.length === 0 ? (
+                  <p className="px-3 py-8 text-center text-sm text-[#8a978c]">
+                    {assignSearch
+                      ? "No members match this search."
+                      : "No members found."}
+                  </p>
+                ) : (
+                  <>
+                    <ul className="space-y-1">
+                      {assignUsers.map((user) => {
+                        const checked = selectedReferralCodes.includes(
+                          user.referralCode,
+                        );
+                        const atLimit =
+                          !checked &&
+                          selectedReferralCodes.length >= assignLimit;
+                        return (
+                          <li key={user.id}>
+                            <label
+                              className={`flex items-start gap-3 rounded-xl px-3 py-2.5 transition ${
+                                atLimit
+                                  ? "cursor-not-allowed opacity-45"
+                                  : "cursor-pointer"
+                              } ${
+                                checked
+                                  ? "bg-[#eef6f0]"
+                                  : atLimit
+                                    ? ""
+                                    : "hover:bg-[#f7faf6]"
+                              }`}
+                            >
+                              <span
+                                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                                  checked
+                                    ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
+                                    : "border-[#c9d4c6] bg-white text-transparent"
+                                }`}
+                                aria-hidden
+                              >
+                                <svg
+                                  viewBox="0 0 16 16"
+                                  className="h-3.5 w-3.5"
+                                  fill="none"
+                                >
+                                  <path
+                                    d="M3.5 8.5l3 3 6-7"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </span>
+                              <input
+                                type="checkbox"
+                                className="sr-only"
+                                checked={checked}
+                                disabled={assigning || atLimit}
+                                onChange={() =>
+                                  toggleAssignUser(user.referralCode)
+                                }
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-semibold text-[#243028]">
+                                  {user.fullName}
+                                </span>
+                                <span className="mt-0.5 block truncate font-mono text-[11px] text-[#8a978c]">
+                                  {user.referralCode}
+                                  {user.email ? ` · ${user.email}` : ""}
+                                </span>
+                              </span>
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {assignHasMore ? (
+                      <div className="px-3 py-3">
+                        <button
+                          type="button"
+                          disabled={assignUsersLoadingMore || assigning}
+                          onClick={() =>
+                            void loadAssignUsers({
+                              page: assignPage + 1,
+                              q: assignSearch,
+                              replace: false,
+                            })
+                          }
+                          className="h-10 w-full rounded-full border border-[#d7e0d6] bg-white text-sm font-semibold text-[#1f6b3a] transition hover:border-[#1f6b3a] hover:bg-[#f6f8f5] disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {assignUsersLoadingMore
+                            ? "Loading…"
+                            : "Load more users"}
+                        </button>
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </div>
+
+              <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-[#e6ebe3] px-5 py-4">
                 <button
                   type="button"
                   onClick={closeAssign}
@@ -853,10 +1252,14 @@ export function CouponsPanel() {
                 </button>
                 <button
                   type="submit"
-                  disabled={assigning || referralCode.trim().length < 3}
+                  disabled={assigning || selectedReferralCodes.length === 0}
                   className="h-10 rounded-full bg-[#1f6b3a] px-4 text-sm font-semibold text-white hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  {assigning ? "Assigning…" : "Assign"}
+                  {assigning
+                    ? "Assigning…"
+                    : selectedReferralCodes.length > 1
+                      ? `Assign to ${selectedReferralCodes.length}`
+                      : "Assign"}
                 </button>
               </div>
             </form>

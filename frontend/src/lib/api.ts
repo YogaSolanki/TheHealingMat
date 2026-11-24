@@ -1022,6 +1022,8 @@ export type MemberCoupon = {
   discountType: "percent" | "fixed";
   discountValue: number;
   discountLabel: string;
+  /** When set, coupon only applies to this membership term. */
+  planMonths?: number | null;
   maxUses?: number;
   usageCount?: number;
   expiresAt?: string | null;

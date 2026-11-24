@@ -374,12 +374,21 @@ export function MembershipCheckoutPanel({
         return;
       }
 
+      const assignedMatch = assignedCoupons.find(
+        (row) => row.code.toUpperCase() === code.toUpperCase(),
+      );
+      const couponPlanMonths =
+        assignedMatch?.planMonths && [3, 6, 12].includes(assignedMatch.planMonths)
+          ? assignedMatch.planMonths
+          : activePlanMonths;
+
       try {
         const next = await quoteMembership(token, {
-          planMonths: activePlanMonths,
+          planMonths: couponPlanMonths,
           couponCode: code,
           applyReferralDiscount: false,
         });
+        setActivePlanMonths(next.planMonths || couponPlanMonths);
         setQuote(next);
         setAppliedCoupon(next.couponCode ?? code);
         setCouponInput(next.couponCode ?? code);
@@ -393,6 +402,10 @@ export function MembershipCheckoutPanel({
           setError(
             "This is a corporate coupon. Verify your work email to apply it.",
           );
+          return;
+        }
+        if (/only valid for the \d+-month plan/i.test(message)) {
+          setError(message);
           return;
         }
         // Fall through — try as referral when eligible, else show Invalid coupon.
@@ -1373,6 +1386,9 @@ export function MembershipCheckoutPanel({
                             </p>
                             <p className="mt-0.5 text-[12px] font-semibold text-[#1f6b3a]">
                               {coupon.discountLabel}
+                              {coupon.planMonths
+                                ? ` · ${coupon.planMonths}-month plan`
+                                : ""}
                             </p>
                           </div>
                           <button

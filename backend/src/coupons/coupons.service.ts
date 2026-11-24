@@ -50,6 +50,14 @@ export class CouponsService implements OnModuleInit {
     } catch {
       // Best-effort cleanup when synchronize is off.
     }
+    try {
+      await this.dataSource.query(`
+        ALTER TABLE "coupons"
+        ADD COLUMN IF NOT EXISTS "planMonths" integer
+      `);
+    } catch {
+      // Production DBs may lack DDL rights; synchronize / migration covers this.
+    }
   }
 
   async list() {
@@ -81,12 +89,15 @@ export class CouponsService implements OnModuleInit {
       code = this.buildCode(userName, discountType, discountValue);
     }
 
+    const planMonths = this.assertPlanMonths(dto.planMonths);
+
     return {
       code,
       userName,
       discountType,
       discountValue,
       discountLabel,
+      planMonths,
       maxUses,
       expiresAt: dto.expiresAt ?? null,
     };
@@ -98,6 +109,7 @@ export class CouponsService implements OnModuleInit {
     const discountType = dto.discountType;
     const discountValue = dto.discountValue;
     this.assertDiscount(discountType, discountValue);
+    const planMonths = this.assertPlanMonths(dto.planMonths);
     const maxUses = dto.maxUses ?? 1;
     this.assertMaxUses(maxUses);
 
@@ -116,6 +128,7 @@ export class CouponsService implements OnModuleInit {
       discountType,
       discountValue,
       discountLabel,
+      planMonths,
       maxUses,
       usageCount: 0,
       active: true,
@@ -199,26 +212,116 @@ export class CouponsService implements OnModuleInit {
         'This coupon has already been used and cannot be reassigned.',
       );
     }
-
-    const referralCode = dto.referralCode.trim().toLowerCase();
-    if (!referralCode) {
-      throw new BadRequestException('Referral code is required.');
+    if (this.isCorporateCoupon(coupon)) {
+      throw new BadRequestException(
+        'Corporate seat coupons cannot be assigned to individual members.',
+      );
     }
 
-    const user = await this.users.findOne({ where: { referralCode } });
-    if (!user) {
-      throw new NotFoundException('No member found with that referral code.');
+    const codes = [
+      ...(dto.referralCodes ?? []),
+      ...(dto.referralCode ? [dto.referralCode] : []),
+    ]
+      .map((code) => code.trim().toLowerCase())
+      .filter(Boolean);
+    const uniqueCodes = [...new Set(codes)];
+    if (uniqueCodes.length === 0) {
+      throw new BadRequestException('Select at least one member.');
     }
 
-    // Personal assign defaults to single-use unless a higher limit is passed.
+    const assignLimit = Math.max(0, coupon.maxUses - coupon.usageCount);
+    if (assignLimit < 1) {
+      throw new BadRequestException(
+        'This coupon has no remaining uses to assign.',
+      );
+    }
+    if (uniqueCodes.length > assignLimit) {
+      throw new BadRequestException(
+        `This coupon allows only ${assignLimit} assignment${assignLimit === 1 ? '' : 's'} (max uses).`,
+      );
+    }
+
+    const members = await this.users.find({
+      where: { referralCode: In(uniqueCodes) },
+    });
+    if (members.length === 0) {
+      throw new NotFoundException('No members found for the selected codes.');
+    }
+    if (members.length !== uniqueCodes.length) {
+      throw new NotFoundException(
+        'One or more selected members could not be found.',
+      );
+    }
+
+    // Keep selection order stable for predictable first-assignee / clones.
+    const byCode = new Map(
+      members.map((user) => [user.referralCode.toLowerCase(), user]),
+    );
+    const ordered = uniqueCodes
+      .map((code) => byCode.get(code))
+      .filter((user): user is User => Boolean(user));
+
     const maxUses = dto.maxUses ?? 1;
     this.assertMaxUses(maxUses);
 
-    coupon.assignedUserId = user.id;
-    coupon.assignedReferralCode = user.referralCode;
-    coupon.userName = user.fullName;
+    const [first, ...rest] = ordered;
+    coupon.assignedUserId = first.id;
+    coupon.assignedReferralCode = first.referralCode;
+    coupon.userName = first.fullName;
     coupon.maxUses = maxUses;
-    return this.toAdminCoupon(await this.coupons.save(coupon));
+    const savedPrimary = await this.coupons.save(coupon);
+    const results = [this.toAdminCoupon(savedPrimary)];
+
+    for (const user of rest) {
+      const clone = await this.createPersonalClone(savedPrimary, user, maxUses);
+      results.push(this.toAdminCoupon(clone));
+    }
+
+    return {
+      ...results[0],
+      assignedCount: results.length,
+      assignedCoupons: results,
+    };
+  }
+
+  private async createPersonalClone(
+    source: Coupon,
+    user: User,
+    maxUses: number,
+  ) {
+    let code = this.buildCode(user.fullName, source.discountType, source.discountValue);
+    let attempts = 0;
+    while (await this.coupons.exists({ where: { code } })) {
+      attempts += 1;
+      if (attempts > 12) {
+        throw new ConflictException(
+          'Unable to generate a unique coupon for one of the members.',
+        );
+      }
+      code = this.buildCode(
+        user.fullName,
+        source.discountType,
+        source.discountValue,
+      );
+    }
+
+    const clone = this.coupons.create({
+      code,
+      userName: user.fullName,
+      discountType: source.discountType,
+      discountValue: source.discountValue,
+      discountLabel: source.discountLabel,
+      planMonths: source.planMonths,
+      maxUses,
+      usageCount: 0,
+      active: true,
+      expiresAt: source.expiresAt,
+      assignedUserId: user.id,
+      assignedReferralCode: user.referralCode,
+      allowedDomains: null,
+      corporatePlanId: null,
+    });
+    return this.coupons.save(clone);
   }
 
   async update(id: string, dto: UpdateCouponDto) {
@@ -335,6 +438,7 @@ export class CouponsService implements OnModuleInit {
       discountType,
       discountValue,
       discountLabel,
+      planMonths: input.planMonths,
       maxUses: input.maxUses,
       usageCount: 0,
       active: true,
@@ -460,6 +564,7 @@ export class CouponsService implements OnModuleInit {
       discountType: coupon.discountType,
       discountValue: coupon.discountValue,
       discountLabel: coupon.discountLabel,
+      planMonths: coupon.planMonths,
       maxUses: coupon.maxUses,
       usageCount: coupon.usageCount,
       remainingUses: Math.max(0, coupon.maxUses - coupon.usageCount),
@@ -480,12 +585,22 @@ export class CouponsService implements OnModuleInit {
       discountType: coupon.discountType,
       discountValue: coupon.discountValue,
       discountLabel: coupon.discountLabel,
+      planMonths: coupon.planMonths,
       maxUses: coupon.maxUses,
       usageCount: coupon.usageCount,
       expiresAt: coupon.expiresAt?.toISOString() ?? null,
       requiresDomainVerification: this.isCorporateCoupon(coupon),
       allowedDomains: coupon.allowedDomains ?? [],
     };
+  }
+
+  private assertPlanMonths(planMonths: number) {
+    if (![3, 6, 12].includes(planMonths)) {
+      throw new BadRequestException(
+        'Choose a plan: 3, 6, or 12 months.',
+      );
+    }
+    return planMonths;
   }
 
   private parseExpiresAt(value?: string | null) {

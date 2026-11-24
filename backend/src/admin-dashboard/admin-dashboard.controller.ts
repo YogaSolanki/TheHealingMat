@@ -32,8 +32,26 @@ export class AdminDashboardController {
   }
 
   @Get('users')
-  users() {
-    return this.dashboard.listUsers();
+  users(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('q') q?: string,
+    @Query('accountStatus') accountStatus?: string,
+  ) {
+    const parsedPage = page ? Number(page) : undefined;
+    const parsedLimit = limit ? Number(limit) : undefined;
+    const status =
+      accountStatus === 'active' || accountStatus === 'inactive'
+        ? accountStatus
+        : accountStatus === 'all'
+          ? 'all'
+          : undefined;
+    return this.dashboard.listUsers({
+      page: Number.isFinite(parsedPage) ? parsedPage : undefined,
+      limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
+      q,
+      accountStatus: status,
+    });
   }
 
   @Get('users/exists')

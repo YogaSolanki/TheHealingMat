@@ -1,5 +1,7 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsDateString,
   IsIn,
@@ -27,6 +29,12 @@ export class GenerateCouponDto {
   @Min(1)
   @Max(100000)
   discountValue: number;
+
+  /** Membership term this coupon is valid for. */
+  @Type(() => Number)
+  @IsInt()
+  @IsIn([3, 6, 12])
+  planMonths: number;
 
   /** How many members can redeem this code in total. */
   @IsOptional()
@@ -56,6 +64,12 @@ export class CreateCouponDto {
   @Max(100000)
   discountValue: number;
 
+  /** Membership term this coupon is valid for. */
+  @Type(() => Number)
+  @IsInt()
+  @IsIn([3, 6, 12])
+  planMonths: number;
+
   @IsString()
   @MinLength(2)
   @MaxLength(40)
@@ -82,15 +96,25 @@ export class CreateCouponDto {
 }
 
 export class AssignCouponDto {
-  /** Member referral code — unique per user. */
+  /** Single member referral code (legacy). Prefer referralCodes for multi-assign. */
+  @IsOptional()
   @IsString()
   @MinLength(3)
   @MaxLength(40)
-  referralCode: string;
+  referralCode?: string;
+
+  /** One or more member referral codes to receive personal single-use coupons. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  @MinLength(3, { each: true })
+  @MaxLength(40, { each: true })
+  referralCodes?: string[];
 
   /**
-   * When assigning to one member, default to single-use (1).
-   * Pass a higher value only if that member may redeem more than once.
+   * When assigning to members, default to single-use (1) each.
+   * Pass a higher value only if a member may redeem more than once.
    */
   @IsOptional()
   @Type(() => Number)

@@ -361,6 +361,9 @@ export function MemberAccountPage() {
                               </td>
                               <td className="px-4 py-3.5 text-[13px] font-semibold text-[#243028] sm:px-6">
                                 {coupon.discountLabel}
+                                {coupon.planMonths
+                                  ? ` · ${coupon.planMonths}-mo`
+                                  : ""}
                               </td>
                             </tr>
                           ))

@@ -146,8 +146,35 @@ export function getDashboardOverview(token: string) {
   return authGet<DashboardOverview>("/admin/dashboard", token);
 }
 
-export function getAdminUsers(token: string) {
-  return authGet<{ users: AdminUserRow[] }>("/admin/users", token);
+export type AdminUsersPage = {
+  users: AdminUserRow[];
+  total?: number;
+  page?: number;
+  limit?: number;
+  hasMore?: boolean;
+};
+
+export function getAdminUsers(
+  token: string,
+  options?: {
+    page?: number;
+    limit?: number;
+    q?: string;
+    accountStatus?: "all" | "active" | "inactive";
+  },
+) {
+  const params = new URLSearchParams();
+  if (options?.page != null) params.set("page", String(options.page));
+  if (options?.limit != null) params.set("limit", String(options.limit));
+  if (options?.q?.trim()) params.set("q", options.q.trim());
+  if (options?.accountStatus && options.accountStatus !== "all") {
+    params.set("accountStatus", options.accountStatus);
+  }
+  const query = params.toString();
+  return authGet<AdminUsersPage>(
+    `/admin/users${query ? `?${query}` : ""}`,
+    token,
+  );
 }
 
 export type ExportAdminUsersInput = {
@@ -966,6 +993,8 @@ export type AdminCoupon = {
   discountType: CouponDiscountType;
   discountValue: number;
   discountLabel: string;
+  /** Membership term this coupon applies to (3 / 6 / 12). */
+  planMonths: number | null;
   maxUses: number;
   usageCount: number;
   remainingUses: number;
@@ -1000,6 +1029,7 @@ export type GeneratedCoupon = {
   discountType: CouponDiscountType;
   discountValue: number;
   discountLabel: string;
+  planMonths: number;
   maxUses: number;
   expiresAt: string | null;
 };
@@ -1018,6 +1048,7 @@ export function generateAdminCoupon(
     userName: string;
     discountType: CouponDiscountType;
     discountValue: number;
+    planMonths: number;
     maxUses?: number;
     expiresAt?: string | null;
   },
@@ -1033,6 +1064,7 @@ export function createAdminCoupon(
     discountType: CouponDiscountType;
     discountValue: number;
     discountLabel: string;
+    planMonths: number;
     maxUses?: number;
     expiresAt?: string | null;
   },
@@ -1040,12 +1072,21 @@ export function createAdminCoupon(
   return authJson<AdminCoupon>("POST", "/admin/coupons", token, body);
 }
 
+export type AssignAdminCouponResult = AdminCoupon & {
+  assignedCount?: number;
+  assignedCoupons?: AdminCoupon[];
+};
+
 export function assignAdminCoupon(
   token: string,
   id: string,
-  body: { referralCode: string; maxUses?: number },
+  body: {
+    referralCode?: string;
+    referralCodes?: string[];
+    maxUses?: number;
+  },
 ) {
-  return authJson<AdminCoupon>(
+  return authJson<AssignAdminCouponResult>(
     "PATCH",
     `/admin/coupons/${id}/assign`,
     token,
