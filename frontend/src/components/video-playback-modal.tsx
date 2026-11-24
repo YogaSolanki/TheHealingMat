@@ -161,6 +161,31 @@ export function VideoPlaybackModal({
     void video.play().catch(() => {});
   }, [rendered, exiting, directSrc, open]);
 
+  // After rotate to landscape, browsers often pause media or leave the player mis-sized.
+  useEffect(() => {
+    if (!rendered || exiting) return;
+
+    const resumeAfterRotate = () => {
+      window.setTimeout(() => {
+        if (directSrc) {
+          const video = videoRef.current;
+          if (video?.paused) {
+            void video.play().catch(() => {});
+          }
+          return;
+        }
+        if (youtube) {
+          youtubeRef.current?.play();
+        }
+      }, 250);
+    };
+
+    window.addEventListener("orientationchange", resumeAfterRotate);
+    return () => {
+      window.removeEventListener("orientationchange", resumeAfterRotate);
+    };
+  }, [rendered, exiting, directSrc, youtube]);
+
   useEffect(() => {
     if (!rendered || exiting) return;
     const previousOverflow = document.body.style.overflow;
@@ -209,7 +234,7 @@ export function VideoPlaybackModal({
 
   return createPortal(
     <div
-      className={`fixed inset-0 z-[200] flex items-center justify-center px-4 py-6 sm:px-6 sm:py-8 ${
+      className={`fixed inset-0 z-[200] flex items-center justify-center p-2 sm:p-4 ${
         exiting ? "auth-modal-root is-exiting" : "auth-modal-root"
       }`}
       role="dialog"
@@ -224,20 +249,28 @@ export function VideoPlaybackModal({
       />
 
       <div
-        className={`auth-modal-panel relative z-10 w-full max-w-[920px] overflow-hidden rounded-[18px] border border-white/20 bg-[#0a0a0a] shadow-[0_28px_80px_rgba(0,0,0,0.45)] ${
+        className={`auth-modal-panel relative z-10 max-h-[calc(100dvh-1rem)] w-full max-w-[920px] overflow-hidden rounded-[14px] border border-white/20 bg-[#0a0a0a] shadow-[0_28px_80px_rgba(0,0,0,0.45)] sm:rounded-[18px] ${
           exiting ? "is-exiting" : ""
         }`}
+        style={{
+          // Fit 16:9 inside short landscape viewports (width capped by available height).
+          width: "min(100%, 920px, calc((100dvh - 1rem) * 16 / 9))",
+        }}
       >
         <button
           type="button"
           onClick={handleClose}
-          className="absolute top-3 right-3 z-30 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm transition hover:bg-black/70 sm:top-4 sm:right-4 sm:h-11 sm:w-11"
+          className="absolute top-2 right-2 z-30 inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm transition hover:bg-black/70 sm:top-4 sm:right-4 sm:h-11 sm:w-11"
           aria-label="Close video"
         >
           <CloseGlyph />
         </button>
 
-        <div ref={stageRef} className="relative aspect-video w-full overflow-hidden bg-black">
+        <div
+          ref={stageRef}
+          className="relative aspect-video w-full overflow-hidden bg-black"
+          style={{ maxHeight: "calc(100dvh - 1rem)" }}
+        >
           {loadingVideo ? (
             <div className="absolute inset-0 flex items-center justify-center bg-black">
               <SiteLoader size="lg" tone="light" label="Loading video" />

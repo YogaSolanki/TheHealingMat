@@ -30,6 +30,7 @@ type YtPlayer = {
   playVideo: () => void;
   pauseVideo: () => void;
   getPlayerState: () => number;
+  setSize?: (width: number, height: number) => void;
   destroy: () => void;
 };
 
@@ -104,6 +105,7 @@ function loadYoutubeApi(): Promise<YtNamespace> {
 
 export type YoutubeEmbedPlayerHandle = {
   togglePlay: () => void;
+  play: () => void;
   toggleFullscreen: () => void;
   pause: () => void;
 };
@@ -143,6 +145,13 @@ export const YoutubeEmbedPlayer = forwardRef<
           } else {
             player.playVideo();
           }
+        } catch {
+          /* player may not be ready */
+        }
+      },
+      play: () => {
+        try {
+          playerRef.current?.playVideo();
         } catch {
           /* player may not be ready */
         }
@@ -244,6 +253,40 @@ export const YoutubeEmbedPlayer = forwardRef<
       mount.replaceChildren();
     };
   }, [videoId, title, reactId, autoplay]);
+
+  // Keep the iframe sized correctly after rotate / landscape resize.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || useIframeFallback) return;
+
+    const syncSize = () => {
+      const player = playerRef.current;
+      const width = Math.round(root.clientWidth);
+      const height = Math.round(root.clientHeight);
+      if (!player || width < 2 || height < 2) return;
+      try {
+        player.setSize?.(width, height);
+      } catch {
+        /* player may not be ready */
+      }
+      const iframe = root.querySelector("iframe");
+      if (iframe) {
+        iframe.style.width = "100%";
+        iframe.style.height = "100%";
+      }
+    };
+
+    syncSize();
+    const observer = new ResizeObserver(() => syncSize());
+    observer.observe(root);
+    window.addEventListener("orientationchange", syncSize);
+    window.addEventListener("resize", syncSize);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("orientationchange", syncSize);
+      window.removeEventListener("resize", syncSize);
+    };
+  }, [useIframeFallback, videoId]);
 
   return (
     <div

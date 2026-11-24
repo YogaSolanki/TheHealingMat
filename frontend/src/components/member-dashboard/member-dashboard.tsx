@@ -682,31 +682,31 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                     Watch recordings of our regular sessions and experience how
                     we make everyday health simple.
                   </p>
-                  <div className="mt-3.5 grid gap-3 sm:grid-cols-3 sm:gap-3.5">
+                  <div className="mt-3.5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 sm:gap-3.5">
                     {sampleSessions.slice(0, 3).map((video) => (
                       <article
                         key={video.slug || video.id}
-                        className="flex h-[130px] overflow-hidden rounded-[16px] border border-[#e6ebe3] bg-white sm:h-[140px]"
+                        className="flex min-h-[112px] overflow-hidden rounded-[16px] border border-[#e6ebe3] bg-white"
                       >
-                        <div className="relative h-full w-[120px] shrink-0 bg-[#eef6f0] sm:w-[132px]">
+                        <div className="relative w-[88px] shrink-0 self-stretch bg-[#eef6f0] sm:w-[108px]">
                           {video.coverUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={video.coverUrl}
                               alt=""
-                              className="h-full w-full object-cover"
+                              className="absolute inset-0 h-full w-full object-cover"
                             />
                           ) : (
-                            <div className="flex h-full items-center justify-center">
-                              <PlayCircleIcon className="h-9 w-9 text-[#1f6b3a]/35" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <PlayCircleIcon className="h-8 w-8 text-[#1f6b3a]/35 sm:h-9 sm:w-9" />
                             </div>
                           )}
                           <span className="absolute inset-0 flex items-center justify-center bg-black/15">
-                            <PlayCircleIcon className="h-9 w-9 text-white drop-shadow" />
+                            <PlayCircleIcon className="h-8 w-8 text-white drop-shadow sm:h-9 sm:w-9" />
                           </span>
                         </div>
-                        <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 py-2.5 sm:px-3.5 sm:py-3">
-                          <div className="min-h-0 flex-1 overflow-hidden">
+                        <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 px-2.5 py-2.5 sm:px-3.5 sm:py-3">
+                          <div className="min-w-0">
                             <h4 className="line-clamp-2 text-[13px] font-bold leading-snug text-[#243028] sm:text-[14px]">
                               {video.title}
                             </h4>
@@ -714,7 +714,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                               {video.subtitle}
                             </p>
                           </div>
-                          <div className="mt-2 flex shrink-0 items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
                             <SessionVideoDuration
                               videoUrl={video.videoUrl}
                               fallback={video.duration}
@@ -722,7 +722,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                             <button
                               type="button"
                               onClick={() => setActiveSampleSession(video)}
-                              className={`${memberOutlineBtnSmClass} px-3 py-1.5 text-[11px] sm:text-[12px]`}
+                              className={`${memberOutlineBtnSmClass} shrink-0 whitespace-nowrap px-2.5 py-1.5 text-[11px] sm:px-3 sm:text-[12px]`}
                             >
                               Watch Video
                             </button>
@@ -2454,7 +2454,7 @@ function SessionVideoDuration({
 }) {
   const label = useVideoDurationLabel(videoUrl, fallback);
   return (
-    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1f6b3a] sm:text-[12px]">
+    <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-semibold text-[#1f6b3a] sm:text-[12px]">
       <ClockIcon className="h-3.5 w-3.5 shrink-0" />
       {label}
     </span>
