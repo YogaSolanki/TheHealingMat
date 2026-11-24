@@ -675,11 +675,12 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
               {sampleSessions.length > 0 ? (
                 <div className="mt-5 rounded-[16px] border border-[#d9e8dc] bg-[#f4f8f2] px-3.5 py-4 sm:px-4 sm:py-5">
                   <h3 className="text-[15px] font-bold text-[#1f6b3a] sm:text-[16px]">
-                    While You Wait — Explore Our Sample Sessions
+                    While You Wait for Your Trial to Begin…
                   </h3>
                   <p className="mt-1 max-w-[640px] text-[13px] leading-relaxed text-[#5f6f64] sm:text-[14px]">
-                    Get a glimpse of The Healing Mat with these three specially
-                    selected sessions.
+                    Get a glimpse of The Healing Mat&apos;s daily yoga classes.
+                    Watch recordings of our regular sessions and experience how
+                    we make everyday health simple.
                   </p>
                   <div className="mt-3.5 grid gap-3 sm:grid-cols-3 sm:gap-3.5">
                     {sampleSessions.slice(0, 3).map((video) => (
