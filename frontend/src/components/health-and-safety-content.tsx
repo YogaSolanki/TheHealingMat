@@ -283,12 +283,12 @@ const sections: LegalDocumentSection[] = [
           <li>
             Website:{" "}
             <a
-              href="https://www.thehealingmat.yoga"
+              href="https://thehealingmat.yoga"
               target="_blank"
               rel="noopener noreferrer"
               className="font-semibold"
             >
-              https://www.thehealingmat.yoga
+              https://thehealingmat.yoga
             </a>
           </li>
           <li>
