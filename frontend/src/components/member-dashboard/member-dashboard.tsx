@@ -1432,14 +1432,7 @@ export function MemberDashboard({ user }: MemberDashboardProps) {
                             alt=""
                             className="h-full w-full object-cover"
                           />
-                        ) : (
-                          <div className="flex h-full items-center justify-center">
-                            <PlayCircleIcon className="h-9 w-9 text-[#1f6b3a]/35" />
-                          </div>
-                        )}
-                        <span className="absolute inset-0 flex items-center justify-center bg-black/15">
-                          <PlayCircleIcon className="h-9 w-9 text-white drop-shadow" />
-                        </span>
+                        ) : null}
                       </div>
                       <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3.5 py-2.5 sm:px-4 sm:py-3">
                         <div className="min-h-0 flex-1 overflow-hidden">
@@ -2425,15 +2418,6 @@ function BookIcon({ className }: { className?: string }) {
         strokeWidth="1.6"
         strokeLinecap="round"
       />
-    </svg>
-  );
-}
-
-function PlayCircleIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" fill="currentColor" opacity="0.9" />
-      <path d="M10 8.5v7l6-3.5-6-3.5Z" fill="#fff" />
     </svg>
   );
 }
