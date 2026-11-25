@@ -46,7 +46,10 @@ export class CouponsController {
     return this.coupons.getDetails(id);
   }
 
-  /** Lock a coupon to a member via their unique referral code (single-use by default). */
+  /**
+   * Assign coupon ownership to one member. Uses limit stays the same —
+   * redemptions by others credit that member as referrer when they had none.
+   */
   @Patch(':id/assign')
   assign(
     @Param('id', ParseUUIDPipe) id: string,

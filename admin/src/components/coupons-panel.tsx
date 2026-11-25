@@ -75,9 +75,9 @@ export function CouponsPanel() {
   const [assignTotal, setAssignTotal] = useState(0);
   const [assignQuery, setAssignQuery] = useState("");
   const [assignSearch, setAssignSearch] = useState("");
-  const [selectedReferralCodes, setSelectedReferralCodes] = useState<string[]>(
-    [],
-  );
+  const [selectedReferralCode, setSelectedReferralCode] = useState<
+    string | null
+  >(null);
   const [assigning, setAssigning] = useState(false);
   const [detailsTarget, setDetailsTarget] = useState<AdminCoupon | null>(null);
   const [details, setDetails] = useState<AdminCouponDetails | null>(null);
@@ -322,9 +322,7 @@ export function CouponsPanel() {
     setAssignPage(1);
     setAssignHasMore(false);
     setAssignTotal(0);
-    setSelectedReferralCodes(
-      coupon.assignedReferralCode ? [coupon.assignedReferralCode] : [],
-    );
+    setSelectedReferralCode(coupon.assignedReferralCode ?? null);
     setError(null);
   }
 
@@ -337,7 +335,7 @@ export function CouponsPanel() {
     setAssignPage(1);
     setAssignHasMore(false);
     setAssignTotal(0);
-    setSelectedReferralCodes([]);
+    setSelectedReferralCode(null);
   }
 
   async function loadAssignUsers(options: {
@@ -400,33 +398,11 @@ export function CouponsPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when search settles
   }, [assignSearch, assignTarget?.id]);
 
-  const assignLimit = assignTarget
-    ? Math.max(0, assignTarget.maxUses - (assignTarget.usageCount ?? 0))
-    : 0;
-
-  function toggleAssignUser(referralCode: string) {
-    setSelectedReferralCodes((current) => {
-      if (current.includes(referralCode)) {
-        return current.filter((code) => code !== referralCode);
-      }
-      if (current.length >= assignLimit) {
-        return current;
-      }
-      return [...current, referralCode];
-    });
-  }
-
   async function onAssign(event: FormEvent) {
     event.preventDefault();
     if (!assignTarget) return;
-    if (selectedReferralCodes.length === 0) {
-      setError("Select at least one member.");
-      return;
-    }
-    if (selectedReferralCodes.length > assignLimit) {
-      setError(
-        `This coupon allows only ${assignLimit} assignment${assignLimit === 1 ? "" : "s"}.`,
-      );
+    if (!selectedReferralCode) {
+      setError("Select a member to own this coupon.");
       return;
     }
 
@@ -441,18 +417,14 @@ export function CouponsPanel() {
     setNotice(null);
     try {
       const updated = await assignAdminCoupon(token, assignTarget.id, {
-        referralCodes: selectedReferralCodes,
-        maxUses: 1,
+        referralCode: selectedReferralCode,
       });
-      const count = updated.assignedCount ?? selectedReferralCodes.length;
       setNotice(
-        count === 1
-          ? `Assigned ${updated.code} to ${updated.userName} (1 use only)`
-          : `Assigned personal coupons to ${count} members (1 use each)`,
+        `Assigned ${updated.code} to ${updated.userName}. Up to ${updated.maxUses} people can use it; referral credit goes to ${updated.userName}.`,
       );
       setAssignTarget(null);
       setAssignQuery("");
-      setSelectedReferralCodes([]);
+      setSelectedReferralCode(null);
       await load({ force: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to assign coupon");
@@ -612,14 +584,14 @@ export function CouponsPanel() {
                         </>
                       ) : coupon.assignedReferralCode ? (
                         <>
-                          <p className="text-sm">Assigned member</p>
+                          <p className="text-sm">Owner (referral credit)</p>
                           <p className="mt-0.5 font-mono text-[11px] text-[#8a978c]">
                             ref: {coupon.assignedReferralCode}
                           </p>
                         </>
                       ) : (
                         <p className="text-sm text-[#5f6f64]">
-                          Open (anyone with code)
+                          Open (no owner)
                         </p>
                       )}
                     </td>
@@ -1051,15 +1023,13 @@ export function CouponsPanel() {
                     Assign coupon
                   </h3>
                   <p className="mt-1 text-sm text-[#5f6f64]">
-                    Select up to{" "}
-                    <span className="font-semibold text-[#243028]">
-                      {assignLimit}
-                    </span>{" "}
-                    member{assignLimit === 1 ? "" : "s"} for{" "}
+                    Give{" "}
                     <span className="font-mono font-semibold text-[#1f6b3a]">
                       {assignTarget.code}
                     </span>{" "}
-                    (coupon uses limit). Each gets a single-use personal coupon.
+                    to one member. Up to {assignTarget.maxUses} people can use
+                    it (including the owner). Referral / milestone credit goes
+                    to that member when the buyer has no referral yet.
                   </p>
                 </div>
                 <button
@@ -1087,53 +1057,12 @@ export function CouponsPanel() {
                   autoFocus
                   className="h-11 w-full rounded-xl border border-[#e2e8df] bg-white px-3.5 text-sm text-[#243028] outline-none focus:border-[#1f6b3a] focus:ring-2 focus:ring-[#1f6b3a]/15"
                 />
-                <div className="flex items-center justify-between gap-2 text-xs text-[#5f6f64]">
-                  <span>
-                    {selectedReferralCodes.length}/{assignLimit} selected
-                    {assignUsers.length > 0
-                      ? ` · ${assignUsers.length}${assignTotal > assignUsers.length ? `/${assignTotal}` : ""} shown`
-                      : ""}
-                  </span>
-                  {assignUsers.length > 0 ? (
-                    <button
-                      type="button"
-                      disabled={assigning || assignLimit < 1}
-                      onClick={() => {
-                        const visibleCodes = assignUsers.map(
-                          (user) => user.referralCode,
-                        );
-                        const selectedVisible = visibleCodes.filter((code) =>
-                          selectedReferralCodes.includes(code),
-                        );
-                        const allAllowedVisibleSelected =
-                          selectedVisible.length >=
-                          Math.min(assignLimit, visibleCodes.length);
-                        setSelectedReferralCodes((current) => {
-                          if (allAllowedVisibleSelected) {
-                            return current.filter(
-                              (code) => !visibleCodes.includes(code),
-                            );
-                          }
-                          const next = [...current];
-                          for (const code of visibleCodes) {
-                            if (next.length >= assignLimit) break;
-                            if (!next.includes(code)) next.push(code);
-                          }
-                          return next;
-                        });
-                      }}
-                      className="font-semibold text-[#1f6b3a] hover:underline disabled:opacity-60"
-                    >
-                      {assignUsers
-                        .slice(0, assignLimit)
-                        .every((user) =>
-                          selectedReferralCodes.includes(user.referralCode),
-                        ) && selectedReferralCodes.length > 0
-                        ? "Clear shown"
-                        : "Select shown"}
-                    </button>
-                  ) : null}
-                </div>
+                <p className="text-xs text-[#5f6f64]">
+                  {selectedReferralCode ? "1 member selected" : "Select 1 member"}
+                  {assignUsers.length > 0
+                    ? ` · ${assignUsers.length}${assignTotal > assignUsers.length ? `/${assignTotal}` : ""} shown`
+                    : ""}
+                </p>
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
@@ -1151,56 +1080,39 @@ export function CouponsPanel() {
                   <>
                     <ul className="space-y-1">
                       {assignUsers.map((user) => {
-                        const checked = selectedReferralCodes.includes(
-                          user.referralCode,
-                        );
-                        const atLimit =
-                          !checked &&
-                          selectedReferralCodes.length >= assignLimit;
+                        const selected =
+                          selectedReferralCode === user.referralCode;
                         return (
                           <li key={user.id}>
                             <label
-                              className={`flex items-start gap-3 rounded-xl px-3 py-2.5 transition ${
-                                atLimit
-                                  ? "cursor-not-allowed opacity-45"
-                                  : "cursor-pointer"
-                              } ${
-                                checked
+                              className={`flex cursor-pointer items-start gap-3 rounded-xl px-3 py-2.5 transition ${
+                                selected
                                   ? "bg-[#eef6f0]"
-                                  : atLimit
-                                    ? ""
-                                    : "hover:bg-[#f7faf6]"
+                                  : "hover:bg-[#f7faf6]"
                               }`}
                             >
                               <span
-                                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
-                                  checked
-                                    ? "border-[#1f6b3a] bg-[#1f6b3a] text-white"
-                                    : "border-[#c9d4c6] bg-white text-transparent"
+                                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                                  selected
+                                    ? "border-[#1f6b3a] bg-[#1f6b3a]"
+                                    : "border-[#c9d4c6] bg-white"
                                 }`}
                                 aria-hidden
                               >
-                                <svg
-                                  viewBox="0 0 16 16"
-                                  className="h-3.5 w-3.5"
-                                  fill="none"
-                                >
-                                  <path
-                                    d="M3.5 8.5l3 3 6-7"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  />
-                                </svg>
+                                <span
+                                  className={`h-2 w-2 rounded-full ${
+                                    selected ? "bg-white" : "bg-transparent"
+                                  }`}
+                                />
                               </span>
                               <input
-                                type="checkbox"
+                                type="radio"
+                                name="assign-coupon-owner"
                                 className="sr-only"
-                                checked={checked}
-                                disabled={assigning || atLimit}
+                                checked={selected}
+                                disabled={assigning}
                                 onChange={() =>
-                                  toggleAssignUser(user.referralCode)
+                                  setSelectedReferralCode(user.referralCode)
                                 }
                               />
                               <span className="min-w-0 flex-1">
@@ -1252,14 +1164,10 @@ export function CouponsPanel() {
                 </button>
                 <button
                   type="submit"
-                  disabled={assigning || selectedReferralCodes.length === 0}
+                  disabled={assigning || !selectedReferralCode}
                   className="h-10 rounded-full bg-[#1f6b3a] px-4 text-sm font-semibold text-white hover:bg-[#185830] disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  {assigning
-                    ? "Assigning…"
-                    : selectedReferralCodes.length > 1
-                      ? `Assign to ${selectedReferralCodes.length}`
-                      : "Assign"}
+                  {assigning ? "Assigning…" : "Assign"}
                 </button>
               </div>
             </form>

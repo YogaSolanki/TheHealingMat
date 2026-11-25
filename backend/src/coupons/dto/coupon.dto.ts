@@ -1,7 +1,5 @@
 import { Type } from 'class-transformer';
 import {
-  ArrayMinSize,
-  IsArray,
   IsBoolean,
   IsDateString,
   IsIn,
@@ -96,32 +94,11 @@ export class CreateCouponDto {
 }
 
 export class AssignCouponDto {
-  /** Single member referral code (legacy). Prefer referralCodes for multi-assign. */
-  @IsOptional()
+  /** Member who owns this coupon for referral/milestone credit. */
   @IsString()
   @MinLength(3)
   @MaxLength(40)
-  referralCode?: string;
-
-  /** One or more member referral codes to receive personal single-use coupons. */
-  @IsOptional()
-  @IsArray()
-  @ArrayMinSize(1)
-  @IsString({ each: true })
-  @MinLength(3, { each: true })
-  @MaxLength(40, { each: true })
-  referralCodes?: string[];
-
-  /**
-   * When assigning to members, default to single-use (1) each.
-   * Pass a higher value only if a member may redeem more than once.
-   */
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100000)
-  maxUses?: number;
+  referralCode: string;
 }
 
 export class UpdateCouponDto {

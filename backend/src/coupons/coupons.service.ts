@@ -187,24 +187,30 @@ export class CouponsService implements OnModuleInit {
     return this.coupons.findOne({ where: { code: normalized } });
   }
 
-  /** Assigned coupons this member can still redeem. */
+  /**
+   * Coupons this member owns (admin-assigned). Shown so they can share the code.
+   * Ownership ≠ redeemability — others redeem; owner gets referral credit.
+   */
   async listMine(userId: string) {
     const rows = await this.coupons.find({
       where: { assignedUserId: userId },
       order: { createdAt: 'DESC' },
     });
-    const usable: Coupon[] = [];
-    for (const row of rows) {
-      try {
-        await this.assertRedeemable(row, userId);
-        usable.push(row);
-      } catch {
-        /* hide used / expired / exhausted from member wallet */
-      }
-    }
-    return usable.map((row) => this.toMemberCoupon(row));
+    const now = Date.now();
+    return rows
+      .filter((row) => {
+        if (!row.active) return false;
+        if (row.usageCount >= row.maxUses) return false;
+        if (row.expiresAt && row.expiresAt.getTime() <= now) return false;
+        return true;
+      })
+      .map((row) => this.toMemberCoupon(row));
   }
 
+  /**
+   * Assign coupon ownership to one member. Uses limit is unchanged —
+   * up to maxUses people can redeem; referral credit goes to the owner.
+   */
   async assign(id: string, dto: AssignCouponDto) {
     const coupon = await this.requireCoupon(id);
     if (coupon.usageCount > 0) {
@@ -218,110 +224,20 @@ export class CouponsService implements OnModuleInit {
       );
     }
 
-    const codes = [
-      ...(dto.referralCodes ?? []),
-      ...(dto.referralCode ? [dto.referralCode] : []),
-    ]
-      .map((code) => code.trim().toLowerCase())
-      .filter(Boolean);
-    const uniqueCodes = [...new Set(codes)];
-    if (uniqueCodes.length === 0) {
-      throw new BadRequestException('Select at least one member.');
+    const referralCode = dto.referralCode.trim().toLowerCase();
+    if (!referralCode) {
+      throw new BadRequestException('Referral code is required.');
     }
 
-    const assignLimit = Math.max(0, coupon.maxUses - coupon.usageCount);
-    if (assignLimit < 1) {
-      throw new BadRequestException(
-        'This coupon has no remaining uses to assign.',
-      );
-    }
-    if (uniqueCodes.length > assignLimit) {
-      throw new BadRequestException(
-        `This coupon allows only ${assignLimit} assignment${assignLimit === 1 ? '' : 's'} (max uses).`,
-      );
+    const user = await this.users.findOne({ where: { referralCode } });
+    if (!user) {
+      throw new NotFoundException('No member found with that referral code.');
     }
 
-    const members = await this.users.find({
-      where: { referralCode: In(uniqueCodes) },
-    });
-    if (members.length === 0) {
-      throw new NotFoundException('No members found for the selected codes.');
-    }
-    if (members.length !== uniqueCodes.length) {
-      throw new NotFoundException(
-        'One or more selected members could not be found.',
-      );
-    }
-
-    // Keep selection order stable for predictable first-assignee / clones.
-    const byCode = new Map(
-      members.map((user) => [user.referralCode.toLowerCase(), user]),
-    );
-    const ordered = uniqueCodes
-      .map((code) => byCode.get(code))
-      .filter((user): user is User => Boolean(user));
-
-    const maxUses = dto.maxUses ?? 1;
-    this.assertMaxUses(maxUses);
-
-    const [first, ...rest] = ordered;
-    coupon.assignedUserId = first.id;
-    coupon.assignedReferralCode = first.referralCode;
-    coupon.userName = first.fullName;
-    coupon.maxUses = maxUses;
-    const savedPrimary = await this.coupons.save(coupon);
-    const results = [this.toAdminCoupon(savedPrimary)];
-
-    for (const user of rest) {
-      const clone = await this.createPersonalClone(savedPrimary, user, maxUses);
-      results.push(this.toAdminCoupon(clone));
-    }
-
-    return {
-      ...results[0],
-      assignedCount: results.length,
-      assignedCoupons: results,
-    };
-  }
-
-  private async createPersonalClone(
-    source: Coupon,
-    user: User,
-    maxUses: number,
-  ) {
-    let code = this.buildCode(user.fullName, source.discountType, source.discountValue);
-    let attempts = 0;
-    while (await this.coupons.exists({ where: { code } })) {
-      attempts += 1;
-      if (attempts > 12) {
-        throw new ConflictException(
-          'Unable to generate a unique coupon for one of the members.',
-        );
-      }
-      code = this.buildCode(
-        user.fullName,
-        source.discountType,
-        source.discountValue,
-      );
-    }
-
-    const clone = this.coupons.create({
-      code,
-      userName: user.fullName,
-      discountType: source.discountType,
-      discountValue: source.discountValue,
-      discountLabel: source.discountLabel,
-      planMonths: source.planMonths,
-      maxUses,
-      usageCount: 0,
-      active: true,
-      expiresAt: source.expiresAt,
-      assignedUserId: user.id,
-      assignedReferralCode: user.referralCode,
-      allowedDomains: null,
-      corporatePlanId: null,
-    });
-    return this.coupons.save(clone);
+    coupon.assignedUserId = user.id;
+    coupon.assignedReferralCode = user.referralCode;
+    coupon.userName = user.fullName;
+    return this.toAdminCoupon(await this.coupons.save(coupon));
   }
 
   async update(id: string, dto: UpdateCouponDto) {
@@ -364,7 +280,6 @@ export class CouponsService implements OnModuleInit {
     if (!coupon.active) invalid();
     if (coupon.expiresAt && coupon.expiresAt.getTime() <= Date.now()) invalid();
     if (coupon.usageCount >= coupon.maxUses) invalid();
-    if (coupon.assignedUserId && coupon.assignedUserId !== userId) invalid();
 
     const domains = (coupon.allowedDomains ?? [])
       .map((d) => d.trim().toLowerCase())
@@ -491,7 +406,32 @@ export class CouponsService implements OnModuleInit {
       coupon.active = false;
     }
     await this.coupons.save(coupon);
+
+    // If this coupon is owned by a member and the buyer has no referrer yet,
+    // credit the owner as the referrer (milestone / rewards).
+    await this.attributeReferralFromAssignedCoupon(coupon, input.userId);
+
     return redemption;
+  }
+
+  /**
+   * Link buyer → coupon owner as referral only when buyer has no referrer yet.
+   * Does not overwrite an existing referral.
+   */
+  private async attributeReferralFromAssignedCoupon(
+    coupon: Coupon,
+    buyerUserId: string,
+  ) {
+    const ownerId = coupon.assignedUserId;
+    if (!ownerId || ownerId === buyerUserId) return;
+    if (this.isCorporateCoupon(coupon)) return;
+
+    const buyer = await this.users.findOne({ where: { id: buyerUserId } });
+    if (!buyer) return;
+    if (buyer.referredByUserId) return;
+
+    buyer.referredByUserId = ownerId;
+    await this.users.save(buyer);
   }
 
   async listRedemptionsForCoupon(couponId: string) {

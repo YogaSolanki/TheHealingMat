@@ -23,13 +23,15 @@ export class Coupon {
   userName: string;
 
   /**
-   * Member this coupon is locked to.
-   * null = open code anyone can redeem (up to maxUses).
+   * Member who owns this coupon for referral/milestone credit.
+   * null = open code with no owner attribution.
+   * Anyone including the owner can redeem up to maxUses; owner use counts
+   * toward the limit but does not create a self-referral.
    */
   @Column({ type: 'uuid', nullable: true })
   assignedUserId: string | null;
 
-  /** Snapshot of the assignee's referral code for admin display. */
+  /** Snapshot of the owner's referral code for admin display. */
   @Column({ type: 'varchar', nullable: true })
   assignedReferralCode: string | null;
 

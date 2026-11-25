@@ -1072,21 +1072,12 @@ export function createAdminCoupon(
   return authJson<AdminCoupon>("POST", "/admin/coupons", token, body);
 }
 
-export type AssignAdminCouponResult = AdminCoupon & {
-  assignedCount?: number;
-  assignedCoupons?: AdminCoupon[];
-};
-
 export function assignAdminCoupon(
   token: string,
   id: string,
-  body: {
-    referralCode?: string;
-    referralCodes?: string[];
-    maxUses?: number;
-  },
+  body: { referralCode: string },
 ) {
-  return authJson<AssignAdminCouponResult>(
+  return authJson<AdminCoupon>(
     "PATCH",
     `/admin/coupons/${id}/assign`,
     token,
