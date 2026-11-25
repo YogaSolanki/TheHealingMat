@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "About | The Healing Mat",
   description:
     "More than yoga. A simpler approach to everyday health. Meet the founders behind The Healing Mat and our philosophy of Health Without Drama.",
+  alternates: { canonical: "/about" },
 };
 
 export default function AboutPage() {

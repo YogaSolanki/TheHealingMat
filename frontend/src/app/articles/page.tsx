@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "Health Articles | The Healing Mat",
   description:
     "Practical health articles on sleep, stress, movement, breathing and everyday wellbeing.",
+  alternates: { canonical: "/articles" },
 };
 
 export const dynamic = "force-dynamic";

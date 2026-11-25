@@ -30,9 +30,13 @@ export async function generateMetadata({
     return {
       title: `${video.title} | The Healing Mat`,
       description: video.description,
+      alternates: { canonical: `/orientation/${slug}` },
     };
   } catch {
-    return { title: "Orientation | The Healing Mat" };
+    return {
+      title: "Orientation | The Healing Mat",
+      alternates: { canonical: `/orientation/${slug}` },
+    };
   }
 }
 

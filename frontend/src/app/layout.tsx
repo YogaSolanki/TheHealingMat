@@ -19,6 +19,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://thehealingmat.yoga"),
   title: "The Healing Mat | Daily Yoga for Better Health",
   description:
     "Simple Yoga. Consistent Guidance. Real Results Daily yoga sessions for all age groups and experience levels.",

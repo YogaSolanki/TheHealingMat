@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Privacy Policy | The Healing Mat",
   description:
     "How The Healing Mat collects, uses and protects your personal information when you use our website, Free Trial or membership.",
+  alternates: { canonical: "/privacy" },
 };
 
 export default function PrivacyPage() {

@@ -27,9 +27,13 @@ export async function generateMetadata({
     return {
       title: `${article.title} | The Healing Mat`,
       description: article.description,
+      alternates: { canonical: `/articles/${slug}` },
     };
   } catch {
-    return { title: "Article | The Healing Mat" };
+    return {
+      title: "Article | The Healing Mat",
+      alternates: { canonical: `/articles/${slug}` },
+    };
   }
 }
 

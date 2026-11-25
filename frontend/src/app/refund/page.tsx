@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Refund & Cancellation Policy | The Healing Mat",
   description:
     "How membership cancellation and refunds work at The Healing Mat, including the 3-day cancellation window and refund processing.",
+  alternates: { canonical: "/refund" },
 };
 
 export default function RefundPage() {

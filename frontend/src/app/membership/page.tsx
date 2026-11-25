@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Membership Plans | The Healing Mat",
   description:
     "Choose your membership duration — 3, 6, or 12 months. Daily yoga & wellness sessions with flexible timings.",
+  alternates: { canonical: "/membership" },
 };
 
 export default function MembershipPage() {

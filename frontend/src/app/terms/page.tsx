@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Terms & Conditions | The Healing Mat",
   description:
     "Terms and conditions governing your use of The Healing Mat website, account, Free Trial and paid membership.",
+  alternates: { canonical: "/terms" },
 };
 
 export default function TermsPage() {

@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Corporate Enquiry | The Healing Mat",
   description:
     "Tell us about your organisation and explore how The Healing Mat can support your employees with simple, guided workplace wellness.",
+  alternates: { canonical: "/corporate/enquiry" },
 };
 
 export default function CorporateEnquiryPage() {
