@@ -303,13 +303,13 @@ const sections: LegalDocumentSection[] = [
 export function HealthAndSafetyContent() {
   return (
     <LegalDocumentPage
-      title="Disclaimer"
+      title="Health & Safety"
       lastUpdated={LAST_UPDATED}
       intro={
         <p>
-          This Disclaimer explains important health, safety and wellness
-          information about participating in The Healing Mat sessions and using
-          our resources.
+          This Health &amp; Safety page explains important precautions and
+          wellness information about participating in The Healing Mat sessions
+          and using our resources.
         </p>
       }
       sections={sections}

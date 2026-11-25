@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { HealthAndSafetyContent } from "@/components/health-and-safety-content";
 
 export const metadata: Metadata = {
-  title: "Disclaimer | The Healing Mat",
+  title: "Health & Safety | The Healing Mat",
   description:
-    "Health, safety and wellness disclaimer for The Healing Mat online yoga classes and resources.",
+    "Health and safety guidance for The Healing Mat online yoga classes and resources, including important wellness precautions and disclaimers.",
   alternates: { canonical: "/health-and-safety" },
 };
 

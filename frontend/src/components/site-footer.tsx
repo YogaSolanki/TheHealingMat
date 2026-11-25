@@ -51,7 +51,7 @@ const legalLinks = [
   { href: "/refund", label: "Refund Policy" },
   { href: "/terms", label: "Terms & Conditions" },
   { href: "/cookies", label: "Cookie Policy" },
-  { href: "/health-and-safety", label: "Disclaimer" },
+  { href: "/health-and-safety", label: "Health & Safety" },
 ];
 
 const socialLinks: {
