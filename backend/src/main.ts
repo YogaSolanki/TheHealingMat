@@ -36,6 +36,11 @@ async function bootstrap() {
   });
   app.useStaticAssets(uploadsRoot, { prefix: '/uploads/' });
 
+  // API host must not be indexed (keeps GSC "blocked by robots.txt" intentional).
+  app.use('/robots.txt', (_req: Request, res: Response) => {
+    res.type('text/plain').send('User-agent: *\nDisallow: /\n');
+  });
+
   app.setGlobalPrefix('api');
   app.enableCors({
     origin: parseOrigins(
